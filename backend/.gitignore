@@ -36,7 +36,7 @@ target/
 *.class
 *.jar
 .env
-application-local.yml
+src/main/resources/application.yml
 .idea/
 *.iml
 .mvn/
