@@ -1,6 +1,7 @@
 package com.multi.finance.dto.request;
 
 import com.multi.finance.entity.User;
+import com.multi.finance.enums.UserRole;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -18,6 +19,6 @@ public class RegisterRequest {
     private String fullName;
 
     @NotNull
-    private User.Role role;
+    private UserRole role;
 
 }

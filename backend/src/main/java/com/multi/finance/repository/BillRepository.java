@@ -2,6 +2,8 @@ package com.multi.finance.repository;
 
 
 import com.multi.finance.entity.Bill;
+import com.multi.finance.enums.BillStatus;
+import com.multi.finance.enums.BusinessType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,15 +17,15 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findByBusinessAndStatus(String business, String status);
 
     List<Bill> findByBusinessAndBillDateAndStatusNot(
-            String business, LocalDate billDate, String status);
+            BusinessType business, LocalDate billDate, BillStatus status);
 
-    List<Bill> findByWorkerIdAndStatus(Long workerId, String status);
+    List<Bill> findByCurrentHolderIdAndStatus(Long workerId, String status);
 
-    List<Bill> findByBusiness(String business);
+    List<Bill> findByBusiness(BusinessType business);
 
     @Query("SELECT b FROM Bill b WHERE b.business = :business " + "AND b.billDate = :date " + "AND b.status NOT IN ('CONFIRMED', 'CANCELLED')")
     List<Bill> findUnconfirmedByBusinessAndDate(
-            @Param("business") String business,
+            @Param("business") BusinessType business,
             @Param("date") LocalDate date);
 
     List<Bill> findByBusinessAndBillDateBetween(

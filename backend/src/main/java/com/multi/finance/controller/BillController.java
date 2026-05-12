@@ -4,6 +4,7 @@ package com.multi.finance.controller;
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.response.BillResponse;
+import com.multi.finance.enums.BusinessType;
 import com.multi.finance.service.impl.BillServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,22 +31,22 @@ public class BillController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getAllBills(
-            @RequestParam(required = false) String business
+            @RequestParam(required = false) BusinessType business
     ) {
-        return ResponseEntity.ok(billService.getTodaysBills(business));
+        return ResponseEntity.ok(billService.getAllBills(business));
     }
 
     @GetMapping("/today/{business}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getTodaysBills(
-            @PathVariable String business) {
+            @PathVariable BusinessType business) {
         return ResponseEntity.ok(billService.getTodaysBills(business));
     }
 
     @GetMapping("/unconfirmed/{business}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     public ResponseEntity<List<BillResponse>> getUnconfirmedBills(
-            @PathVariable String business) {
+            @PathVariable BusinessType business) {
         return ResponseEntity.ok(billService.getUnconfirmedBills(business));
     }
 

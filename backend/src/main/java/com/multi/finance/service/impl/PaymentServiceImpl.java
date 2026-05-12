@@ -6,6 +6,8 @@ import com.multi.finance.dto.response.PaymentResponse;
 import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.Payment;
 import com.multi.finance.entity.User;
+import com.multi.finance.enums.BillStatus;
+import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.PaymentRepository;
 import jakarta.transaction.Transactional;
@@ -43,7 +45,7 @@ public class PaymentServiceImpl {
                 .bill(bill)
                 .amount(request.getAmount())
                 .paymentType(request.getPaymentType())
-                .status("PENDING_CONFIRMATION")
+                .status(PaymentStatus.RECEIVED)
                 .enteredBy(getCurrentUser())
                 .paymentDate(request.getPaymentDate() != null ? request.getPaymentDate() : LocalDate.now())
                 .notes(request.getNotes())
@@ -61,14 +63,14 @@ public class PaymentServiceImpl {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
 
-        if (!payment.getStatus().equals("PENDING_CONFIRMATION")) {
+        if (!payment.getStatus().equals(PaymentStatus.CONFIRMED)) {
             throw new RuntimeException("Payment is already confirmed");
         }
 
         Bill bill = payment.getBill();
 
         // Update payment
-        payment.setStatus("CONFIRMED");
+        payment.setStatus(PaymentStatus.CONFIRMED);
         payment.setConfirmedBy(getCurrentUser());
         payment.setConfirmedAt(LocalDateTime.now());
         payment.setUpdatedAt(LocalDateTime.now());
@@ -83,7 +85,7 @@ public class PaymentServiceImpl {
         bill.setBalanceRemaining(newBalance.max(BigDecimal.ZERO));
         bill.setFullyPaid(fullyPaid);
         if (fullyPaid) {
-            bill.setStatus("CONFIRMED");
+            bill.setStatus(BillStatus.CONFIRMED);
             bill.setConfirmedBy(getCurrentUser());
             bill.setConfirmedAt(LocalDateTime.now());
         }

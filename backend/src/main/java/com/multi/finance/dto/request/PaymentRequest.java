@@ -1,5 +1,6 @@
 package com.multi.finance.dto.request;
 
+import com.multi.finance.enums.PaymentType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,7 +20,7 @@ public class PaymentRequest {
     private BigDecimal amount;
 
     @NotBlank(message = "Payment type is required")
-    private String paymentType;
+    private PaymentType paymentType;
 
     private LocalDate paymentDate;
     private String notes;

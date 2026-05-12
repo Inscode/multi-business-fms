@@ -3,6 +3,7 @@ package com.multi.finance.controller;
 
 import com.multi.finance.dto.request.WorkerRequest;
 import com.multi.finance.dto.response.WorkerResponse;
+import com.multi.finance.enums.WorkerType;
 import com.multi.finance.service.impl.WorkerServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +40,7 @@ public class WorkerController {
     @GetMapping("/worker-type/{workerType}")
     @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','OWNER')")
     public ResponseEntity<List<WorkerResponse>> getWorkersByWorkerType(
-            @PathVariable String workerType
+            @PathVariable WorkerType workerType
     ) {
         return ResponseEntity.ok(workerService.getWorkersByWorkerType(workerType));
     }

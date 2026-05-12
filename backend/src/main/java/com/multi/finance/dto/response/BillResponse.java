@@ -1,6 +1,10 @@
 package com.multi.finance.dto.response;
 
 
+import com.multi.finance.enums.BillSource;
+import com.multi.finance.enums.BillStatus;
+import com.multi.finance.enums.BillType;
+import com.multi.finance.enums.BusinessType;
 import lombok.Builder;
 import lombok.Data;
 
@@ -13,13 +17,13 @@ import java.time.LocalDateTime;
 public class BillResponse {
     private Long id;
     private String billNumber;
-    private String business;
+    private BusinessType business;
     private String division;
-    private String billType;
-    private String billSource;
+    private BillType billType;
+    private BillSource billSource;
     private String customerName;
     private BigDecimal totalAmount;
-    private String status;
+    private BillStatus status;
     private Long workerId;
     private String workerName;
     private String enteredByName;

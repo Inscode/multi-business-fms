@@ -1,5 +1,7 @@
 package com.multi.finance.entity;
 
+import com.multi.finance.enums.PaymentStatus;
+import com.multi.finance.enums.PaymentType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Fetch;
@@ -27,11 +29,13 @@ public class Payment {
     @Column(nullable = false)
     private BigDecimal amount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_type", nullable = false)
-    private String paymentType;
+    private PaymentType paymentType;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private PaymentStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by", nullable = false)
@@ -48,6 +52,9 @@ public class Payment {
     private LocalDate paymentDate;
 
     private String notes;
+
+    @Column(name = "is_partial", nullable = false)
+    private Boolean partialPayment;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

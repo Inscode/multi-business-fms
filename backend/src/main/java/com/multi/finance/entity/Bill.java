@@ -1,5 +1,9 @@
 package com.multi.finance.entity;
 
+import com.multi.finance.enums.BillSource;
+import com.multi.finance.enums.BillStatus;
+import com.multi.finance.enums.BillType;
+import com.multi.finance.enums.BusinessType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,17 +30,20 @@ public class Bill {
     @Column(name = "bill_number")
     private String billNumber;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "business", nullable = false)
-    private String business;
+    private BusinessType business;
 
     @Column(name = "division", nullable = false)
     private String division;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "bill_type", nullable = false)
-    private String billType;
+    private BillType billType;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "bill_source", nullable = false)
-    private String billSource;
+    private BillSource billSource;
 
     @Column(name = "customer_name", nullable = false)
     private String customerName;
@@ -44,12 +51,13 @@ public class Bill {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BillStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "worker_id")
-    private Worker worker;
+    @JoinColumn(name = "current_holder_id")
+    private Worker currentHolder;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by", nullable = false)

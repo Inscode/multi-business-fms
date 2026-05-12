@@ -4,6 +4,7 @@ package com.multi.finance.service.impl;
 import com.multi.finance.dto.request.WorkerRequest;
 import com.multi.finance.dto.response.WorkerResponse;
 import com.multi.finance.entity.Worker;
+import com.multi.finance.enums.WorkerType;
 import com.multi.finance.repository.WorkerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,7 @@ public class WorkerServiceImpl {
                 .toList();
     }
 
-    public List<WorkerResponse> getWorkersByWorkerType(String workerType) {
+    public List<WorkerResponse> getWorkersByWorkerType(WorkerType workerType) {
         return workerRepository.findByWorkerType(workerType)
                 .stream()
                 .map(this::toResponse)

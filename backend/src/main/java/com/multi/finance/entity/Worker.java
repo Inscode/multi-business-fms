@@ -1,5 +1,6 @@
 package com.multi.finance.entity;
 
+import com.multi.finance.enums.WorkerType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,8 +26,9 @@ public class Worker {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "worker_type", nullable = false)
-    private String workerType;
+    private WorkerType workerType;
 
     @Column(name = "base_salary", nullable = false)
     private BigDecimal baseSalary;
