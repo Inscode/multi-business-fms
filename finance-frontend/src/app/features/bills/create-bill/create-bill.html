@@ -1,0 +1,126 @@
+<div class="page">
+  <div class="page-header">
+    <button mat-icon-button (click)="cancel()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div>
+      <h1 class="page-title">Create Bill</h1>
+      <p class="page-sub">Fill in the details below</p>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Business</mat-label>
+          <mat-select formControlName="business">
+            <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('business')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Division</mat-label>
+          <mat-select formControlName="division">
+            <mat-option *ngFor="let d of divisions" [value]="d">{{ d }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('division')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Bill Type</mat-label>
+          <mat-select formControlName="billType">
+            <mat-option *ngFor="let t of billTypes" [value]="t">{{ t }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('billType')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Bill Source</mat-label>
+          <mat-select formControlName="billSource">
+            <mat-option *ngFor="let s of billSources" [value]="s">{{ s }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('billSource')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row" *ngIf="!isDraft">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Bill Number</mat-label>
+          <input
+            matInput
+            formControlName="billNumber"
+            placeholder="Enter bill number from bill book or system"
+          />
+          <mat-error *ngIf="form.get('billNumber')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="draft-notice" *ngIf="isDraft">
+        <mat-icon>info_outline</mat-icon>
+        <span>Bill number will be auto-generated (DFT-XXXX)</span>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Customer Name</mat-label>
+          <input matInput formControlName="customerName" />
+          <mat-error *ngIf="form.get('customerName')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Total Amount (Rs)</mat-label>
+          <input matInput type="number" formControlName="totalAmount" />
+          <mat-error *ngIf="form.get('totalAmount')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('totalAmount')?.hasError('min')"
+            >Must be greater than 0</mat-error
+          >
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Bill Date</mat-label>
+          <input matInput [matDatepicker]="picker" formControlName="billDate" />
+          <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Assign to Worker (optional)</mat-label>
+          <mat-select formControlName="workerId">
+            <mat-option [value]="null">— None —</mat-option>
+            <mat-option *ngFor="let w of workers" [value]="w.id">
+              {{ w.fullName }} · {{ w.workerType }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Notes (optional)</mat-label>
+          <textarea matInput formControlName="notes" rows="3"></textarea>
+        </mat-form-field>
+      </div>
+
+      <div class="error-msg" *ngIf="errorMsg">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ errorMsg }}</span>
+      </div>
+
+      <div class="form-actions">
+        <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="loading">
+          <mat-spinner diameter="18" *ngIf="loading"></mat-spinner>
+          <span *ngIf="!loading">Create Bill</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

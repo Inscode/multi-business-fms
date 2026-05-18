@@ -1,0 +1,103 @@
+.navbar {
+  height: 56px;
+  background: #fff;
+  border-bottom: 0.5px solid #e0e6ed;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #607d8b;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f5f7fa;
+  }
+  mat-icon {
+    font-size: 20px;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f5f7fa;
+  }
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #1976d2;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+
+  .user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+  .user-role {
+    font-size: 11px;
+    color: #607d8b;
+    text-transform: capitalize;
+  }
+}
+
+.chevron {
+  font-size: 18px;
+  color: #607d8b;
+}
+
+.menu-header {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .menu-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+  .menu-username {
+    font-size: 12px;
+    color: #607d8b;
+  }
+}
