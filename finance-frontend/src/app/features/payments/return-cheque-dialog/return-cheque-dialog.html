@@ -1,0 +1,50 @@
+<div class="dialog">
+
+  <div class="dialog-header">
+    <div class="dialog-icon">
+      <mat-icon>undo</mat-icon>
+    </div>
+    <div>
+      <h2 class="dialog-title">Mark Cheque Returned</h2>
+      <p class="dialog-sub">Bill {{ data.billNumber }}</p>
+    </div>
+  </div>
+
+  <div class="dialog-warning">
+    <mat-icon>warning_amber</mat-icon>
+    <span>This will reverse the payment and restore the bill balance.</span>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Return Reason</mat-label>
+      <textarea matInput formControlName="returnReason"
+                rows="3"
+                placeholder="e.g. Cheque bounced — insufficient funds"></textarea>
+      <mat-error *ngIf="form.get('returnReason')?.hasError('required')">
+        Reason is required
+      </mat-error>
+      <mat-error *ngIf="form.get('returnReason')?.hasError('minlength')">
+        Must be at least 5 characters
+      </mat-error>
+    </mat-form-field>
+
+    <div class="error-msg" *ngIf="errorMsg">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMsg }}</span>
+    </div>
+
+    <div class="dialog-actions">
+      <button mat-stroked-button type="button" (click)="cancel()">
+        Cancel
+      </button>
+      <button mat-flat-button color="warn" type="submit" [disabled]="loading">
+        <mat-spinner diameter="18" *ngIf="loading"></mat-spinner>
+        <span *ngIf="!loading">Confirm Return</span>
+      </button>
+    </div>
+
+  </form>
+
+</div>

@@ -1,5 +1,8 @@
 package com.multi.finance.dto.request;
 
+import com.multi.finance.enums.BillSource;
+import com.multi.finance.enums.BillType;
+import com.multi.finance.enums.BusinessType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,17 +14,17 @@ import java.time.LocalDate;
 @Data
 public class BillRequest {
 
-    @NotBlank(message = "Business is required")
-    private String business;
+    @NotNull(message = "Business is required")
+    private BusinessType business;
 
     @NotBlank(message = "Division is required")
     private String division;
 
-    @NotBlank(message = "Bill type is required")
-    private String billType;
+    @NotNull(message = "Bill type is required")
+    private BillType billType;
 
-    @NotBlank(message = "Bill source is required")
-    private String billSource;
+    @NotNull(message = "Bill source is required")
+    private BillSource billSource;
 
     private String billNumber;
 

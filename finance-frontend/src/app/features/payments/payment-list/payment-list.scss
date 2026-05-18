@@ -1,0 +1,114 @@
+.page {
+  max-width: 1200px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  .page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 0;
+  }
+  .page-sub {
+    font-size: 13px;
+    color: #607d8b;
+    margin: 2px 0 0;
+  }
+  a {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.filters {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  .filter-field {
+    width: 200px;
+  }
+}
+
+.table-card {
+  box-shadow: none !important;
+  border: 0.5px solid #e0e6ed !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  min-height: 200px;
+  position: relative;
+}
+
+.partial-tag {
+  display: inline-block;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fff3e0;
+  color: #e65100;
+  margin-left: 6px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  &-entered {
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+  &-confirmed {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+  &-rejected {
+    background: #ffebee;
+    color: #c62828;
+  }
+  &-returned {
+    background: #fff3e0;
+    color: #e65100;
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  color: #607d8b;
+  mat-icon {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
+    margin-bottom: 8px;
+  }
+  p {
+    font-size: 14px;
+  }
+}
+
+.loading-state {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
+
+.error-state {
+  text-align: center;
+  padding: 40px;
+  color: #607d8b;
+  p {
+    margin-bottom: 16px;
+  }
+}

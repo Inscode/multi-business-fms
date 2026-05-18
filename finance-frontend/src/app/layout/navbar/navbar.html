@@ -1,0 +1,30 @@
+<header class="navbar">
+  <button class="toggle-btn" (click)="onToggle()" aria-label="Toggle sidebar">
+    <mat-icon>menu</mat-icon>
+  </button>
+
+  <div class="spacer"></div>
+
+  <div class="user-area" [matMenuTriggerFor]="userMenu">
+    <div class="avatar">
+      {{ currentUser?.fullName?.charAt(0) ?? 'U' }}
+    </div>
+    <div class="user-info">
+      <span class="user-name">{{ currentUser?.fullName ?? 'User' }}</span>
+      <span class="user-role">{{ currentUser?.role }}</span>
+    </div>
+    <mat-icon class="chevron">expand_more</mat-icon>
+  </div>
+
+  <mat-menu #userMenu="matMenu" xPosition="before">
+    <div class="menu-header">
+      <span class="menu-name">{{ currentUser?.fullName }}</span>
+      <span class="menu-username">{{ currentUser?.username }}</span>
+    </div>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="logout()">
+      <mat-icon>logout</mat-icon>
+      <span>Logout</span>
+    </button>
+  </mat-menu>
+</header>

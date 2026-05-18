@@ -1,6 +1,7 @@
 package com.multi.finance.entity;
 
 
+import com.multi.finance.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,7 +38,7 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
-    private Role role;
+    private UserRole role;
 
     @Column(nullable = false)
     private Boolean active;
@@ -47,11 +48,6 @@ public class User implements UserDetails {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-
-    public enum Role {
-        ADMIN, OWNER, ACCOUNTANT
-    }
 
 
     @Override

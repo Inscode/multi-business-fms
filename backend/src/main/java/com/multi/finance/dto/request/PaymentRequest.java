@@ -1,7 +1,7 @@
 package com.multi.finance.dto.request;
 
+import com.multi.finance.enums.PaymentType;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -11,16 +11,27 @@ import java.time.LocalDate;
 @Data
 public class PaymentRequest {
 
-    @NotNull(message = "Bill Id is required")
-    private Long billId;
-
     @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
+    @DecimalMin(
+            value = "0.01",
+            message = "Amount must be greater than zero"
+    )
     private BigDecimal amount;
 
-    @NotBlank(message = "Payment type is required")
-    private String paymentType;
+    @NotNull(message = "Payment type is required")
+    private PaymentType paymentType;
+
+    private String referenceNumber;
+
+    private String bankName;
+
+    private String branchName;
+
+    private String chequeNumber;
+
+    private LocalDate chequeDate;
 
     private LocalDate paymentDate;
+
     private String notes;
 }

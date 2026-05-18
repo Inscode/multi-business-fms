@@ -1,0 +1,165 @@
+<div class="page">
+  <div class="page-header">
+    <button mat-icon-button (click)="cancel()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div>
+      <h1 class="page-title">{{ isEditing ? 'Edit Payment' : 'Enter Payment' }}</h1>
+      <p class="page-sub">{{ isEditing ? 'Update payment details' : 'Record a new payment' }}</p>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <!-- bill selection — hidden when editing -->
+      <ng-container *ngIf="!isEditing">
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="field">
+            <mat-label>Filter by Business</mat-label>
+            <mat-select
+              [(ngModel)]="filterBusiness"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onBusinessFilterChange()"
+            >
+              <mat-option value="">All</mat-option>
+              <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="field-full">
+            <mat-label>Select Bill</mat-label>
+            <mat-select
+              [ngModelOptions]="{ standalone: true }"
+              [(ngModel)]="selectedBill"
+              (ngModelChange)="onBillSelect($event)"
+            >
+              <mat-option *ngFor="let b of bills" [value]="b">
+                {{ b.billNumber }} — {{ b.customerName }} (Rs
+                {{ b.balanceRemaining | number }} remaining)
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="bill-info" *ngIf="selectedBill">
+          <div class="bill-info-row">
+            <span class="label">Total</span>
+            <span class="value">Rs {{ selectedBill.totalAmount | number }}</span>
+          </div>
+          <div class="bill-info-row">
+            <span class="label">Paid</span>
+            <span class="value">Rs {{ selectedBill.amountPaid | number }}</span>
+          </div>
+          <div class="bill-info-row">
+            <span class="label">Balance</span>
+            <span class="value accent">Rs {{ selectedBill.balanceRemaining | number }}</span>
+          </div>
+        </div>
+      </ng-container>
+
+      <div class="section-divider" *ngIf="!isEditing && selectedBill">Payment Details</div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Payment Type</mat-label>
+          <mat-select formControlName="paymentType">
+            <mat-option *ngFor="let t of paymentTypes" [value]="t">{{ t }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('paymentType')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Amount (Rs)</mat-label>
+          <input matInput type="number" formControlName="amount" />
+          <mat-error *ngIf="form.get('amount')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('amount')?.hasError('max')">
+            Exceeds balance remaining
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Payment Date</mat-label>
+          <input matInput [matDatepicker]="picker" formControlName="paymentDate" />
+          <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+        </mat-form-field>
+      </div>
+
+      <!-- cheque fields -->
+      <ng-container *ngIf="isCheque">
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="field">
+            <mat-label>Cheque Number</mat-label>
+            <input matInput formControlName="chequeNumber" />
+            <mat-error *ngIf="form.get('chequeNumber')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="field">
+            <mat-label>Cheque Date</mat-label>
+            <input matInput [matDatepicker]="chequePicker" formControlName="chequeDate" />
+            <mat-datepicker-toggle matSuffix [for]="chequePicker"></mat-datepicker-toggle>
+            <mat-datepicker #chequePicker></mat-datepicker>
+            <mat-error *ngIf="form.get('chequeDate')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="field">
+            <mat-label>Bank Name</mat-label>
+            <input matInput formControlName="bankName" />
+            <mat-error *ngIf="form.get('bankName')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="field">
+            <mat-label>Branch Name</mat-label>
+            <input matInput formControlName="branchName" />
+            <mat-error *ngIf="form.get('branchName')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+        </div>
+      </ng-container>
+
+      <!-- bank transfer fields -->
+      <ng-container *ngIf="isBankTransfer">
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="field">
+            <mat-label>Reference Number</mat-label>
+            <input matInput formControlName="referenceNumber" />
+            <mat-error *ngIf="form.get('referenceNumber')?.hasError('required')"
+              >Required</mat-error
+            >
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="field">
+            <mat-label>Bank Name</mat-label>
+            <input matInput formControlName="bankName" />
+            <mat-error *ngIf="form.get('bankName')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+        </div>
+      </ng-container>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Notes (optional)</mat-label>
+          <textarea matInput formControlName="notes" rows="2"></textarea>
+        </mat-form-field>
+      </div>
+
+      <div class="error-msg" *ngIf="errorMsg">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ errorMsg }}</span>
+      </div>
+
+      <div class="form-actions">
+        <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="loading">
+          <mat-spinner diameter="18" *ngIf="loading"></mat-spinner>
+          <span *ngIf="!loading">{{ isEditing ? 'Update Payment' : 'Save Payment' }}</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

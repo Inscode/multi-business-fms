@@ -1,0 +1,107 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Payments</h1>
+      <p class="page-sub">Track all payment records</p>
+    </div>
+    <a mat-flat-button color="primary" routerLink="/payments/enter">
+      <mat-icon>add</mat-icon> Enter Payment
+    </a>
+  </div>
+
+  <div class="filters">
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Status</mat-label>
+      <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
+        <mat-option value="">All</mat-option>
+        <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <ng-container *ngIf="!error; else errorBlock">
+    <mat-card class="table-card">
+      <table mat-table [dataSource]="payments">
+        <ng-container matColumnDef="billNumber">
+          <th mat-header-cell *matHeaderCellDef>Bill No.</th>
+          <td mat-cell *matCellDef="let p">{{ p.billNumber }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="customerName">
+          <th mat-header-cell *matHeaderCellDef>Customer</th>
+          <td mat-cell *matCellDef="let p">{{ p.customerName }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="amount">
+          <th mat-header-cell *matHeaderCellDef>Amount</th>
+          <td mat-cell *matCellDef="let p">
+            Rs {{ p.paymentAmount | number }}
+            <span class="partial-tag" *ngIf="p.isPartial">partial</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="type">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let p">{{ p.paymentType }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="enteredBy">
+          <th mat-header-cell *matHeaderCellDef>Entered By</th>
+          <td mat-cell *matCellDef="let p">{{ p.enteredByName }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="date">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let p">{{ p.paymentDate | date: 'dd MMM yyyy' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let p">
+            <span class="badge badge-{{ p.status | lowercase }}">{{ p.status }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let p">
+            <ng-container *ngIf="hasActions(p)">
+              <button mat-icon-button [matMenuTriggerFor]="menu">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item *ngIf="canEdit(p)" (click)="editPayment(p)">
+                  <mat-icon>edit</mat-icon>
+                  <span>Edit</span>
+                </button>
+                <button mat-menu-item *ngIf="canReturn(p)" (click)="returnCheque(p)">
+                  <mat-icon>undo</mat-icon>
+                  <span>Mark Cheque Returned</span>
+                </button>
+              </mat-menu>
+            </ng-container>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+
+      <div class="empty-state" *ngIf="!loading && payments.length === 0">
+        <mat-icon>payments</mat-icon>
+        <p>No payments found</p>
+      </div>
+
+      <div class="loading-state" *ngIf="loading">
+        <mat-spinner diameter="32"></mat-spinner>
+      </div>
+    </mat-card>
+  </ng-container>
+
+  <ng-template #errorBlock>
+    <div class="error-state">
+      <p>Failed to load payments.</p>
+      <button mat-stroked-button (click)="load()">Retry</button>
+    </div>
+  </ng-template>
+</div>

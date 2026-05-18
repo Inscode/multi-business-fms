@@ -1,5 +1,6 @@
 package com.multi.finance.dto.response;
 
+import com.multi.finance.enums.WorkerType;
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 public class WorkerResponse {
     private Long id;
     private String fullName;
-    private String workerType;
+    private WorkerType workerType;
     private BigDecimal baseSalary;
     private Boolean active;
     private LocalDate joinedDate;

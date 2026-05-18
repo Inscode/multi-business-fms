@@ -25,6 +25,7 @@ public class UserServiceImpl {
         }
         User user = User.builder()
                 .username(request.getUsername())
+                .fullName(request.getFullName())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .active(true)

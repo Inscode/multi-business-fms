@@ -1,0 +1,206 @@
+.page {
+  max-width: 1000px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  .page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 0;
+  }
+  .page-sub {
+    font-size: 13px;
+    color: #607d8b;
+    margin: 2px 0 0;
+  }
+}
+
+.actions-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.info-card {
+  box-shadow: none !important;
+  border: 0.5px solid #e0e6ed !important;
+  border-radius: 10px !important;
+  padding: 16px 20px !important;
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+  }
+}
+
+.info-rows {
+  margin-top: 12px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 0.5px solid #f5f7fa;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .label {
+    font-size: 12px;
+    color: #607d8b;
+  }
+  .value {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a1a2e;
+  }
+
+  .paid {
+    color: #2e7d32;
+  }
+  .zero {
+    color: #2e7d32;
+    font-weight: 600;
+  }
+  .outstanding {
+    color: #c62828;
+    font-weight: 600;
+  }
+}
+
+.section-header {
+  margin-bottom: 12px;
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+}
+
+.table-card {
+  box-shadow: none !important;
+  border: 0.5px solid #e0e6ed !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  min-height: 100px;
+}
+
+.partial-tag {
+  display: inline-block;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fff3e0;
+  color: #e65100;
+  margin-left: 6px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  &-created {
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+  &-assigned {
+    background: #fff3e0;
+    color: #e65100;
+  }
+  &-shop_worker_assigned {
+    background: #f3e5f5;
+    color: #6a1b9a;
+  }
+  &-shop_received {
+    background: #e8eaf6;
+    color: #283593;
+  }
+  &-store_received {
+    background: #e0f2f1;
+    color: #00695c;
+  }
+  &-completed {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+  &-cancelled {
+    background: #ffebee;
+    color: #c62828;
+  }
+  &-entered {
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+  &-confirmed {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+  &-returned {
+    background: #fff3e0;
+    color: #e65100;
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px;
+  color: #607d8b;
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 8px;
+  }
+  p {
+    font-size: 13px;
+  }
+}
+
+.loading-state {
+  display: flex;
+  justify-content: center;
+  padding: 32px;
+}
+
+.error-state {
+  text-align: center;
+  padding: 40px;
+  color: #607d8b;
+  p {
+    margin-bottom: 16px;
+  }
+}

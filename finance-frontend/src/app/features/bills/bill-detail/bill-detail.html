@@ -1,0 +1,187 @@
+<div class="page">
+  <div class="page-header">
+    <button mat-icon-button (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div>
+      <h1 class="page-title">{{ bill?.billNumber ?? 'Bill Detail' }}</h1>
+      <p class="page-sub">{{ bill?.customerName }}</p>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>Failed to load bill.</p>
+    <button mat-stroked-button (click)="load(bill?.id ?? 0)">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error && bill">
+    <!-- actions bar -->
+    <div class="actions-bar">
+      <button mat-stroked-button *ngIf="canMarkReceived" (click)="markReceived()">
+        <mat-icon>check_circle</mat-icon>
+        Mark Store Received
+      </button>
+
+      <button mat-stroked-button *ngIf="canAssign" [matMenuTriggerFor]="assignMenu">
+        <mat-icon>person_add</mat-icon>
+        {{ bill.status === 'ASSIGNED' ? 'Reassign' : 'Assign' }}
+      </button>
+      <mat-menu #assignMenu="matMenu">
+        <button mat-menu-item *ngFor="let w of workers" (click)="assignBill(w.id)">
+          {{ w.fullName }} · {{ w.workerType }}
+        </button>
+      </mat-menu>
+
+      <button mat-flat-button color="primary" *ngIf="canEnterPayment" (click)="enterPayment()">
+        <mat-icon>add</mat-icon>
+        Enter Payment
+      </button>
+    </div>
+
+    <!-- bill overview -->
+    <div class="card-grid">
+      <mat-card class="info-card">
+        <div class="card-title">Bill Information</div>
+        <mat-divider></mat-divider>
+        <div class="info-rows">
+          <div class="info-row">
+            <span class="label">Bill Number</span>
+            <span class="value">{{ bill.billNumber }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Business</span>
+            <span class="value">{{ bill.business }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Division</span>
+            <span class="value">{{ bill.division }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Bill Type</span>
+            <span class="value">{{ bill.billType }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Bill Source</span>
+            <span class="value">{{ bill.billSource }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Bill Date</span>
+            <span class="value">{{ bill.billDate | date: 'dd MMM yyyy' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Entered By</span>
+            <span class="value">{{ bill.enteredByName }}</span>
+          </div>
+          <div class="info-row" *ngIf="bill.notes">
+            <span class="label">Notes</span>
+            <span class="value">{{ bill.notes }}</span>
+          </div>
+        </div>
+      </mat-card>
+
+      <mat-card class="info-card">
+        <div class="card-title">Financial Summary</div>
+        <mat-divider></mat-divider>
+        <div class="info-rows">
+          <div class="info-row">
+            <span class="label">Total Amount</span>
+            <span class="value">Rs {{ bill.totalAmount | number }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Amount Paid</span>
+            <span class="value paid">Rs {{ bill.amountPaid | number }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Balance Remaining</span>
+            <span
+              class="value"
+              [class.zero]="bill.balanceRemaining === 0"
+              [class.outstanding]="bill.balanceRemaining > 0"
+            >
+              Rs {{ bill.balanceRemaining | number }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="label">Status</span>
+            <span class="badge badge-{{ bill.status | lowercase }}">
+              {{ bill.status }}
+            </span>
+          </div>
+          <div class="info-row" *ngIf="bill.workerName">
+            <span class="label">Current Holder</span>
+            <span class="value">{{ bill.workerName }}</span>
+          </div>
+          <div class="info-row" *ngIf="bill.receivedByName">
+            <span class="label">Received By</span>
+            <span class="value">{{ bill.receivedByName }}</span>
+          </div>
+          <div class="info-row" *ngIf="bill.receivedAt">
+            <span class="label">Received At</span>
+            <span class="value">
+              {{ bill.receivedAt | date: 'dd MMM yyyy, h:mm a' }}
+            </span>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- payment history -->
+    <div class="section-header">
+      <span class="section-title">Payment History</span>
+    </div>
+
+    <mat-card class="table-card">
+      <div class="loading-state" *ngIf="paymentsLoading">
+        <mat-spinner diameter="28"></mat-spinner>
+      </div>
+
+      <table mat-table [dataSource]="payments" *ngIf="!paymentsLoading">
+        <ng-container matColumnDef="paymentDate">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let p">
+            {{ p.paymentDate | date: 'dd MMM yyyy' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="amount">
+          <th mat-header-cell *matHeaderCellDef>Amount</th>
+          <td mat-cell *matCellDef="let p">
+            Rs {{ p.paymentAmount | number }}
+            <span class="partial-tag" *ngIf="p.isPartial">partial</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="type">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let p">{{ p.paymentType }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let p">
+            <span class="badge badge-{{ p.status | lowercase }}">
+              {{ p.status }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="enteredBy">
+          <th mat-header-cell *matHeaderCellDef>Entered By</th>
+          <td mat-cell *matCellDef="let p">{{ p.enteredByName }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="paymentColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: paymentColumns"></tr>
+      </table>
+
+      <div class="empty-state" *ngIf="!paymentsLoading && payments.length === 0">
+        <mat-icon>receipt</mat-icon>
+        <p>No payments recorded yet</p>
+      </div>
+    </mat-card>
+  </ng-container>
+</div>

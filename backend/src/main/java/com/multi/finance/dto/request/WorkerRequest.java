@@ -1,6 +1,7 @@
 package com.multi.finance.dto.request;
 
 
+import com.multi.finance.enums.WorkerType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -13,8 +14,8 @@ public class WorkerRequest {
     @NotBlank(message = "Full name is required")
     private String fullName;
 
-    @NotBlank(message = "Worker type is required")
-    private String workerType;
+    @NotNull(message = "Worker type is required")
+    private WorkerType workerType;
 
 
     @NotNull(message = "Base salary is required")
