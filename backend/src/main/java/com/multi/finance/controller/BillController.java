@@ -4,6 +4,9 @@ package com.multi.finance.controller;
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.response.BillResponse;
+import com.multi.finance.dto.response.DashboardResponse;
+import com.multi.finance.dto.response.DashboardStatsResponse;
+import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.service.impl.BillServiceImpl;
 import jakarta.validation.Valid;
@@ -17,7 +20,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/bills")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class BillController {
     private final BillServiceImpl billService;
 
@@ -31,10 +33,11 @@ public class BillController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getAllBills(
-            @RequestParam(required = false) BusinessType business
-    ) {
-        return ResponseEntity.ok(billService.getAllBills(business));
+            @RequestParam(required = false) BusinessType business,
+            @RequestParam(required = false) BillStatus status) {
+        return ResponseEntity.ok(billService.getAllBills(business, status));
     }
+
 
     @GetMapping("/today/{business}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT')")
@@ -64,11 +67,10 @@ public class BillController {
         return ResponseEntity.ok(billService.markReceived(id));
     }
 
-    @PatchMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
-    public ResponseEntity<BillResponse> confirmBill(@PathVariable Long id) {
-        return ResponseEntity.ok(billService.confirmBill(id));
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT')")
+    public ResponseEntity<BillResponse> getBillById(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.getBillById(id));
     }
-
 
 }

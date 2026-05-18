@@ -4,7 +4,6 @@ import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.enums.PaymentType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Fetch;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,6 +36,21 @@ public class Payment {
     @Column(nullable = false)
     private PaymentStatus status;
 
+    @Column(name = "reference_number")
+    private String referenceNumber;
+
+    @Column(name = "bank_name")
+    private String bankName;
+
+    @Column(name = "branch_name")
+    private String branchName;
+
+    @Column(name = "cheque_number")
+    private String chequeNumber;
+
+    @Column(name = "cheque_date")
+    private LocalDate chequeDate;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by", nullable = false)
     private User enteredBy;
@@ -54,9 +68,12 @@ public class Payment {
     private String notes;
 
     @Column(name = "is_partial", nullable = false)
-    private Boolean partialPayment;
+    private Boolean isPartial;
 
-    @Column(name = "created_at")
+    @Column(name = "return_reason")
+    private String returnReason;
+
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")

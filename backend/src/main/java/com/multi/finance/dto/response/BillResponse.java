@@ -23,6 +23,8 @@ public class BillResponse {
     private BillSource billSource;
     private String customerName;
     private BigDecimal totalAmount;
+    private BigDecimal amountPaid;
+    private BigDecimal balanceRemaining;
     private BillStatus status;
     private Long workerId;
     private String workerName;

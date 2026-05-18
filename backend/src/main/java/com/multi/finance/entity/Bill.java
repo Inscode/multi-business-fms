@@ -38,12 +38,12 @@ public class Bill {
     private String division;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "bill_type", nullable = false)
-    private BillType billType;
-
-    @Enumerated(EnumType.STRING)
     @Column(name = "bill_source", nullable = false)
     private BillSource billSource;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "bill_type", nullable = false)
+    private BillType billType;
 
     @Column(name = "customer_name", nullable = false)
     private String customerName;
@@ -69,13 +69,6 @@ public class Bill {
 
     @Column(name = "received_at")
     private LocalDateTime receivedAt;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "confirmed_by")
-    private User confirmedBy;
-
-    @Column(name = "confirmed_at")
-    private LocalDateTime confirmedAt;
 
     @Column(name = "bill_date" ,nullable = false)
     private LocalDate billDate;

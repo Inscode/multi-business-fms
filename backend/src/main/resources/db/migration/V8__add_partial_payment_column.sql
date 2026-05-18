@@ -1,0 +1,1 @@
+ALTER TABLE payments ALTER COLUMN is_partial SET DEFAULT false;

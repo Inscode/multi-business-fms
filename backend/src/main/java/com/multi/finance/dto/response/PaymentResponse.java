@@ -24,6 +24,14 @@ public class PaymentResponse {
     private BigDecimal paymentAmount;
     private PaymentType paymentType;
     private PaymentStatus status;
+    private String chequeNumber;
+    private LocalDate chequeDate;
+    private String bankName;
+    private String branchName;
+    private String referenceNumber;
+    private String returnReason;
+    private String billNumber;
+    private Boolean isPartial;
     private String enteredByName;
     private String confirmedByName;
     private LocalDateTime confirmedAt;

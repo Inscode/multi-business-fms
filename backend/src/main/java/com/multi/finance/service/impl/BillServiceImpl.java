@@ -3,12 +3,18 @@ package com.multi.finance.service.impl;
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.response.BillResponse;
+import com.multi.finance.dto.response.BillSummaryResponse;
+import com.multi.finance.dto.response.DashboardResponse;
+import com.multi.finance.dto.response.DashboardStatsResponse;
 import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.User;
 import com.multi.finance.entity.Worker;
+import com.multi.finance.enums.BillSource;
 import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
+import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.PaymentRepository;
 import com.multi.finance.repository.UserRepository;
 import com.multi.finance.repository.WorkerRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +33,15 @@ public class BillServiceImpl {
 
     private final BillRepository billRepository;
     private final WorkerRepository workerRepository;
+    private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
 
     public BillResponse createBill(BillRequest request) {
         User currentUser = getCurrentUser();
+
+        String billNumber = request.getBillSource() == BillSource.DRAFT
+                ? generateDraftNumber()
+                : request.getBillNumber();
 
         Worker worker = null;
         if (request.getWorkerId() != null) {
@@ -39,7 +50,7 @@ public class BillServiceImpl {
         }
 
         Bill bill = Bill.builder()
-                .billNumber(request.getBillNumber())
+                .billNumber(billNumber)
                 .business(request.getBusiness())
                 .division(request.getDivision())
                 .billType(request.getBillType())
@@ -64,13 +75,25 @@ public class BillServiceImpl {
         return toResponse(billRepository.save(bill));
     }
 
-    @Transactional(readOnly=true)
-    public List<BillResponse> getAllBills(BusinessType business) {
-        if (business != null) {
-            return billRepository.findByBusiness(business)
+    @Transactional(readOnly = true)
+    public List<BillResponse> getAllBills(BusinessType business, BillStatus status) {
+        if (business != null && status != null) {
+            return billRepository
+                    .findByBusinessAndStatusOrderByCreatedAtDesc(business, status)
                     .stream().map(this::toResponse).toList();
         }
-        return billRepository.findAll()
+        if (business != null) {
+            return billRepository
+                    .findByBusinessOrderByCreatedAtDesc(business)
+                    .stream().map(this::toResponse).toList();
+        }
+        if (status != null) {
+            return billRepository
+                    .findByStatusOrderByCreatedAtDesc(status)
+                    .stream().map(this::toResponse).toList();
+        }
+        return billRepository
+                .findAllByOrderByCreatedAtDesc()
                 .stream().map(this::toResponse).toList();
     }
 
@@ -91,9 +114,17 @@ public class BillServiceImpl {
 
     @Transactional
     public BillResponse assignBill(Long id, AssignBillRequest request) {
-        Bill bill = getBillById(id);
+        Bill bill = findBillById(id);
+
+        if (bill.getStatus() == BillStatus.COMPLETED ||
+                bill.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException(
+                    "Cannot assign a completed or cancelled bill");
+        }
+
         Worker worker = workerRepository.findById(request.getWorkerId())
                 .orElseThrow(() -> new RuntimeException("Worker not found"));
+
         bill.setCurrentHolder(worker);
         bill.setStatus(BillStatus.ASSIGNED);
         bill.setUpdatedAt(LocalDateTime.now());
@@ -102,42 +133,42 @@ public class BillServiceImpl {
 
     @Transactional
     public BillResponse markReceived(Long id) {
-        Bill bill = getBillById(id);
-        if (!bill.getStatus().equals(BillStatus.ASSIGNED)) {
-            throw new RuntimeException("Bill must be ASSIGNED before marking received");
+        Bill bill = findBillById(id);
+
+        if (bill.getStatus() != BillStatus.ASSIGNED &&
+                bill.getStatus() != BillStatus.SHOP_RECEIVED) {
+            throw new RuntimeException(
+                    "Bill must be ASSIGNED or SHOP_RECEIVED to mark as store received");
         }
-        bill.setStatus(BillStatus.RECEIVED);
+
+        bill.setStatus(BillStatus.STORE_RECEIVED);
         bill.setReceivedBy(getCurrentUser());
         bill.setReceivedAt(LocalDateTime.now());
         bill.setUpdatedAt(LocalDateTime.now());
         return toResponse(billRepository.save(bill));
     }
 
-
-    @Transactional
-    public BillResponse confirmBill(Long id) {
-        Bill bill = getBillById(id);
-        if (!bill.getStatus().equals(BillStatus.ASSIGNED) &&
-                !bill.getStatus().equals(BillStatus.RECEIVED)) {
-            throw new RuntimeException("Bill must be ASSIGNED or RECEIVED before confirming");
-        }
-        bill.setStatus(BillStatus.CONFIRMED);
-        bill.setConfirmedBy(getCurrentUser());
-        bill.setConfirmedAt(LocalDateTime.now());
-        bill.setUpdatedAt(LocalDateTime.now());
-        return toResponse(billRepository.save(bill));
+    @Transactional(readOnly = true)
+    private Bill findBillById(Long id) {
+        return billRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Bill not found"));
     }
 
     @Transactional(readOnly = true)
-    private Bill getBillById(Long id) {
-        return billRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Bill not found"));
+    public BillResponse getBillById(Long id) {
+        return toResponse(findBillById(id));
     }
 
     private User getCurrentUser() {
         return (User) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
     }
+
+    private String generateDraftNumber() {
+        long count = billRepository.countAllDrafts();
+        return String.format("DFT-%04d", count + 1);
+    }
+
 
     private BillResponse toResponse(Bill bill) {
         return BillResponse.builder()
@@ -146,7 +177,9 @@ public class BillServiceImpl {
                 .business(bill.getBusiness())
                 .division(bill.getDivision())
                 .billType(bill.getBillType())
+                .amountPaid(bill.getAmountPaid())
                 .billSource(bill.getBillSource())
+                .balanceRemaining(bill.getBalanceRemaining())
                 .customerName(bill.getCustomerName())
                 .totalAmount(bill.getTotalAmount())
                 .status(bill.getStatus())
@@ -155,8 +188,6 @@ public class BillServiceImpl {
                 .enteredByName(bill.getEnteredBy() != null ? bill.getEnteredBy().getFullName() : null)
                 .receivedByName(bill.getReceivedBy() != null ? bill.getReceivedBy().getFullName() : null)
                 .receivedAt(bill.getReceivedAt())
-                .confirmedByName(bill.getConfirmedBy() != null ? bill.getConfirmedBy().getFullName() : null)
-                .confirmedAt(bill.getConfirmedAt())
                 .billDate(bill.getBillDate())
                 .notes(bill.getNotes())
                 .createdAt(bill.getCreatedAt())
