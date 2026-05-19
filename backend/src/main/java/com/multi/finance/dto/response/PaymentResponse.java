@@ -22,6 +22,7 @@ public class PaymentResponse {
     private BigDecimal balanceRemaining;
     private Boolean fullyPaid;
     private BigDecimal paymentAmount;
+    private String area;
     private PaymentType paymentType;
     private PaymentStatus status;
     private String chequeNumber;

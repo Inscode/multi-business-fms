@@ -24,14 +24,14 @@ public class BillController {
     private final BillServiceImpl billService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<BillResponse> createBill(
             @Valid @RequestBody BillRequest request) {
         return ResponseEntity.ok(billService.createBill(request));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getAllBills(
             @RequestParam(required = false) BusinessType business,
             @RequestParam(required = false) BillStatus status) {
@@ -40,21 +40,21 @@ public class BillController {
 
 
     @GetMapping("/today/{business}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getTodaysBills(
             @PathVariable BusinessType business) {
         return ResponseEntity.ok(billService.getTodaysBills(business));
     }
 
     @GetMapping("/unconfirmed/{business}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getUnconfirmedBills(
             @PathVariable BusinessType business) {
         return ResponseEntity.ok(billService.getUnconfirmedBills(business));
     }
 
     @PatchMapping("/{id}/assign")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<BillResponse> assignBill(
             @PathVariable Long id,
             @Valid @RequestBody AssignBillRequest request) {
@@ -62,13 +62,13 @@ public class BillController {
     }
 
     @PatchMapping("/{id}/receive")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<BillResponse> markReceived(@PathVariable Long id) {
         return ResponseEntity.ok(billService.markReceived(id));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<BillResponse> getBillById(@PathVariable Long id) {
         return ResponseEntity.ok(billService.getBillById(id));
     }

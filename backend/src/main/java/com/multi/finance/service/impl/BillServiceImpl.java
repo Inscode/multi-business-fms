@@ -3,16 +3,12 @@ package com.multi.finance.service.impl;
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.response.BillResponse;
-import com.multi.finance.dto.response.BillSummaryResponse;
-import com.multi.finance.dto.response.DashboardResponse;
-import com.multi.finance.dto.response.DashboardStatsResponse;
 import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.User;
 import com.multi.finance.entity.Worker;
 import com.multi.finance.enums.BillSource;
 import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
-import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.PaymentRepository;
 import com.multi.finance.repository.UserRepository;
@@ -39,6 +35,17 @@ public class BillServiceImpl {
     public BillResponse createBill(BillRequest request) {
         User currentUser = getCurrentUser();
 
+        String division = request.getDivision();
+        switch (currentUser.getRole()) {
+            case ACCOUNTANT    -> division = "STORE";
+            case SHOP_ACCOUNTANT -> division = "SHOP";
+            default -> {
+                if (division == null || division.isBlank()) {
+                    throw new RuntimeException("Division is required");
+                }
+            }
+        }
+
         String billNumber = request.getBillSource() == BillSource.DRAFT
                 ? generateDraftNumber()
                 : request.getBillNumber();
@@ -57,6 +64,7 @@ public class BillServiceImpl {
                 .billSource(request.getBillSource())
                 .customerName(request.getCustomerName())
                 .totalAmount(request.getTotalAmount())
+                .area(request.getArea())
                 .amountPaid(BigDecimal.ZERO)
                 .balanceRemaining(request.getTotalAmount())
                 .fullyPaid(false)
@@ -179,6 +187,7 @@ public class BillServiceImpl {
                 .billType(bill.getBillType())
                 .amountPaid(bill.getAmountPaid())
                 .billSource(bill.getBillSource())
+                .area(bill.getArea())
                 .balanceRemaining(bill.getBalanceRemaining())
                 .customerName(bill.getCustomerName())
                 .totalAmount(bill.getTotalAmount())

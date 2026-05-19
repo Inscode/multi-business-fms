@@ -22,7 +22,7 @@ public class PaymentController {
     private final PaymentServiceImpl paymentService;
 
     @PostMapping("/bills/{billId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT','MAIN_ACCOUNTANT')")
     public ResponseEntity<PaymentResponse> enterPayment(
             @PathVariable Long billId,
             @Valid @RequestBody PaymentRequest request
@@ -33,14 +33,14 @@ public class PaymentController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT','MAIN_ACCOUNTANT')")
     public ResponseEntity<List<PaymentResponse>> getAllPayments(
             @RequestParam(required = false) PaymentStatus status) {
         return ResponseEntity.ok(paymentService.getAllPayments(status));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT','MAIN_ACCOUNTANT')")
     public ResponseEntity<PaymentResponse> updatePayment(
             @PathVariable Long id,
             @Valid @RequestBody PaymentRequest request) {
@@ -55,7 +55,7 @@ public class PaymentController {
     }
 
     @GetMapping("/bill/{billId}")
-    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT', 'OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT', 'OWNER', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<PaymentResponse>> getPaymentsByBill(
             @PathVariable Long billId) {
         return ResponseEntity.ok(paymentService.getPaymentsByBill(billId));
@@ -68,7 +68,7 @@ public class PaymentController {
     }
 
     @GetMapping("/today")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'OWNER', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<PaymentResponse>> getTodaysPayments() {
         return ResponseEntity.ok(paymentService.getTodaysPayments());
     }
