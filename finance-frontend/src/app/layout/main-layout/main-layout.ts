@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar';
+import { Auth } from '../../core/services/auth';
 
 @Component({
   selector: 'app-main-layout',
@@ -25,6 +26,10 @@ export class MainLayoutComponent implements OnInit {
   collapsed = false;
   isMobile = false;
 
+  constructor(
+    private auth: Auth
+  ) {}
+
   ngOnInit(): void {
     this.checkScreen();
   }
@@ -36,6 +41,18 @@ export class MainLayoutComponent implements OnInit {
 
   toggleCollapse(): void {
     this.collapsed = !this.collapsed;
+  }
+
+  get currentRole(): string {
+    return this.auth.getRole() ?? '';
+  }
+
+  get showStaff(): boolean {
+    return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole);
+  }
+
+  get showBills(): boolean {
+    return this.currentRole !== 'OWNER';
   }
 
   

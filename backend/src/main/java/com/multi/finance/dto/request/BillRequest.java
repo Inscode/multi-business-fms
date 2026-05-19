@@ -26,6 +26,8 @@ public class BillRequest {
     @NotNull(message = "Bill source is required")
     private BillSource billSource;
 
+    private String area;
+
     private String billNumber;
 
     @NotBlank(message = "Customer name is required")

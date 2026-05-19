@@ -20,13 +20,18 @@
           <mat-error *ngIf="form.get('business')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="field">
+        <mat-form-field appearance="outline" class="field" *ngIf="isAdmin">
           <mat-label>Division</mat-label>
           <mat-select formControlName="division">
             <mat-option *ngFor="let d of divisions" [value]="d">{{ d }}</mat-option>
           </mat-select>
           <mat-error *ngIf="form.get('division')?.hasError('required')">Required</mat-error>
         </mat-form-field>
+
+        <div class="division-badge" *ngIf="!isAdmin">
+          <span class="label">Division</span>
+          <span class="value">{{ userDivision }}</span>
+        </div>
       </div>
 
       <div class="form-row">
@@ -69,6 +74,15 @@
           <mat-label>Customer Name</mat-label>
           <input matInput formControlName="customerName" />
           <mat-error *ngIf="form.get('customerName')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Area</mat-label>
+          <mat-select formControlName="area">
+            <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+          </mat-select>
         </mat-form-field>
       </div>
 

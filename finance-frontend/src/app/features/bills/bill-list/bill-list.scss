@@ -31,15 +31,20 @@
 
 .filters {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+  align-items: center;
 
+  .search-field {
+    width: 260px;
+  }
   .filter-field {
-    width: 200px;
+    width: 180px;
   }
 
   @media (max-width: 600px) {
+    .search-field,
     .filter-field {
       width: 100%;
     }

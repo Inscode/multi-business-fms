@@ -20,13 +20,13 @@ public class DashboardController {
     private final DashboardServiceImpl dashboardService;
 
     @GetMapping("/accountant")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<AccountantDashboardResponse> getAccountantDashboard() {
         return ResponseEntity.ok(dashboardService.getAccountantDashboard());
     }
 
     @GetMapping("/owner")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<OwnerDashboardResponse> getOwnerDashboard(
             @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
         return ResponseEntity.ok(dashboardService.getOwnerDashboard(business));

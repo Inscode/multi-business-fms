@@ -51,6 +51,9 @@ public class Bill {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
+    @Column(name = "area")
+    private String area;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BillStatus status;

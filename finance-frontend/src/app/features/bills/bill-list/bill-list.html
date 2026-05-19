@@ -10,6 +10,17 @@
   </div>
 
   <div class="filters">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search</mat-label>
+      <input
+        matInput
+        [(ngModel)]="searchQuery"
+        (ngModelChange)="onSearchChange()"
+        placeholder="Bill number or customer name"
+      />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
     <mat-form-field appearance="outline" class="filter-field">
       <mat-label>Business</mat-label>
       <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
@@ -23,6 +34,14 @@
       <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
         <mat-option value="">All</mat-option>
         <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Area</mat-label>
+      <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
+        <mat-option value="">All</mat-option>
+        <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
       </mat-select>
     </mat-form-field>
   </div>
@@ -44,6 +63,11 @@
         <ng-container matColumnDef="business">
           <th mat-header-cell *matHeaderCellDef>Business</th>
           <td mat-cell *matCellDef="let b">{{ b.business }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="area">
+          <th mat-header-cell *matHeaderCellDef>Area</th>
+          <td mat-cell *matCellDef="let b">{{ b.area ?? '—' }}</td>
         </ng-container>
 
         <ng-container matColumnDef="totalAmount">

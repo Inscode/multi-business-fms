@@ -29,8 +29,7 @@ public class DashboardServiceImpl {
 
     private static final List<BillStatus> SHOP_STATUSES = List.of(
             BillStatus.SHOP_WORKER_ASSIGNED,
-            BillStatus.SHOP_RECEIVED,
-            BillStatus.STORE_RECEIVED
+            BillStatus.SHOP_RECEIVED
     );
 
     @Transactional(readOnly = true)

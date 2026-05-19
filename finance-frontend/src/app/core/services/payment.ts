@@ -18,6 +18,7 @@ export interface PaymentResponse {
   paymentType: string;
   status: string;
   isPartial: boolean;
+  area: string | null;
   chequeNumber: string | null;
   chequeDate: string | null;
   bankName: string | null;

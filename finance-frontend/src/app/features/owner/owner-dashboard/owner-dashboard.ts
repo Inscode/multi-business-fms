@@ -30,7 +30,7 @@ export class OwnerDashboard implements OnInit{
   error = false;
 
    selectedBusiness = 'RAINCO';
-  businesses = ['RAINCO', 'RETAIL_SHOP', 'WHOLESALE', 'HARDWARE', 'STATIONERY'];
+  businesses = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
 
   paymentColumns   = ['billNumber', 'customerName', 'amount', 'paymentType', 'enteredByName', 'paymentDate', 'action'];
   unassignedColumns = ['billNumber', 'customerName', 'totalAmount', 'status'];

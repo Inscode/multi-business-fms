@@ -255,6 +255,7 @@ public class PaymentServiceImpl {
                 .customerName(bill.getCustomerName())
                 .business(bill.getBusiness())
                 .billTotal(bill.getTotalAmount())
+                .area(bill.getArea())
                 .amountPaid(bill.getAmountPaid())
                 .balanceRemaining(bill.getBalanceRemaining())
                 .fullyPaid(bill.getFullyPaid())

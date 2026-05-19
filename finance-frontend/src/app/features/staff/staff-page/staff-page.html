@@ -1,0 +1,214 @@
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Staff</h1>
+      <p class="page-sub">Manage all staff members</p>
+    </div>
+    <button mat-flat-button color="primary"
+            *ngIf="isAdmin"
+            (click)="openAddPanel()">
+      <mat-icon>add</mat-icon> Add Staff
+    </button>
+  </div>
+
+  <div class="content-area" [class.panel-open]="showPanel">
+
+    <!-- left — list -->
+    <div class="list-section">
+
+      <div class="filters">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search</mat-label>
+          <input matInput
+                 [(ngModel)]="searchQuery"
+                 (ngModelChange)="onSearchChange()"
+                 placeholder="Staff name" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Type</mat-label>
+          <mat-select [(ngModel)]="selectedType"
+                      (ngModelChange)="onTypeChange()">
+            <mat-option value="">All</mat-option>
+            <mat-option *ngFor="let t of staffTypes" [value]="t">
+              {{ typeLabel(t) }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Status</mat-label>
+          <mat-select [(ngModel)]="selectedStatus"
+                      (ngModelChange)="onStatusChange()">
+            <mat-option value="all">All</mat-option>
+            <mat-option value="active">Active</mat-option>
+            <mat-option value="inactive">Inactive</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <mat-card class="table-card">
+        <table mat-table [dataSource]="filteredStaff">
+
+          <ng-container matColumnDef="fullName">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let s">
+              <div class="staff-name">
+                <div class="avatar">{{ s.fullName.charAt(0) }}</div>
+                <span>{{ s.fullName }}</span>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="workerType">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let s">
+              <span class="type-badge type-{{ s.workerType | lowercase }}">
+                {{ typeLabel(s.workerType) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="joinedDate">
+            <th mat-header-cell *matHeaderCellDef>Joined</th>
+            <td mat-cell *matCellDef="let s">{{ s.joinedDate }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let s">
+              <span class="status-badge"
+                    [class.active]="s.active"
+                    [class.inactive]="!s.active">
+                {{ s.active ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let s"
+                (click)="$event.stopPropagation()">
+              <button mat-icon-button
+                      *ngIf="isAdmin"
+                      [matMenuTriggerFor]="menu">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item (click)="openEditPanel(s)">
+                  <mat-icon>edit</mat-icon>
+                  <span>Edit</span>
+                </button>
+                <button mat-menu-item (click)="toggleActive(s)">
+                  <mat-icon>{{ s.active ? 'block' : 'check_circle' }}</mat-icon>
+                  <span>{{ s.active ? 'Deactivate' : 'Activate' }}</span>
+                </button>
+              </mat-menu>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+        </table>
+
+        <div class="empty-state"
+             *ngIf="!loading && filteredStaff.length === 0">
+          <mat-icon>group</mat-icon>
+          <p>No staff members found</p>
+        </div>
+
+        <div class="loading-state" *ngIf="loading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+
+      </mat-card>
+
+    </div>
+
+    <!-- right — form panel -->
+    <div class="form-panel" *ngIf="showPanel">
+
+      <div class="panel-header">
+        <span class="panel-title">{{ panelTitle }}</span>
+        <button mat-icon-button (click)="closePanel()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <form [formGroup]="form"
+            (ngSubmit)="submit()"
+            class="panel-form">
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Full Name</mat-label>
+          <input matInput formControlName="fullName" />
+          <mat-error *ngIf="form.get('fullName')?.hasError('required')">
+            Required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Staff Type</mat-label>
+          <mat-select formControlName="workerType">
+            <mat-option *ngFor="let t of staffTypes" [value]="t">
+              {{ typeLabel(t) }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('workerType')?.hasError('required')">
+            Required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Base Salary (Rs)</mat-label>
+          <input matInput type="number" formControlName="baseSalary" />
+          <mat-error *ngIf="form.get('baseSalary')?.hasError('required')">
+            Required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Joined Date</mat-label>
+          <input matInput [matDatepicker]="picker"
+                 formControlName="joinedDate" />
+          <mat-datepicker-toggle matSuffix [for]="picker">
+          </mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+          <mat-error *ngIf="form.get('joinedDate')?.hasError('required')">
+            Required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Notes (optional)</mat-label>
+          <textarea matInput formControlName="notes" rows="2"></textarea>
+        </mat-form-field>
+
+        <div class="form-error" *ngIf="formError">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ formError }}</span>
+        </div>
+
+        <div class="panel-actions">
+          <button mat-stroked-button type="button"
+                  (click)="closePanel()">Cancel</button>
+          <button mat-flat-button color="primary"
+                  type="submit" [disabled]="formLoading">
+            <mat-spinner diameter="18" *ngIf="formLoading"></mat-spinner>
+            <span *ngIf="!formLoading">
+              {{ editingStaff ? 'Update' : 'Add Staff' }}
+            </span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+
+</div>

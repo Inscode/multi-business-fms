@@ -11,13 +11,22 @@ export interface WorkerResponse {
   active: boolean;
   joinedDate: string;
   notes: string;
+  createdAt: string;
+}
+
+export interface WorkerRequest {
+  fullName: string;
+  workerType: string;
+  baseSalary: number;
+  joinedDate: string;
+  notes?: string;
 }
 
 @Injectable({
   providedIn: 'root',
 })
 export class Worker {
-    private apiUrl = `${environment.apiUrl}/workers`;
+  private apiUrl = `${environment.apiUrl}/workers`;
 
   constructor(private http: HttpClient) {}
 
@@ -27,5 +36,21 @@ export class Worker {
 
   getWorkersByType(type: string): Observable<WorkerResponse[]> {
     return this.http.get<WorkerResponse[]>(`${this.apiUrl}/worker-type/${type}`);
+  }
+
+  createWorker(payload: WorkerRequest): Observable<WorkerResponse> {
+    return this.http.post<WorkerResponse>(this.apiUrl, payload);
+  }
+
+  updateWorker(id: number, payload: WorkerRequest): Observable<WorkerResponse> {
+    return this.http.put<WorkerResponse>(`${this.apiUrl}/${id}`, payload);
+  }
+
+  activateWorker(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/activate`, {});
+  }
+
+  deactivateWorker(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 }

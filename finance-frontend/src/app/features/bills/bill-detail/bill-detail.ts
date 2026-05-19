@@ -44,6 +44,7 @@ export class BillDetail implements OnInit{
 
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT';}
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER';}
+  get isMainAccountant(): boolean {return this.auth.getRole() === 'MAIN_ACCOUNTANT';}
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN';}
 
   get canAssign(): boolean {
@@ -58,7 +59,7 @@ export class BillDetail implements OnInit{
   }
 
   get canEnterPayment(): boolean {
-    return (this.isAccountant || this.isAdmin) && 
+    return (this.isAccountant || this.isAdmin || this.isMainAccountant) && 
     !this.bill?.fullyPaid && this.bill?.status !== 'CANCELLED' &&
     this.bill?.status !== 'COMPLETED';
   }

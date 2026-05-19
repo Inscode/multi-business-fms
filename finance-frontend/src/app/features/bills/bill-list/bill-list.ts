@@ -13,6 +13,7 @@ import { RouterLink } from '@angular/router';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Bill } from '../../../core/services/bill';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatInput } from '@angular/material/input';
 
 @Component({
   selector: 'app-bill-list',
@@ -30,7 +31,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     MatMenuModule,
     MatDialogModule,
     DecimalPipe,
-    LowerCasePipe
+    LowerCasePipe,
+    MatInput
   ],
   templateUrl: './bill-list.html',
   styleUrl: './bill-list.scss',
@@ -44,15 +46,27 @@ export class BillList implements OnInit{
   error   = false;
 
 
+  searchQuery = '';
   selectedBusiness = '';
   selectedStatus   = '';
+  selectedArea = '';
 
-  businesses = ['', 'RAINCO', 'RETAIL_SHOP', 'WHOLESALE', 'HARDWARE', 'STATIONERY'];
+  businesses = ['', 'RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
   statuses   = ['', 'CREATED', 'ASSIGNED', 'SHOP_WORKER_ASSIGNED',
                 'SHOP_RECEIVED', 'STORE_RECEIVED', 'COMPLETED', 'CANCELLED'];
 
-  displayedColumns = ['billNumber', 'customerName', 'business',
+  displayedColumns = ['billNumber', 'customerName', 'area', 'business',
                       'totalAmount','balanceRemaining', 'workerName', 'status', 'actions'];
+
+   areas = [
+    'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
+    'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
+    'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
+    'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
+    'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
+  ];
+
+
 
   constructor(
     private billService: Bill,
@@ -67,7 +81,6 @@ export class BillList implements OnInit{
 
     load(): void {
     this.loading = true;
-    this.cdr.detectChanges();
     this.error   = false;
     this.billService.getBills({
       business: this.selectedBusiness || undefined,
@@ -75,8 +88,8 @@ export class BillList implements OnInit{
     }).subscribe({
       next: (b) => {
         this.bills         = b;
-        this.filteredBills = b;
         this.loading       = false;
+        this.applyFilters();
         this.cdr.detectChanges();
       },
       error: () => {
@@ -94,6 +107,23 @@ export class BillList implements OnInit{
     });
   }
 
+  applyFilters(): void {
+    const query = this.searchQuery.toLowerCase().trim();
+
+    this.filteredBills = this.bills.filter(b => {
+      const matchesSearch = !query || 
+      b.customerName.toLowerCase().includes(query) ||
+      (b.billNumber ?? '').toLowerCase().includes(query);
+
+      const matchesArea = !this.selectedArea ||
+      b.area === this.selectedArea;
+
+      return matchesSearch && matchesArea;
+    })
+  }
+
+  onSearchChange(): void {this.applyFilters();}
+  onAreaChange(): void {this.applyFilters();}
 
   onFilterChange(): void {
     this.load();

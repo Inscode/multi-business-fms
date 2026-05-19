@@ -41,7 +41,7 @@ export class EnterPayment implements OnInit{
   selectedBill: any = null;
   filterBusiness = '';
 
-  businesses   = ['RAINCO', 'RETAIL_SHOP', 'WHOLESALE', 'HARDWARE', 'STATIONERY'];
+  businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
   paymentTypes = ['CASH', 'CHEQUE', 'BANK_TRANSFER'];
 
    get isCheque(): boolean {
