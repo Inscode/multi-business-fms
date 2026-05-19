@@ -14,6 +14,7 @@ import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { Auth } from '../../../core/services/auth';
 import { Router, RouterLink } from '@angular/router';
 import { ReturnChequeDialog } from '../return-cheque-dialog/return-cheque-dialog';
+import { MatInputModule } from '@angular/material/input';
 
 @Component({
   selector: 'app-payment-list',
@@ -33,7 +34,8 @@ import { ReturnChequeDialog } from '../return-cheque-dialog/return-cheque-dialog
     DecimalPipe,
     LowerCasePipe,
     DatePipe,
-    RouterLink
+    RouterLink,
+    MatInputModule
   ],
   templateUrl: './payment-list.html',
   styleUrl: './payment-list.scss',
@@ -44,13 +46,27 @@ export class PaymentList implements OnInit {
   loading = true;
   error = false;
 
+  searchQuery = '';
+  selectedArea = '';
   selectedStatus = '';
+
+  allPayments: PaymentResponse[] = [];
+
+  areas = [
+    'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
+    'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
+    'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
+    'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
+    'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
+  ];
+
+  
   statuses = ['', 'ENTERED', 'CONFIRMED', 'REJECTED', 'RETURNED'];
 
   displayedColumns = ['billNumber', 'customerName', 'amount',
                       'type', 'enteredBy', 'date', 'status', 'actions'];
 
-   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
+  get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
 
   constructor(
@@ -72,8 +88,9 @@ export class PaymentList implements OnInit {
       this.selectedStatus || undefined
     ).subscribe({
       next: (p) => {
-        this.payments = p;
+        this.allPayments = p;
         this.loading  = false;
+        this.applyFilters();
         this.cdr.detectChanges();
       },
       error: () => {
@@ -84,6 +101,25 @@ export class PaymentList implements OnInit {
     });
   }
 
+  applyFilters(): void {
+    const query = this.searchQuery.toLowerCase().trim();
+
+    this.payments = this.allPayments.filter(p => {
+      const matchesSearch = !query || 
+      p.customerName.toLowerCase().includes(query) || 
+      (p.billNumber ?? '').toLowerCase().includes(query);
+
+      const matchesArea = !this.selectedArea ||
+      p.area === this.selectedArea;
+
+      return matchesArea && matchesSearch;
+    })
+
+    this.cdr.detectChanges();
+  }
+
+  onSearchChange(): void {this.applyFilters();}
+  onAreaChange(): void {this.applyFilters()};
   onFilterChange(): void { this.load(); }
 
   editPayment(payment: PaymentResponse): void {

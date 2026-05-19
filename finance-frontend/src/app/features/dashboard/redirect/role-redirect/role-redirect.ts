@@ -15,11 +15,15 @@ export class RoleRedirect implements OnInit{
     const role = this.auth.getRole();
     switch (role) {
       case 'ACCOUNTANT':
+      case 'MAIN_ACCOUNTANT':
         this.router.navigate(['/dashboard/accountant']);
         break;
       case 'OWNER':
       case 'ADMIN':
         this.router.navigate(['/dashboard/owner']);
+        break;
+      case 'SHOP_ACCOUNTANT':
+        this.router.navigate(['/dashboard/accountant']);
         break;
       default:
         this.router.navigate(['/login']);

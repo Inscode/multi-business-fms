@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Router } from '@angular/router';
 import { Bill } from '../../../core/services/bill';
+import { Auth } from '../../../core/services/auth';
 
 @Component({
   selector: 'app-create-bill',
@@ -24,7 +25,7 @@ import { Bill } from '../../../core/services/bill';
     MatDatepickerModule,
     MatNativeDateModule,
     MatProgressSpinnerModule,
-    MatIconModule,],
+    MatIconModule, CommonModule],
   templateUrl: './create-bill.html',
   styleUrl: './create-bill.scss',
 })
@@ -36,10 +37,17 @@ export class CreateBill implements OnInit{
 
 
 
-  businesses  = ['RAINCO', 'RETAIL_SHOP', 'WHOLESALE', 'HARDWARE', 'STATIONERY'];
+  businesses  = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
   divisions   = ['STORE', 'SHOP'];
   billTypes   = ['CASH', 'CREDIT'];
-  billSources = ['MANUAL', 'SYSTEM', 'DRAFT'];
+  billSources = ['SYSTEM', 'MANUAL', 'DRAFT'];
+  areas = [
+  'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
+  'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
+  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
+  'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
+  'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
+];
 
   get isDraft(): boolean {
     return this.form.get('billSource')?.value === 'DRAFT';
@@ -49,14 +57,16 @@ export class CreateBill implements OnInit{
     private fb: FormBuilder,
     private billService: Bill,
     private workerService: Worker,
-    private router: Router
+    private router: Router,
+    private auth: Auth
   ) {
     this.form = this.fb.group({
-      business:     [null, Validators.required],
+      business:     ['RAINCO', Validators.required],
       division:     [null, Validators.required],
       billType:     [null, Validators.required],
-      billSource:   [null, Validators.required],
+      billSource:   ['SYSTEM', Validators.required],
       billNumber:   [''],
+      area: [null],
       customerName: ['', Validators.required],
       totalAmount:  [null, [Validators.required, Validators.min(0.01)]],
       billDate:     [new Date()],
@@ -65,10 +75,26 @@ export class CreateBill implements OnInit{
     });
   }
 
+  get userDivision(): string {
+    const role = this.auth.getRole();
+    if (role == 'ACCOUNTANT') return 'STORE';
+    if (role == 'SHOP_ACCOUNTANT') return 'SHOP';
+    return '';
+  }
+
+  get isAdmin(): boolean {
+    return this.auth.getRole() === 'ADMIN';
+  }
+
 
   ngOnInit(): void {
     this.loadWorkers();
     this.watchBillSource();
+
+    if (!this.isAdmin){
+      this.form.get('division')?.setValue(this.userDivision);
+      this.form.get('division')?.disable();
+    }
   }
 
   private loadWorkers(): void {
@@ -100,7 +126,7 @@ export class CreateBill implements OnInit{
     this.loading = true;
     this.errorMsg = '';
 
-    const payload = { ...this.form.value };
+    const payload = { ...this.form.getRawValue() };
     if (this.isDraft) delete payload.billNumber;
     if (!payload.workerId) delete payload.workerId;
 

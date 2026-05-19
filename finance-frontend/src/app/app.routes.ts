@@ -11,6 +11,8 @@ import { BillList } from './features/bills/bill-list/bill-list';
 import { PaymentList } from './features/payments/payment-list/payment-list';
 import { EnterPayment } from './features/payments/enter-payment/enter-payment';
 import { BillDetail } from './features/bills/bill-detail/bill-detail';
+import { StaffPage } from './features/staff/staff-page/staff-page';
+import { staffGuard } from './core/guards/staff-guard';
 
 export const routes: Routes = [
     {
@@ -45,7 +47,9 @@ export const routes: Routes = [
 
             {path: 'payments/enter', component: EnterPayment},
 
-            {path: 'bills/:id', component: BillDetail}
+            {path: 'bills/:id', component: BillDetail},
+
+            {path: 'staff', component: StaffPage, canActivate: [staffGuard]}
 
         ]
     },
