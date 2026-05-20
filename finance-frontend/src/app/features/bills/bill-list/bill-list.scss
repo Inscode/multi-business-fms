@@ -29,6 +29,12 @@
     align-items: center;
     gap: 4px;
   }
+
+  @media (max-width: 768px) {
+    margin-bottom: 14px;
+    .page-title { font-size: 16px; }
+    .page-sub   { font-size: 12px; }
+  }
 }
 
 .filters {
@@ -46,7 +52,15 @@
   }
 
   @media (max-width: 768px) {
-    .search-field,
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+
+    .search-field {
+      grid-column: 1 / -1;
+      width: 100%;
+    }
     .filter-field {
       width: 100%;
     }
