@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, HostListener, ViewChild } from '@angular/core';
 import { MatRippleModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar';
 import { Auth } from '../../core/services/auth';
@@ -11,6 +11,7 @@ import { Auth } from '../../core/services/auth';
   selector: 'app-main-layout',
   templateUrl: './main-layout.html',
   styleUrls: ['./main-layout.scss'],
+  standalone: true,
   imports: [
     CommonModule,
     RouterOutlet,
@@ -22,17 +23,15 @@ import { Auth } from '../../core/services/auth';
     NavbarComponent,
   ]
 })
-export class MainLayoutComponent implements OnInit {
+export class MainLayoutComponent implements OnInit, AfterViewInit {
+  @ViewChild('sidenav') sidenav!: MatSidenav;
   collapsed = false;
-  isMobile = false;
+  isMobile  = false;
 
-  constructor(
-    private auth: Auth
-  ) {}
+  constructor(private auth: Auth) {}
 
-  ngOnInit(): void {
-    this.checkScreen();
-  }
+  ngOnInit(): void    { this.checkScreen(); }
+  ngAfterViewInit(): void {}
 
   @HostListener('window:resize')
   checkScreen(): void {
@@ -40,20 +39,13 @@ export class MainLayoutComponent implements OnInit {
   }
 
   toggleCollapse(): void {
-    this.collapsed = !this.collapsed;
+    if (this.isMobile) {
+      this.sidenav.toggle();
+    } else {
+      this.collapsed = !this.collapsed;
+    }
   }
 
-  get currentRole(): string {
-    return this.auth.getRole() ?? '';
-  }
-
-  get showStaff(): boolean {
-    return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole);
-  }
-
-  get showBills(): boolean {
-    return this.currentRole !== 'OWNER';
-  }
-
-  
+  get currentRole(): string { return this.auth.getRole() ?? ''; }
+  get showStaff(): boolean  { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
 }

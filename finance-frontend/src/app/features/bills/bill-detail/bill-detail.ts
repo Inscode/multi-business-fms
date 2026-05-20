@@ -48,18 +48,18 @@ export class BillDetail implements OnInit{
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN';}
 
   get canAssign(): boolean {
-    return (this.isAccountant || this.isAdmin) && 
+    return !this.isOwner && (this.isAccountant || this.isAdmin) && 
     ['CREATED', 'ASSIGNED', 'STORE_RECEIVED'].includes(this.bill?.status?? '') && 
     !this.bill?.fullyPaid;
   }
 
   get canMarkReceived(): boolean {
-    return (this.isAccountant || this.isAdmin) && 
+    return !this.isOwner && (this.isAccountant || this.isAdmin) && 
     ['ASSIGNED', 'SHOP_RECEIVED'].includes(this.bill?.status ?? '');
   }
 
   get canEnterPayment(): boolean {
-    return (this.isAccountant || this.isAdmin || this.isMainAccountant) && 
+    return !this.isOwner && (this.isAccountant || this.isAdmin || this.isMainAccountant) && 
     !this.bill?.fullyPaid && this.bill?.status !== 'CANCELLED' &&
     this.bill?.status !== 'COMPLETED';
   }

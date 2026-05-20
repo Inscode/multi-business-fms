@@ -68,6 +68,7 @@ export class PaymentList implements OnInit {
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
+  get isOwner(): boolean { return this.auth.getRole() === 'OWNER';}
 
   constructor(
     private paymentService: Payment,
@@ -134,7 +135,7 @@ export class PaymentList implements OnInit {
   }
 
   canEdit(payment: PaymentResponse): boolean {
-    return payment.status === 'ENTERED' && this.isAccountant;
+    return !this.isOwner && payment.status === 'ENTERED' && this.isAccountant;
   }
 
   canReturn(payment: PaymentResponse): boolean {

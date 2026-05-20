@@ -1,6 +1,8 @@
 .dashboard {
   max-width: 1200px;
+  width: 100%;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .dashboard-header {
@@ -27,7 +29,7 @@
 
 .business-filter {
   width: 200px;
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     width: 100%;
   }
 }
@@ -38,9 +40,20 @@
   gap: 10px;
   margin-bottom: 24px;
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.empty-payments {
+  background: #fff;
+  border: 0.5px solid #e0e6ed;
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  color: #607d8b;
+  font-size: 13px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
@@ -105,18 +118,24 @@
   border-radius: 10px !important;
   overflow: hidden;
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     display: none;
   }
 }
 
 .mobile-list {
   display: none;
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
+}
+
+.card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .payment-card {

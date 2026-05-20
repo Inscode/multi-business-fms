@@ -1,0 +1,10 @@
+<div style="padding: 24px">
+  <h2 style="font-size: 16px; font-weight: 600; margin: 0 0 8px">{{ data.title }}</h2>
+  <p style="font-size: 13px; color: #607d8b; margin: 0 0 24px">{{ data.message }}</p>
+  <div style="display: flex; justify-content: flex-end; gap: 12px">
+    <button mat-stroked-button (click)="dialogRef.close(false)">Cancel</button>
+    <button mat-flat-button [color]="data.confirmColor" (click)="dialogRef.close(true)">
+      {{ data.confirmText }}
+    </button>
+  </div>
+</div>

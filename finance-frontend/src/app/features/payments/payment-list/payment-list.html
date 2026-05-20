@@ -4,7 +4,7 @@
       <h1 class="page-title">Payments</h1>
       <p class="page-sub">Track all payment records</p>
     </div>
-    <a mat-flat-button color="primary" routerLink="/payments/enter">
+    <a mat-flat-button color="primary" routerLink="/payments/enter" *ngIf="!isOwner">
       <mat-icon>add</mat-icon> Enter Payment
     </a>
   </div>

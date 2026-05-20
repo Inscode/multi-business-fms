@@ -4,7 +4,7 @@
       <h1 class="page-title">Bills</h1>
       <p class="page-sub">Manage and track all bills</p>
     </div>
-    <a mat-flat-button color="primary" routerLink="/bills/create">
+    <a mat-flat-button color="primary" routerLink="/bills/create" *ngIf="!isOwner">
       <mat-icon>add</mat-icon> New Bill
     </a>
   </div>
@@ -47,6 +47,56 @@
   </div>
 
   <ng-container *ngIf="!error; else errorBlock">
+    <!-- mobile cards -->
+    <div class="mobile-list">
+      <div class="bill-card" *ngFor="let b of filteredBills" [routerLink]="['/bills', b.id]">
+        <div class="bill-card-row">
+          <span class="bill-number">{{ b.billNumber }}</span>
+          <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
+        </div>
+        <div class="bill-card-row">
+          <span class="customer">{{ b.customerName }}</span>
+          <span class="amount">Rs {{ b.totalAmount | number }}</span>
+        </div>
+        <div class="bill-card-row">
+          <span class="meta">{{ b.area ?? '—' }} · {{ b.business }}</span>
+          <span class="balance" [class.zero-balance]="b.balanceRemaining === 0">
+            Rs {{ b.balanceRemaining | number }}
+          </span>
+        </div>
+        <div class="bill-card-row" *ngIf="b.workerName">
+          <span class="meta">Assigned: {{ b.workerName }}</span>
+        </div>
+        <div class="bill-card-actions" *ngIf="hasActions(b)" (click)="$event.stopPropagation()">
+          <button mat-stroked-button [matMenuTriggerFor]="mobileMenu" class="action-btn">
+            <mat-icon>more_horiz</mat-icon> Actions
+          </button>
+          <mat-menu #mobileMenu="matMenu">
+            <button mat-menu-item *ngIf="canAssign(b)" [matMenuTriggerFor]="mobileAssignMenu">
+              <mat-icon>person_add</mat-icon>
+              <span>{{ b.status === 'ASSIGNED' ? 'Reassign' : 'Assign' }}</span>
+            </button>
+            <button mat-menu-item *ngIf="canMarkStoreReceived(b)" (click)="markReceived(b.id)">
+              <mat-icon>check_circle</mat-icon>
+              <span>Mark Store Received</span>
+            </button>
+          </mat-menu>
+          <mat-menu #mobileAssignMenu="matMenu">
+            <button mat-menu-item *ngFor="let w of workers" (click)="assignBill(b.id, w.id)">
+              {{ w.fullName }} · {{ w.workerType }}
+            </button>
+          </mat-menu>
+        </div>
+      </div>
+      <div class="empty-state" *ngIf="!loading && filteredBills.length === 0">
+        <mat-icon>receipt_long</mat-icon>
+        <p>No bills found</p>
+      </div>
+      <div class="loading-state" *ngIf="loading">
+        <mat-spinner diameter="32"></mat-spinner>
+      </div>
+    </div>
+
     <!-- desktop table -->
     <mat-card class="table-card">
       <table mat-table [dataSource]="filteredBills">

@@ -11,9 +11,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
-import { Bill } from '../../../core/services/bill';
+import { Bill, BillResponse } from '../../../core/services/bill';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatInput } from '@angular/material/input';
+import { Auth } from '../../../core/services/auth';
 
 @Component({
   selector: 'app-bill-list',
@@ -71,7 +72,8 @@ export class BillList implements OnInit{
   constructor(
     private billService: Bill,
     private workerService: Worker,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private auth: Auth
   ) {}
 
   ngOnInit(): void {
@@ -143,17 +145,22 @@ export class BillList implements OnInit{
     });
   }
 
-  canAssign(bill: any): boolean {
+  canAssign(bill: BillResponse): boolean {
   return ['CREATED', 'ASSIGNED', 'STORE_RECEIVED'].includes(bill.status) &&
          !bill.fullyPaid;
   }
 
-  canMarkStoreReceived(bill: any): boolean {
+  get isOwner(): boolean {
+    return this.auth.getRole() === 'OWNER';
+  }
+
+
+  canMarkStoreReceived(bill: BillResponse): boolean {
     return ['ASSIGNED', 'SHOP_RECEIVED'].includes(bill.status);
   }
 
-  hasActions(bill: any): boolean {
-    return this.canAssign(bill) || this.canMarkStoreReceived(bill);
+  hasActions(bill: BillResponse): boolean {
+    return !this.isOwner && (this.canAssign(bill) || this.canMarkStoreReceived(bill));
   }
 
 
