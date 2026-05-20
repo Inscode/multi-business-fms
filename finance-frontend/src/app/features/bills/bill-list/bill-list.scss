@@ -1,5 +1,7 @@
 .page {
   max-width: 1200px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .page-header {
@@ -43,7 +45,7 @@
     width: 180px;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     .search-field,
     .filter-field {
       width: 100%;
@@ -58,6 +60,84 @@
   overflow: hidden;
   min-height: 200px;
   position: relative;
+
+  table {
+    min-width: 700px;
+  }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+.mobile-list {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+
+  @media (max-width: 768px) {
+    display: flex;
+  }
+}
+
+.bill-card {
+  background: #fff;
+  border: 0.5px solid #e0e6ed;
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f5f7fa;
+  }
+
+  .bill-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .bill-card-actions {
+    margin-top: 10px;
+  }
+
+  .action-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .bill-number {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+  .customer {
+    font-size: 13px;
+    color: #1a1a2e;
+    font-weight: 500;
+  }
+  .amount {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1976d2;
+  }
+  .balance {
+    font-size: 13px;
+    color: #607d8b;
+  }
+  .meta {
+    font-size: 11px;
+    color: #607d8b;
+  }
 }
 
 .badge {

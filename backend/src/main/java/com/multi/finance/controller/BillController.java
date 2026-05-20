@@ -31,7 +31,7 @@ public class BillController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getAllBills(
             @RequestParam(required = false) BusinessType business,
             @RequestParam(required = false) BillStatus status) {

@@ -21,7 +21,6 @@ import { Router } from '@angular/router';
 })
 export class NavbarComponent {
   @Output() toggleSidenav = new EventEmitter<void>();
-  @Output() toggleCollapse = new EventEmitter<void>();
 
   constructor(private auth: Auth, private router: Router) {}
 
@@ -29,11 +28,10 @@ export class NavbarComponent {
 
   onToggle(): void {
     this.toggleSidenav.emit();
-    this.toggleCollapse.emit();
   }
 
   logout(): void {
     this.auth.logout();
-    this.router.navigate(['/auth/login']);
+    this.router.navigate(['/login']);
   }
 }
