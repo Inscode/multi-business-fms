@@ -5,8 +5,7 @@ import { Router } from '@angular/router';
 @Component({
   selector: 'app-role-redirect',
   imports: [],
-  templateUrl: './role-redirect.html',
-  styleUrl: './role-redirect.scss',
+  template: '',
 })
 export class RoleRedirect implements OnInit{
   constructor(private auth: Auth, private router: Router) {}
