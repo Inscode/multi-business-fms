@@ -4,7 +4,7 @@
       <h1>{{ greeting }}, {{ auth.getCurrentUser()?.fullName }}</h1>
       <p>Payment confirmation overview</p>
     </div>
-    <mat-form-field appearance="outline" class="business-filter">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="business-filter">
       <mat-label>Business</mat-label>
       <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onBusinessChange()">
         <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>

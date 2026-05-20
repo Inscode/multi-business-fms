@@ -10,7 +10,7 @@
   </div>
 
   <div class="filters">
-    <mat-form-field appearance="outline" class="search-field">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
       <mat-label>Search</mat-label>
       <input
         matInput
@@ -21,7 +21,7 @@
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="filter-field">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
       <mat-label>Business</mat-label>
       <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
         <mat-option value="">All</mat-option>
@@ -29,7 +29,7 @@
       </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="filter-field">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
       <mat-label>Status</mat-label>
       <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
         <mat-option value="">All</mat-option>
@@ -37,7 +37,7 @@
       </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="filter-field">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
       <mat-label>Area</mat-label>
       <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
         <mat-option value="">All</mat-option>

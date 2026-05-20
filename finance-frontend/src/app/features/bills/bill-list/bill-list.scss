@@ -64,6 +64,12 @@
     .filter-field {
       width: 100%;
     }
+
+    mat-form-field {
+      --mat-form-field-container-height: 40px;
+      --mat-form-field-outlined-label-text-populated-size: 12px;
+      font-size: 13px;
+    }
   }
 }
 
