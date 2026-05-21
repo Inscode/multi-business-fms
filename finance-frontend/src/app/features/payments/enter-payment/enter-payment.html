@@ -110,13 +110,17 @@
         <div class="form-row">
           <mat-form-field appearance="outline" class="field">
             <mat-label>Bank Name</mat-label>
-            <input matInput formControlName="bankName" />
+            <mat-select formControlName="bankName">
+              <mat-option *ngFor="let b of banks" [value]="b">{{ b }}</mat-option>
+            </mat-select>
             <mat-error *ngIf="form.get('bankName')?.hasError('required')">Required</mat-error>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="field">
-            <mat-label>Branch Name</mat-label>
-            <input matInput formControlName="branchName" />
+            <mat-label>Branch (Area)</mat-label>
+            <mat-select formControlName="branchName">
+              <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+            </mat-select>
             <mat-error *ngIf="form.get('branchName')?.hasError('required')">Required</mat-error>
           </mat-form-field>
         </div>
@@ -135,7 +139,9 @@
 
           <mat-form-field appearance="outline" class="field">
             <mat-label>Bank Name</mat-label>
-            <input matInput formControlName="bankName" />
+            <mat-select formControlName="bankName">
+              <mat-option *ngFor="let b of banks" [value]="b">{{ b }}</mat-option>
+            </mat-select>
             <mat-error *ngIf="form.get('bankName')?.hasError('required')">Required</mat-error>
           </mat-form-field>
         </div>

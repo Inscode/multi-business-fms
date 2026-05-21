@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { Payment } from '../../../core/services/payment';
+import { BANKS, AREAS } from '../../../core/constants/payment-options';
 
 export interface BulkPaymentDialogData {
   bills: any[];
@@ -40,6 +41,8 @@ export class BulkPaymentDialog {
   form: FormGroup;
   submitting = false;
   errorMsg = '';
+  banks = BANKS;
+  areas = AREAS;
 
   get billForms(): FormArray {
     return this.form.get('bills') as FormArray;
@@ -91,15 +94,18 @@ export class BulkPaymentDialog {
     const bankName   = this.form.get('bankName')!;
     const chequeDate = this.form.get('chequeDate')!;
 
+    chequeNum.clearValidators();
+    bankName.clearValidators();
+    chequeDate.clearValidators();
+
     if (this.isCheque) {
       chequeNum.setValidators(Validators.required);
       bankName.setValidators(Validators.required);
       chequeDate.setValidators(Validators.required);
-    } else {
-      chequeNum.clearValidators();
-      bankName.clearValidators();
-      chequeDate.clearValidators();
+    } else if (this.isBankTransfer) {
+      bankName.setValidators(Validators.required);
     }
+
     chequeNum.updateValueAndValidity();
     bankName.updateValueAndValidity();
     chequeDate.updateValueAndValidity();

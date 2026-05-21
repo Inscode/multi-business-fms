@@ -1,7 +1,10 @@
 import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -18,8 +21,11 @@ import { Worker, WorkerResponse } from '../../../../core/services/worker';
     CommonModule,
     DecimalPipe,
     LowerCasePipe,
+    FormsModule,
     MatButtonModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
     MatProgressSpinnerModule,
     MatTabsModule,
     MatMenuModule,
@@ -38,6 +44,17 @@ export class ShopDashboard implements OnInit {
   paymentsError = false;
 
   workers: WorkerResponse[] = [];
+  searchQuery = '';
+
+  get filteredBills(): ShopBill[] {
+    if (!this.data) return [];
+    const q = this.searchQuery.toLowerCase().trim();
+    if (!q) return this.data.bills;
+    return this.data.bills.filter(b =>
+      b.customerName.toLowerCase().includes(q) ||
+      (b.billNumber ?? '').toLowerCase().includes(q)
+    );
+  }
 
   get greeting(): string {
     const h = new Date().getHours();
