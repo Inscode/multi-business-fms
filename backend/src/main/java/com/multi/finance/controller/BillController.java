@@ -54,11 +54,17 @@ public class BillController {
     }
 
     @PatchMapping("/{id}/assign")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<BillResponse> assignBill(
             @PathVariable Long id,
             @Valid @RequestBody AssignBillRequest request) {
         return ResponseEntity.ok(billService.assignBill(id, request));
+    }
+
+    @PatchMapping("/{id}/shop-receive")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
+    public ResponseEntity<BillResponse> markShopReceived(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.markShopReceived(id));
     }
 
     @PatchMapping("/{id}/receive")
@@ -68,7 +74,7 @@ public class BillController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<BillResponse> getBillById(@PathVariable Long id) {
         return ResponseEntity.ok(billService.getBillById(id));
     }

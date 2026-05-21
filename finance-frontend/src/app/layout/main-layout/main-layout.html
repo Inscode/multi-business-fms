@@ -22,17 +22,21 @@
         <mat-icon>dashboard</mat-icon>
         <span *ngIf="!collapsed">Dashboard</span>
       </a>
-      <a class="nav-item" routerLink="/bills" routerLinkActive="active" matRipple (click)="isMobile && sidenav.close()">
+      <a class="nav-item" routerLink="/bills" routerLinkActive="active" matRipple *ngIf="showBills" (click)="isMobile && sidenav.close()">
         <mat-icon>receipt_long</mat-icon>
         <span *ngIf="!collapsed">Bills</span>
       </a>
-      <a class="nav-item" routerLink="/payments" routerLinkActive="active" matRipple (click)="isMobile && sidenav.close()">
+      <a class="nav-item" routerLink="/payments" routerLinkActive="active" matRipple *ngIf="showPayments" (click)="isMobile && sidenav.close()">
         <mat-icon>payments</mat-icon>
         <span *ngIf="!collapsed">Payments</span>
       </a>
       <a class="nav-item" routerLink="/staff" routerLinkActive="active" matRipple *ngIf="showStaff" (click)="isMobile && sidenav.close()">
         <mat-icon>badge</mat-icon>
         <span *ngIf="!collapsed">Staff</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/users" routerLinkActive="active" matRipple *ngIf="showUsers" (click)="isMobile && sidenav.close()">
+        <mat-icon>manage_accounts</mat-icon>
+        <span *ngIf="!collapsed">Users</span>
       </a>
     </nav>
 

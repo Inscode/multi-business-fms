@@ -2,7 +2,6 @@ package com.multi.finance.controller;
 
 
 import com.multi.finance.dto.request.LoginRequest;
-import com.multi.finance.dto.request.RegisterRequest;
 import com.multi.finance.dto.response.AuthResponse;
 import com.multi.finance.service.impl.AuthServiceImpl;
 import jakarta.validation.Valid;
@@ -22,13 +21,6 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request
             ) {
         return ResponseEntity.ok(authService.login(request));
-    }
-
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(
-            @Valid @RequestBody RegisterRequest request
-            ) {
-        return ResponseEntity.ok(authService.register(request));
     }
 
     @GetMapping("/hi")

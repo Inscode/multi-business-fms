@@ -58,5 +58,6 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findByBusinessOrderByCreatedAtDesc(BusinessType business);
     List<Bill> findByStatusOrderByCreatedAtDesc(BillStatus status);
     List<Bill> findByBusinessAndStatusOrderByCreatedAtDesc(BusinessType business, BillStatus status);
+    List<Bill> findByStatusInOrderByCreatedAtDesc(List<BillStatus> statuses);
 
 }

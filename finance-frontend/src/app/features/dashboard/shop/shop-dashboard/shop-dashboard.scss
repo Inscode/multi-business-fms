@@ -1,0 +1,337 @@
+.shop-page {
+  max-width: 600px;
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 32px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  .greeting-text {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 0;
+  }
+  .greeting-sub {
+    font-size: 13px;
+    color: #607d8b;
+    margin: 2px 0 0;
+  }
+}
+
+/* ── Tabs ── */
+mat-tab-group {
+  --mat-tab-header-active-label-text-color: #0d2137;
+  --mat-tab-header-active-indicator-color: #0d2137;
+  --mat-tab-header-label-text-size: 13px;
+}
+
+.tab-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d2137;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+
+  &.pending { background: #e65100; }
+}
+
+/* ── Stats ── */
+.stat-row {
+  display: flex;
+  gap: 10px;
+  padding: 16px 0 8px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  border-radius: 12px;
+  min-width: 72px;
+
+  .stat-num { font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat-lbl { font-size: 11px; margin-top: 4px; font-weight: 500; }
+
+  &.blue  { background: #e3f2fd; .stat-num, .stat-lbl { color: #1565c0; } }
+  &.amber { background: #fff3e0; .stat-num, .stat-lbl { color: #e65100; } }
+  &.green { background: #e8f5e9; .stat-num, .stat-lbl { color: #2e7d32; } }
+}
+
+/* ── States ── */
+.center-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 64px 0;
+  gap: 12px;
+  color: #607d8b;
+  p { margin: 0; font-size: 14px; }
+}
+
+.state-icon {
+  font-size: 40px;
+  width: 40px;
+  height: 40px;
+  &.error { color: #e53935; }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 0;
+  color: #607d8b;
+  mat-icon { font-size: 44px; width: 44px; height: 44px; margin-bottom: 10px; }
+  p { font-size: 14px; margin: 0; }
+}
+
+/* ── Bill cards ── */
+.bill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.bill-card {
+  background: #fff;
+  border: 0.5px solid #e0e6ed;
+  border-radius: 14px;
+  padding: 16px;
+
+  .bill-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .bill-top-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bill-number {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+  .bill-date {
+    font-size: 11px;
+    color: #90a4ae;
+  }
+  .customer-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .bill-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 12px;
+    color: #607d8b;
+  }
+  .meta-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #90a4ae;
+  }
+
+  /* Balance + primary action */
+  .bill-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-top: 0.5px solid #eceff1;
+    padding-top: 12px;
+  }
+  .amounts { display: flex; flex-direction: column; gap: 4px; }
+  .balance-row { display: flex; align-items: baseline; gap: 6px; }
+  .balance-label { font-size: 11px; color: #90a4ae; }
+  .balance-amount {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1976d2;
+    &.zero { font-size: 18px; color: #2e7d32; }
+  }
+  .totals-row { display: flex; gap: 4px; }
+  .small-label { font-size: 11px; color: #90a4ae; }
+
+  .record-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 14px;
+    white-space: nowrap;
+  }
+  .paid-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2e7d32;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  }
+
+  /* Secondary actions */
+  .bill-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .sec-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 36px;
+    font-size: 12px;
+    border-radius: 8px;
+    padding: 0 12px;
+    color: #455a64;
+    border-color: #cfd8dc;
+
+    mat-icon { font-size: 15px; width: 15px; height: 15px; }
+  }
+}
+
+/* ── Payment cards ── */
+.payments-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #607d8b;
+  padding: 12px 0 8px;
+  mat-icon { font-size: 15px; width: 15px; height: 15px; }
+}
+
+.payment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.payment-card {
+  background: #fff;
+  border: 0.5px solid #e0e6ed;
+  border-radius: 12px;
+  padding: 14px 16px;
+
+  .pay-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .pay-top-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pay-bill {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+  .pay-date {
+    font-size: 11px;
+    color: #90a4ae;
+  }
+  .pay-customer {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+  }
+  .pay-amount {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1976d2;
+    margin-bottom: 4px;
+  }
+  .pay-meta {
+    font-size: 12px;
+    color: #607d8b;
+    margin-bottom: 2px;
+  }
+  .pay-footer {
+    border-top: 0.5px solid #eceff1;
+    margin-top: 10px;
+    padding-top: 8px;
+  }
+  .pay-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #e65100;
+    font-weight: 500;
+    mat-icon { font-size: 14px; width: 14px; height: 14px; }
+  }
+}
+
+/* ── Payment type badges ── */
+.ptype-badge {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  &-cash          { background: #e8f5e9; color: #2e7d32; }
+  &-cheque        { background: #fff3e0; color: #e65100; }
+  &-bank_transfer { background: #e3f2fd; color: #1565c0; }
+}
+
+/* ── Status badges ── */
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+
+  &-created               { background: #e3f2fd; color: #1565c0; }
+  &-assigned              { background: #fff3e0; color: #e65100; }
+  &-shop_worker_assigned  { background: #f3e5f5; color: #6a1b9a; }
+  &-shop_received         { background: #e8eaf6; color: #283593; }
+  &-store_received        { background: #e0f2f1; color: #00695c; }
+  &-completed             { background: #e8f5e9; color: #2e7d32; }
+  &-cancelled             { background: #ffebee; color: #c62828; }
+}

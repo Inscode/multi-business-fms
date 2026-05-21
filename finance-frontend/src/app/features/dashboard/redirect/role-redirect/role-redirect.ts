@@ -22,7 +22,7 @@ export class RoleRedirect implements OnInit{
         this.router.navigate(['/dashboard/owner']);
         break;
       case 'SHOP_ACCOUNTANT':
-        this.router.navigate(['/dashboard/accountant']);
+        this.router.navigate(['/dashboard/shop']);
         break;
       default:
         this.router.navigate(['/login']);

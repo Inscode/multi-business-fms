@@ -3,7 +3,6 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
-
 export interface PaymentResponse {
   id: number;
   billId: number;
@@ -45,11 +44,47 @@ export interface PaymentRequest {
   notes?: string;
 }
 
+export interface BulkPaymentBillItem {
+  billId: number;
+  amount: number;
+}
+
+export interface BulkPaymentRequest {
+  bills: BulkPaymentBillItem[];
+  paymentType: string;
+  chequeNumber?: string;
+  bankName?: string;
+  branchName?: string;
+  chequeDate?: string;
+  referenceNumber?: string;
+  paymentDate?: string;
+  notes?: string;
+}
+
+export interface PaymentGroupResponse {
+  id: number;
+  paymentType: string;
+  chequeNumber?: string;
+  bankName?: string;
+  branchName?: string;
+  referenceNumber?: string;
+  chequeDate?: string;
+  paymentDate: string;
+  totalAmount: number;
+  notes?: string;
+  status: string;
+  enteredByName: string;
+  confirmedByName?: string;
+  confirmedAt?: string;
+  returnReason?: string;
+  createdAt: string;
+  payments: PaymentResponse[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class Payment {
-
   private apiUrl = `${environment.apiUrl}/payments`;
 
   constructor(private http: HttpClient) {}
@@ -57,12 +92,11 @@ export class Payment {
   getAllPayments(status?: string): Observable<PaymentResponse[]> {
     let params = new HttpParams();
     if (status) params = params.set('status', status);
-    return this.http.get<PaymentResponse[]>(this.apiUrl, {params});
+    return this.http.get<PaymentResponse[]>(this.apiUrl, { params });
   }
 
   enterPayment(billId: number, request: PaymentRequest): Observable<PaymentResponse> {
-    return this.http.post<PaymentResponse>(
-      `${this.apiUrl}/bills/${billId}`, request);
+    return this.http.post<PaymentResponse>(`${this.apiUrl}/bills/${billId}`, request);
   }
 
   updatePayment(id: number, request: PaymentRequest): Observable<PaymentResponse> {
@@ -74,11 +108,36 @@ export class Payment {
   }
 
   markChequeReturned(id: number, returnReason: string): Observable<PaymentResponse> {
-    return this.http.patch<PaymentResponse>(
-      `${this.apiUrl}/${id}/return`, { returnReason });
+    return this.http.patch<PaymentResponse>(`${this.apiUrl}/${id}/return`, { returnReason });
   }
 
   getPaymentsByBill(billId: number): Observable<PaymentResponse[]> {
     return this.http.get<PaymentResponse[]>(`${this.apiUrl}/bill/${billId}`);
+  }
+
+  getMyEnteredPayments(): Observable<PaymentResponse[]> {
+    return this.http.get<PaymentResponse[]>(`${this.apiUrl}/my-entered`);
+  }
+
+  enterBulkPayment(request: BulkPaymentRequest): Observable<PaymentGroupResponse> {
+    return this.http.post<PaymentGroupResponse>(`${this.apiUrl}/bulk`, request);
+  }
+
+  getGroups(status?: string): Observable<PaymentGroupResponse[]> {
+    let params = new HttpParams();
+    if (status) params = params.set('status', status);
+    return this.http.get<PaymentGroupResponse[]>(`${this.apiUrl}/groups`, { params });
+  }
+
+  getGroup(id: number): Observable<PaymentGroupResponse> {
+    return this.http.get<PaymentGroupResponse>(`${this.apiUrl}/groups/${id}`);
+  }
+
+  confirmGroup(id: number): Observable<PaymentGroupResponse> {
+    return this.http.patch<PaymentGroupResponse>(`${this.apiUrl}/groups/${id}/confirm`, {});
+  }
+
+  returnGroup(id: number, returnReason: string): Observable<PaymentGroupResponse> {
+    return this.http.patch<PaymentGroupResponse>(`${this.apiUrl}/groups/${id}/return`, { returnReason });
   }
 }

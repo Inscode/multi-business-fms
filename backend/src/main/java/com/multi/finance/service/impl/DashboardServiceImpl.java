@@ -1,9 +1,11 @@
 package com.multi.finance.service.impl;
 
 import com.multi.finance.dto.response.AccountantDashboardResponse;
+import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.dto.response.BillSummaryResponse;
 import com.multi.finance.dto.response.OwnerDashboardResponse;
 import com.multi.finance.dto.response.PaymentSummaryResponse;
+import com.multi.finance.dto.response.ShopDashboardResponse;
 import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.Payment;
 import com.multi.finance.enums.BillStatus;
@@ -30,6 +32,12 @@ public class DashboardServiceImpl {
     private static final List<BillStatus> SHOP_STATUSES = List.of(
             BillStatus.SHOP_WORKER_ASSIGNED,
             BillStatus.SHOP_RECEIVED
+    );
+
+    private static final List<BillStatus> SHOP_DASHBOARD_STATUSES = List.of(
+            BillStatus.ASSIGNED,
+            BillStatus.SHOP_RECEIVED,
+            BillStatus.SHOP_WORKER_ASSIGNED
     );
 
     @Transactional(readOnly = true)
@@ -82,6 +90,24 @@ public class DashboardServiceImpl {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public ShopDashboardResponse getShopDashboard() {
+        List<BillResponse> bills = billRepository
+                .findByStatusInOrderByCreatedAtDesc(SHOP_DASHBOARD_STATUSES)
+                .stream().map(this::toBillResponse).toList();
+
+        return ShopDashboardResponse.builder()
+                .shopReceivedBills(billRepository
+                        .countByStatus(BillStatus.SHOP_RECEIVED))
+                .shopWorkerAssignedBills(billRepository
+                        .countByStatus(BillStatus.SHOP_WORKER_ASSIGNED))
+                .pendingPayments(paymentRepository
+                        .countByPaymentStatusAndBillStatus(
+                                PaymentStatus.ENTERED, BillStatus.SHOP_RECEIVED))
+                .bills(bills)
+                .build();
+    }
+
     private BillSummaryResponse toBillSummary(Bill b) {
         return BillSummaryResponse.builder()
                 .id(b.getId())
@@ -91,6 +117,31 @@ public class DashboardServiceImpl {
                 .workerName(b.getCurrentHolder() != null
                         ? b.getCurrentHolder().getFullName() : null)
                 .status(b.getStatus())
+                .build();
+    }
+
+    private BillResponse toBillResponse(Bill b) {
+        return BillResponse.builder()
+                .id(b.getId())
+                .billNumber(b.getBillNumber())
+                .business(b.getBusiness())
+                .division(b.getDivision())
+                .billType(b.getBillType())
+                .billSource(b.getBillSource())
+                .customerName(b.getCustomerName())
+                .area(b.getArea())
+                .totalAmount(b.getTotalAmount())
+                .amountPaid(b.getAmountPaid())
+                .balanceRemaining(b.getBalanceRemaining())
+                .status(b.getStatus())
+                .workerId(b.getCurrentHolder() != null ? b.getCurrentHolder().getId() : null)
+                .workerName(b.getCurrentHolder() != null ? b.getCurrentHolder().getFullName() : null)
+                .enteredByName(b.getEnteredBy() != null ? b.getEnteredBy().getFullName() : null)
+                .receivedByName(b.getReceivedBy() != null ? b.getReceivedBy().getFullName() : null)
+                .receivedAt(b.getReceivedAt())
+                .billDate(b.getBillDate())
+                .notes(b.getNotes())
+                .createdAt(b.getCreatedAt())
                 .build();
     }
 

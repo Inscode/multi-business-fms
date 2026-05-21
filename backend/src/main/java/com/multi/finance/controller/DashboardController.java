@@ -2,6 +2,7 @@ package com.multi.finance.controller;
 
 import com.multi.finance.dto.response.AccountantDashboardResponse;
 import com.multi.finance.dto.response.OwnerDashboardResponse;
+import com.multi.finance.dto.response.ShopDashboardResponse;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.service.impl.DashboardServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -30,5 +32,11 @@ public class DashboardController {
     public ResponseEntity<OwnerDashboardResponse> getOwnerDashboard(
             @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
         return ResponseEntity.ok(dashboardService.getOwnerDashboard(business));
+    }
+
+    @GetMapping("/shop")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SHOP_ACCOUNTANT')")
+    public ResponseEntity<ShopDashboardResponse> getShopDashboard() {
+        return ResponseEntity.ok(dashboardService.getShopDashboard());
     }
 }

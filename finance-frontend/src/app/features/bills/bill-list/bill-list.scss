@@ -12,6 +12,21 @@
   flex-wrap: wrap;
   gap: 12px;
 
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .bulk-btn {
+    background: #0d2137;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
   .page-title {
     font-size: 20px;
     font-weight: 600;
@@ -237,4 +252,27 @@
   &:hover {
     background: #f5f7fa;
   }
+}
+
+.selection-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #1976d2;
+  margin-bottom: 10px;
+  mat-icon { font-size: 15px; width: 15px; height: 15px; }
+}
+
+.selected-row { background: #e3f2fd !important; }
+
+.bill-card.selected {
+  border-color: #1976d2;
+  background: #f0f7ff;
+}
+
+.card-left-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

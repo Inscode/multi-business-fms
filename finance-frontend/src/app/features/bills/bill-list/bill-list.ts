@@ -3,18 +3,21 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatDialogModule } from '@angular/material/dialog';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { RouterLink } from '@angular/router';
-import { Worker, WorkerResponse } from '../../../core/services/worker';
-import { Bill, BillResponse } from '../../../core/services/bill';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatInput } from '@angular/material/input';
+import { RouterLink } from '@angular/router';
+import { SelectionModel } from '@angular/cdk/collections';
+import { Worker, WorkerResponse } from '../../../core/services/worker';
+import { Bill, BillResponse } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
+import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
 
 @Component({
   selector: 'app-bill-list',
@@ -31,140 +34,178 @@ import { Auth } from '../../../core/services/auth';
     MatProgressSpinnerModule,
     MatMenuModule,
     MatDialogModule,
+    MatCheckboxModule,
     DecimalPipe,
     LowerCasePipe,
-    MatInput
+    MatInput,
   ],
   templateUrl: './bill-list.html',
   styleUrl: './bill-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BillList implements OnInit{
-  bills: any[]         = [];
+export class BillList implements OnInit {
+  bills: any[] = [];
   filteredBills: any[] = [];
   workers: WorkerResponse[] = [];
   loading = true;
-  error   = false;
-
+  error = false;
 
   searchQuery = '';
   selectedBusiness = '';
-  selectedStatus   = '';
+  selectedStatus = '';
   selectedArea = '';
 
   businesses = ['', 'RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
-  statuses   = ['', 'CREATED', 'ASSIGNED', 'SHOP_WORKER_ASSIGNED',
-                'SHOP_RECEIVED', 'STORE_RECEIVED', 'COMPLETED', 'CANCELLED'];
+  statuses = ['', 'CREATED', 'ASSIGNED', 'SHOP_WORKER_ASSIGNED',
+              'SHOP_RECEIVED', 'STORE_RECEIVED', 'COMPLETED', 'CANCELLED'];
 
-  displayedColumns = ['billNumber', 'customerName', 'area', 'business',
-                      'totalAmount','balanceRemaining', 'workerName', 'status', 'actions'];
-
-   areas = [
+  areas = [
     'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
     'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
     'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
     'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
-    'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
+    'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada',
   ];
 
+  selection = new SelectionModel<any>(true, []);
 
+  displayedColumns: string[];
+
+  get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
+
+  get canEnterPayment(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
+
+  get canMarkShopReceivedRole(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
+
+  get hasBulkSelection(): boolean { return this.selection.selected.length >= 2; }
+
+  isSelectable(b: any): boolean { return !b.fullyPaid && b.status !== 'CANCELLED'; }
 
   constructor(
     private billService: Bill,
     private workerService: Worker,
     private cdr: ChangeDetectorRef,
-    private auth: Auth
-  ) {}
+    private auth: Auth,
+    private dialog: MatDialog,
+  ) {
+    this.displayedColumns = this.canEnterPayment
+      ? ['select', 'billNumber', 'customerName', 'area', 'business', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions']
+      : ['billNumber', 'customerName', 'area', 'business', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];
+  }
 
   ngOnInit(): void {
     this.load();
     this.loadWorkers();
   }
 
-    load(): void {
+  load(): void {
     this.loading = true;
-    this.error   = false;
+    this.error = false;
+    this.selection.clear();
     this.billService.getBills({
       business: this.selectedBusiness || undefined,
       status:   this.selectedStatus   || undefined,
     }).subscribe({
       next: (b) => {
-        this.bills         = b;
-        this.loading       = false;
+        this.bills = b;
+        this.loading = false;
         this.applyFilters();
         this.cdr.detectChanges();
       },
       error: () => {
-        this.error   = true;
+        this.error = true;
         this.loading = false;
         this.cdr.detectChanges();
-      }
+      },
     });
   }
 
-    private loadWorkers(): void {
+  private loadWorkers(): void {
     this.workerService.getAllWorkers().subscribe({
       next: (w) => this.workers = w.filter(w => w.active),
-      error: () => this.workers = []
+      error: () => this.workers = [],
     });
   }
 
   applyFilters(): void {
     const query = this.searchQuery.toLowerCase().trim();
-
     this.filteredBills = this.bills.filter(b => {
-      const matchesSearch = !query || 
-      b.customerName.toLowerCase().includes(query) ||
-      (b.billNumber ?? '').toLowerCase().includes(query);
-
-      const matchesArea = !this.selectedArea ||
-      b.area === this.selectedArea;
-
+      const matchesSearch = !query ||
+        b.customerName.toLowerCase().includes(query) ||
+        (b.billNumber ?? '').toLowerCase().includes(query);
+      const matchesArea = !this.selectedArea || b.area === this.selectedArea;
       return matchesSearch && matchesArea;
-    })
+    });
   }
 
-  onSearchChange(): void {this.applyFilters();}
-  onAreaChange(): void {this.applyFilters();}
+  onSearchChange(): void { this.applyFilters(); }
+  onAreaChange(): void   { this.applyFilters(); }
 
-  onFilterChange(): void {
-    this.load();
+  onFilterChange(): void { this.load(); }
+
+  toggleSelection(b: any): void {
+    if (this.isSelectable(b)) this.selection.toggle(b);
+  }
+
+  openBulkPayment(): void {
+    const ref = this.dialog.open(BulkPaymentDialog, {
+      data: { bills: this.selection.selected },
+      width: '600px',
+      maxWidth: '100vw',
+      maxHeight: '95vh',
+      panelClass: 'bulk-payment-panel',
+    });
+    ref.afterClosed().subscribe(success => {
+      if (success) {
+        this.selection.clear();
+        this.load();
+      }
+    });
   }
 
   assignBill(billId: number, workerId: number): void {
     this.billService.assignBill(billId, workerId).subscribe({
       next: () => this.load(),
-      error: () => alert('Failed to assign bill.')
+      error: () => alert('Failed to assign bill.'),
     });
   }
 
   markReceived(billId: number): void {
     this.billService.markReceived(billId).subscribe({
       next: () => this.load(),
-      error: () => alert('Failed to mark as received.')
+      error: () => alert('Failed to mark as received.'),
+    });
+  }
+
+  markShopReceived(billId: number): void {
+    this.billService.markShopReceived(billId).subscribe({
+      next: () => this.load(),
+      error: () => alert('Failed to mark as shop received.'),
     });
   }
 
   canAssign(bill: BillResponse): boolean {
-  return ['CREATED', 'ASSIGNED', 'STORE_RECEIVED'].includes(bill.status) &&
-         !bill.fullyPaid;
+    return ['CREATED', 'ASSIGNED', 'STORE_RECEIVED'].includes(bill.status) && !bill.fullyPaid;
   }
-
-  get isOwner(): boolean {
-    return this.auth.getRole() === 'OWNER';
-  }
-
 
   canMarkStoreReceived(bill: BillResponse): boolean {
     return ['ASSIGNED', 'SHOP_RECEIVED'].includes(bill.status);
   }
 
-  hasActions(bill: BillResponse): boolean {
-    return !this.isOwner && (this.canAssign(bill) || this.canMarkStoreReceived(bill));
+  canMarkShopReceived(bill: BillResponse): boolean {
+    return this.canMarkShopReceivedRole &&
+      ['CREATED', 'ASSIGNED', 'STORE_RECEIVED'].includes(bill.status);
   }
 
-
-
-
-
+  hasActions(bill: BillResponse): boolean {
+    return !this.isOwner && (
+      this.canAssign(bill) ||
+      this.canMarkStoreReceived(bill) ||
+      this.canMarkShopReceived(bill)
+    );
+  }
 }

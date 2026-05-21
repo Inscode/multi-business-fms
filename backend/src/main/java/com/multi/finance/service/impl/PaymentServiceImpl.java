@@ -1,27 +1,30 @@
 package com.multi.finance.service.impl;
 
 
+import com.multi.finance.dto.request.BulkPaymentRequest;
 import com.multi.finance.dto.request.PaymentRequest;
+import com.multi.finance.dto.response.PaymentGroupResponse;
 import com.multi.finance.dto.response.PaymentResponse;
 import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.Payment;
+import com.multi.finance.entity.PaymentGroup;
 import com.multi.finance.entity.User;
 import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.enums.PaymentType;
+import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.PaymentGroupRepository;
 import com.multi.finance.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.swing.text.html.Option;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,7 @@ public class PaymentServiceImpl {
 
     private final PaymentRepository paymentRepository;
     private final BillRepository billRepository;
+    private final PaymentGroupRepository paymentGroupRepository;
 
     @Transactional
     public PaymentResponse enterPayment(
@@ -43,6 +47,20 @@ public class PaymentServiceImpl {
         if (bill.getFullyPaid()) {
             throw new RuntimeException(
                     "Bill is already fully paid");
+        }
+
+        // SHOP_ACCOUNTANT can only enter payments for shop-visible bills
+        User caller = getCurrentUser();
+        if (caller.getRole() == UserRole.SHOP_ACCOUNTANT) {
+            List<BillStatus> allowed = List.of(
+                    BillStatus.ASSIGNED,
+                    BillStatus.SHOP_RECEIVED,
+                    BillStatus.SHOP_WORKER_ASSIGNED
+            );
+            if (!allowed.contains(bill.getStatus())) {
+                throw new RuntimeException(
+                        "Shop accountant can only enter payments for bills with status: ASSIGNED, SHOP_RECEIVED or SHOP_WORKER_ASSIGNED");
+            }
         }
 
         if (request.getAmount()
@@ -246,10 +264,227 @@ public class PaymentServiceImpl {
     }
 
 
+    @Transactional(readOnly = true)
+    public List<PaymentResponse> getMyEnteredPayments() {
+        User currentUser = getCurrentUser();
+        return paymentRepository
+                .findByEnteredByIdAndStatusOrderByCreatedAtDesc(
+                        currentUser.getId(), PaymentStatus.ENTERED)
+                .stream()
+                .map(p -> toResponse(p, p.getBill()))
+                .toList();
+    }
+
+    // Bulk / Combined Payment
+
+    @Transactional
+    public PaymentGroupResponse enterBulkPayment(BulkPaymentRequest request) {
+
+        if (request.getPaymentType() == PaymentType.CHEQUE) {
+            if (request.getChequeNumber() == null ||
+                    request.getBankName() == null ||
+                    request.getChequeDate() == null) {
+                throw new RuntimeException("Cheque details are required for cheque payments");
+            }
+        }
+
+        User currentUser = getCurrentUser();
+        LocalDate paymentDate = request.getPaymentDate() != null
+                ? request.getPaymentDate() : LocalDate.now();
+
+        BigDecimal totalAmount = request.getBills().stream()
+                .map(BulkPaymentRequest.BillPaymentItem::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        PaymentGroup group = PaymentGroup.builder()
+                .paymentType(request.getPaymentType())
+                .chequeNumber(request.getChequeNumber())
+                .bankName(request.getBankName())
+                .branchName(request.getBranchName())
+                .referenceNumber(request.getReferenceNumber())
+                .chequeDate(request.getChequeDate())
+                .paymentDate(paymentDate)
+                .totalAmount(totalAmount)
+                .notes(request.getNotes())
+                .status(PaymentStatus.ENTERED)
+                .enteredBy(currentUser)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        paymentGroupRepository.save(group);
+
+        List<Payment> payments = request.getBills().stream().map(item -> {
+            Bill bill = billRepository.findById(item.getBillId())
+                    .orElseThrow(() -> new RuntimeException("Bill not found: " + item.getBillId()));
+
+            if (bill.getFullyPaid()) {
+                throw new RuntimeException("Bill " + item.getBillId() + " is already fully paid");
+            }
+            if (item.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
+                throw new RuntimeException("Amount exceeds balance for bill: " + item.getBillId());
+            }
+
+            boolean isPartial = item.getAmount().compareTo(bill.getBalanceRemaining()) < 0;
+
+            return Payment.builder()
+                    .bill(bill)
+                    .group(group)
+                    .amount(item.getAmount())
+                    .paymentType(request.getPaymentType())
+                    .status(PaymentStatus.ENTERED)
+                    .isPartial(isPartial)
+                    .enteredBy(currentUser)
+                    .paymentDate(paymentDate)
+                    .chequeNumber(request.getChequeNumber())
+                    .bankName(request.getBankName())
+                    .branchName(request.getBranchName())
+                    .referenceNumber(request.getReferenceNumber())
+                    .chequeDate(request.getChequeDate())
+                    .notes(request.getNotes())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+        }).toList();
+
+        paymentRepository.saveAll(payments);
+
+        return toGroupResponse(group, payments);
+    }
+
+    @Transactional
+    public PaymentGroupResponse confirmGroup(Long groupId) {
+        PaymentGroup group = paymentGroupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Payment group not found"));
+
+        if (group.getStatus() == PaymentStatus.CONFIRMED) {
+            throw new RuntimeException("Payment group is already confirmed");
+        }
+
+        User currentUser = getCurrentUser();
+        List<Payment> payments = paymentRepository.findByGroupId(groupId);
+
+        for (Payment payment : payments) {
+            Bill bill = payment.getBill();
+
+            BigDecimal newAmountPaid = bill.getAmountPaid().add(payment.getAmount());
+            BigDecimal newBalance    = bill.getTotalAmount().subtract(newAmountPaid);
+
+            bill.setAmountPaid(newAmountPaid);
+            bill.setBalanceRemaining(newBalance);
+            bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
+
+            if (Boolean.TRUE.equals(bill.getFullyPaid())) {
+                bill.setStatus(BillStatus.COMPLETED);
+            }
+            bill.setUpdatedAt(LocalDateTime.now());
+            billRepository.save(bill);
+
+            payment.setStatus(PaymentStatus.CONFIRMED);
+            payment.setConfirmedBy(currentUser);
+            payment.setConfirmedAt(LocalDateTime.now());
+            payment.setUpdatedAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+        }
+
+        group.setStatus(PaymentStatus.CONFIRMED);
+        group.setConfirmedBy(currentUser);
+        group.setConfirmedAt(LocalDateTime.now());
+        group.setUpdatedAt(LocalDateTime.now());
+        paymentGroupRepository.save(group);
+
+        return toGroupResponse(group, payments);
+    }
+
+    @Transactional
+    public PaymentGroupResponse returnGroup(Long groupId, String returnReason) {
+        PaymentGroup group = paymentGroupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Payment group not found"));
+
+        if (group.getStatus() != PaymentStatus.CONFIRMED) {
+            throw new RuntimeException("Only confirmed groups can be returned");
+        }
+
+        List<Payment> payments = paymentRepository.findByGroupId(groupId);
+
+        for (Payment payment : payments) {
+            Bill bill = payment.getBill();
+
+            BigDecimal restored   = bill.getAmountPaid().subtract(payment.getAmount());
+            BigDecimal newBalance = bill.getTotalAmount().subtract(restored);
+
+            bill.setAmountPaid(restored);
+            bill.setBalanceRemaining(newBalance);
+            bill.setFullyPaid(false);
+            bill.setStatus(BillStatus.STORE_RECEIVED);
+            bill.setUpdatedAt(LocalDateTime.now());
+            billRepository.save(bill);
+
+            payment.setStatus(PaymentStatus.RETURNED);
+            payment.setReturnReason(returnReason);
+            payment.setUpdatedAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+        }
+
+        group.setStatus(PaymentStatus.RETURNED);
+        group.setReturnReason(returnReason);
+        group.setUpdatedAt(LocalDateTime.now());
+        paymentGroupRepository.save(group);
+
+        return toGroupResponse(group, payments);
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentGroupResponse getGroupById(Long groupId) {
+        PaymentGroup group = paymentGroupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Payment group not found"));
+        List<Payment> payments = paymentRepository.findByGroupId(groupId);
+        return toGroupResponse(group, payments);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentGroupResponse> getAllGroups(PaymentStatus status) {
+        List<PaymentGroup> groups = status != null
+                ? paymentGroupRepository.findByStatusOrderByCreatedAtDesc(status)
+                : paymentGroupRepository.findAllByOrderByCreatedAtDesc();
+
+        return groups.stream().map(group -> {
+            List<Payment> payments = paymentRepository.findByGroupId(group.getId());
+            return toGroupResponse(group, payments);
+        }).toList();
+    }
+
+    private PaymentGroupResponse toGroupResponse(PaymentGroup group, List<Payment> payments) {
+        List<PaymentResponse> paymentResponses = payments.stream()
+                .map(p -> toResponse(p, p.getBill()))
+                .toList();
+
+        return PaymentGroupResponse.builder()
+                .id(group.getId())
+                .paymentType(group.getPaymentType())
+                .chequeNumber(group.getChequeNumber())
+                .bankName(group.getBankName())
+                .branchName(group.getBranchName())
+                .referenceNumber(group.getReferenceNumber())
+                .chequeDate(group.getChequeDate())
+                .paymentDate(group.getPaymentDate())
+                .totalAmount(group.getTotalAmount())
+                .notes(group.getNotes())
+                .status(group.getStatus())
+                .enteredByName(group.getEnteredBy() != null ? group.getEnteredBy().getFullName() : null)
+                .confirmedByName(group.getConfirmedBy() != null ? group.getConfirmedBy().getFullName() : null)
+                .confirmedAt(group.getConfirmedAt())
+                .returnReason(group.getReturnReason())
+                .createdAt(group.getCreatedAt())
+                .payments(paymentResponses)
+                .build();
+    }
+
     private PaymentResponse toResponse(Payment payment, Bill bill) {
         return PaymentResponse.builder()
                 .id(payment.getId())
                 .billId(bill.getId())
+                .groupId(payment.getGroup() != null ? payment.getGroup().getId() : null)
                 .billNumber(bill.getBillNumber())
                 .isPartial(payment.getIsPartial())
                 .customerName(bill.getCustomerName())

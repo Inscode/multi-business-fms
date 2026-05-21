@@ -9,6 +9,7 @@ import com.multi.finance.entity.Worker;
 import com.multi.finance.enums.BillSource;
 import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
+import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.PaymentRepository;
 import com.multi.finance.repository.UserRepository;
@@ -125,6 +126,7 @@ public class BillServiceImpl {
     @Transactional
     public BillResponse assignBill(Long id, AssignBillRequest request) {
         Bill bill = findBillById(id);
+        User caller = getCurrentUser();
 
         if (bill.getStatus() == BillStatus.COMPLETED ||
                 bill.getStatus() == BillStatus.CANCELLED) {
@@ -132,11 +134,56 @@ public class BillServiceImpl {
                     "Cannot assign a completed or cancelled bill");
         }
 
+        if (caller.getRole() == UserRole.SHOP_ACCOUNTANT) {
+            List<BillStatus> allowed = List.of(
+                    BillStatus.ASSIGNED,
+                    BillStatus.SHOP_RECEIVED,
+                    BillStatus.SHOP_WORKER_ASSIGNED
+            );
+            if (!allowed.contains(bill.getStatus())) {
+                throw new RuntimeException(
+                        "Shop accountant can only assign bills with status: ASSIGNED, SHOP_RECEIVED or SHOP_WORKER_ASSIGNED");
+            }
+        }
+
         Worker worker = workerRepository.findById(request.getWorkerId())
                 .orElseThrow(() -> new RuntimeException("Worker not found"));
 
+        BillStatus newStatus = (caller.getRole() == UserRole.SHOP_ACCOUNTANT)
+                ? BillStatus.SHOP_WORKER_ASSIGNED
+                : BillStatus.ASSIGNED;
+
         bill.setCurrentHolder(worker);
-        bill.setStatus(BillStatus.ASSIGNED);
+        bill.setStatus(newStatus);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    @Transactional
+    public BillResponse markShopReceived(Long id) {
+        Bill bill = findBillById(id);
+        User caller = getCurrentUser();
+
+        if (bill.getStatus() == BillStatus.COMPLETED ||
+                bill.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException("Cannot change status of a completed or cancelled bill");
+        }
+
+        switch (caller.getRole()) {
+            case SHOP_ACCOUNTANT -> {
+                if (bill.getStatus() != BillStatus.ASSIGNED &&
+                        bill.getStatus() != BillStatus.SHOP_WORKER_ASSIGNED) {
+                    throw new RuntimeException(
+                            "Shop accountant can only mark ASSIGNED or SHOP_WORKER_ASSIGNED bills as shop received");
+                }
+            }
+            case ACCOUNTANT, MAIN_ACCOUNTANT, ADMIN -> {
+                // allowed from any non-terminal status — already checked above
+            }
+            default -> throw new RuntimeException("Not authorized to mark bill as shop received");
+        }
+
+        bill.setStatus(BillStatus.SHOP_RECEIVED);
         bill.setUpdatedAt(LocalDateTime.now());
         return toResponse(billRepository.save(bill));
     }

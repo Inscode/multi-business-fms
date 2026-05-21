@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
 import { loginGuard } from './core/guards/login-guard';
 import { staffGuard } from './core/guards/staff-guard';
+import { adminGuard } from './core/guards/admin-guard';
 import { MainLayoutComponent } from './layout/main-layout/main-layout';
 
 export const routes: Routes = [
@@ -30,6 +31,11 @@ export const routes: Routes = [
         path: 'dashboard/owner',
         loadComponent: () => import('./features/owner/owner-dashboard/owner-dashboard')
           .then(m => m.OwnerDashboard)
+      },
+      {
+        path: 'dashboard/shop',
+        loadComponent: () => import('./features/dashboard/shop/shop-dashboard/shop-dashboard')
+          .then(m => m.ShopDashboard)
       },
       {
         path: 'bills',
@@ -61,6 +67,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/staff/staff-page/staff-page')
           .then(m => m.StaffPage),
         canActivate: [staffGuard]
+      },
+      {
+        path: 'admin/users',
+        loadComponent: () => import('./features/admin/users-page/users-page')
+          .then(m => m.UsersPage),
+        canActivate: [adminGuard]
       },
     ]
   },

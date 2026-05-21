@@ -28,3 +28,8 @@ body {
     min-height: 34px !important;
   }
 }
+
+/* Ensure datepicker calendar panel renders above Material dialogs */
+.cdk-overlay-container {
+  z-index: 9999;
+}

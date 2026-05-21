@@ -14,34 +14,19 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "payments")
-public class Payment {
+@Table(name = "payment_groups")
+public class PaymentGroup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bill_id", nullable = false)
-    private Bill bill;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "group_id")
-    private PaymentGroup group;
-
-    @Column(nullable = false)
-    private BigDecimal amount;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_type", nullable = false)
     private PaymentType paymentType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PaymentStatus status;
-
-    @Column(name = "reference_number")
-    private String referenceNumber;
+    @Column(name = "cheque_number")
+    private String chequeNumber;
 
     @Column(name = "bank_name")
     private String bankName;
@@ -49,11 +34,23 @@ public class Payment {
     @Column(name = "branch_name")
     private String branchName;
 
-    @Column(name = "cheque_number")
-    private String chequeNumber;
+    @Column(name = "reference_number")
+    private String referenceNumber;
 
     @Column(name = "cheque_date")
     private LocalDate chequeDate;
+
+    @Column(name = "payment_date", nullable = false)
+    private LocalDate paymentDate;
+
+    @Column(name = "total_amount", nullable = false)
+    private BigDecimal totalAmount;
+
+    private String notes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by", nullable = false)
@@ -65,14 +62,6 @@ public class Payment {
 
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
-
-    @Column(name = "payment_date", nullable = false)
-    private LocalDate paymentDate;
-
-    private String notes;
-
-    @Column(name = "is_partial", nullable = false)
-    private Boolean isPartial;
 
     @Column(name = "return_reason")
     private String returnReason;

@@ -64,5 +64,9 @@ export class Bill {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/receive`, {});
   }
 
+  markShopReceived(id: number): Observable<BillResponse> {
+    return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/shop-receive`, {});
+  }
+
 
 }
