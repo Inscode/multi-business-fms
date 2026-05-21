@@ -163,8 +163,12 @@ export class UsersPage implements OnInit {
 
     const { fullName, username, password, role } = this.form.value;
 
+    const updatePayload = password?.trim()
+      ? { fullName, username, role, password }
+      : { fullName, username, role };
+
     const request$ = this.editingUser
-      ? this.userService.update(this.editingUser.id, { fullName, username, role })
+      ? this.userService.update(this.editingUser.id, updatePayload)
       : this.userService.create({ fullName, username, password, role });
 
     request$.subscribe({

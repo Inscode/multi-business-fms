@@ -1,5 +1,3 @@
-ALTER TABLE bills
-RENAME COLUMN worker_id TO holder_id;
 -- Users (passwords are BCrypt of the plain text shown in comments)
 INSERT INTO users (username, password_hash, full_name, role, active, created_at, updated_at) VALUES
 ('admin1',     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LPVdSqKJ0pe', 'Admin User',       'ADMIN',          true, NOW(), NOW()),

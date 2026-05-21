@@ -45,7 +45,19 @@ public class UserServiceImpl {
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.getUsername().equals(request.getUsername()) &&
+                userRepository.existsByUsername(request.getUsername())) {
+            throw new RuntimeException("Username already taken");
+        }
+
         user.setFullName(request.getFullName());
+        user.setUsername(request.getUsername());
+        user.setRole(request.getRole());
+
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
         if (request.getActive() != null) {
             user.setActive(request.getActive());
         }
