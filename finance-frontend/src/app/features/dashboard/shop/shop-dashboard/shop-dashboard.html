@@ -52,9 +52,19 @@
           </div>
         </div>
 
+        <!-- Search -->
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+          <mat-label>Search by name or bill number</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput [(ngModel)]="searchQuery" />
+          <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery = ''">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+
         <!-- Bill cards -->
-        <div class="bill-list" *ngIf="data.bills.length > 0; else emptyBills">
-          <div class="bill-card" *ngFor="let b of data.bills">
+        <div class="bill-list" *ngIf="filteredBills.length > 0; else emptyBills">
+          <div class="bill-card" *ngFor="let b of filteredBills">
 
             <!-- Top row -->
             <div class="bill-top">

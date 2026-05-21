@@ -13,6 +13,7 @@ import { Payment } from '../../../core/services/payment';
 import { Bill } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { Router } from '@angular/router';
+import { BANKS, AREAS } from '../../../core/constants/payment-options';
 
 @Component({
   selector: 'app-enter-payment',
@@ -44,6 +45,8 @@ export class EnterPayment implements OnInit{
 
   businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
   paymentTypes = ['CASH', 'CHEQUE', 'BANK_TRANSFER'];
+  banks = BANKS;
+  areas = AREAS;
 
    get isCheque(): boolean {
     return this.form.get('paymentType')?.value === 'CHEQUE';
