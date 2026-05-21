@@ -7,28 +7,43 @@
 
 .dashboard-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  gap: 16px;
+  margin-bottom: 20px;
+  gap: 12px;
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
 }
 
 .greeting {
   h1 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     color: #1a1a2e;
+    margin: 0;
   }
   p {
-    font-size: 13px;
+    font-size: 12px;
     color: #607d8b;
-    margin-top: 4px;
+    margin: 3px 0 0;
+  }
+
+  @media (max-width: 768px) {
+    h1 { font-size: 15px; }
+    p  { font-size: 11px; }
   }
 }
 
 .business-filter {
-  width: 200px;
+  width: 180px;
+  flex-shrink: 0;
+
+  --mat-form-field-container-height: 40px;
+  font-size: 13px;
+
   @media (max-width: 768px) {
     width: 100%;
   }
@@ -36,12 +51,14 @@
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 10px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
   }
 }
 
@@ -57,42 +74,43 @@
 }
 
 .stat-card {
-  padding: 16px 18px !important;
+  padding: 14px 16px !important;
   border-radius: 10px !important;
   box-shadow: none !important;
   border: 0.5px solid #e0e6ed !important;
+  border-top-width: 3px !important;
 
   .stat-label {
-    font-size: 11px;
+    font-size: 10px;
     color: #607d8b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .stat-value {
-    font-size: 26px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
   }
   .stat-sub {
-    font-size: 11px;
+    font-size: 10px;
     color: #607d8b;
     margin-top: 4px;
   }
 
-  &.accent-blue .stat-value {
-    color: #1976d2;
-  }
-  &.accent-amber .stat-value {
-    color: #e65100;
-  }
-  &.accent-green .stat-value {
-    color: #2e7d32;
-  }
-  &.accent-purple .stat-value {
-    color: #6a1b9a;
-  }
-  &.accent-red .stat-value {
-    color: #c62828;
+  &.accent-blue  { border-top-color: #1976d2 !important; .stat-value { color: #1976d2; } }
+  &.accent-amber { border-top-color: #e65100 !important; .stat-value { color: #e65100; } }
+  &.accent-green { border-top-color: #2e7d32 !important; .stat-value { color: #2e7d32; } }
+  &.accent-purple{ border-top-color: #6a1b9a !important; .stat-value { color: #6a1b9a; } }
+  &.accent-red   { border-top-color: #c62828 !important; .stat-value { color: #c62828; } }
+
+  @media (max-width: 768px) {
+    padding: 12px 12px !important;
+    .stat-value { font-size: 18px; }
+    .stat-label { font-size: 9px;  }
   }
 }
 
@@ -101,9 +119,25 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e6ed;
+
   .section-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
+    color: #1a1a2e;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: #1976d2;
+      border-radius: 2px;
+    }
   }
   .view-all {
     font-size: 12px;
@@ -142,13 +176,13 @@
   background: #fff;
   border: 0.5px solid #e0e6ed;
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 12px 14px;
 
   .payment-card-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .bill-number {
@@ -158,11 +192,12 @@
   }
   .customer {
     font-size: 12px;
-    color: #607d8b;
+    color: #1a1a2e;
+    font-weight: 500;
   }
   .amount {
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     color: #1976d2;
   }
   .meta {
@@ -172,9 +207,10 @@
 
   .confirm-btn {
     width: 100%;
-    height: 42px;
+    height: 38px;
     margin-top: 10px;
     font-weight: 600;
+    font-size: 13px;
   }
 }
 

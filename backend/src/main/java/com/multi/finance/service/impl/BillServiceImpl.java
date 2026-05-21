@@ -46,9 +46,11 @@ public class BillServiceImpl {
             }
         }
 
-        String billNumber = request.getBillSource() == BillSource.DRAFT
-                ? generateDraftNumber()
-                : request.getBillNumber();
+        String billNumber = switch (request.getBillSource()) {
+            case DRAFT  -> generateDraftNumber();
+            case SYSTEM -> "SYS-" + request.getBillNumber();
+            case MANUAL -> "MAN-" + request.getBillNumber();
+        };
 
         Worker worker = null;
         if (request.getWorkerId() != null) {

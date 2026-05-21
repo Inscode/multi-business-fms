@@ -11,3 +11,20 @@ body {
 .mat-drawer-container {
   height: 100% !important;
 }
+
+/* Compact dropdown options globally */
+.mat-mdc-option {
+  font-size: 13px !important;
+  min-height: 38px !important;
+}
+
+.mat-mdc-select-panel {
+  font-size: 13px !important;
+}
+
+@media (max-width: 768px) {
+  .mat-mdc-option {
+    font-size: 12px !important;
+    min-height: 34px !important;
+  }
+}

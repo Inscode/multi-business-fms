@@ -11,11 +11,9 @@
     <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Username</mat-label>
-        <input matInput formControlName="username" autocomplete="username" />
+        <input matInput formControlName="username" autocomplete="username" (input)="errorMsg = ''" />
         <mat-icon matPrefix>person_outline</mat-icon>
-        <mat-error
-          *ngIf="form.get('username')?.hasError('required') && form.get('username')?.touched"
-        >
+        <mat-error *ngIf="form.get('username')?.hasError('required') && form.get('username')?.touched">
           Username is required
         </mat-error>
       </mat-form-field>
@@ -27,14 +25,19 @@
           formControlName="password"
           [type]="hidePassword ? 'password' : 'text'"
           autocomplete="current-password"
+          (input)="errorMsg = ''"
         />
         <mat-icon matPrefix>lock_outline</mat-icon>
-        <button mat-icon-button matSuffix type="button" (click)="hidePassword = !hidePassword">
+        <button
+          mat-icon-button
+          matSuffix
+          type="button"
+          (mousedown)="$event.preventDefault()"
+          (click)="hidePassword = !hidePassword"
+        >
           <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
         </button>
-        <mat-error
-          *ngIf="form.get('password')?.hasError('required') && form.get('password')?.touched"
-        >
+        <mat-error *ngIf="form.get('password')?.hasError('required') && form.get('password')?.touched">
           Password is required
         </mat-error>
       </mat-form-field>
