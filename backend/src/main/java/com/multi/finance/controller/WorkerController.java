@@ -31,13 +31,13 @@ public class WorkerController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'OWNER', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'OWNER', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<List<WorkerResponse>> getAllWorkers() {
         return ResponseEntity.ok(workerService.getAllWorkers());
     }
 
     @GetMapping("/worker-type/{workerType}")
-    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','OWNER', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'OWNER', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<List<WorkerResponse>> getWorkersByWorkerType(
             @PathVariable WorkerType workerType
     ) {

@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { Payment } from '../../../core/services/payment';
 import { Bill } from '../../../core/services/bill';
+import { Auth } from '../../../core/services/auth';
 import { Router } from '@angular/router';
 
 @Component({
@@ -64,6 +65,7 @@ export class EnterPayment implements OnInit{
     private fb: FormBuilder,
     private paymentService: Payment,
     private billService: Bill,
+    private auth: Auth,
     private router: Router
   ) {
     this.form = this.fb.group({
@@ -191,7 +193,7 @@ export class EnterPayment implements OnInit{
       : this.paymentService.enterPayment(this.selectedBill.id, payload);
 
     request$.subscribe({
-      next: () => this.router.navigate(['/payments']),
+      next: () => this.redirect(),
       error: (e) => {
         this.errorMsg = e?.error?.message ?? 'Failed to save payment.';
         this.loading  = false;
@@ -199,8 +201,11 @@ export class EnterPayment implements OnInit{
     });
   }
 
-  cancel(): void {
-    this.router.navigate(['/payments']);
+  cancel(): void { this.redirect(); }
+
+  private redirect(): void {
+    const dest = this.auth.getRole() === 'SHOP_ACCOUNTANT' ? '/dashboard/shop' : '/payments';
+    this.router.navigate([dest]);
   }
 
 }

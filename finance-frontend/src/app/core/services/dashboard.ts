@@ -45,6 +45,28 @@ export interface PaymentSummary {
 }
 
 
+export interface ShopDashboardData {
+  shopReceivedBills: number;
+  shopWorkerAssignedBills: number;
+  pendingPayments: number;
+  bills: ShopBill[];
+}
+
+export interface ShopBill {
+  id: number;
+  billNumber: string;
+  business: string;
+  customerName: string;
+  area: string;
+  totalAmount: number;
+  amountPaid: number;
+  balanceRemaining: number;
+  status: string;
+  workerName: string | null;
+  billDate: string;
+  notes: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -59,7 +81,11 @@ export class Dashboard {
 
   getOwnerDashboard(business: string): Observable<OwnerDashboardData> {
     const params = new HttpParams().set('business', business);
-    return this.http.get<OwnerDashboardData>(`${this.apiUrl}/owner`, {params})
+    return this.http.get<OwnerDashboardData>(`${this.apiUrl}/owner`, {params});
+  }
+
+  getShopDashboard(): Observable<ShopDashboardData> {
+    return this.http.get<ShopDashboardData>(`${this.apiUrl}/shop`);
   }
 
 }

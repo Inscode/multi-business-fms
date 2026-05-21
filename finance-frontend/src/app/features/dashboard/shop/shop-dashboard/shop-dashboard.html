@@ -1,0 +1,214 @@
+<div class="shop-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="greeting-text">{{ greeting }}, {{ auth.getCurrentUser()?.fullName }}</h1>
+      <p class="greeting-sub">Your shop overview</p>
+    </div>
+    <button mat-icon-button (click)="load(); loadPayments()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <!-- Tabs -->
+  <mat-tab-group animationDuration="200ms" (selectedIndexChange)="onTabChange($event)">
+
+    <!-- ── TAB 1: BILLS ── -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">receipt_long</mat-icon>
+        Bills
+        <span class="tab-badge" *ngIf="data && data.bills.length > 0">{{ data.bills.length }}</span>
+      </ng-template>
+
+      <!-- Loading -->
+      <div class="center-state" *ngIf="loading">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
+
+      <!-- Error -->
+      <div class="center-state" *ngIf="error && !loading">
+        <mat-icon class="state-icon error">error_outline</mat-icon>
+        <p>Failed to load bills.</p>
+        <button mat-stroked-button (click)="load()">Retry</button>
+      </div>
+
+      <ng-container *ngIf="!loading && !error && data">
+
+        <!-- Stats -->
+        <div class="stat-row">
+          <div class="stat-chip blue">
+            <span class="stat-num">{{ data.bills.length }}</span>
+            <span class="stat-lbl">Bills</span>
+          </div>
+          <div class="stat-chip amber" *ngIf="data.pendingPayments > 0">
+            <span class="stat-num">{{ data.pendingPayments }}</span>
+            <span class="stat-lbl">Pending</span>
+          </div>
+          <div class="stat-chip green">
+            <span class="stat-num">{{ data.shopReceivedBills }}</span>
+            <span class="stat-lbl">Received</span>
+          </div>
+        </div>
+
+        <!-- Bill cards -->
+        <div class="bill-list" *ngIf="data.bills.length > 0; else emptyBills">
+          <div class="bill-card" *ngFor="let b of data.bills">
+
+            <!-- Top row -->
+            <div class="bill-top">
+              <div class="bill-top-left">
+                <span class="bill-number">{{ b.billNumber }}</span>
+                <span class="badge badge-{{ b.status | lowercase }}">{{ b.status | lowercase }}</span>
+              </div>
+              <span class="bill-date">{{ b.billDate }}</span>
+            </div>
+
+            <div class="customer-name">{{ b.customerName }}</div>
+
+            <div class="bill-meta">
+              <span class="meta-item">
+                <mat-icon class="meta-icon">location_on</mat-icon>{{ b.area }}
+              </span>
+              <span class="meta-item" *ngIf="b.workerName">
+                <mat-icon class="meta-icon">person</mat-icon>{{ b.workerName }}
+              </span>
+              <span class="meta-item">
+                <mat-icon class="meta-icon">store</mat-icon>{{ b.business }}
+              </span>
+            </div>
+
+            <!-- Footer: balance + primary action -->
+            <div class="bill-footer">
+              <div class="amounts">
+                <div class="balance-row">
+                  <span class="balance-label">Balance due</span>
+                  <span class="balance-amount" [class.zero]="b.balanceRemaining === 0">
+                    Rs {{ b.balanceRemaining | number }}
+                  </span>
+                </div>
+                <div class="totals-row">
+                  <span class="small-label">Total Rs {{ b.totalAmount | number }}</span>
+                  <span class="small-label" *ngIf="b.amountPaid > 0">· Paid Rs {{ b.amountPaid | number }}</span>
+                </div>
+              </div>
+
+              <button mat-flat-button color="primary" class="record-btn"
+                *ngIf="b.balanceRemaining > 0"
+                (click)="recordPayment(b)">
+                <mat-icon>payments</mat-icon>
+                Record Payment
+              </button>
+              <span class="paid-chip" *ngIf="b.balanceRemaining === 0">
+                <mat-icon>check_circle</mat-icon>Paid
+              </span>
+            </div>
+
+            <!-- Secondary actions -->
+            <div class="bill-actions" *ngIf="canShopReceive(b) || canAssignWorker(b)">
+              <button mat-stroked-button class="sec-btn"
+                *ngIf="canShopReceive(b)"
+                (click)="markShopReceived(b.id)">
+                <mat-icon>move_to_inbox</mat-icon>
+                Receive
+              </button>
+              <button mat-stroked-button class="sec-btn"
+                *ngIf="canAssignWorker(b)"
+                [matMenuTriggerFor]="workerMenu">
+                <mat-icon>person_add</mat-icon>
+                {{ b.workerName ? 'Reassign' : 'Assign Worker' }}
+                <mat-icon>arrow_drop_down</mat-icon>
+              </button>
+              <mat-menu #workerMenu="matMenu">
+                <button mat-menu-item disabled *ngIf="workers.length === 0">
+                  No workers available
+                </button>
+                <button mat-menu-item *ngFor="let w of workers"
+                  (click)="assignWorker(b.id, w.id)">
+                  <mat-icon>person</mat-icon>
+                  {{ w.fullName }} · {{ w.workerType }}
+                </button>
+              </mat-menu>
+            </div>
+
+          </div>
+        </div>
+
+        <ng-template #emptyBills>
+          <div class="empty-state">
+            <mat-icon>receipt_long</mat-icon>
+            <p>No bills assigned to your shop</p>
+          </div>
+        </ng-template>
+
+      </ng-container>
+    </mat-tab>
+
+    <!-- ── TAB 2: MY PAYMENTS ── -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">pending_actions</mat-icon>
+        My Payments
+        <span class="tab-badge pending" *ngIf="payments.length > 0">{{ payments.length }}</span>
+      </ng-template>
+
+      <!-- Loading -->
+      <div class="center-state" *ngIf="paymentsLoading">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
+
+      <!-- Error -->
+      <div class="center-state" *ngIf="paymentsError && !paymentsLoading">
+        <mat-icon class="state-icon error">error_outline</mat-icon>
+        <p>Failed to load payments.</p>
+        <button mat-stroked-button (click)="loadPayments()">Retry</button>
+      </div>
+
+      <ng-container *ngIf="!paymentsLoading && !paymentsError">
+
+        <div class="payments-note" *ngIf="payments.length > 0">
+          <mat-icon>info_outline</mat-icon>
+          <span>Awaiting owner confirmation · disappear once confirmed</span>
+        </div>
+
+        <div class="payment-list" *ngIf="payments.length > 0; else emptyPayments">
+          <div class="payment-card" *ngFor="let p of payments">
+            <div class="pay-top">
+              <div class="pay-top-left">
+                <span class="pay-bill">{{ p.billNumber }}</span>
+                <span class="ptype-badge ptype-{{ p.paymentType | lowercase }}">{{ p.paymentType | lowercase }}</span>
+              </div>
+              <span class="pay-date">{{ p.paymentDate }}</span>
+            </div>
+            <div class="pay-customer">{{ p.customerName }}</div>
+            <div class="pay-amount">Rs {{ p.paymentAmount | number }}</div>
+            <div class="pay-meta" *ngIf="p.chequeNumber">
+              Cheque #{{ p.chequeNumber }}
+              <span *ngIf="p.bankName"> · {{ p.bankName }}</span>
+            </div>
+            <div class="pay-meta" *ngIf="p.referenceNumber">
+              Ref: {{ p.referenceNumber }}
+            </div>
+            <div class="pay-footer">
+              <span class="pay-status">
+                <mat-icon>hourglass_top</mat-icon>
+                Pending confirmation
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #emptyPayments>
+          <div class="empty-state">
+            <mat-icon>pending_actions</mat-icon>
+            <p>No pending payments</p>
+          </div>
+        </ng-template>
+
+      </ng-container>
+    </mat-tab>
+
+  </mat-tab-group>
+
+</div>

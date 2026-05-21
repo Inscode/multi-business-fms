@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class PaymentResponse {
     private Long id;
     private Long billId;
+    private Long groupId;
     private String customerName;
     private BusinessType business;
     private BigDecimal billTotal;

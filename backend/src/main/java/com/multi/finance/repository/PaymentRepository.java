@@ -1,5 +1,6 @@
 package com.multi.finance.repository;
 import com.multi.finance.entity.Payment;
+import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +13,7 @@ import java.util.List;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByBillId(Long billId);
+    List<Payment> findByGroupId(Long groupId);
     List<Payment> findByStatus(PaymentStatus status);
     long countByStatus(PaymentStatus status);
     List<Payment> findByPaymentDate(LocalDate date);
@@ -27,4 +29,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     );
 
     List<Payment> findByStatusOrderByCreatedAtDesc(PaymentStatus status);
+
+    List<Payment> findByEnteredByIdAndStatusOrderByCreatedAtDesc(Long enteredById, PaymentStatus status);
+
+    @Query("SELECT COUNT(p) FROM Payment p WHERE p.status = :paymentStatus AND p.bill.status = :billStatus")
+    long countByPaymentStatusAndBillStatus(
+            @Param("paymentStatus") PaymentStatus paymentStatus,
+            @Param("billStatus") BillStatus billStatus
+    );
 }

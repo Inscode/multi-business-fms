@@ -1,0 +1,127 @@
+<div class="dialog-shell">
+
+  <!-- sticky header -->
+  <div class="dialog-header">
+    <div>
+      <h2 class="dialog-title">Combined Payment</h2>
+      <p class="dialog-sub">{{ data.bills.length }} bills · Total Rs {{ total | number }}</p>
+    </div>
+    <button mat-icon-button (click)="close()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- scrollable body -->
+  <div class="dialog-body">
+
+    <!-- Per-bill amounts -->
+    <div class="bills-section" [formGroup]="form">
+      <p class="section-label">Amount per bill</p>
+      <div class="bill-row" *ngFor="let bg of billForms.controls; let i = index" [formGroup]="$any(bg)">
+        <div class="bill-info">
+          <span class="bill-num">{{ data.bills[i].billNumber }}</span>
+          <span class="bill-customer">{{ data.bills[i].customerName }}</span>
+          <span class="bill-balance">Balance: Rs {{ data.bills[i].balanceRemaining | number }}</span>
+        </div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+          <mat-label>Amount</mat-label>
+          <span matPrefix>Rs&nbsp;</span>
+          <input matInput type="number" formControlName="amount" min="0.01" />
+          <mat-error *ngIf="bg.get('amount')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="bg.get('amount')?.hasError('min')">Must be > 0</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="total-row">
+        <span class="total-label">Total</span>
+        <span class="total-value">Rs {{ total | number }}</span>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <!-- Payment details -->
+    <form [formGroup]="form" class="payment-section">
+      <p class="section-label">Payment details</p>
+
+      <div class="fields-row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-field">
+          <mat-label>Payment Type</mat-label>
+          <mat-select formControlName="paymentType" (selectionChange)="onTypeChange()">
+            <mat-option value="CASH">Cash</mat-option>
+            <mat-option value="CHEQUE">Cheque</mat-option>
+            <mat-option value="BANK_TRANSFER">Bank Transfer</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-field">
+          <mat-label>Payment Date</mat-label>
+          <input matInput [matDatepicker]="paymentPicker" formControlName="paymentDate" />
+          <mat-datepicker-toggle matSuffix [for]="paymentPicker"></mat-datepicker-toggle>
+          <mat-datepicker #paymentPicker></mat-datepicker>
+        </mat-form-field>
+      </div>
+
+      <!-- Cheque fields -->
+      <ng-container *ngIf="isCheque">
+        <div class="fields-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-field">
+            <mat-label>Cheque Number</mat-label>
+            <input matInput formControlName="chequeNumber" />
+            <mat-error *ngIf="form.get('chequeNumber')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-field">
+            <mat-label>Cheque Date</mat-label>
+            <input matInput [matDatepicker]="chequePicker" formControlName="chequeDate" />
+            <mat-datepicker-toggle matSuffix [for]="chequePicker"></mat-datepicker-toggle>
+            <mat-datepicker #chequePicker></mat-datepicker>
+            <mat-error *ngIf="form.get('chequeDate')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+        </div>
+        <div class="fields-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-field">
+            <mat-label>Bank Name</mat-label>
+            <input matInput formControlName="bankName" />
+            <mat-error *ngIf="form.get('bankName')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-field">
+            <mat-label>Branch (optional)</mat-label>
+            <input matInput formControlName="branchName" />
+          </mat-form-field>
+        </div>
+      </ng-container>
+
+      <!-- Bank Transfer fields -->
+      <ng-container *ngIf="isBankTransfer">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-field">
+          <mat-label>Reference Number</mat-label>
+          <input matInput formControlName="referenceNumber" />
+        </mat-form-field>
+      </ng-container>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-field">
+        <mat-label>Notes (optional)</mat-label>
+        <textarea matInput formControlName="notes" rows="2"></textarea>
+      </mat-form-field>
+
+      <div class="error-msg" *ngIf="errorMsg">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ errorMsg }}</span>
+      </div>
+    </form>
+
+  </div>
+
+  <!-- sticky footer -->
+  <mat-divider></mat-divider>
+  <div class="dialog-footer">
+    <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+    <button mat-flat-button color="primary" type="button" (click)="submit()" [disabled]="submitting">
+      <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
+      <span *ngIf="!submitting">Submit Payment</span>
+    </button>
+  </div>
+
+</div>

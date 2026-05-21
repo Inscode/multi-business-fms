@@ -1,56 +1,98 @@
 <div class="login-shell">
-  <div class="login-card">
-    <div class="brand">
-      <div class="brand-icon">
-        <mat-icon>account_balance</mat-icon>
+
+  <!-- Left brand panel -->
+  <div class="panel-brand">
+    <div class="panel-top">
+      <div class="brand-logo">{{ shopInitial }}</div>
+      <div class="brand-meta">
+        <span class="brand-name">{{ shopName }}</span>
+        <span class="brand-suite">Finance Suite · v1.0</span>
       </div>
-      <h1 class="brand-name">Finance MS</h1>
-      <p class="brand-sub">Multi-Business Management</p>
     </div>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Username</mat-label>
-        <input matInput formControlName="username" autocomplete="username" (input)="errorMsg = ''" />
-        <mat-icon matPrefix>person_outline</mat-icon>
-        <mat-error *ngIf="form.get('username')?.hasError('required') && form.get('username')?.touched">
-          Username is required
-        </mat-error>
-      </mat-form-field>
+    <div class="panel-body">
+      <h2 class="tagline">Good ledgers,<br><em>honest accounts.</em></h2>
+      <p class="tagline-sub">
+        Track bills, confirm payments and manage your team — all in one place.
+      </p>
+    </div>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Password</mat-label>
-        <input
-          matInput
-          formControlName="password"
-          [type]="hidePassword ? 'password' : 'text'"
-          autocomplete="current-password"
-          (input)="errorMsg = ''"
-        />
-        <mat-icon matPrefix>lock_outline</mat-icon>
-        <button
-          mat-icon-button
-          matSuffix
-          type="button"
-          (mousedown)="$event.preventDefault()"
-          (click)="hidePassword = !hidePassword"
-        >
-          <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-        </button>
-        <mat-error *ngIf="form.get('password')?.hasError('required') && form.get('password')?.touched">
-          Password is required
-        </mat-error>
-      </mat-form-field>
-
-      <div class="error-msg" *ngIf="errorMsg">
-        <mat-icon>error_outline</mat-icon>
-        <span>{{ errorMsg }}</span>
+    <div class="panel-stats">
+      <div class="stat">
+        <span class="stat-val">Multi</span>
+        <span class="stat-key">Business</span>
       </div>
-
-      <button mat-flat-button color="primary" type="submit" class="submit-btn" [disabled]="loading">
-        <mat-spinner diameter="18" *ngIf="loading"></mat-spinner>
-        <span *ngIf="!loading">Sign In</span>
-      </button>
-    </form>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-val">3</span>
+        <span class="stat-key">User Roles</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-val">Live</span>
+        <span class="stat-key">Sync</span>
+      </div>
+    </div>
   </div>
+
+  <!-- Right form panel -->
+  <div class="panel-form">
+    <div class="form-inner">
+      <p class="form-eyebrow">Staff Sign-In</p>
+      <h1 class="form-title">Sign in to continue</h1>
+      <p class="form-sub">Enter the credentials issued by your manager.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+        <div class="field-group">
+          <label class="field-label">Username</label>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <input
+              matInput
+              formControlName="username"
+              autocomplete="username"
+              (input)="errorMsg = ''"
+            />
+            <mat-error *ngIf="form.get('username')?.hasError('required') && form.get('username')?.touched">
+              Required
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Password</label>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <input
+              matInput
+              formControlName="password"
+              [type]="hidePassword ? 'password' : 'text'"
+              autocomplete="current-password"
+              (input)="errorMsg = ''"
+            />
+            <button
+              mat-icon-button matSuffix
+              type="button"
+              (mousedown)="$event.preventDefault()"
+              (click)="hidePassword = !hidePassword"
+            >
+              <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-error *ngIf="form.get('password')?.hasError('required') && form.get('password')?.touched">
+              Required
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="error-msg" *ngIf="errorMsg">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ errorMsg }}</span>
+        </div>
+
+        <button type="submit" class="submit-btn" [disabled]="loading">
+          <mat-spinner diameter="18" *ngIf="loading"></mat-spinner>
+          <span *ngIf="!loading">Sign in &nbsp;→</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
 </div>

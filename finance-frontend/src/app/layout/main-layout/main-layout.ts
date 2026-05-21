@@ -46,6 +46,10 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     }
   }
 
-  get currentRole(): string { return this.auth.getRole() ?? ''; }
-  get showStaff(): boolean  { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
+  get currentRole(): string      { return this.auth.getRole() ?? ''; }
+  get isShopAccountant(): boolean { return this.currentRole === 'SHOP_ACCOUNTANT'; }
+  get showBills(): boolean        { return !this.isShopAccountant; }
+  get showPayments(): boolean     { return !this.isShopAccountant; }
+  get showStaff(): boolean        { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
+  get showUsers(): boolean        { return this.currentRole === 'ADMIN'; }
 }

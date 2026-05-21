@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Auth } from '../../../core/services/auth';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -27,6 +28,8 @@ export class Login {
   loading = false;
   errorMsg = '';
   hidePassword = true;
+  shopName = environment.shopName;
+  shopInitial = environment.shopName.charAt(0).toUpperCase();
 
   constructor(
     private fb: FormBuilder,
