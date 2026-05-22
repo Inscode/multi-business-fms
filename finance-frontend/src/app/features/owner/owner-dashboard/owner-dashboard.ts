@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { Dashboard, OwnerDashboardData } from '../../../core/services/dashboard';
@@ -11,28 +12,32 @@ import { Auth } from '../../../core/services/auth';
 import { Payment } from '../../../core/services/payment';
 import { MatDialog } from '@angular/material/dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
+import { firstValueFrom } from 'rxjs';
 import { SelectionModel } from '@angular/cdk/collections';
 import { CdkTableModule } from '@angular/cdk/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
   selector: 'app-owner-dashboard',
-  imports: [  CommonModule,
+  imports: [
+    CommonModule,
     MatCardModule,
     MatTableModule,
     MatButtonModule,
+    MatIconModule,
     MatSelectModule,
     MatFormFieldModule,
     FormsModule,
     DecimalPipe,
     LowerCasePipe,
     MatCheckboxModule,
-  CdkTableModule],
+    CdkTableModule,
+  ],
   templateUrl: './owner-dashboard.html',
   styleUrl: './owner-dashboard.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OwnerDashboard implements OnInit{
+export class OwnerDashboard implements OnInit {
   data: OwnerDashboardData | null = null;
   loading = true;
   error = false;
@@ -44,8 +49,6 @@ export class OwnerDashboard implements OnInit{
   unassignedColumns = ['billNumber', 'customerName', 'totalAmount', 'status'];
 
   selection = new SelectionModel<any>(true, []);
-
-
 
   get greeting(): string {
     const hour = new Date().getHours();
@@ -86,49 +89,50 @@ export class OwnerDashboard implements OnInit{
   }
 
   confirmPayment(id: number): void {
-    const ref = this.dialog.open(ConfirmDialog, {
-       data: {
-      title:   'Confirm Payment',
-      message: 'Are you sure you want to confirm this payment?',
-      confirmText: 'Confirm',
-      confirmColor: 'primary'
-    },
-    width: '360px'
-  }).afterClosed().subscribe(confirmed => {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Confirm Payment',
+        message: 'Are you sure you want to confirm this payment?',
+        confirmText: 'Confirm',
+        confirmColor: 'primary'
+      },
+      width: '360px'
+    }).afterClosed().subscribe(confirmed => {
       if (!confirmed) return;
-        this.paymentService.confirmPayment(id).subscribe({
+      this.paymentService.confirmPayment(id).subscribe({
         next: () => this.load(),
-        error: () => alert('Failed to confirm payment.')    
+        error: () => alert('Failed to confirm payment.')
       });
-    })  
+    });
   }
 
   isAllSelected(): boolean {
-    return  this.selection.selected.length === (this.data?.pendingPayments ?? []).length && (this.data?.pendingPayments ?? []).length > 0;
+    return this.selection.selected.length === (this.data?.pendingPayments ?? []).length
+      && (this.data?.pendingPayments ?? []).length > 0;
   }
 
   toggleAll(): void {
     this.isAllSelected()
-    ? this.selection.clear()
-    : this.data?.pendingPayments.forEach(p => this.selection.select(p));
+      ? this.selection.clear()
+      : this.data?.pendingPayments.forEach(p => this.selection.select(p));
   }
 
   confirmSelected(): void {
     if (this.selection.selected.length === 0) return;
 
-    const ref = this.dialog.open(ConfirmDialog, {
-       data: {
-      title:       'Confirm Selected Payments',
-      message:     `Confirm ${this.selection.selected.length} selected payment(s)?`,
-      confirmText: 'Confirm All',
-      confirmColor: 'primary'
-    },
-    width: '360px'
-  }).afterClosed().subscribe(confirmed => {
-     if (!confirmed) return;
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Confirm Selected Payments',
+        message: `Confirm ${this.selection.selected.length} selected payment(s)?`,
+        confirmText: 'Confirm All',
+        confirmColor: 'primary'
+      },
+      width: '360px'
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
       Promise.all(
         this.selection.selected.map(p =>
-          this.paymentService.confirmPayment(p.id).toPromise()
+          firstValueFrom(this.paymentService.confirmPayment(p.id))
         )
       ).then(() => {
         this.selection.clear();

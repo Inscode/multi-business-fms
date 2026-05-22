@@ -1,4 +1,31 @@
 <div class="page">
+
+  <!-- Pending owner collections banner (accountant/main accountant only) -->
+  <div class="collections-banner" *ngIf="canSeePendingCollections && pendingCollections.length > 0">
+    <div class="banner-header">
+      <mat-icon>handshake</mat-icon>
+      <span>{{ pendingCollections.length }} owner collection{{ pendingCollections.length > 1 ? 's' : '' }} need{{ pendingCollections.length === 1 ? 's' : '' }} formal entry</span>
+    </div>
+    <div class="collection-items">
+      <div class="collection-item" *ngFor="let n of pendingCollections">
+        <div class="collection-item-info">
+          <span class="c-bill">{{ n.billNumber }}</span>
+          <span class="c-customer">{{ n.customerName }}</span>
+          <span class="c-meta">
+            <span class="c-type" [class.cash]="n.paymentType === 'CASH'" [class.cheque]="n.paymentType === 'CHEQUE'">
+              {{ n.paymentType }}
+            </span>
+            Rs {{ n.amount | number }}
+          </span>
+        </div>
+        <button mat-stroked-button class="enter-btn" (click)="enterFromCollection(n)">
+          <mat-icon>edit</mat-icon>
+          Enter Details
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="page-header">
     <div>
       <h1 class="page-title">Bills</h1>

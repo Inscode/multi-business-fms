@@ -30,6 +30,10 @@
         <mat-icon>payments</mat-icon>
         <span *ngIf="!collapsed">Payments</span>
       </a>
+      <a class="nav-item" routerLink="/owner/collect" routerLinkActive="active" matRipple *ngIf="showCollect" (click)="isMobile && sidenav.close()">
+        <mat-icon>handshake</mat-icon>
+        <span *ngIf="!collapsed">Mark Collection</span>
+      </a>
       <a class="nav-item" routerLink="/staff" routerLinkActive="active" matRipple *ngIf="showStaff" (click)="isMobile && sidenav.close()">
         <mat-icon>badge</mat-icon>
         <span *ngIf="!collapsed">Staff</span>

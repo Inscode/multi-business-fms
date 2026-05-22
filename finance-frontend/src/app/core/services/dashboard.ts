@@ -42,6 +42,7 @@ export interface PaymentSummary {
   enteredByName: string;
   paymentDate: string;
   status: string;
+  collectedByOwnerName: string | null;
 }
 
 

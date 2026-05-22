@@ -27,6 +27,7 @@ export interface BillResponse {
   enteredByName: string;
   receivedByName: string | null;
   receivedAt: string | null;
+  area: string | null;
   billDate: string;
   notes: string | null;
   createdAt: string;

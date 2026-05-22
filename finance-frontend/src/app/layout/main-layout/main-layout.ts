@@ -52,4 +52,5 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   get showPayments(): boolean     { return !this.isShopAccountant; }
   get showStaff(): boolean        { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showUsers(): boolean        { return this.currentRole === 'ADMIN'; }
+  get showCollect(): boolean      { return this.currentRole === 'OWNER'; }
 }
