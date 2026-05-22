@@ -82,6 +82,34 @@ This system closes every one of those gaps.
 
 ---
 
+## Screenshots
+
+### Login
+![Login](docs/screenshots/fms_login_1.png)
+
+### Admin Dashboard
+![Admin Dashboard](docs/screenshots/admin_dashboard_2.png)
+
+### System Admin Dashboard
+![System Admin Dashboard](docs/screenshots/fms_sys_admin_dashboard.png)
+
+### Accountant Dashboard
+![Accountant Dashboard](docs/screenshots/fms_accountant_dashboard.png)
+
+### Accountant — Enter Bill
+![Enter Bill](docs/screenshots/fms_accountant_enter_bill.png)
+
+### Accountant — Enter Payment
+![Enter Payment](docs/screenshots/fms_accountant_enterPayment.png)
+
+### Owner Confirmation Page
+![Owner Confirm](docs/screenshots/fms_owner_confirm_page.png)
+
+### Admin — Staff Management
+![Staff Management](docs/screenshots/fms_admin_staff.png)
+
+---
+
 ## Tech Stack
 
 ### Backend
