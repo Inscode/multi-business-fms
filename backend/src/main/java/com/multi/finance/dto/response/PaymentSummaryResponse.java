@@ -17,4 +17,5 @@ public class PaymentSummaryResponse {
     private String enteredByName;
     private LocalDate paymentDate;
     private String status;
+    private String collectedByOwnerName;
 }

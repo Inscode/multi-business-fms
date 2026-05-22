@@ -6,14 +6,17 @@ import com.multi.finance.dto.request.PaymentRequest;
 import com.multi.finance.dto.response.PaymentGroupResponse;
 import com.multi.finance.dto.response.PaymentResponse;
 import com.multi.finance.entity.Bill;
+import com.multi.finance.entity.CollectionNote;
 import com.multi.finance.entity.Payment;
 import com.multi.finance.entity.PaymentGroup;
 import com.multi.finance.entity.User;
 import com.multi.finance.enums.BillStatus;
+import com.multi.finance.enums.CollectionNoteStatus;
 import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.enums.PaymentType;
 import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.CollectionNoteRepository;
 import com.multi.finance.repository.PaymentGroupRepository;
 import com.multi.finance.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,7 @@ public class PaymentServiceImpl {
     private final PaymentRepository paymentRepository;
     private final BillRepository billRepository;
     private final PaymentGroupRepository paymentGroupRepository;
+    private final CollectionNoteRepository collectionNoteRepository;
 
     @Transactional
     public PaymentResponse enterPayment(
@@ -87,6 +91,16 @@ public class PaymentServiceImpl {
         boolean isPartial = request.getAmount()
                 .compareTo(bill.getBalanceRemaining()) < 0;
 
+        // Link to owner collection note if provided
+        CollectionNote collectionNote = null;
+        if (request.getCollectionNoteId() != null) {
+            collectionNote = collectionNoteRepository.findById(request.getCollectionNoteId())
+                    .orElseThrow(() -> new RuntimeException("Collection note not found"));
+            if (collectionNote.getStatus() == CollectionNoteStatus.MATCHED) {
+                throw new RuntimeException("This collection note is already matched to a payment");
+            }
+        }
+
         Payment payment = Payment.builder()
                 .bill(bill)
                 .amount(request.getAmount())
@@ -105,11 +119,18 @@ public class PaymentServiceImpl {
                 .chequeNumber(request.getChequeNumber())
                 .chequeDate(request.getChequeDate())
                 .notes(request.getNotes())
+                .collectionNote(collectionNote)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         paymentRepository.save(payment);
+
+        // Mark the collection note as matched
+        if (collectionNote != null) {
+            collectionNote.setStatus(CollectionNoteStatus.MATCHED);
+            collectionNoteRepository.save(collectionNote);
+        }
 
         return toResponse(payment, bill);
     }
@@ -509,6 +530,9 @@ public class PaymentServiceImpl {
                 .paymentDate(payment.getPaymentDate())
                 .notes(payment.getNotes())
                 .createdAt(payment.getCreatedAt())
+                .collectionNoteId(payment.getCollectionNote() != null ? payment.getCollectionNote().getId() : null)
+                .collectedByOwnerName(payment.getCollectionNote() != null ? payment.getCollectionNote().getCollectedBy().getFullName() : null)
+                .collectedByOwnerAt(payment.getCollectionNote() != null ? payment.getCollectionNote().getCollectedAt() : null)
                 .build();
     }
 }
