@@ -94,7 +94,13 @@
           </ng-container>
           <ng-container matColumnDef="amount">
             <th mat-header-cell *matHeaderCellDef>Amount</th>
-            <td mat-cell *matCellDef="let p">Rs {{ p.amount | number }}</td>
+            <td mat-cell *matCellDef="let p">
+              Rs {{ p.amount | number }}
+              <span class="collected-badge" *ngIf="p.collectedByOwnerName"
+                [title]="'You collected this'">
+                <mat-icon>handshake</mat-icon> You collected
+              </span>
+            </td>
           </ng-container>
           <ng-container matColumnDef="paymentType">
             <th mat-header-cell *matHeaderCellDef>Type</th>
@@ -131,7 +137,12 @@
               </mat-checkbox>
               <span class="bill-number">{{ p.billNumber }}</span>
             </div>
-            <span class="amount">Rs {{ p.amount | number }}</span>
+            <div class="card-right">
+              <span class="amount">Rs {{ p.amount | number }}</span>
+              <span class="collected-badge" *ngIf="p.collectedByOwnerName">
+                <mat-icon>handshake</mat-icon> You collected
+              </span>
+            </div>
           </div>
           <div class="payment-card-row">
             <span class="customer">{{ p.customerName }}</span>

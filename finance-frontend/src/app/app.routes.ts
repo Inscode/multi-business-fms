@@ -38,6 +38,11 @@ export const routes: Routes = [
           .then(m => m.ShopDashboard)
       },
       {
+        path: 'owner/collect',
+        loadComponent: () => import('./features/dashboard/owner/owner-collect/owner-collect')
+          .then(m => m.OwnerCollect)
+      },
+      {
         path: 'bills',
         loadComponent: () => import('./features/bills/bill-list/bill-list')
           .then(m => m.BillList)

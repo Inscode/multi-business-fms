@@ -97,6 +97,15 @@ export class EnterPayment implements OnInit{
       this.selectedBill = preselected;
       this.onBillSelect(preselected);
     }
+
+    // Pre-fill amount if coming from a collection note
+    if (history.state?.prefillAmount) {
+      this.form.patchValue({ amount: history.state.prefillAmount });
+    }
+  }
+
+  get collectionNoteId(): number | null {
+    return history.state?.collectionNoteId ?? null;
   }
 
   private loadBills(): void {
@@ -189,7 +198,10 @@ export class EnterPayment implements OnInit{
     this.loading  = true;
     this.errorMsg = '';
 
-    const payload = { ...this.form.value };
+    const payload = {
+      ...this.form.value,
+      ...(this.collectionNoteId ? { collectionNoteId: this.collectionNoteId } : {}),
+    };
 
     const request$ = this.isEditing
       ? this.paymentService.updatePayment(this.editingPayment.id, payload)

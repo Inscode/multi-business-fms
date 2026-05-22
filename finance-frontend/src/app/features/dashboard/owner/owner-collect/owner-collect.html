@@ -1,0 +1,125 @@
+<div class="collect-page">
+
+  <div class="page-header">
+    <h1 class="page-title">Mark Collection</h1>
+    <p class="page-sub">Select a bill and mark how you collected payment</p>
+  </div>
+
+  <!-- Success message -->
+  <div class="success-banner" *ngIf="successMsg">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMsg }}</span>
+  </div>
+
+  <!-- STEP 1: Select bill (hidden after selection) -->
+  <ng-container *ngIf="!selectedBill">
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+      <mat-label>Search by name or invoice number</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput [(ngModel)]="searchQuery" (ngModelChange)="applySearch()" />
+      <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery = ''; applySearch()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <div class="loading-state" *ngIf="loading">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+
+    <div class="bill-list" *ngIf="!loading">
+      <div class="bill-item" *ngFor="let b of filteredBills" (click)="selectBill(b)">
+        <div class="bill-item-left">
+          <span class="bill-num">{{ b.billNumber }}</span>
+          <span class="bill-customer">{{ b.customerName }}</span>
+          <span class="bill-area">{{ b.area }}</span>
+        </div>
+        <div class="bill-item-right">
+          <span class="bill-balance">Rs {{ b.balanceRemaining | number }}</span>
+          <mat-icon class="chevron">chevron_right</mat-icon>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="filteredBills.length === 0">
+        <mat-icon>receipt_long</mat-icon>
+        <p>No bills found</p>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- STEP 2: Collection form (shown after bill selected) -->
+  <ng-container *ngIf="selectedBill">
+
+    <!-- Selected bill summary -->
+    <div class="selected-bill">
+      <div class="selected-bill-info">
+        <span class="selected-num">{{ selectedBill.billNumber }}</span>
+        <span class="selected-customer">{{ selectedBill.customerName }}</span>
+        <span class="selected-area">{{ selectedBill.area }}</span>
+      </div>
+      <button mat-icon-button (click)="clearSelection()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="balance-row">
+      <span class="balance-label">Outstanding balance</span>
+      <span class="balance-value">Rs {{ selectedBill.balanceRemaining | number }}</span>
+    </div>
+
+    <!-- Amount input -->
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+      <mat-label>Amount Collected</mat-label>
+      <span matPrefix>Rs&nbsp;</span>
+      <input matInput type="number" [(ngModel)]="amount" min="0.01" />
+    </mat-form-field>
+
+    <!-- Payment type — big tap buttons -->
+    <p class="type-label">Payment Type</p>
+    <div class="type-row">
+      <button class="type-btn"
+        [class.active]="paymentType === 'CASH'"
+        (click)="setType('CASH')">
+        <mat-icon>payments</mat-icon>
+        Cash
+      </button>
+      <button class="type-btn"
+        [class.active]="paymentType === 'CHEQUE'"
+        (click)="setType('CHEQUE')">
+        <mat-icon>description</mat-icon>
+        Cheque
+      </button>
+    </div>
+
+    <!-- Optional notes -->
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+      <mat-label>Notes (optional)</mat-label>
+      <input matInput [(ngModel)]="notes" />
+    </mat-form-field>
+
+    <!-- Cheque reminder -->
+    <div class="cheque-note" *ngIf="paymentType === 'CHEQUE'">
+      <mat-icon>info_outline</mat-icon>
+      <span>Accountant will enter cheque details (number, bank, date) when formalizing this payment.</span>
+    </div>
+
+    <!-- Error -->
+    <div class="error-msg" *ngIf="errorMsg">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMsg }}</span>
+    </div>
+
+    <!-- Submit -->
+    <button mat-flat-button color="primary" class="submit-btn"
+      (click)="submit()"
+      [disabled]="submitting || !amount || amount <= 0">
+      <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
+      <ng-container *ngIf="!submitting">
+        <mat-icon>check</mat-icon>
+        Mark as Collected
+      </ng-container>
+    </button>
+
+  </ng-container>
+
+</div>

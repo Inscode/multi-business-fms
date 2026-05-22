@@ -30,6 +30,9 @@ export interface PaymentResponse {
   paymentDate: string;
   notes: string | null;
   createdAt: string;
+  collectionNoteId: number | null;
+  collectedByOwnerName: string | null;
+  collectedByOwnerAt: string | null;
 }
 
 export interface PaymentRequest {

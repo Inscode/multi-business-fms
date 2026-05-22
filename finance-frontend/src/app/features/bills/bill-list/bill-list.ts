@@ -18,6 +18,8 @@ import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Bill, BillResponse } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
+import { CollectionNoteService, CollectionNoteResponse } from '../../../core/services/collection-note';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-bill-list',
@@ -85,12 +87,20 @@ export class BillList implements OnInit {
 
   isSelectable(b: any): boolean { return !b.fullyPaid && b.status !== 'CANCELLED'; }
 
+  pendingCollections: CollectionNoteResponse[] = [];
+
+  get canSeePendingCollections(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
+
   constructor(
     private billService: Bill,
     private workerService: Worker,
     private cdr: ChangeDetectorRef,
     private auth: Auth,
     private dialog: MatDialog,
+    private collectionNoteService: CollectionNoteService,
+    private router: Router,
   ) {
     this.displayedColumns = this.canEnterPayment
       ? ['select', 'billNumber', 'customerName', 'area', 'business', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions']
@@ -100,6 +110,32 @@ export class BillList implements OnInit {
   ngOnInit(): void {
     this.load();
     this.loadWorkers();
+    if (this.canSeePendingCollections) this.loadPendingCollections();
+  }
+
+  loadPendingCollections(): void {
+    this.collectionNoteService.getPendingNotes().subscribe({
+      next: (notes) => { this.pendingCollections = notes; this.cdr.detectChanges(); },
+      error: (e) => { console.error('collection-notes/pending failed:', e); },
+    });
+  }
+
+  enterFromCollection(note: CollectionNoteResponse): void {
+    this.router.navigate(['/payments/enter'], {
+      state: {
+        preselectedBill: {
+          id: note.billId,
+          billNumber: note.billNumber,
+          customerName: note.customerName,
+          area: note.area,
+          balanceRemaining: note.billBalance,
+          totalAmount: note.billBalance,
+          status: '',
+        },
+        collectionNoteId: note.id,
+        prefillAmount: note.amount,
+      },
+    });
   }
 
   load(): void {

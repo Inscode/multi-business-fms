@@ -4,6 +4,65 @@
   box-sizing: border-box;
 }
 
+/* ── Pending collections banner ── */
+.collections-banner {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+
+  .banner-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #e65100;
+    margin-bottom: 12px;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  }
+
+  .collection-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .collection-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    gap: 12px;
+
+    @media (max-width: 480px) { flex-direction: column; align-items: flex-start; }
+  }
+
+  .collection-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .c-bill     { font-size: 11px; font-weight: 600; color: #1976d2; }
+  .c-customer { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+  .c-meta     { font-size: 12px; color: #555; display: flex; align-items: center; gap: 6px; }
+
+  .c-type {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    &.cash   { background: #e8f5e9; color: #2e7d32; }
+    &.cheque { background: #e3f2fd; color: #1565c0; }
+  }
+
+  .enter-btn { font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+}
+
 .page-header {
   display: flex;
   align-items: center;
