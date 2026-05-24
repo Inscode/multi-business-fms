@@ -19,6 +19,8 @@ import { Bill, BillResponse } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
 import { CollectionNoteService, CollectionNoteResponse } from '../../../core/services/collection-note';
+import { BillReminderResponse, BillReminderService } from '../../../core/services/bill-reminder';
+import { ReminderDialog } from '../reminder-dialog/reminder-dialog';
 import { Router } from '@angular/router';
 
 @Component({
@@ -93,6 +95,20 @@ export class BillList implements OnInit {
     return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
 
+  reminderMap = new Map<number, BillReminderResponse>();
+
+  getReminderForBill(billId: number): BillReminderResponse | null {
+    return this.reminderMap.get(billId) ?? null;
+  }
+
+  get canSetReminder(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
+
+  get today(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
   constructor(
     private billService: Bill,
     private workerService: Worker,
@@ -100,6 +116,7 @@ export class BillList implements OnInit {
     private auth: Auth,
     private dialog: MatDialog,
     private collectionNoteService: CollectionNoteService,
+    private reminderService: BillReminderService,
     private router: Router,
   ) {
     this.displayedColumns = this.canEnterPayment
@@ -111,12 +128,29 @@ export class BillList implements OnInit {
     this.load();
     this.loadWorkers();
     if (this.canSeePendingCollections) this.loadPendingCollections();
+    if (this.canSetReminder) this.loadReminderMap();
   }
 
   loadPendingCollections(): void {
     this.collectionNoteService.getPendingNotes().subscribe({
       next: (notes) => { this.pendingCollections = notes; this.cdr.detectChanges(); },
       error: (e) => { console.error('collection-notes/pending failed:', e); },
+    });
+  }
+
+  loadReminderMap(): void {
+    this.reminderService.getPending().subscribe({
+      next: (reminders) => {
+        this.reminderMap.clear();
+        reminders.forEach(r => {
+          const existing = this.reminderMap.get(r.billId);
+          if (!existing || r.reminderDate < existing.reminderDate) {
+            this.reminderMap.set(r.billId, r);
+          }
+        });
+        this.cdr.detectChanges();
+      },
+      error: () => {},
     });
   }
 
@@ -241,7 +275,21 @@ export class BillList implements OnInit {
     return !this.isOwner && (
       this.canAssign(bill) ||
       this.canMarkStoreReceived(bill) ||
-      this.canMarkShopReceived(bill)
+      this.canMarkShopReceived(bill) ||
+      this.canSetReminder
     );
+  }
+
+  openReminderDialog(bill: BillResponse): void {
+    this.dialog.open(ReminderDialog, {
+      data: {
+        billId:       bill.id,
+        billNumber:   bill.billNumber,
+        customerName: bill.customerName,
+      },
+      width: '400px',
+    }).afterClosed().subscribe(saved => {
+      if (saved) this.loadReminderMap();
+    });
   }
 }

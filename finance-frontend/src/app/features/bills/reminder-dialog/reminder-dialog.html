@@ -1,0 +1,36 @@
+<h2 mat-dialog-title>Set Reminder</h2>
+<p class="dialog-sub">{{ data.billNumber }} — {{ data.customerName }}</p>
+
+<mat-dialog-content>
+  <form [formGroup]="form">
+    <mat-form-field appearance="outline" class="field-full">
+      <mat-label>Date</mat-label>
+      <input matInput [matDatepicker]="picker" formControlName="reminderDate" [min]="minDate" />
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+      <mat-error *ngIf="form.get('reminderDate')?.hasError('required')">Required</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="field-full">
+      <mat-label>Time of Day</mat-label>
+      <mat-select formControlName="period">
+        <mat-option *ngFor="let p of periods" [value]="p">{{ p }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="field-full">
+      <mat-label>Note (optional)</mat-label>
+      <textarea matInput formControlName="note" rows="3"
+        placeholder="e.g. customer said call before coming"></textarea>
+    </mat-form-field>
+
+    <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="cancel()">Cancel</button>
+  <button mat-flat-button color="primary" (click)="submit()" [disabled]="saving">
+    Set Reminder
+  </button>
+</mat-dialog-actions>

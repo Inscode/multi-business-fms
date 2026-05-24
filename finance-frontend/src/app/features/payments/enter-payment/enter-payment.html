@@ -154,6 +154,25 @@
         </mat-form-field>
       </div>
 
+      <div class="section-divider">Collection Info (optional)</div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Collected By (Worker)</mat-label>
+          <mat-select formControlName="collectedByWorkerId">
+            <mat-option [value]="null">None</mat-option>
+            <mat-option *ngFor="let w of workers" [value]="w.id">
+              {{ w.fullName }} — {{ w.workerType }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="field">
+          <mat-label>Collector Note (optional)</mat-label>
+          <input matInput formControlName="collectorNote" placeholder="e.g. collected at customer shop" />
+        </mat-form-field>
+      </div>
+
       <div class="error-msg" *ngIf="errorMsg">
         <mat-icon>error_outline</mat-icon>
         <span>{{ errorMsg }}</span>

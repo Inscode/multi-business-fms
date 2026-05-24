@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { Payment } from '../../../core/services/payment';
 import { Bill } from '../../../core/services/bill';
+import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
 import { Router } from '@angular/router';
 import { BANKS, AREAS } from '../../../core/constants/payment-options';
@@ -33,8 +34,7 @@ import { BANKS, AREAS } from '../../../core/constants/payment-options';
   templateUrl: './enter-payment.html',
   styleUrl: './enter-payment.scss',
 })
-
-export class EnterPayment implements OnInit{
+export class EnterPayment implements OnInit {
   form: FormGroup;
   loading = false;
   errorMsg = '';
@@ -43,12 +43,14 @@ export class EnterPayment implements OnInit{
   selectedBill: any = null;
   filterBusiness = '';
 
+  workers: WorkerResponse[] = [];
+
   businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
   paymentTypes = ['CASH', 'CHEQUE', 'BANK_TRANSFER'];
   banks = BANKS;
   areas = AREAS;
 
-   get isCheque(): boolean {
+  get isCheque(): boolean {
     return this.form.get('paymentType')?.value === 'CHEQUE';
   }
 
@@ -64,28 +66,36 @@ export class EnterPayment implements OnInit{
     return history.state?.payment;
   }
 
+  get collectionNoteId(): number | null {
+    return history.state?.collectionNoteId ?? null;
+  }
+
   constructor(
     private fb: FormBuilder,
     private paymentService: Payment,
     private billService: Bill,
+    private workerService: Worker,
     private auth: Auth,
     private router: Router
   ) {
     this.form = this.fb.group({
-      paymentType:     [null, Validators.required],
-      amount:          [null, [Validators.required, Validators.min(0.01)]],
-      paymentDate:     [new Date()],
-      chequeNumber:    [''],
-      chequeDate:      [null],
-      bankName:        [''],
-      branchName:      [''],
-      referenceNumber: [''],
-      notes:           [''],
+      paymentType:          [null, Validators.required],
+      amount:               [null, [Validators.required, Validators.min(0.01)]],
+      paymentDate:          [new Date()],
+      chequeNumber:         [''],
+      chequeDate:           [null],
+      bankName:             [''],
+      branchName:           [''],
+      referenceNumber:      [''],
+      notes:                [''],
+      collectedByWorkerId:  [null],
+      collectorNote:        [''],
     });
   }
 
   ngOnInit(): void {
     this.loadBills();
+    this.loadWorkers();
     this.watchPaymentType();
 
     if (this.isEditing) {
@@ -98,14 +108,9 @@ export class EnterPayment implements OnInit{
       this.onBillSelect(preselected);
     }
 
-    // Pre-fill amount if coming from a collection note
     if (history.state?.prefillAmount) {
       this.form.patchValue({ amount: history.state.prefillAmount });
     }
-  }
-
-  get collectionNoteId(): number | null {
-    return history.state?.collectionNoteId ?? null;
   }
 
   private loadBills(): void {
@@ -118,6 +123,13 @@ export class EnterPayment implements OnInit{
              b.status !== 'COMPLETED'
       ),
       error: () => this.bills = []
+    });
+  }
+
+  private loadWorkers(): void {
+    this.workerService.getAllWorkers().subscribe({
+      next: (w) => this.workers = w.filter(w => w.active),
+      error: () => this.workers = []
     });
   }
 
@@ -156,31 +168,31 @@ export class EnterPayment implements OnInit{
   }
 
   private clearConditionalValidators(): void {
-    ['chequeNumber', 'chequeDate', 'bankName',
-     'branchName', 'referenceNumber'].forEach(field => {
+    ['chequeNumber', 'chequeDate', 'bankName', 'branchName', 'referenceNumber'].forEach(field => {
       this.form.get(field)?.clearValidators();
     });
     this.updateConditionalValidity();
   }
 
   private updateConditionalValidity(): void {
-    ['chequeNumber', 'chequeDate', 'bankName',
-     'branchName', 'referenceNumber'].forEach(field => {
+    ['chequeNumber', 'chequeDate', 'bankName', 'branchName', 'referenceNumber'].forEach(field => {
       this.form.get(field)?.updateValueAndValidity();
     });
   }
 
   private prefillForm(payment: any): void {
     this.form.patchValue({
-      paymentType:     payment.paymentType,
-      amount:          payment.paymentAmount,
-      paymentDate:     new Date(payment.paymentDate),
-      chequeNumber:    payment.chequeNumber,
-      chequeDate:      payment.chequeDate ? new Date(payment.chequeDate) : null,
-      bankName:        payment.bankName,
-      branchName:      payment.branchName,
-      referenceNumber: payment.referenceNumber,
-      notes:           payment.notes,
+      paymentType:         payment.paymentType,
+      amount:              payment.paymentAmount,
+      paymentDate:         new Date(payment.paymentDate),
+      chequeNumber:        payment.chequeNumber,
+      chequeDate:          payment.chequeDate ? new Date(payment.chequeDate) : null,
+      bankName:            payment.bankName,
+      branchName:          payment.branchName,
+      referenceNumber:     payment.referenceNumber,
+      notes:               payment.notes,
+      collectedByWorkerId: payment.collectedByWorkerId ?? null,
+      collectorNote:       payment.collectorNote ?? '',
     });
   }
 
@@ -222,5 +234,4 @@ export class EnterPayment implements OnInit{
     const dest = this.auth.getRole() === 'SHOP_ACCOUNTANT' ? '/dashboard/shop' : '/payments';
     this.router.navigate([dest]);
   }
-
 }

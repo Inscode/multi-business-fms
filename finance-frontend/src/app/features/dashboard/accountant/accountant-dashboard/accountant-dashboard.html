@@ -7,6 +7,57 @@
 
   <ng-container *ngIf="!error; else errorBlock">
 
+    <!-- reminders strip -->
+    <ng-container *ngIf="reminders.length > 0">
+      <div class="reminders-strip" *ngIf="overdueReminders.length > 0">
+        <div class="strip-header overdue">
+          <mat-icon>warning</mat-icon>
+          <span>{{ overdueReminders.length }} overdue reminder{{ overdueReminders.length > 1 ? 's' : '' }}</span>
+        </div>
+        <div class="reminder-items">
+          <div class="reminder-item" *ngFor="let r of overdueReminders">
+            <div class="reminder-info">
+              <span class="r-bill">{{ r.billNumber }}</span>
+              <span class="r-customer">{{ r.customerName }}</span>
+              <span class="r-meta">{{ r.area }} · Rs {{ r.balanceRemaining | number }}</span>
+              <span class="r-note" *ngIf="r.note">{{ r.note }}</span>
+            </div>
+            <div class="reminder-actions">
+              <button mat-stroked-button class="done-btn" (click)="markDone(r.id)">Done</button>
+              <button mat-icon-button (click)="cancelReminder(r.id)" title="Cancel reminder">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reminders-strip today-strip" *ngIf="todayReminders.length > 0">
+        <div class="strip-header today">
+          <mat-icon>notifications_active</mat-icon>
+          <span>{{ todayReminders.length }} reminder{{ todayReminders.length > 1 ? 's' : '' }} for today</span>
+        </div>
+        <div class="reminder-items">
+          <div class="reminder-item" *ngFor="let r of todayReminders">
+            <div class="reminder-info">
+              <span class="r-bill">{{ r.billNumber }}</span>
+              <span class="r-customer">{{ r.customerName }}</span>
+              <span class="r-meta">
+                {{ r.area }} · Rs {{ r.balanceRemaining | number }} · {{ r.period }}
+              </span>
+              <span class="r-note" *ngIf="r.note">{{ r.note }}</span>
+            </div>
+            <div class="reminder-actions">
+              <button mat-stroked-button class="done-btn" (click)="markDone(r.id)">Done</button>
+              <button mat-icon-button (click)="cancelReminder(r.id)" title="Cancel reminder">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
     <div class="stat-grid">
       <mat-card class="stat-card accent-blue">
         <div class="stat-label">Total Bills Today</div>
