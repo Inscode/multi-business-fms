@@ -34,4 +34,7 @@ public class PaymentRequest {
     private LocalDate paymentDate;
 
     private String notes;
+
+    // Optional — links this payment to an owner collection note
+    private Long collectionNoteId;
 }

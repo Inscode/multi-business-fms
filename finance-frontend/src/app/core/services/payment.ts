@@ -33,6 +33,9 @@ export interface PaymentResponse {
   collectionNoteId: number | null;
   collectedByOwnerName: string | null;
   collectedByOwnerAt: string | null;
+  collectedByWorkerId: number | null;
+  collectedByWorkerName: string | null;
+  collectorNote: string | null;
 }
 
 export interface PaymentRequest {

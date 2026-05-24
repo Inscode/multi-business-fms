@@ -16,6 +16,72 @@
 
 .business-filter { width: 200px; }
 
+.reminders-strip {
+  border-radius: 10px;
+  border: 1px solid #fdd835;
+  background: #fffde7;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+
+  &.today-strip {
+    border-color: #81d4fa;
+    background: #e1f5fe;
+  }
+
+  .strip-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+
+    &.overdue { color: #b71c1c; mat-icon { color: #b71c1c; } }
+    &.today   { color: #0277bd; mat-icon { color: #0277bd; } }
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  }
+
+  .reminder-items { display: flex; flex-direction: column; gap: 8px; }
+
+  .reminder-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    gap: 12px;
+  }
+
+  .reminder-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .r-bill     { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+  .r-customer { font-size: 12px; color: #37474f; }
+  .r-meta     { font-size: 11px; color: #607d8b; }
+  .r-note     { font-size: 11px; color: #455a64; font-style: italic; }
+
+  .reminder-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .done-btn {
+    font-size: 12px;
+    height: 30px;
+    line-height: 30px;
+    color: #2e7d32;
+    border-color: #a5d6a7;
+  }
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

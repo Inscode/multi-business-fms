@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { BillReminderResponse } from './bill-reminder';
 
 export interface AccountantDashboardData {
   totalBillsToday: number;
@@ -11,6 +12,7 @@ export interface AccountantDashboardData {
   pendingPayments: number;
   recentBills: BillSummary[];
   unassignedBills: BillSummary[];
+  todayReminders: BillReminderResponse[];
 }
 
 export interface OwnerDashboardData {
@@ -43,6 +45,8 @@ export interface PaymentSummary {
   paymentDate: string;
   status: string;
   collectedByOwnerName: string | null;
+  collectedByWorkerName: string | null;
+  collectorNote: string | null;
 }
 
 

@@ -77,6 +77,11 @@ public class Payment {
     @Column(name = "return_reason")
     private String returnReason;
 
+    // Set when this payment was pre-collected by the owner
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "collection_note_id")
+    private CollectionNote collectionNote;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

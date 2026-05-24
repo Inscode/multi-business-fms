@@ -108,7 +108,16 @@
             ></mat-checkbox>
             <span class="bill-number">{{ b.billNumber }}</span>
           </div>
-          <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
+          <div class="card-right-group">
+            <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
+            <ng-container *ngIf="getReminderForBill(b.id) as reminder">
+              <mat-icon class="bell-icon"
+                [class.bell-overdue]="reminder.reminderDate < today"
+                [title]="reminder.reminderDate + ' · ' + reminder.period">
+                notifications
+              </mat-icon>
+            </ng-container>
+          </div>
         </div>
         <div class="bill-card-row">
           <span class="customer">{{ b.customerName }}</span>
@@ -139,6 +148,10 @@
             <button mat-menu-item *ngIf="canMarkShopReceived(b)" (click)="markShopReceived(b.id)">
               <mat-icon>store</mat-icon>
               <span>Mark Shop Received</span>
+            </button>
+            <button mat-menu-item *ngIf="canSetReminder" (click)="openReminderDialog(b)">
+              <mat-icon>notifications</mat-icon>
+              <span>Set Reminder</span>
             </button>
           </mat-menu>
           <mat-menu #mobileAssignMenu="matMenu">
@@ -217,6 +230,13 @@
           <th mat-header-cell *matHeaderCellDef>Status</th>
           <td mat-cell *matCellDef="let b">
             <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
+            <ng-container *ngIf="getReminderForBill(b.id) as reminder">
+              <mat-icon class="bell-icon"
+                [class.bell-overdue]="reminder.reminderDate < today"
+                [title]="reminder.reminderDate + ' · ' + reminder.period + (reminder.note ? ' · ' + reminder.note : '')">
+                notifications
+              </mat-icon>
+            </ng-container>
           </td>
         </ng-container>
 
@@ -239,6 +259,10 @@
                 <button mat-menu-item *ngIf="canMarkShopReceived(b)" (click)="markShopReceived(b.id)">
                   <mat-icon>store</mat-icon>
                   <span>Mark Shop Received</span>
+                </button>
+                <button mat-menu-item *ngIf="canSetReminder" (click)="openReminderDialog(b)">
+                  <mat-icon>notifications</mat-icon>
+                  <span>Set Reminder</span>
                 </button>
               </mat-menu>
               <mat-menu #assignMenu="matMenu">

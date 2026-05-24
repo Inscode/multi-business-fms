@@ -137,20 +137,29 @@
               </mat-checkbox>
               <span class="bill-number">{{ p.billNumber }}</span>
             </div>
-            <div class="card-right">
-              <span class="amount">Rs {{ p.amount | number }}</span>
-              <span class="collected-badge" *ngIf="p.collectedByOwnerName">
-                <mat-icon>handshake</mat-icon> You collected
-              </span>
-            </div>
+            <span class="type-badge type-{{ p.paymentType | lowercase }}">{{ p.paymentType }}</span>
           </div>
           <div class="payment-card-row">
             <span class="customer">{{ p.customerName }}</span>
-            <span class="meta">{{ p.paymentType }}</span>
+            <span class="amount">Rs {{ p.amount | number }}</span>
           </div>
           <div class="payment-card-row">
-            <span class="meta">By {{ p.enteredByName }}</span>
+            <span class="meta">Entered by {{ p.enteredByName }}</span>
             <span class="meta">{{ p.paymentDate }}</span>
+          </div>
+          <div class="payment-card-row" *ngIf="p.collectedByOwnerName">
+            <span class="collected-badge">
+              <mat-icon>handshake</mat-icon> You collected this
+            </span>
+          </div>
+          <div class="payment-card-row" *ngIf="p.collectedByWorkerName">
+            <span class="collected-badge worker">
+              <mat-icon>person</mat-icon> Collected by {{ p.collectedByWorkerName }}
+            </span>
+          </div>
+          <div class="payment-card-row collector-note" *ngIf="p.collectorNote">
+            <mat-icon>notes</mat-icon>
+            <span>{{ p.collectorNote }}</span>
           </div>
           <button
             mat-flat-button
@@ -158,6 +167,7 @@
             class="confirm-btn"
             (click)="confirmPayment(p.id)"
           >
+            <mat-icon>check_circle</mat-icon>
             Confirm Payment
           </button>
         </div>

@@ -156,6 +156,8 @@ public class DashboardServiceImpl {
                         ? p.getEnteredBy().getFullName() : null)
                 .paymentDate(p.getPaymentDate())
                 .status(p.getStatus().name())
+                .collectedByOwnerName(p.getCollectionNote() != null
+                        ? p.getCollectionNote().getCollectedBy().getFullName() : null)
                 .build();
     }
 
