@@ -36,6 +36,8 @@ export class OwnerCollect implements OnInit {
   paymentType: 'CASH' | 'CHEQUE' = 'CASH';
   notes = '';
 
+  selectedBillType: '' | 'CASH' | 'CREDIT' = '';
+
   loading = true;
   submitting = false;
   successMsg = '';
@@ -71,13 +73,19 @@ export class OwnerCollect implements OnInit {
 
   applySearch(): void {
     const q = this.searchQuery.toLowerCase().trim();
-    this.filteredBills = q
-      ? this.bills.filter(b =>
-          b.customerName.toLowerCase().includes(q) ||
-          (b.billNumber ?? '').toLowerCase().includes(q)
-        )
-      : this.bills;
+    this.filteredBills = this.bills.filter(b => {
+      const matchesSearch = !q ||
+        b.customerName.toLowerCase().includes(q) ||
+        (b.billNumber ?? '').toLowerCase().includes(q);
+      const matchesType = !this.selectedBillType || b.billType === this.selectedBillType;
+      return matchesSearch && matchesType;
+    });
     this.cdr.detectChanges();
+  }
+
+  setTypeFilter(type: '' | 'CASH' | 'CREDIT'): void {
+    this.selectedBillType = type;
+    this.applySearch();
   }
 
   selectBill(bill: BillResponse): void {

@@ -305,6 +305,18 @@
   font-weight: 600;
 }
 
+.bill-type-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+
+  &.cash   { background: #ffccbc; color: #bf360c; }
+  &.credit { background: #e3f2fd; color: #1565c0; }
+}
+
 .clickable-row {
   cursor: pointer;
   &:hover {
