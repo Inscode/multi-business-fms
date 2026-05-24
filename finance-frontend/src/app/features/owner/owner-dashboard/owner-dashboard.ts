@@ -89,14 +89,27 @@ export class OwnerDashboard implements OnInit {
   }
 
   confirmPayment(id: number): void {
+    const payment = this.data?.pendingPayments.find(p => p.id === id);
+    const lines = [
+      `Bill: ${payment?.billNumber ?? ''}`,
+      `Customer: ${payment?.customerName ?? ''}`,
+      `Amount: Rs ${payment?.amount?.toLocaleString() ?? ''}`,
+      `Type: ${payment?.paymentType ?? ''}`,
+      `Date: ${payment?.paymentDate ?? ''}`,
+      `Entered by: ${payment?.enteredByName ?? ''}`,
+      ...(payment?.collectedByOwnerName ? ['Collected by: You (owner)'] : []),
+      ...(payment?.collectedByWorkerName ? [`Collected by: ${payment.collectedByWorkerName}`] : []),
+      ...(payment?.collectorNote ? [`Note: ${payment.collectorNote}`] : []),
+    ].join('\n');
+
     this.dialog.open(ConfirmDialog, {
       data: {
         title: 'Confirm Payment',
-        message: 'Are you sure you want to confirm this payment?',
+        message: lines,
         confirmText: 'Confirm',
         confirmColor: 'primary'
       },
-      width: '360px'
+      width: '400px'
     }).afterClosed().subscribe(confirmed => {
       if (!confirmed) return;
       this.paymentService.confirmPayment(id).subscribe({

@@ -52,19 +52,34 @@
 
     <!-- Selected bill summary -->
     <div class="selected-bill">
-      <div class="selected-bill-info">
-        <span class="selected-num">{{ selectedBill.billNumber }}</span>
-        <span class="selected-customer">{{ selectedBill.customerName }}</span>
-        <span class="selected-area">{{ selectedBill.area }}</span>
+      <div class="selected-bill-top">
+        <div class="selected-bill-info">
+          <span class="selected-num">{{ selectedBill.billNumber }}</span>
+          <span class="selected-customer">{{ selectedBill.customerName }}</span>
+          <span class="selected-area">{{ selectedBill.area ?? '—' }} · {{ selectedBill.business }}</span>
+        </div>
+        <button mat-icon-button (click)="clearSelection()">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
-      <button mat-icon-button (click)="clearSelection()">
-        <mat-icon>close</mat-icon>
-      </button>
-    </div>
-
-    <div class="balance-row">
-      <span class="balance-label">Outstanding balance</span>
-      <span class="balance-value">Rs {{ selectedBill.balanceRemaining | number }}</span>
+      <div class="bill-detail-grid">
+        <div class="bill-detail-item">
+          <span class="detail-label">Bill Date</span>
+          <span class="detail-val">{{ selectedBill.billDate }}</span>
+        </div>
+        <div class="bill-detail-item">
+          <span class="detail-label">Bill Total</span>
+          <span class="detail-val">Rs {{ selectedBill.totalAmount | number }}</span>
+        </div>
+        <div class="bill-detail-item">
+          <span class="detail-label">Already Paid</span>
+          <span class="detail-val paid">Rs {{ selectedBill.amountPaid | number }}</span>
+        </div>
+        <div class="bill-detail-item">
+          <span class="detail-label">Outstanding</span>
+          <span class="detail-val outstanding">Rs {{ selectedBill.balanceRemaining | number }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Amount input -->

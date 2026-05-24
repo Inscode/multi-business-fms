@@ -6,8 +6,8 @@
 
 .page-header {
   margin-bottom: 20px;
-  .page-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0 0 4px; }
-  .page-sub   { font-size: 13px; color: #666; margin: 0; }
+  .page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; margin: 0 0 4px; }
+  .page-sub   { font-size: 15px; color: #666; margin: 0; }
 }
 
 .success-banner {
@@ -61,9 +61,9 @@
     gap: 2px;
   }
 
-  .bill-num      { font-size: 12px; font-weight: 600; color: #1976d2; }
-  .bill-customer { font-size: 14px; font-weight: 600; color: #1a1a2e; }
-  .bill-area     { font-size: 12px; color: #888; }
+  .bill-num      { font-size: 13px; font-weight: 600; color: #1976d2; }
+  .bill-customer { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+  .bill-area     { font-size: 13px; color: #888; }
 
   .bill-item-right {
     display: flex;
@@ -72,12 +72,12 @@
   }
 
   .bill-balance {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     color: #e65100;
   }
 
-  .chevron { font-size: 18px; color: #bbb; }
+  .chevron { font-size: 20px; color: #bbb; }
 }
 
 .empty-state {
@@ -90,34 +90,58 @@
 
 /* Selected bill */
 .selected-bill {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   background: #e3f2fd;
   border-radius: 12px;
   padding: 14px 16px;
-  margin-bottom: 12px;
-
-  .selected-bill-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .selected-num      { font-size: 12px; font-weight: 600; color: #1976d2; }
-  .selected-customer { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-  .selected-area     { font-size: 12px; color: #555; }
+  margin-bottom: 16px;
 }
 
-.balance-row {
+.selected-bill-top {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  background: #fff8e1;
+  margin-bottom: 12px;
+}
+
+.selected-bill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.selected-num      { font-size: 13px; font-weight: 600; color: #1976d2; }
+.selected-customer { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+.selected-area     { font-size: 14px; color: #555; }
+
+.bill-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.bill-detail-item {
+  background: #fff;
   border-radius: 8px;
-  padding: 10px 16px;
-  margin-bottom: 16px;
-  .balance-label { font-size: 13px; color: #666; }
-  .balance-value { font-size: 16px; font-weight: 700; color: #e65100; }
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.detail-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+
+  &.paid        { color: #2e7d32; }
+  &.outstanding { color: #e65100; }
 }
 
 .amount-field {
@@ -127,7 +151,7 @@
 
 /* Type buttons */
 .type-label {
-  font-size: 13px;
+  font-size: 15px;
   color: #555;
   font-weight: 500;
   margin: 0 0 8px;
@@ -146,17 +170,17 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 16px 12px;
+  padding: 18px 12px;
   border: 2px solid #e0e0e0;
   border-radius: 12px;
   background: #fff;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #555;
   cursor: pointer;
   transition: all 0.15s;
 
-  mat-icon { font-size: 24px; width: 24px; height: 24px; }
+  mat-icon { font-size: 28px; width: 28px; height: 28px; }
 
   &.active {
     border-color: #1976d2;
@@ -195,8 +219,8 @@
 
 .submit-btn {
   width: 100%;
-  height: 48px;
-  font-size: 15px;
+  height: 54px;
+  font-size: 17px;
   font-weight: 600;
   border-radius: 12px !important;
   display: flex;
