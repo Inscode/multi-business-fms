@@ -129,6 +129,11 @@
             Rs {{ b.balanceRemaining | number }}
           </span>
         </div>
+        <div class="bill-card-row">
+          <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
+            {{ b.billType === 'CASH' ? '⚡ CASH — Collect immediately' : 'CREDIT' }}
+          </span>
+        </div>
         <div class="bill-card-row" *ngIf="b.workerName">
           <span class="meta">Assigned: {{ b.workerName }}</span>
         </div>
@@ -205,6 +210,15 @@
         <ng-container matColumnDef="area">
           <th mat-header-cell *matHeaderCellDef>Area</th>
           <td mat-cell *matCellDef="let b">{{ b.area ?? '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="billType">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let b">
+            <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
+              {{ b.billType === 'CASH' ? '⚡ CASH' : 'CREDIT' }}
+            </span>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="totalAmount">

@@ -120,8 +120,8 @@ export class BillList implements OnInit {
     private router: Router,
   ) {
     this.displayedColumns = this.canEnterPayment
-      ? ['select', 'billNumber', 'customerName', 'area', 'business', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions']
-      : ['billNumber', 'customerName', 'area', 'business', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];
+      ? ['select', 'billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions']
+      : ['billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];
   }
 
   ngOnInit(): void {
