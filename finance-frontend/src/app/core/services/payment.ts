@@ -146,4 +146,8 @@ export class Payment {
   returnGroup(id: number, returnReason: string): Observable<PaymentGroupResponse> {
     return this.http.patch<PaymentGroupResponse>(`${this.apiUrl}/groups/${id}/return`, { returnReason });
   }
+
+  deletePayment(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
 }

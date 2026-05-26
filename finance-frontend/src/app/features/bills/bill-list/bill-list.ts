@@ -1,4 +1,4 @@
-import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
+﻿import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -66,7 +66,7 @@ export class BillList implements OnInit {
   areas = [
     'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
     'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
-    'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
+    'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
     'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
     'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada',
   ];
@@ -78,11 +78,11 @@ export class BillList implements OnInit {
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
 
   get canEnterPayment(): boolean {
-    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+    return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
 
   get canMarkShopReceivedRole(): boolean {
-    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+    return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
 
   get hasBulkSelection(): boolean { return this.selection.selected.length >= 2; }
@@ -92,7 +92,7 @@ export class BillList implements OnInit {
   pendingCollections: CollectionNoteResponse[] = [];
 
   get canSeePendingCollections(): boolean {
-    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+    return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
 
   reminderMap = new Map<number, BillReminderResponse>();
@@ -102,7 +102,7 @@ export class BillList implements OnInit {
   }
 
   get canSetReminder(): boolean {
-    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+    return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
 
   get today(): string {

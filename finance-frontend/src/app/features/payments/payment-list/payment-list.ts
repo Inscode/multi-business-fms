@@ -1,4 +1,4 @@
-import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
+﻿import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -55,7 +55,7 @@ export class PaymentList implements OnInit {
   areas = [
     'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
     'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
-    'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
+    'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
     'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
     'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
   ];
@@ -135,7 +135,7 @@ export class PaymentList implements OnInit {
   }
 
   canEdit(payment: PaymentResponse): boolean {
-    return !this.isOwner && payment.status === 'ENTERED' && this.isAccountant;
+    return !this.isOwner && payment.status === 'ENTERED' && (this.isAccountant || this.isAdmin);
   }
 
   canReturn(payment: PaymentResponse): boolean {
@@ -144,8 +144,20 @@ export class PaymentList implements OnInit {
            this.isAdmin;
   }
 
+  canDelete(payment: PaymentResponse): boolean {
+    return this.isAdmin && payment.status === 'ENTERED';
+  }
+
   hasActions(payment: PaymentResponse): boolean {
-    return this.canEdit(payment) || this.canReturn(payment);
+    return this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment);
+  }
+
+  deletePayment(payment: PaymentResponse): void {
+    if (!confirm(`Delete payment of Rs ${payment.paymentAmount} for ${payment.billNumber}? This cannot be undone.`)) return;
+    this.paymentService.deletePayment(payment.id).subscribe({
+      next: () => this.load(),
+      error: (err) => alert(err?.error?.message ?? 'Failed to delete payment.'),
+    });
   }     
   
   

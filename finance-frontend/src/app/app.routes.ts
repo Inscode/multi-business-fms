@@ -79,6 +79,12 @@ export const routes: Routes = [
           .then(m => m.UsersPage),
         canActivate: [adminGuard]
       },
+      {
+        path: 'admin/edit-requests',
+        loadComponent: () => import('./features/admin/edit-requests/edit-requests')
+          .then(m => m.EditRequestsPage),
+        canActivate: [adminGuard]
+      },
     ]
   },
   { path: '**', redirectTo: 'login' }

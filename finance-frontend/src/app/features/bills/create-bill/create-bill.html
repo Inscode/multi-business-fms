@@ -4,8 +4,8 @@
       <mat-icon>arrow_back</mat-icon>
     </button>
     <div>
-      <h1 class="page-title">Create Bill</h1>
-      <p class="page-sub">Fill in the details below</p>
+      <h1 class="page-title">{{ isEditing ? 'Edit Bill' : 'Create Bill' }}</h1>
+      <p class="page-sub">{{ isEditing ? editingBill?.billNumber : 'Fill in the details below' }}</p>
     </div>
   </div>
 
@@ -52,7 +52,7 @@
         </mat-form-field>
       </div>
 
-      <div class="form-row" *ngIf="!isDraft">
+      <div class="form-row" *ngIf="!isDraft && !isEditing">
         <mat-form-field appearance="outline" class="field-full">
           <mat-label>Bill Number</mat-label>
           <input
@@ -64,7 +64,7 @@
         </mat-form-field>
       </div>
 
-      <div class="draft-notice" *ngIf="isDraft">
+      <div class="draft-notice" *ngIf="isDraft && !isEditing">
         <mat-icon>info_outline</mat-icon>
         <span>Bill number will be auto-generated (DFT-XXXX)</span>
       </div>
@@ -91,9 +91,7 @@
           <mat-label>Total Amount (Rs)</mat-label>
           <input matInput type="number" formControlName="totalAmount" />
           <mat-error *ngIf="form.get('totalAmount')?.hasError('required')">Required</mat-error>
-          <mat-error *ngIf="form.get('totalAmount')?.hasError('min')"
-            >Must be greater than 0</mat-error
-          >
+          <mat-error *ngIf="form.get('totalAmount')?.hasError('min')">Must be greater than 0</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="field">
@@ -132,7 +130,7 @@
         <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
         <button mat-flat-button color="primary" type="submit" [disabled]="loading">
           <mat-spinner diameter="18" *ngIf="loading"></mat-spinner>
-          <span *ngIf="!loading">Create Bill</span>
+          <span *ngIf="!loading">{{ isEditing ? 'Save Changes' : 'Create Bill' }}</span>
         </button>
       </div>
     </form>
