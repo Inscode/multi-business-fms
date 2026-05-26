@@ -1,4 +1,4 @@
-export const BANKS = [
+﻿export const BANKS = [
   'Amana Bank',
   'Bank of Ceylon (BOC)',
   'Commercial Bank',
@@ -16,7 +16,7 @@ export const BANKS = [
 export const AREAS = [
   'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
   'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
-  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
+  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
   'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
   'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada',
 ];

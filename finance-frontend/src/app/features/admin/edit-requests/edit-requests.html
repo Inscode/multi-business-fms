@@ -1,0 +1,85 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Edit Requests</h1>
+      <p class="page-sub">{{ pendingCount }} pending review</p>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button (click)="showAll = !showAll">
+        {{ showAll ? 'Show Pending Only' : 'Show All' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>Failed to load requests.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="empty-state" *ngIf="displayed.length === 0">
+      <mat-icon>check_circle</mat-icon>
+      <p>No {{ showAll ? '' : 'pending ' }}edit requests</p>
+    </div>
+
+    <div class="request-list" *ngIf="displayed.length > 0">
+      <div class="request-card" *ngFor="let r of displayed"
+           [class.pending]="r.status === 'PENDING'"
+           [class.approved]="r.status === 'APPROVED'"
+           [class.rejected]="r.status === 'REJECTED'">
+
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="type-chip" [class.bill]="r.type === 'BILL'" [class.payment]="r.type === 'PAYMENT'">
+              {{ r.type }}
+            </span>
+            <span class="target-ref">{{ r.targetRef }}</span>
+          </div>
+          <span class="status-chip status-{{ r.status | lowercase }}">{{ r.status }}</span>
+        </div>
+
+        <div class="requested-by">
+          <mat-icon>person</mat-icon>
+          <span>{{ r.requestedByName }}</span>
+          <span class="dot">·</span>
+          <span>{{ r.requestedAt | date:'dd MMM yyyy, h:mm a' }}</span>
+        </div>
+
+        <div class="reason-row" *ngIf="r.reason">
+          <mat-icon>comment</mat-icon>
+          <span>{{ r.reason }}</span>
+        </div>
+
+        <div class="changes-grid">
+          <div class="change-item" *ngFor="let c of parsedChanges(r.requestedChanges)">
+            <span class="change-key">{{ c.key }}</span>
+            <span class="change-val">{{ c.value }}</span>
+          </div>
+        </div>
+
+        <div class="rejection-note" *ngIf="r.status === 'REJECTED' && r.rejectionReason">
+          <mat-icon>cancel</mat-icon>
+          Rejected by {{ r.reviewedByName }}: {{ r.rejectionReason }}
+        </div>
+
+        <div class="approved-note" *ngIf="r.status === 'APPROVED'">
+          <mat-icon>check_circle</mat-icon>
+          Approved by {{ r.reviewedByName }} on {{ r.reviewedAt | date:'dd MMM yyyy' }}
+        </div>
+
+        <div class="card-actions" *ngIf="r.status === 'PENDING'">
+          <button mat-flat-button color="primary" (click)="approve(r)">
+            <mat-icon>check</mat-icon> Approve
+          </button>
+          <button mat-stroked-button color="warn" (click)="reject(r)">
+            <mat-icon>close</mat-icon> Reject
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

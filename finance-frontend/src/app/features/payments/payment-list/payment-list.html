@@ -105,6 +105,10 @@
                   <mat-icon>undo</mat-icon>
                   <span>Mark Cheque Returned</span>
                 </button>
+                <button mat-menu-item *ngIf="canDelete(p)" (click)="deletePayment(p)" style="color: #c62828;">
+                  <mat-icon style="color: #c62828;">delete</mat-icon>
+                  <span>Delete</span>
+                </button>
               </mat-menu>
             </ng-container>
           </td>

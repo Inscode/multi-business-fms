@@ -6,6 +6,7 @@ import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar';
 import { Auth } from '../../core/services/auth';
+import { EditRequestService } from '../../core/services/edit-request';
 
 @Component({
   selector: 'app-main-layout',
@@ -27,10 +28,17 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   collapsed = false;
   isMobile  = false;
+  pendingEditRequests = 0;
 
-  constructor(private auth: Auth) {}
+  constructor(private auth: Auth, private editRequestService: EditRequestService) {}
 
-  ngOnInit(): void    { this.checkScreen(); }
+  ngOnInit(): void {
+    this.checkScreen();
+    if (this.showEditRequests) {
+      this.loadPendingCount();
+    }
+  }
+
   ngAfterViewInit(): void {}
 
   @HostListener('window:resize')
@@ -46,6 +54,13 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     }
   }
 
+  private loadPendingCount(): void {
+    this.editRequestService.getPending().subscribe({
+      next: (list) => this.pendingEditRequests = list.length,
+      error: () => this.pendingEditRequests = 0,
+    });
+  }
+
   get currentRole(): string      { return this.auth.getRole() ?? ''; }
   get isShopAccountant(): boolean { return this.currentRole === 'SHOP_ACCOUNTANT'; }
   get showBills(): boolean        { return !this.isShopAccountant; }
@@ -53,4 +68,5 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   get showStaff(): boolean        { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showUsers(): boolean        { return this.currentRole === 'ADMIN'; }
   get showCollect(): boolean      { return this.currentRole === 'OWNER'; }
+  get showEditRequests(): boolean { return this.currentRole === 'ADMIN'; }
 }

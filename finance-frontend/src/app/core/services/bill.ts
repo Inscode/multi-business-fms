@@ -41,7 +41,6 @@ export class Bill {
 
   constructor(private http: HttpClient) {}
 
-  
   getBills(filter?: BillFilter): Observable<BillResponse[]> {
     let params = new HttpParams();
     if (filter?.business) params = params.set('business', filter.business);
@@ -65,9 +64,15 @@ export class Bill {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/receive`, {});
   }
 
+  updateBill(id: number, payload: any): Observable<BillResponse> {
+    return this.http.put<BillResponse>(`${this.apiUrl}/${id}`, payload);
+  }
+
   markShopReceived(id: number): Observable<BillResponse> {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/shop-receive`, {});
   }
 
-
+  deleteBill(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
 }

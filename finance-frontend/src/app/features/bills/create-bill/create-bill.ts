@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -44,7 +44,7 @@ export class CreateBill implements OnInit{
   areas = [
   'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
   'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
-  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Haputale',
+  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
   'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
   'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
 ];
@@ -53,7 +53,15 @@ export class CreateBill implements OnInit{
     return this.form.get('billSource')?.value === 'DRAFT';
   }
 
-    constructor(
+  get isEditing(): boolean {
+    return !!history.state?.editingBill;
+  }
+
+  get editingBill(): any {
+    return history.state?.editingBill;
+  }
+
+  constructor(
     private fb: FormBuilder,
     private billService: Bill,
     private workerService: Worker,
@@ -91,7 +99,22 @@ export class CreateBill implements OnInit{
     this.loadWorkers();
     this.watchBillSource();
 
-    if (!this.isAdmin){
+    if (this.isEditing) {
+      const b = this.editingBill;
+      this.form.patchValue({
+        business:     b.business,
+        division:     b.division,
+        billType:     b.billType,
+        billSource:   b.billSource,
+        customerName: b.customerName,
+        totalAmount:  b.totalAmount,
+        area:         b.area,
+        billDate:     b.billDate ? new Date(b.billDate) : null,
+        workerId:     b.workerId ?? null,
+        notes:        b.notes ?? '',
+      });
+      this.form.get('billSource')?.disable();
+    } else if (!this.isAdmin) {
       this.form.get('division')?.setValue(this.userDivision);
       this.form.get('division')?.disable();
     }
@@ -127,16 +150,26 @@ export class CreateBill implements OnInit{
     this.errorMsg = '';
 
     const payload = { ...this.form.getRawValue() };
-    if (this.isDraft) delete payload.billNumber;
     if (!payload.workerId) delete payload.workerId;
 
-    this.billService.createBill(payload).subscribe({
-      next: () => this.router.navigate(['/bills']),
-      error: () => {
-        this.errorMsg = 'Failed to create bill. Please try again.';
-        this.loading = false;
-      }
-    });
+    if (this.isEditing) {
+      this.billService.updateBill(this.editingBill.id, payload).subscribe({
+        next: () => this.router.navigate(['/bills', this.editingBill.id]),
+        error: () => {
+          this.errorMsg = 'Failed to update bill. Please try again.';
+          this.loading = false;
+        }
+      });
+    } else {
+      if (this.isDraft) delete payload.billNumber;
+      this.billService.createBill(payload).subscribe({
+        next: () => this.router.navigate(['/bills']),
+        error: () => {
+          this.errorMsg = 'Failed to create bill. Please try again.';
+          this.loading = false;
+        }
+      });
+    }
   }
 
   cancel(): void {

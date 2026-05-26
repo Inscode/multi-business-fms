@@ -131,7 +131,7 @@
         </div>
         <div class="bill-card-row">
           <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
-            {{ b.billType === 'CASH' ? '⚡ CASH — Collect immediately' : 'CREDIT' }}
+            {{ b.billType === 'CASH' && !b.fullyPaid && b.status !== 'COMPLETED' && b.status !== 'CANCELLED' ? '⚡ CASH — Collect immediately' : b.billType }}
           </span>
         </div>
         <div class="bill-card-row" *ngIf="b.workerName">
