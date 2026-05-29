@@ -1,0 +1,172 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Return Requests</h1>
+      <p class="page-sub">{{ pendingCount }} pending review</p>
+    </div>
+    <div class="header-filters">
+      <mat-form-field appearance="outline" style="width: 140px">
+        <mat-label>Status</mat-label>
+        <mat-select [(ngModel)]="filterStatus">
+          <mat-option value="">All</mat-option>
+          <mat-option value="PENDING">Pending</mat-option>
+          <mat-option value="APPROVED">Approved</mat-option>
+          <mat-option value="REJECTED">Rejected</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" style="width: 140px">
+        <mat-label>Type</mat-label>
+        <mat-select [(ngModel)]="filterType">
+          <mat-option value="">All</mat-option>
+          <mat-option value="DAMAGE">Damage</mat-option>
+          <mat-option value="SALABLE">Salable</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>Failed to load returns.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="empty-state" *ngIf="displayed.length === 0">
+      <mat-icon>check_circle</mat-icon>
+      <p>No return requests found</p>
+    </div>
+
+    <div class="return-list" *ngIf="displayed.length > 0">
+      <div class="return-card"
+           *ngFor="let r of displayed"
+           [class.pending]="r.status === 'PENDING'"
+           [class.approved]="r.status === 'APPROVED'"
+           [class.rejected]="r.status === 'REJECTED'">
+
+        <div class="card-header" (click)="toggle(r.id)" style="cursor:pointer">
+          <div class="card-header-left">
+            <span class="type-chip" [class.damage]="r.returnType === 'DAMAGE'" [class.salable]="r.returnType === 'SALABLE'">
+              {{ r.returnType }}
+            </span>
+            <div class="bill-info">
+              <span class="bill-num">{{ r.billNumber }}</span>
+              <span class="customer">{{ r.customerName }}</span>
+              <span class="business-chip">{{ r.business }}</span>
+            </div>
+          </div>
+          <div class="card-header-right">
+            <span class="status-chip status-{{ r.status | lowercase }}">{{ r.status }}</span>
+            <mat-icon class="expand-icon" [class.expanded]="expandedId === r.id">expand_more</mat-icon>
+          </div>
+        </div>
+
+        <div class="card-meta">
+          <mat-icon>person</mat-icon>
+          <span>{{ r.submittedByName }}</span>
+          <span class="dot">·</span>
+          <span>{{ r.submittedAt | date:'dd MMM yyyy, h:mm a' }}</span>
+          <span class="dot" *ngIf="r.responsibleWorkerName">·</span>
+          <span *ngIf="r.responsibleWorkerName">Worker: {{ r.responsibleWorkerName }}</span>
+        </div>
+
+        <div class="amounts-row">
+          <div class="amount-pill">
+            <span class="amount-label">Claimed Total</span>
+            <span class="amount-value">Rs {{ r.itemsTotal | number:'1.2-2' }}</span>
+          </div>
+          <ng-container *ngIf="r.status === 'PENDING'">
+            <div class="amount-pill highlight">
+              <span class="amount-label">Will Deduct</span>
+              <span class="amount-value">Rs {{ calcReceivedAmount(r) | number:'1.2-2' }}</span>
+            </div>
+            <div class="amount-pill shortfall" *ngIf="calcShortfall(r) > 0">
+              <span class="amount-label">Shortfall</span>
+              <span class="amount-value">Rs {{ calcShortfall(r) | number:'1.2-2' }}</span>
+            </div>
+          </ng-container>
+          <ng-container *ngIf="r.status !== 'PENDING'">
+            <div class="amount-pill highlight" *ngIf="r.approvedAmount">
+              <span class="amount-label">Deducted</span>
+              <span class="amount-value">Rs {{ r.approvedAmount | number:'1.2-2' }}</span>
+            </div>
+            <div class="amount-pill shortfall" *ngIf="r.shortfallAmount">
+              <span class="amount-label">Shortfall</span>
+              <span class="amount-value">Rs {{ r.shortfallAmount | number:'1.2-2' }}</span>
+            </div>
+          </ng-container>
+          <div class="amount-pill predicted" *ngIf="r.predictedValue">
+            <span class="amount-label">Predicted</span>
+            <span class="amount-value">Rs {{ r.predictedValue | number:'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <div class="items-section" *ngIf="expandedId === r.id">
+          <div class="items-header-row" [class.has-returned]="true">
+            <span>Item</span>
+            <span class="col-right">Unit Price</span>
+            <span class="col-right">Requested</span>
+            <span class="col-right received-col">Received</span>
+            <span class="col-right">Line Total</span>
+          </div>
+
+          <div class="items-data-row" *ngFor="let item of r.items" [class.has-returned]="true">
+            <span class="item-name-cell">{{ item.itemName }}</span>
+            <span class="col-right">Rs {{ item.unitPrice | number:'1.2-2' }}</span>
+            <span class="col-right">{{ item.quantityRequested }}</span>
+            <span class="col-right received-col">
+              <ng-container *ngIf="r.status === 'PENDING'">
+                <input class="qty-input"
+                       type="number"
+                       min="0"
+                       [max]="item.quantityRequested"
+                       [value]="getReceivedQty(r.id, item.id)"
+                       (input)="setReceivedQty(r.id, item.id, +$any($event.target).value)">
+              </ng-container>
+              <ng-container *ngIf="r.status !== 'PENDING'">
+                {{ item.quantityReturned ?? '—' }}
+                <span class="shortfall-tag" *ngIf="(item.quantityReturned ?? 0) < item.quantityRequested">
+                  ({{ item.quantityRequested - (item.quantityReturned ?? 0) }} short)
+                </span>
+              </ng-container>
+            </span>
+            <span class="col-right">Rs {{ item.lineTotal | number:'1.2-2' }}</span>
+          </div>
+
+          <div class="notes-row" *ngIf="r.notes">
+            <mat-icon>notes</mat-icon>
+            <span>{{ r.notes }}</span>
+          </div>
+        </div>
+
+        <div class="reviewed-note" *ngIf="r.status === 'APPROVED'">
+          <mat-icon>check_circle</mat-icon>
+          Approved by {{ r.reviewedByName }} on {{ r.reviewedAt | date:'dd MMM yyyy' }}
+          · Deducted Rs {{ r.approvedAmount | number:'1.2-2' }} from bill
+          <span *ngIf="r.shortfallAmount"> · Shortfall Rs {{ r.shortfallAmount | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="rejection-note" *ngIf="r.status === 'REJECTED'">
+          <mat-icon>cancel</mat-icon>
+          Rejected by {{ r.reviewedByName }}
+          <span *ngIf="r.rejectionReason">: {{ r.rejectionReason }}</span>
+        </div>
+
+        <div class="card-actions" *ngIf="r.status === 'PENDING'">
+          <button mat-flat-button color="primary" (click)="approve(r, 'CALCULATED')">
+            <mat-icon>check</mat-icon> Approve Received
+          </button>
+          <button mat-flat-button color="accent" *ngIf="r.predictedValue" (click)="approve(r, 'PREDICTED')">
+            <mat-icon>check</mat-icon> Approve Predicted (Rs {{ r.predictedValue | number:'1.0-0' }})
+          </button>
+          <button mat-stroked-button color="warn" (click)="reject(r)">
+            <mat-icon>close</mat-icon> Reject
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

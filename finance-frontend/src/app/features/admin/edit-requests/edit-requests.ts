@@ -79,6 +79,7 @@ export class EditRequestsPage implements OnInit {
     const map: Record<string, string> = {
       customerName: 'Customer Name',
       totalAmount:  'Total Amount',
+      business:     'Business',
       billType:     'Bill Type',
       division:     'Division',
       area:         'Area',

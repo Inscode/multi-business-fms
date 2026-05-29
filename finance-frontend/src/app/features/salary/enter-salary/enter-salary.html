@@ -1,0 +1,80 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Record Salary Payment</h1>
+      <p class="page-sub">Payments above Rs 5,000 require approval</p>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-row">
+      <mat-form-field appearance="outline" style="flex:2">
+        <mat-label>Recipient</mat-label>
+        <mat-select [(ngModel)]="recipientId">
+          <mat-option *ngFor="let r of recipients" [value]="r.id">
+            {{ r.name }} — {{ r.designation | titlecase }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Month</mat-label>
+        <input matInput type="month" [(ngModel)]="month">
+      </mat-form-field>
+    </div>
+
+    <div class="form-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Amount</mat-label>
+        <input matInput type="number" [(ngModel)]="amount" min="1" placeholder="0.00">
+        <span matPrefix>Rs&nbsp;</span>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Payment Date</mat-label>
+        <input matInput type="date" [(ngModel)]="paymentDate">
+      </mat-form-field>
+    </div>
+
+    <div class="approval-warning" *ngIf="needsApproval">
+      <mat-icon>info</mat-icon>
+      Amount is above Rs 5,000 — will be sent for owner / admin approval.
+    </div>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Notes (optional)</mat-label>
+      <textarea matInput [(ngModel)]="notes" rows="2" placeholder="Any notes..."></textarea>
+    </mat-form-field>
+
+    <div class="success-msg" *ngIf="successMsg">
+      <mat-icon>check_circle</mat-icon> {{ successMsg }}
+    </div>
+    <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
+
+    <div class="form-actions">
+      <button mat-flat-button color="primary"
+              [disabled]="!recipientId || !month || amount <= 0 || submitting"
+              (click)="submit()">
+        <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
+        <span *ngIf="!submitting">{{ needsApproval ? 'Submit for Approval' : 'Record Payment' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="section-header" *ngIf="myPayments.length > 0">
+    <span>My Recent Submissions</span>
+  </div>
+
+  <div class="payment-list" *ngIf="myPayments.length > 0">
+    <div class="payment-row" *ngFor="let p of myPayments">
+      <div class="payment-left">
+        <span class="recip-name">{{ p.recipientName }}</span>
+        <span class="payment-month">{{ p.month }}</span>
+      </div>
+      <div class="payment-right">
+        <span class="payment-amount">Rs {{ p.amount | number:'1.2-2' }}</span>
+        <span class="status-chip status-{{ p.status | lowercase }}">{{ statusLabel(p.status) }}</span>
+      </div>
+    </div>
+  </div>
+</div>

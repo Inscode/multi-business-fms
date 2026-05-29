@@ -41,8 +41,11 @@ public class PaymentResponse {
     private String notes;
     private LocalDateTime createdAt;
 
-    // Populated when this payment was pre-collected by the owner
     private Long collectionNoteId;
     private String collectedByOwnerName;
     private LocalDateTime collectedByOwnerAt;
+
+    private Long collectedByWorkerId;
+    private String collectedByWorkerName;
+    private String collectorNote;
 }

@@ -1,0 +1,269 @@
+.page {
+  max-width: 900px;
+  width: 100%;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .page-title { font-size: 20px; font-weight: 600; color: #1a1a2e; margin: 0; }
+  .page-sub   { font-size: 13px; color: #607d8b; margin: 2px 0 0; }
+}
+
+.header-filters { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.loading-state { display: flex; justify-content: center; padding: 40px; }
+
+.error-state {
+  text-align: center; padding: 40px; color: #607d8b;
+  p { margin-bottom: 12px; }
+}
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 48px; color: #607d8b;
+  mat-icon { font-size: 40px; width: 40px; height: 40px; margin-bottom: 8px; }
+  p { font-size: 14px; margin: 0; }
+}
+
+.return-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.return-card {
+  background: #fff;
+  border: 1.5px solid #e0e6ed;
+  border-radius: 12px;
+  padding: 16px 18px;
+
+  &.pending  { border-left: 4px solid #f57c00; }
+  &.approved { border-left: 4px solid #2e7d32; }
+  &.rejected { border-left: 4px solid #c62828; opacity: 0.8; }
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.type-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  &.damage  { background: #fce4ec; color: #ad1457; }
+  &.salable { background: #e8f5e9; color: #2e7d32; }
+}
+
+.bill-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bill-num { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+.customer { font-size: 13px; color: #607d8b; }
+
+.business-chip {
+  font-size: 10px;
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  &.status-pending  { background: #fff3e0; color: #e65100; }
+  &.status-approved { background: #e8f5e9; color: #2e7d32; }
+  &.status-rejected { background: #ffebee; color: #c62828; }
+}
+
+.expand-icon {
+  color: #607d8b;
+  transition: transform 0.2s;
+  &.expanded { transform: rotate(180deg); }
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #607d8b;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  mat-icon { font-size: 15px; width: 15px; height: 15px; }
+  .dot { color: #ccc; }
+}
+
+.amounts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.amount-pill {
+  background: #f8f9fb;
+  border-radius: 6px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &.highlight {
+    background: #e8f5e9;
+    .amount-value { color: #2e7d32; }
+  }
+
+  &.predicted {
+    background: #e3f2fd;
+    .amount-value { color: #1565c0; }
+  }
+
+  &.approved-amt {
+    background: #f3e5f5;
+    .amount-value { color: #6a1b9a; }
+  }
+
+  &.shortfall {
+    background: #fff3e0;
+    .amount-value { color: #e65100; }
+  }
+}
+
+.amount-label {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.amount-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.items-section {
+  background: #f8f9fb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.items-header-row, .items-data-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 80px 90px 90px;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  align-items: center;
+}
+
+.items-header-row {
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid #e0e6ed;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.items-data-row {
+  color: #1a1a2e;
+  border-bottom: 1px solid #eee;
+  &:last-of-type { border-bottom: none; }
+}
+
+.col-right { text-align: right; }
+
+.item-name-cell {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.received-col { text-align: right; }
+
+.qty-input {
+  width: 64px;
+  border: 1.5px solid #1976d2;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  outline: none;
+  font-family: inherit;
+  background: #e3f2fd;
+  color: #1a1a2e;
+  &:focus { border-color: #0d47a1; background: #fff; }
+}
+
+.shortfall-tag {
+  font-size: 10px;
+  color: #e65100;
+  font-weight: 600;
+}
+
+.notes-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: #607d8b;
+  margin-top: 10px;
+  mat-icon { font-size: 15px; width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+}
+
+.reviewed-note, .rejection-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  mat-icon { font-size: 15px; width: 15px; height: 15px; }
+}
+.reviewed-note  { background: #e8f5e9; color: #2e7d32; }
+.rejection-note { background: #ffebee; color: #c62828; }
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}

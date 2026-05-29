@@ -2,6 +2,7 @@ package com.multi.finance.service.impl;
 
 import com.multi.finance.dto.response.AccountantDashboardResponse;
 import com.multi.finance.dto.response.BillResponse;
+import com.multi.finance.dto.response.BillReminderResponse;
 import com.multi.finance.dto.response.BillSummaryResponse;
 import com.multi.finance.dto.response.OwnerDashboardResponse;
 import com.multi.finance.dto.response.PaymentSummaryResponse;
@@ -28,6 +29,7 @@ public class DashboardServiceImpl {
 
     private final BillRepository billRepository;
     private final PaymentRepository paymentRepository;
+    private final BillReminderServiceImpl reminderService;
 
     private static final List<BillStatus> SHOP_STATUSES = List.of(
             BillStatus.SHOP_WORKER_ASSIGNED,
@@ -59,6 +61,7 @@ public class DashboardServiceImpl {
                         .stream().map(this::toBillSummary).toList())
                 .unassignedBills(billRepository.findByStatus(BillStatus.CREATED)
                         .stream().map(this::toBillSummary).toList())
+                .todayReminders(reminderService.getTodayAndOverdue())
                 .build();
     }
 
@@ -158,6 +161,9 @@ public class DashboardServiceImpl {
                 .status(p.getStatus().name())
                 .collectedByOwnerName(p.getCollectionNote() != null
                         ? p.getCollectionNote().getCollectedBy().getFullName() : null)
+                .collectedByWorkerName(p.getCollectedByWorker() != null
+                        ? p.getCollectedByWorker().getFullName() : null)
+                .collectorNote(p.getCollectorNote())
                 .build();
     }
 

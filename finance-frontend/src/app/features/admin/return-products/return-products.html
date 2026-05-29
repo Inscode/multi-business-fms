@@ -1,0 +1,117 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Return Products</h1>
+      <p class="page-sub">Catalog of products used in return submissions</p>
+    </div>
+    <div class="header-actions">
+      <mat-form-field appearance="outline" style="width: 160px">
+        <mat-label>Filter Business</mat-label>
+        <mat-select [(ngModel)]="filterBusiness">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button mat-flat-button color="primary" (click)="startAdd()" *ngIf="!showAddForm">
+        <mat-icon>add</mat-icon> Add Product
+      </button>
+    </div>
+  </div>
+
+  <div class="add-form-card" *ngIf="showAddForm">
+    <div class="form-title">New Product</div>
+    <div class="add-form-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Business</mat-label>
+        <mat-select [(ngModel)]="newProduct.business">
+          <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" style="flex: 2">
+        <mat-label>Product Name</mat-label>
+        <input matInput [(ngModel)]="newProduct.name" placeholder="e.g. Umbrella 3-fold">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Unit Price</mat-label>
+        <input matInput type="number" [(ngModel)]="newProduct.unitPrice" min="0" placeholder="0.00">
+        <span matPrefix>Rs&nbsp;</span>
+      </mat-form-field>
+    </div>
+    <div class="add-form-actions">
+      <button mat-stroked-button (click)="cancelAdd()">Cancel</button>
+      <button mat-flat-button color="primary"
+              [disabled]="!newProduct.name || !newProduct.business || newProduct.unitPrice <= 0 || adding"
+              (click)="saveAdd()">
+        <mat-spinner diameter="16" *ngIf="adding"></mat-spinner>
+        <span *ngIf="!adding">Save</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>Failed to load products.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="empty-state" *ngIf="displayed.length === 0">
+      <mat-icon>inventory_2</mat-icon>
+      <p>No products in catalog</p>
+    </div>
+
+    <div class="product-table" *ngIf="displayed.length > 0">
+      <div class="table-header">
+        <span>Business</span>
+        <span>Product Name</span>
+        <span>Unit Price</span>
+        <span>Status</span>
+        <span></span>
+      </div>
+
+      <ng-container *ngFor="let p of displayed">
+        <div class="table-row" [class.inactive]="!p.active" *ngIf="editingId !== p.id">
+          <span class="biz-chip">{{ p.business }}</span>
+          <span class="product-name">{{ p.name }}</span>
+          <span class="price">Rs {{ p.unitPrice | number:'1.2-2' }}</span>
+          <span class="status-badge" [class.active]="p.active" [class.inactive]="!p.active">
+            {{ p.active ? 'Active' : 'Inactive' }}
+          </span>
+          <div class="row-actions">
+            <button mat-icon-button title="Edit" (click)="startEdit(p)">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button [title]="p.active ? 'Deactivate' : 'Activate'" (click)="toggle(p)">
+              <mat-icon>{{ p.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="edit-row" *ngIf="editingId === p.id">
+          <mat-form-field appearance="outline" style="width: 160px">
+            <mat-label>Business</mat-label>
+            <mat-select [(ngModel)]="editState.business">
+              <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="flex: 2">
+            <mat-label>Name</mat-label>
+            <input matInput [(ngModel)]="editState.name">
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width: 140px">
+            <mat-label>Price</mat-label>
+            <input matInput type="number" [(ngModel)]="editState.unitPrice">
+            <span matPrefix>Rs&nbsp;</span>
+          </mat-form-field>
+          <div class="edit-actions">
+            <button mat-flat-button color="primary" (click)="saveEdit(p.id)">Save</button>
+            <button mat-stroked-button (click)="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+  </ng-container>
+</div>

@@ -97,7 +97,6 @@ export class CreateBill implements OnInit{
 
   ngOnInit(): void {
     this.loadWorkers();
-    this.watchBillSource();
 
     if (this.isEditing) {
       const b = this.editingBill;
@@ -114,9 +113,14 @@ export class CreateBill implements OnInit{
         notes:        b.notes ?? '',
       });
       this.form.get('billSource')?.disable();
-    } else if (!this.isAdmin) {
-      this.form.get('division')?.setValue(this.userDivision);
-      this.form.get('division')?.disable();
+      this.form.get('billNumber')?.clearValidators();
+      this.form.get('billNumber')?.updateValueAndValidity();
+    } else {
+      this.watchBillSource();
+      if (!this.isAdmin) {
+        this.form.get('division')?.setValue(this.userDivision);
+        this.form.get('division')?.disable();
+      }
     }
   }
 

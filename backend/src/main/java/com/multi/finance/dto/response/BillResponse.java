@@ -27,6 +27,7 @@ public class BillResponse {
     private BigDecimal amountPaid;
     private BigDecimal balanceRemaining;
     private BillStatus status;
+    private boolean fullyPaid;
     private Long workerId;
     private String workerName;
     private String enteredByName;

@@ -53,6 +53,14 @@ public class BillController {
         return ResponseEntity.ok(billService.getUnconfirmedBills(business));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> updateBill(
+            @PathVariable Long id,
+            @RequestBody BillRequest request) {
+        return ResponseEntity.ok(billService.updateBill(id, request));
+    }
+
     @PatchMapping("/{id}/assign")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<BillResponse> assignBill(
@@ -77,6 +85,13 @@ public class BillController {
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<BillResponse> getBillById(@PathVariable Long id) {
         return ResponseEntity.ok(billService.getBillById(id));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteBill(@PathVariable Long id) {
+        billService.deleteBill(id);
+        return ResponseEntity.noContent().build();
     }
 
 }

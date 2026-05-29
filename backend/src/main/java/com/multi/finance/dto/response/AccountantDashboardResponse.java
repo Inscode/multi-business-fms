@@ -15,4 +15,5 @@ public class AccountantDashboardResponse {
     private long pendingPayments;
     private List<BillSummaryResponse> recentBills;
     private List<BillSummaryResponse> unassignedBills;
+    private List<BillReminderResponse> todayReminders;
 }

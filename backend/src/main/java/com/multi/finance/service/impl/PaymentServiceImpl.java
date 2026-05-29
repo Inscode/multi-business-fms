@@ -16,9 +16,11 @@ import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.enums.PaymentType;
 import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
+import com.multi.finance.entity.Worker;
 import com.multi.finance.repository.CollectionNoteRepository;
 import com.multi.finance.repository.PaymentGroupRepository;
 import com.multi.finance.repository.PaymentRepository;
+import com.multi.finance.repository.WorkerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ public class PaymentServiceImpl {
     private final BillRepository billRepository;
     private final PaymentGroupRepository paymentGroupRepository;
     private final CollectionNoteRepository collectionNoteRepository;
+    private final WorkerRepository workerRepository;
 
     @Transactional
     public PaymentResponse enterPayment(
@@ -91,7 +94,6 @@ public class PaymentServiceImpl {
         boolean isPartial = request.getAmount()
                 .compareTo(bill.getBalanceRemaining()) < 0;
 
-        // Link to owner collection note if provided
         CollectionNote collectionNote = null;
         if (request.getCollectionNoteId() != null) {
             collectionNote = collectionNoteRepository.findById(request.getCollectionNoteId())
@@ -99,6 +101,12 @@ public class PaymentServiceImpl {
             if (collectionNote.getStatus() == CollectionNoteStatus.MATCHED) {
                 throw new RuntimeException("This collection note is already matched to a payment");
             }
+        }
+
+        Worker collectedByWorker = null;
+        if (request.getCollectedByWorkerId() != null) {
+            collectedByWorker = workerRepository.findById(request.getCollectedByWorkerId())
+                    .orElseThrow(() -> new RuntimeException("Worker not found"));
         }
 
         Payment payment = Payment.builder()
@@ -120,6 +128,8 @@ public class PaymentServiceImpl {
                 .chequeDate(request.getChequeDate())
                 .notes(request.getNotes())
                 .collectionNote(collectionNote)
+                .collectedByWorker(collectedByWorker)
+                .collectorNote(request.getCollectorNote())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -242,6 +252,15 @@ public class PaymentServiceImpl {
         return toResponse(payment, bill);
     }
 
+    @Transactional
+    public void deletePayment(Long paymentId) {
+        Payment payment = getPaymentById(paymentId);
+        if (payment.getStatus() != PaymentStatus.ENTERED) {
+            throw new RuntimeException("Only ENTERED payments can be deleted");
+        }
+        paymentRepository.delete(payment);
+    }
+
     private Payment getPaymentById(Long id) {
         return paymentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
@@ -279,6 +298,16 @@ public class PaymentServiceImpl {
         payment.setChequeNumber(request.getChequeNumber());
         payment.setChequeDate(request.getChequeDate());
         payment.setNotes(request.getNotes());
+        payment.setCollectorNote(request.getCollectorNote());
+
+        if (request.getCollectedByWorkerId() != null) {
+            Worker worker = workerRepository.findById(request.getCollectedByWorkerId())
+                    .orElseThrow(() -> new RuntimeException("Worker not found"));
+            payment.setCollectedByWorker(worker);
+        } else {
+            payment.setCollectedByWorker(null);
+        }
+
         payment.setUpdatedAt(LocalDateTime.now());
 
         return toResponse(paymentRepository.save(payment), payment.getBill());
@@ -533,6 +562,9 @@ public class PaymentServiceImpl {
                 .collectionNoteId(payment.getCollectionNote() != null ? payment.getCollectionNote().getId() : null)
                 .collectedByOwnerName(payment.getCollectionNote() != null ? payment.getCollectionNote().getCollectedBy().getFullName() : null)
                 .collectedByOwnerAt(payment.getCollectionNote() != null ? payment.getCollectionNote().getCollectedAt() : null)
+                .collectedByWorkerId(payment.getCollectedByWorker() != null ? payment.getCollectedByWorker().getId() : null)
+                .collectedByWorkerName(payment.getCollectedByWorker() != null ? payment.getCollectedByWorker().getFullName() : null)
+                .collectorNote(payment.getCollectorNote())
                 .build();
     }
 }

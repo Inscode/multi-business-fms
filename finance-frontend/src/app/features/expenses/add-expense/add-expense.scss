@@ -1,0 +1,65 @@
+.page {
+  max-width: 600px;
+  width: 100%;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  .page-title { font-size: 20px; font-weight: 600; color: #1a1a2e; margin: 0; }
+  .page-sub   { font-size: 13px; color: #607d8b; margin: 2px 0 0; }
+}
+
+.form-card {
+  background: #fff;
+  border: 1.5px solid #e0e6ed;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.full-width { width: 100%; }
+
+.cat-hint {
+  font-size: 11px;
+  color: #888;
+  font-weight: 400;
+}
+
+.review-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff3e0;
+  color: #e65100;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+.error-msg {
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}

@@ -18,4 +18,6 @@ public class PaymentSummaryResponse {
     private LocalDate paymentDate;
     private String status;
     private String collectedByOwnerName;
+    private String collectedByWorkerName;
+    private String collectorNote;
 }
