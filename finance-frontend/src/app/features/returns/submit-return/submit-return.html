@@ -1,0 +1,209 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Submit Return</h1>
+      <p class="page-sub">Submit a damage or salable return for a bill</p>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="section-title">1. Select Bill</div>
+
+    <div class="bill-search" *ngIf="!selectedBill">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Search by bill number or customer name</mat-label>
+        <input matInput [(ngModel)]="searchQuery" (input)="filterBills()" placeholder="e.g. BL-001 or John">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <div class="loading-state" *ngIf="loadingBills">
+        <mat-spinner diameter="24"></mat-spinner>
+      </div>
+
+      <div class="bill-dropdown" *ngIf="filteredBills.length > 0 && searchQuery.length > 0">
+        <div class="bill-option" *ngFor="let b of filteredBills | slice:0:10" (click)="selectBill(b)">
+          <div class="bill-opt-top">
+            <span class="bill-num">{{ b.billNumber }}</span>
+            <span class="bill-biz">{{ b.business }}</span>
+          </div>
+          <div class="bill-opt-bot">
+            <span>{{ b.customerName }}</span>
+            <span>Rs {{ b.totalAmount | number:'1.2-2' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="selected-bill" *ngIf="selectedBill">
+      <div class="selected-bill-info">
+        <div class="bill-num">{{ selectedBill.billNumber }}</div>
+        <div class="bill-meta">{{ selectedBill.customerName }} · {{ selectedBill.business }}</div>
+        <div class="bill-amount">Total: Rs {{ selectedBill.totalAmount | number:'1.2-2' }}</div>
+      </div>
+      <button mat-icon-button (click)="clearBill()" title="Change bill">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="form-card" *ngIf="selectedBill">
+    <div class="section-title">2. Return Type</div>
+    <mat-form-field appearance="outline" style="width: 240px">
+      <mat-label>Return Type</mat-label>
+      <mat-select [(ngModel)]="returnType">
+        <mat-option value="DAMAGE">Damage</mat-option>
+        <mat-option value="SALABLE">Salable</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="form-card" *ngIf="selectedBill && returnType">
+    <div class="section-title">3. Items</div>
+
+    <div class="product-search-wrap" *ngIf="!isPlastic && products.length > 0">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Search catalog ({{ products.length }} products)</mat-label>
+        <input matInput
+               [(ngModel)]="productSearch"
+               (input)="filterProducts()"
+               (blur)="hideProductDropdown()"
+               placeholder="Type item code or name…">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+      <div class="product-dropdown" *ngIf="showProductDropdown">
+        <div class="product-option" *ngFor="let p of filteredProducts" (mousedown)="selectProductFromSearch(p)">
+          <span class="prod-name">{{ p.name }}</span>
+          <span class="prod-price">Rs {{ p.unitPrice | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-products" *ngIf="!isPlastic && products.length === 0">
+      <mat-icon>info</mat-icon>
+      <span>No products in catalog for {{ selectedBusiness }}. Use manual entry.</span>
+    </div>
+
+    <button mat-stroked-button (click)="addManualItem()" class="add-manual-btn">
+      <mat-icon>add</mat-icon> Add Item Manually
+    </button>
+
+    <div class="items-table" *ngIf="items.length > 0">
+      <div class="items-header">
+        <span class="col-name">Item</span>
+        <span class="col-price">Unit Price</span>
+        <span class="col-qty">Qty Requested</span>
+        <span class="col-total">Total</span>
+        <span class="col-action"></span>
+      </div>
+
+      <div class="item-row" *ngFor="let item of items; let i = index">
+        <div class="col-name">
+          <input class="item-input" [(ngModel)]="item.itemName"
+                 [readonly]="!!item.productId"
+                 placeholder="Item name"
+                 (change)="updateLineTotal(item)">
+        </div>
+        <div class="col-price">
+          <input class="item-input num-input" type="number" [(ngModel)]="item.unitPrice"
+                 [readonly]="!!item.productId"
+                 placeholder="0.00"
+                 (input)="updateLineTotal(item)">
+        </div>
+        <div class="col-qty">
+          <input class="item-input num-input" type="number" [(ngModel)]="item.quantityRequested"
+                 min="1" placeholder="1"
+                 (input)="updateLineTotal(item)">
+        </div>
+        <div class="col-total">Rs {{ item.lineTotal | number:'1.2-2' }}</div>
+        <div class="col-action">
+          <button mat-icon-button color="warn" (click)="removeItem(i)">
+            <mat-icon>delete_outline</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="items-footer">
+        <span>Items Total</span>
+        <span>Rs {{ itemsTotal | number:'1.2-2' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-card" *ngIf="selectedBill && returnType && items.length > 0 && isSalable">
+    <div class="section-title">4. Discount (optional)</div>
+    <div class="discount-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Discount %</mat-label>
+        <input matInput type="number" [(ngModel)]="discountPercentage" min="0" max="100" placeholder="0">
+        <span matSuffix>%</span>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Fixed Discount</mat-label>
+        <input matInput type="number" [(ngModel)]="discountFixed" min="0" placeholder="0.00">
+        <span matPrefix>Rs&nbsp;</span>
+      </mat-form-field>
+    </div>
+    <div class="calculated-row">
+      <span>Calculated Return Amount:</span>
+      <span class="calc-amount">Rs {{ calculatedAmount | number:'1.2-2' }}</span>
+    </div>
+  </div>
+
+  <div class="form-card" *ngIf="selectedBill && returnType && items.length > 0">
+    <div class="section-title">{{ isSalable ? '5' : '4' }}. Details</div>
+
+    <div class="details-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Predicted Value (optional)</mat-label>
+        <input matInput type="number" [(ngModel)]="predictedValue" min="0" placeholder="0.00">
+        <span matPrefix>Rs&nbsp;</span>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Responsible Worker (optional)</mat-label>
+        <mat-select [(ngModel)]="responsibleWorkerId">
+          <mat-option [value]="null">None</mat-option>
+          <mat-option *ngFor="let w of workers" [value]="w.id">{{ w.fullName }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Notes (optional)</mat-label>
+      <textarea matInput [(ngModel)]="notes" rows="3" placeholder="Any additional notes..."></textarea>
+    </mat-form-field>
+
+    <div class="summary-box">
+      <div class="summary-row">
+        <span>Items Total</span>
+        <span>Rs {{ itemsTotal | number:'1.2-2' }}</span>
+      </div>
+      <div class="summary-row" *ngIf="discountPercentage">
+        <span>Discount ({{ discountPercentage }}%)</span>
+        <span>- Rs {{ (itemsTotal * discountPercentage / 100) | number:'1.2-2' }}</span>
+      </div>
+      <div class="summary-row" *ngIf="discountFixed">
+        <span>Fixed Discount</span>
+        <span>- Rs {{ discountFixed | number:'1.2-2' }}</span>
+      </div>
+      <div class="summary-row total-row">
+        <span>Calculated Return Amount</span>
+        <span>Rs {{ calculatedAmount | number:'1.2-2' }}</span>
+      </div>
+      <div class="summary-row" *ngIf="predictedValue">
+        <span>Predicted Value</span>
+        <span>Rs {{ predictedValue | number:'1.2-2' }}</span>
+      </div>
+    </div>
+
+    <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
+
+    <div class="form-actions">
+      <button mat-stroked-button routerLink="/bills">Cancel</button>
+      <button mat-flat-button color="primary" [disabled]="!canSubmit" (click)="submit()">
+        <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
+        <span *ngIf="!submitting">Submit Return</span>
+      </button>
+    </div>
+  </div>
+</div>

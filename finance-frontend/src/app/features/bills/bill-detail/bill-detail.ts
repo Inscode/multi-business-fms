@@ -8,11 +8,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Bill, BillResponse } from '../../../core/services/bill';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
 import { Payment, PaymentResponse } from '../../../core/services/payment';
+import { BillReturnResponse, BillReturnService } from '../../../core/services/bill-return';
 import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-edit-dialog';
 
 @Component({
@@ -20,6 +21,7 @@ import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-e
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
+    RouterLink,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -38,9 +40,11 @@ import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-e
 export class BillDetail implements OnInit {
   bill: BillResponse | null = null;
   payments: PaymentResponse[] = [];
+  returns: BillReturnResponse[] = [];
   workers: WorkerResponse[] = [];
   loading = true;
   paymentsLoading = true;
+  returnsLoading = false;
   error = false;
 
   paymentColumns = ['paymentDate', 'amount', 'type', 'status', 'enteredBy', 'actions'];
@@ -81,6 +85,7 @@ export class BillDetail implements OnInit {
     private router: Router,
     private billService: Bill,
     private paymentService: Payment,
+    private billReturnService: BillReturnService,
     private workerService: Worker,
     private auth: Auth,
     private cdr: ChangeDetectorRef,
@@ -103,6 +108,7 @@ export class BillDetail implements OnInit {
         this.loading = false;
         this.cdr.detectChanges();
         this.loadPayments(id);
+        this.loadReturns(id);
       },
       error: () => {
         this.error = true;
@@ -124,6 +130,21 @@ export class BillDetail implements OnInit {
         this.paymentsLoading = false;
         this.cdr.detectChanges();
       }
+    });
+  }
+
+  private loadReturns(billId: number): void {
+    this.returnsLoading = true;
+    this.billReturnService.getForBill(billId).subscribe({
+      next: (r) => {
+        this.returns = r;
+        this.returnsLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.returnsLoading = false;
+        this.cdr.detectChanges();
+      },
     });
   }
 

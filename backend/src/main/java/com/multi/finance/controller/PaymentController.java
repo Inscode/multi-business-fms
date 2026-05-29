@@ -89,6 +89,13 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getMyEnteredPayments());
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deletePayment(@PathVariable Long id) {
+        paymentService.deletePayment(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // ── Bulk / Combined Payment Endpoints ─────────────────────────────────────
 
     @PostMapping("/bulk")

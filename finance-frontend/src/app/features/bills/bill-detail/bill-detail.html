@@ -60,6 +60,11 @@
         <mat-icon>delete</mat-icon>
         Delete Bill
       </button>
+
+      <a mat-stroked-button routerLink="/returns" *ngIf="isAccountant || isMainAccountant || isAdmin">
+        <mat-icon>assignment_return</mat-icon>
+        Submit Return
+      </a>
     </div>
 
     <!-- bill overview -->
@@ -87,6 +92,10 @@
           <div class="info-row">
             <span class="label">Bill Source</span>
             <span class="value">{{ bill.billSource }}</span>
+          </div>
+          <div class="info-row" *ngIf="bill.area">
+            <span class="label">Area</span>
+            <span class="value">{{ bill.area }}</span>
           </div>
           <div class="info-row">
             <span class="label">Bill Date</span>
@@ -224,6 +233,38 @@
       <div class="empty-state" *ngIf="!paymentsLoading && payments.length === 0">
         <mat-icon>receipt</mat-icon>
         <p>No payments recorded yet</p>
+      </div>
+    </mat-card>
+
+    <!-- returns history -->
+    <div class="section-header">
+      <span class="section-title">Returns</span>
+    </div>
+
+    <mat-card class="table-card">
+      <div class="loading-state" *ngIf="returnsLoading">
+        <mat-spinner diameter="28"></mat-spinner>
+      </div>
+
+      <div class="empty-state" *ngIf="!returnsLoading && returns.length === 0">
+        <mat-icon>assignment_return</mat-icon>
+        <p>No returns submitted for this bill</p>
+      </div>
+
+      <div class="return-rows" *ngIf="!returnsLoading && returns.length > 0">
+        <div class="return-row" *ngFor="let r of returns">
+          <div class="return-row-left">
+            <span class="type-chip" [class.damage]="r.returnType === 'DAMAGE'" [class.salable]="r.returnType === 'SALABLE'">
+              {{ r.returnType }}
+            </span>
+            <span class="return-amount">Rs {{ (r.approvedAmount ?? r.calculatedReturnAmount) | number:'1.2-2' }}</span>
+            <span class="return-items">{{ r.items.length }} item(s)</span>
+          </div>
+          <div class="return-row-right">
+            <span class="badge badge-{{ r.status | lowercase }}">{{ r.status }}</span>
+            <span class="return-date">{{ r.submittedAt | date:'dd MMM yyyy' }}</span>
+          </div>
+        </div>
       </div>
     </mat-card>
   </ng-container>

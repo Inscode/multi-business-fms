@@ -13,6 +13,7 @@ import java.util.List;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByBillId(Long billId);
+    boolean existsByBillIdAndStatus(Long billId, PaymentStatus status);
     List<Payment> findByGroupId(Long groupId);
     List<Payment> findByStatus(PaymentStatus status);
     long countByStatus(PaymentStatus status);

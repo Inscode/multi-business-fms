@@ -16,21 +16,29 @@
           <mat-error>Required</mat-error>
         </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field">
+          <mat-label>Business</mat-label>
+          <mat-select formControlName="business">
+            <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="field-row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field">
           <mat-label>Bill Type</mat-label>
           <mat-select formControlName="billType">
             <mat-option *ngFor="let t of billTypes" [value]="t">{{ t }}</mat-option>
           </mat-select>
           <mat-error>Required</mat-error>
         </mat-form-field>
-      </div>
-      <div class="field-row">
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field">
           <mat-label>Division</mat-label>
           <mat-select formControlName="division">
             <mat-option *ngFor="let d of divisions" [value]="d">{{ d }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field">
+      </div>
+      <div class="field-row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field-full">
           <mat-label>Area</mat-label>
           <mat-select formControlName="area">
             <mat-option [value]="null">— None —</mat-option>

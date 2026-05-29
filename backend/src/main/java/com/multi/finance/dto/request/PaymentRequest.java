@@ -35,6 +35,9 @@ public class PaymentRequest {
 
     private String notes;
 
-    // Optional — links this payment to an owner collection note
     private Long collectionNoteId;
+
+    private Long collectedByWorkerId;
+
+    private String collectorNote;
 }

@@ -1,0 +1,111 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Salary Payments</h1>
+      <p class="page-sub pending" *ngIf="pendingCount > 0">{{ pendingCount }} pending approval</p>
+    </div>
+    <div class="header-actions">
+      <mat-form-field appearance="outline" style="width:150px">
+        <mat-label>Month</mat-label>
+        <input matInput type="month" [(ngModel)]="filterMonth" (change)="load()">
+      </mat-form-field>
+      <mat-form-field appearance="outline" style="width:150px">
+        <mat-label>Status</mat-label>
+        <mat-select [(ngModel)]="filterStatus">
+          <mat-option value="">All</mat-option>
+          <mat-option value="PENDING_APPROVAL">Pending</mat-option>
+          <mat-option value="RECORDED">Recorded</mat-option>
+          <mat-option value="APPROVED">Approved</mat-option>
+          <mat-option value="REJECTED">Rejected</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <div class="summary-bar" *ngIf="!loading && payments.length > 0">
+    <div class="summary-pill">
+      <span class="pill-label">Total Paid ({{ filterMonth || 'All' }})</span>
+      <span class="pill-value">Rs {{ totalApproved | number:'1.2-2' }}</span>
+    </div>
+    <div class="summary-pill warn" *ngIf="pendingCount > 0">
+      <span class="pill-label">Pending Approval</span>
+      <span class="pill-value">{{ pendingCount }}</span>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>Failed to load payments.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="empty-state" *ngIf="displayed.length === 0">
+      <mat-icon>payments</mat-icon>
+      <p>No salary payments found</p>
+    </div>
+
+    <div class="payments-table" *ngIf="displayed.length > 0">
+      <div class="table-header">
+        <span>Recipient</span>
+        <span>Month</span>
+        <span class="col-right">Amount</span>
+        <span class="col-right">Monthly Salary</span>
+        <span class="col-right">Remaining After</span>
+        <span>Status</span>
+        <span>Entered By</span>
+        <span></span>
+      </div>
+
+      <div class="table-row"
+           *ngFor="let p of displayed"
+           [class.over-salary]="p.overSalary && (p.status === 'APPROVED' || p.status === 'RECORDED')"
+           [class.pending]="p.status === 'PENDING_APPROVAL'">
+
+        <div class="recip-cell">
+          <span class="recip-name">{{ p.recipientName }}</span>
+          <span class="desig-badge">{{ p.designation | titlecase }}</span>
+        </div>
+
+        <span class="month-cell">{{ p.month }}</span>
+
+        <span class="amount-cell col-right">Rs {{ p.amount | number:'1.2-2' }}</span>
+
+        <span class="salary-cell col-right" *ngIf="p.monthlySalary">
+          Rs {{ p.monthlySalary | number:'1.2-2' }}
+        </span>
+        <span class="salary-cell col-right" *ngIf="!p.monthlySalary">—</span>
+
+        <span class="remaining-cell col-right"
+              [class.over]="(p.remainingAfter || 0) < 0"
+              *ngIf="p.remainingAfter !== null && p.remainingAfter !== undefined">
+          <mat-icon *ngIf="p.remainingAfter < 0" class="warn-icon">warning</mat-icon>
+          Rs {{ p.remainingAfter | number:'1.2-2' }}
+        </span>
+        <span class="remaining-cell col-right" *ngIf="p.remainingAfter === null || p.remainingAfter === undefined">—</span>
+
+        <span class="status-chip status-{{ p.status | lowercase }}">{{ statusLabel(p.status) }}</span>
+
+        <span class="entered-by">{{ p.enteredByName }}</span>
+
+        <div class="row-actions">
+          <ng-container *ngIf="p.status === 'PENDING_APPROVAL'">
+            <button mat-icon-button color="primary" title="Approve" (click)="approve(p)">
+              <mat-icon>check_circle</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" title="Reject" (click)="reject(p)">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          </ng-container>
+          <span class="reviewed-by" *ngIf="p.status === 'APPROVED' || p.status === 'REJECTED'">
+            {{ p.reviewedByName }}
+          </span>
+          <span class="reject-reason" *ngIf="p.status === 'REJECTED' && p.rejectionReason" [title]="p.rejectionReason">
+            <mat-icon>info</mat-icon>
+          </span>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

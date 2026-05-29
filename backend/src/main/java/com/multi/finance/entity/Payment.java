@@ -82,6 +82,13 @@ public class Payment {
     @JoinColumn(name = "collection_note_id")
     private CollectionNote collectionNote;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "collected_by_worker_id")
+    private Worker collectedByWorker;
+
+    @Column(name = "collector_note")
+    private String collectorNote;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
