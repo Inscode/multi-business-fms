@@ -10,7 +10,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import { Auth } from '../../../core/services/auth';
 import { ExpenseService } from '../../../core/services/expense';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 
@@ -46,7 +45,6 @@ export class AddExpense implements OnInit {
     { value: 'TEA',        label: 'Tea',          hint: 'Morning / evening tea' },
     { value: 'PARKING',    label: 'Parking',      hint: 'Parking fees' },
     { value: 'REPAIR',     label: 'Repair',       hint: 'Vehicle or equipment repair — needs review' },
-    { value: 'SALARY',     label: 'Salary',       hint: 'Worker salary payment' },
     { value: 'PETTY_CASH', label: 'Petty Cash',   hint: 'Small in-office expenses' },
     { value: 'OTHER',      label: 'Other',        hint: 'Unplanned expense — needs review' },
   ];
@@ -60,12 +58,11 @@ export class AddExpense implements OnInit {
     private fb: FormBuilder,
     private expenseService: ExpenseService,
     private workerService: Worker,
-    private auth: Auth,
     private router: Router,
     private cdr: ChangeDetectorRef,
   ) {
     this.form = this.fb.group({
-      business:    ['', Validators.required],
+      business:    ['RAINCO', Validators.required],
       category:    ['', Validators.required],
       amount:      ['', [Validators.required, Validators.min(1)]],
       date:        [new Date(), Validators.required],

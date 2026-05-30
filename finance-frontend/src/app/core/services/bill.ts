@@ -72,6 +72,10 @@ export class Bill {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/shop-receive`, {});
   }
 
+  markCompleted(id: number): Observable<BillResponse> {
+    return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/complete`, {});
+  }
+
   deleteBill(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }

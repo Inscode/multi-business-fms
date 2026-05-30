@@ -4,7 +4,7 @@
       <h1 class="page-title">Salary Recipients</h1>
       <p class="page-sub">People who receive salary payments</p>
     </div>
-    <button mat-flat-button color="primary" (click)="showAddForm = !showAddForm" *ngIf="!showAddForm">
+    <button mat-flat-button color="primary" (click)="startAdd()" *ngIf="!showAddForm">
       <mat-icon>add</mat-icon> Add Person
     </button>
   </div>

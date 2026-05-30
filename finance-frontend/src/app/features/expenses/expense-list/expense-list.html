@@ -49,21 +49,25 @@
 
   <div class="filters-bar">
     <div class="date-filters">
-      <button mat-stroked-button (click)="setToday()" [class.active-date]="filterDate === ('' | date:'yyyy-MM-dd') || filterDate">
+      <button mat-stroked-button (click)="setToday()">
         <mat-icon>today</mat-icon> Today
       </button>
 
       <mat-form-field appearance="outline" class="date-field">
-        <mat-label>Specific Date</mat-label>
-        <input matInput type="date" [(ngModel)]="filterDate" (change)="onDateChange()">
+        <mat-label>From</mat-label>
+        <input matInput [matDatepicker]="fromPicker" [(ngModel)]="filterFrom" (dateChange)="load()" readonly>
+        <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
+        <mat-datepicker #fromPicker></mat-datepicker>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="date-field">
-        <mat-label>Month</mat-label>
-        <input matInput type="month" [(ngModel)]="filterMonth" (change)="onMonthChange()">
+        <mat-label>To</mat-label>
+        <input matInput [matDatepicker]="toPicker" [(ngModel)]="filterTo" (dateChange)="load()" readonly>
+        <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
+        <mat-datepicker #toPicker></mat-datepicker>
       </mat-form-field>
 
-      <button mat-icon-button *ngIf="filterDate || filterMonth" (click)="clearDateFilters()" title="Clear date filter">
+      <button mat-icon-button *ngIf="filterFrom !== null || filterTo !== null" (click)="clearDateFilters()" title="Clear">
         <mat-icon>clear</mat-icon>
       </button>
     </div>
@@ -97,7 +101,7 @@
     </div>
   </div>
 
-  <div class="active-filter-label" *ngIf="filterDate || filterMonth">
+  <div class="active-filter-label" *ngIf="filterFrom !== null || filterTo !== null">
     <mat-icon>event</mat-icon>
     Showing: <strong>{{ activeFilterLabel }}</strong>
   </div>

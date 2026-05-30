@@ -110,4 +110,5 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   get showSalary(): boolean         { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
   get showSalaryReview(): boolean   { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showSalaryRecipients(): boolean { return this.currentRole === 'ADMIN'; }
+  get showStock(): boolean           { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'OWNER'].includes(this.currentRole); }
 }

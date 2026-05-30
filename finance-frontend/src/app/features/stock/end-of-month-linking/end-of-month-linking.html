@@ -1,0 +1,249 @@
+<mat-card class="card-container">
+  <mat-card-header>
+    <mat-card-title>End of Month Linking</mat-card-title>
+    <mat-card-subtitle>
+      Select draft / manual bills → pick the matching system bill → link them
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+
+    <!-- ── STEP 1: Select Draft/Manual Bills ── -->
+    <div class="section">
+      <h3>Step 1: Select Draft / Manual Bills</h3>
+
+      <div class="filter-row">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search</mat-label>
+          <input matInput [(ngModel)]="searchText" (input)="applyFilter()" placeholder="Bill # or customer" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="source-select">
+          <mat-label>Source</mat-label>
+          <mat-select [(ngModel)]="filterSource" (selectionChange)="applyFilter()">
+            <mat-option value="ALL">All</mat-option>
+            <mat-option value="DRAFT">Draft</mat-option>
+            <mat-option value="MANUAL">Manual</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div *ngIf="filteredUnlinked.length === 0" class="empty-state">
+        <mat-icon>check_circle</mat-icon>
+        <p>No unlinked draft / manual bills found.</p>
+      </div>
+
+      <div *ngIf="filteredUnlinked.length > 0" class="table-container">
+        <table mat-table [dataSource]="filteredUnlinked" class="bill-table">
+
+          <ng-container matColumnDef="select">
+            <th mat-header-cell *matHeaderCellDef>
+              <mat-checkbox [checked]="selection.hasValue() && isAllSelected"
+                [indeterminate]="selection.hasValue() && !isAllSelected"
+                (change)="masterToggle()"></mat-checkbox>
+            </th>
+            <td mat-cell *matCellDef="let row">
+              <mat-checkbox [checked]="selection.isSelected(row)"
+                (change)="toggleRow(row, $event.checked)">
+              </mat-checkbox>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="billNumber">
+            <th mat-header-cell *matHeaderCellDef>Bill #</th>
+            <td mat-cell *matCellDef="let row"><strong>{{ row.billNumber }}</strong></td>
+          </ng-container>
+
+          <ng-container matColumnDef="billSource">
+            <th mat-header-cell *matHeaderCellDef>Source</th>
+            <td mat-cell *matCellDef="let row">
+              <span class="source-chip source-{{ row.billSource | lowercase }}">{{ row.billSource }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="customerName">
+            <th mat-header-cell *matHeaderCellDef>Customer</th>
+            <td mat-cell *matCellDef="let row">{{ row.customerName }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="amount">
+            <th mat-header-cell *matHeaderCellDef>Amount</th>
+            <td mat-cell *matCellDef="let row">Rs. {{ row.amount | number:'1.2-2' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="totalQty">
+            <th mat-header-cell *matHeaderCellDef>Total Qty</th>
+            <td mat-cell *matCellDef="let row">
+              <span [class.qty-zero]="!row.totalQty">{{ row.totalQty || '—' }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="billDate">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let row">{{ row.billDate }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="enteredByName">
+            <th mat-header-cell *matHeaderCellDef>Entered By</th>
+            <td mat-cell *matCellDef="let row">{{ row.enteredByName }}</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"
+            [class.row-selected]="selection.isSelected(row)"></tr>
+        </table>
+      </div>
+
+      <!-- Selected totals -->
+      <div *ngIf="selection.selected.length > 0" class="selection-summary">
+        <span><strong>{{ selection.selected.length }}</strong> bill(s) selected</span>
+        <span>Total Amount: <strong>Rs. {{ selectedTotalAmount | number:'1.2-2' }}</strong></span>
+        <span>Total Qty: <strong>{{ selectedTotalQty }}</strong></span>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Select System Bill ── -->
+    <div class="section" *ngIf="selection.selected.length > 0">
+      <h3>Step 2: Select Matching System Bill</h3>
+
+      <mat-form-field appearance="fill" class="full-width">
+        <mat-label>Search system bill by number or customer</mat-label>
+        <input matInput [formControl]="systemBillCtrl" [matAutocomplete]="sysAuto" />
+        <mat-autocomplete #sysAuto="matAutocomplete" [displayWith]="displaySystemBill"
+          (optionSelected)="onSystemBillSelected($event)">
+          <mat-option *ngFor="let b of filteredSystemBills" [value]="b">
+            <div class="sys-option">
+              <strong>{{ b.billNumber }}</strong>
+              <span class="sys-customer">{{ b.customerName }}</span>
+              <span class="sys-amount">Rs. {{ b.amount | number:'1.2-2' }}</span>
+              <span class="sys-qty">Qty: {{ b.totalQty }}</span>
+              <span class="sys-date">{{ b.billDate }}</span>
+            </div>
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Comparison Panel -->
+      <div *ngIf="selectedSystemBill" class="comparison-card">
+
+        <!-- Amount row -->
+        <div class="comparison-row header-row">
+          <span></span>
+          <span class="col-head">Amount (Rs.)</span>
+          <span class="col-head">Total Qty</span>
+        </div>
+        <div class="comparison-row">
+          <span class="row-label">Selected draft/manual</span>
+          <span>{{ selectedTotalAmount | number:'1.2-2' }}</span>
+          <span>{{ selectedTotalQty }}</span>
+        </div>
+        <div class="comparison-row">
+          <span class="row-label">System bill ({{ selectedSystemBill.billNumber }})</span>
+          <span>{{ systemBillAmount | number:'1.2-2' }}</span>
+          <span>{{ systemBillQty }}</span>
+        </div>
+        <div class="comparison-row diff-row"
+          [class.diff-ok]="amountMatch"
+          [class.diff-warn]="!amountMatch">
+          <span class="row-label">Amount difference</span>
+          <span>
+            <mat-icon class="inline-icon" *ngIf="amountMatch">check_circle</mat-icon>
+            <mat-icon class="inline-icon" *ngIf="!amountMatch">warning</mat-icon>
+            {{ amountDiff | number:'1.2-2' }}
+          </span>
+          <span></span>
+        </div>
+
+        <!-- Item-wise qty comparison -->
+        <div class="item-comparison-section">
+          <div class="item-comparison-title">
+            <mat-icon>inventory_2</mat-icon>
+            Item-wise Qty Comparison
+          </div>
+
+          <div *ngIf="!hasItemData" class="no-item-data">
+            <mat-icon>info</mat-icon>
+            No stock items recorded on these bills — only total qty available.
+          </div>
+
+          <table *ngIf="itemComparison.length > 0" mat-table [dataSource]="itemComparison" class="item-table">
+
+            <ng-container matColumnDef="productName">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let r">{{ r.productName }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="systemQty">
+              <th mat-header-cell *matHeaderCellDef>System Bill</th>
+              <td mat-cell *matCellDef="let r">{{ r.systemQty }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="selectedQty">
+              <th mat-header-cell *matHeaderCellDef>Selected Bills</th>
+              <td mat-cell *matCellDef="let r">{{ r.selectedQty }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="diff">
+              <th mat-header-cell *matHeaderCellDef>Difference</th>
+              <td mat-cell *matCellDef="let r">
+                <span [class.match]="r.diff === 0" [class.short]="r.diff < 0" [class.over]="r.diff > 0">
+                  <mat-icon class="diff-icon" *ngIf="r.diff === 0">check_circle</mat-icon>
+                  <mat-icon class="diff-icon" *ngIf="r.diff !== 0">warning</mat-icon>
+                  {{ r.diff > 0 ? '+' + r.diff : r.diff }}
+                  <span *ngIf="r.diff < 0" class="diff-tag short-tag">short</span>
+                  <span *ngIf="r.diff > 0" class="diff-tag over-tag">over</span>
+                </span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="comparisonColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: comparisonColumns"
+              [class.row-mismatch]="row.diff !== 0"></tr>
+          </table>
+        </div>
+
+        <!-- Summary note -->
+        <div *ngIf="!amountMatch || !qtyMatch" class="mismatch-note">
+          <mat-icon>info</mat-icon>
+          <span>
+            <ng-container *ngIf="!qtyMatch">
+              Qty mismatch per product — see table above.&nbsp;
+            </ng-container>
+            <ng-container *ngIf="!amountMatch">
+              Amount mismatch by <strong>Rs. {{ (amountDiff < 0 ? -amountDiff : amountDiff) | number:'1.2-2' }}</strong>.
+            </ng-container>
+            You can still link — please verify before confirming.
+          </span>
+        </div>
+        <div *ngIf="amountMatch && qtyMatch && itemComparison.length > 0" class="match-note">
+          <mat-icon>check_circle</mat-icon>
+          <span>All products match — qty and amount are identical.</span>
+        </div>
+
+        <mat-form-field appearance="fill" class="full-width notes-field">
+          <mat-label>Notes (optional)</mat-label>
+          <textarea matInput [formControl]="notesCtrl" rows="2"></textarea>
+        </mat-form-field>
+
+        <div class="action-btns">
+          <button mat-raised-button color="primary" (click)="link()" [disabled]="!canLink">
+            <mat-progress-spinner *ngIf="saving" diameter="20" mode="indeterminate"></mat-progress-spinner>
+            <mat-icon *ngIf="!saving">link</mat-icon>
+            Link Bills to {{ selectedSystemBill.billNumber }}
+          </button>
+          <button mat-stroked-button (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div *ngIf="successMessage" class="success-message">
+      <mat-icon>check_circle</mat-icon><span>{{ successMessage }}</span>
+    </div>
+    <div *ngIf="errorMessage" class="error-message">
+      <mat-icon>error</mat-icon><span>{{ errorMessage }}</span>
+    </div>
+
+  </mat-card-content>
+</mat-card>

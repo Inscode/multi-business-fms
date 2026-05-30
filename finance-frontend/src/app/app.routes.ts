@@ -127,6 +127,11 @@ export const routes: Routes = [
           .then(m => m.SalaryRecipientsPage),
         canActivate: [adminGuard]
       },
+      {
+        path: 'stock',
+        loadComponent: () => import('./features/stock/stock-tab')
+          .then(m => m.StockTab)
+      },
     ]
   },
   { path: '**', redirectTo: 'login' }

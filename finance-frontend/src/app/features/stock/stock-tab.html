@@ -1,0 +1,50 @@
+<div class="stock-container">
+  <h1>Stock Management (RAINCO)</h1>
+
+  <mat-tab-group>
+    <!-- Tab 1: Summary Load Bill -->
+    <mat-tab label="Summary Load Bill">
+      <ng-template mat-tab-label>
+        <mat-icon>inventory_2</mat-icon>
+        <span class="ml-2">Summary Load Bill</span>
+      </ng-template>
+      <app-summary-load-bill></app-summary-load-bill>
+    </mat-tab>
+
+    <!-- Tab 2: Stock Item Entry -->
+    <mat-tab label="Stock Item Entry">
+      <ng-template mat-tab-label>
+        <mat-icon>add_box</mat-icon>
+        <span class="ml-2">Stock Item Entry</span>
+      </ng-template>
+      <app-stock-item-entry></app-stock-item-entry>
+    </mat-tab>
+
+    <!-- Tab 3: End of Month Linking -->
+    <mat-tab label="End of Month Linking">
+      <ng-template mat-tab-label>
+        <mat-icon>link</mat-icon>
+        <span class="ml-2">End of Month Linking</span>
+      </ng-template>
+      <app-end-of-month-linking></app-end-of-month-linking>
+    </mat-tab>
+
+    <!-- Tab 4: Inventory (Stock Levels + Add Stock + Approvals) -->
+    <mat-tab label="Inventory">
+      <ng-template mat-tab-label>
+        <mat-icon>warehouse</mat-icon>
+        <span class="ml-2">Inventory</span>
+      </ng-template>
+      <app-inventory-tab></app-inventory-tab>
+    </mat-tab>
+
+    <!-- Tab 5: Stock Reduction Status -->
+    <mat-tab label="Stock Reduction Status">
+      <ng-template mat-tab-label>
+        <mat-icon>track_changes</mat-icon>
+        <span class="ml-2">Stock Status</span>
+      </ng-template>
+      <app-stock-reduction-status></app-stock-reduction-status>
+    </mat-tab>
+  </mat-tab-group>
+</div>

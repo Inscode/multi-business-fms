@@ -2,7 +2,7 @@
   <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 12px">{{ data.title }}</h2>
   <p style="font-size: 14px; color: #607d8b; margin: 0 0 24px; white-space: pre-line; line-height: 1.8">{{ data.message }}</p>
   <div style="display: flex; justify-content: flex-end; gap: 12px">
-    <button mat-stroked-button (click)="dialogRef.close(false)">Cancel</button>
+    <button mat-stroked-button *ngIf="!data.hideCancel" (click)="dialogRef.close(false)">Cancel</button>
     <button mat-flat-button [color]="data.confirmColor" (click)="dialogRef.close(true)">
       {{ data.confirmText }}
     </button>

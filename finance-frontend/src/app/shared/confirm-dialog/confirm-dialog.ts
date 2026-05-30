@@ -17,6 +17,7 @@ export class ConfirmDialog {
         message: string;
         confirmText: string;
         confirmColor: string;
+        hideCancel?: boolean;
     }
   ) {}
 }
