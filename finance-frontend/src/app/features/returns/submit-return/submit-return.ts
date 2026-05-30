@@ -112,8 +112,8 @@ export class SubmitReturn implements OnInit {
   ngOnInit(): void {
     this.billService.getBills().subscribe({
       next: (b) => {
-        this.bills = b;
-        this.filteredBills = b;
+        this.bills = b.filter(bill => bill.status !== 'COMPLETED');
+        this.filteredBills = this.bills;
         this.loadingBills = false;
         this.cdr.detectChanges();
       },

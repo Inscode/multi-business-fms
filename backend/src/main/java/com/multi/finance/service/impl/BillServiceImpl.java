@@ -206,6 +206,20 @@ public class BillServiceImpl {
     }
 
     @Transactional
+    public BillResponse markCompleted(Long id) {
+        Bill bill = findBillById(id);
+        if (bill.getStatus() == BillStatus.COMPLETED) {
+            throw new RuntimeException("Bill is already completed");
+        }
+        if (bill.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException("Cannot complete a cancelled bill");
+        }
+        bill.setStatus(BillStatus.COMPLETED);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    @Transactional
     public BillResponse updateBill(Long id, BillRequest request) {
         Bill bill = findBillById(id);
 

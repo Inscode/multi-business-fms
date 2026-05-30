@@ -8,6 +8,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Bill, BillResponse } from '../../../core/services/bill';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
@@ -15,6 +20,7 @@ import { Auth } from '../../../core/services/auth';
 import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { BillReturnResponse, BillReturnService } from '../../../core/services/bill-return';
 import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-edit-dialog';
+import { BillStockStatus, ReturnProductResponse, StockService } from '../../../core/services/stock';
 
 @Component({
   selector: 'app-bill-detail',
@@ -22,6 +28,8 @@ import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-e
   imports: [
     CommonModule,
     RouterLink,
+    FormsModule,
+    ReactiveFormsModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -30,6 +38,10 @@ import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-e
     MatProgressSpinnerModule,
     MatMenuModule,
     MatDialogModule,
+    MatTooltipModule,
+    MatAutocompleteModule,
+    MatFormFieldModule,
+    MatInputModule,
     DecimalPipe,
     LowerCasePipe,
     DatePipe,
@@ -42,12 +54,26 @@ export class BillDetail implements OnInit {
   payments: PaymentResponse[] = [];
   returns: BillReturnResponse[] = [];
   workers: WorkerResponse[] = [];
+  stockStatus: BillStockStatus | null = null;
   loading = true;
   paymentsLoading = true;
   returnsLoading = false;
+  stockLoading = false;
   error = false;
 
   paymentColumns = ['paymentDate', 'amount', 'type', 'status', 'enteredBy', 'actions'];
+  stockItemColumns = ['productName', 'quantity', 'unitPrice', 'lineTotal'];
+  comparisonColumns = ['productName', 'systemQty', 'childQty', 'diff'];
+
+  // Reference item entry (for SYSTEM linking bills)
+  allProducts: ReturnProductResponse[] = [];
+  filteredRefProducts: ReturnProductResponse[] = [];
+  refProductCtrl = new FormControl<ReturnProductResponse | string | null>(null);
+  refQtyCtrl = new FormControl<number | null>(null);
+  refLineItems: { productId: number; productName: string; quantity: number; unitPrice: number }[] = [];
+  savingRefItems = false;
+  refItemSuccess = '';
+  refItemError = '';
 
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
@@ -88,6 +114,7 @@ export class BillDetail implements OnInit {
     private billReturnService: BillReturnService,
     private workerService: Worker,
     private auth: Auth,
+    private stockService: StockService,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
   ) {}
@@ -96,6 +123,70 @@ export class BillDetail implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.load(id);
     this.loadWorkers();
+    this.loadProducts();
+
+    this.refProductCtrl.valueChanges.subscribe(val => {
+      if (typeof val === 'string') {
+        const s = val.toLowerCase();
+        this.filteredRefProducts = s
+          ? this.allProducts.filter(p => p.name.toLowerCase().includes(s))
+          : [];
+      } else {
+        this.filteredRefProducts = [];
+      }
+      this.cdr.detectChanges();
+    });
+  }
+
+  get selectedRefProduct(): ReturnProductResponse | null {
+    const v = this.refProductCtrl.value;
+    return v && typeof v === 'object' ? v as ReturnProductResponse : null;
+  }
+
+  get canAddRefItem(): boolean {
+    return !!this.selectedRefProduct && !!this.refQtyCtrl.value && (this.refQtyCtrl.value ?? 0) > 0;
+  }
+
+  displayRefProduct = (p: ReturnProductResponse | null): string => p?.name ?? '';
+
+  addRefItem(): void {
+    const p = this.selectedRefProduct;
+    const qty = this.refQtyCtrl.value;
+    if (!p || !qty || qty <= 0) return;
+    this.refLineItems = [...this.refLineItems, { productId: p.id, productName: p.name, quantity: qty, unitPrice: p.unitPrice }];
+    this.refProductCtrl.setValue(null, { emitEvent: false });
+    this.refQtyCtrl.setValue(null);
+    this.filteredRefProducts = [];
+    this.cdr.detectChanges();
+  }
+
+  removeRefItem(i: number): void {
+    this.refLineItems = this.refLineItems.filter((_, idx) => idx !== i);
+    this.cdr.detectChanges();
+  }
+
+  saveRefItems(): void {
+    if (!this.bill || this.refLineItems.length === 0) return;
+    this.savingRefItems = true;
+    this.refItemSuccess = '';
+    this.refItemError = '';
+    this.stockService.enterReferenceItems(
+      this.bill.id,
+      this.refLineItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
+    ).subscribe({
+      next: () => {
+        this.refItemSuccess = 'Reference items saved.';
+        this.refLineItems = [];
+        this.savingRefItems = false;
+        this.loadStockStatus(this.bill!.id);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.refItemError = err?.error?.message ?? 'Failed to save reference items.';
+        this.savingRefItems = false;
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   load(id: number): void {
@@ -109,6 +200,7 @@ export class BillDetail implements OnInit {
         this.cdr.detectChanges();
         this.loadPayments(id);
         this.loadReturns(id);
+        this.loadStockStatus(id);
       },
       error: () => {
         this.error = true;
@@ -148,10 +240,32 @@ export class BillDetail implements OnInit {
     });
   }
 
+  private loadStockStatus(billId: number): void {
+    this.stockLoading = true;
+    this.stockService.getBillStockStatus(billId).subscribe({
+      next: (s) => {
+        this.stockStatus = s;
+        this.stockLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.stockLoading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   private loadWorkers(): void {
     this.workerService.getAllWorkers().subscribe({
       next: (w) => this.workers = w.filter(w => w.active),
       error: () => this.workers = []
+    });
+  }
+
+  private loadProducts(): void {
+    this.stockService.getRaincoProducts().subscribe({
+      next: (p) => { this.allProducts = p; this.cdr.detectChanges(); },
+      error: () => {}
     });
   }
 

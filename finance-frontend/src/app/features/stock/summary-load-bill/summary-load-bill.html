@@ -1,0 +1,303 @@
+<mat-card class="card-container">
+  <mat-card-header>
+    <mat-card-title>Summary Load Bill</mat-card-title>
+    <mat-card-subtitle>
+      Select unassigned SYSTEM bills to create a summary load
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <!-- Step 1: Select System Bills -->
+    <div class="section">
+      <h3>Step 1: Select System Bills</h3>
+      <div class="table-container">
+        <table mat-table [dataSource]="unassignedBills" class="bill-table">
+          <!-- Checkbox Column -->
+          <ng-container matColumnDef="select">
+            <th mat-header-cell *matHeaderCellDef>
+              <mat-checkbox
+                [checked]="selection.hasValue() && isAllSelected"
+                [indeterminate]="selection.hasValue() && !isAllSelected"
+                (change)="$event.checked ? masterToggle() : selection.clear()"
+              ></mat-checkbox>
+            </th>
+            <td mat-cell *matCellDef="let row">
+              <mat-checkbox
+                [checked]="selection.isSelected(row)"
+                (change)="$event.checked ? selection.select(row) : selection.deselect(row)"
+              ></mat-checkbox>
+            </td>
+          </ng-container>
+
+          <!-- Bill Number Column -->
+          <ng-container matColumnDef="billNumber">
+            <th mat-header-cell *matHeaderCellDef>Bill Number</th>
+            <td mat-cell *matCellDef="let row">{{ row.billNumber }}</td>
+          </ng-container>
+
+          <!-- Amount Column -->
+          <ng-container matColumnDef="amount">
+            <th mat-header-cell *matHeaderCellDef>Amount</th>
+            <td mat-cell *matCellDef="let row">Rs. {{ row.amount | number:'1.2-2' }}</td>
+          </ng-container>
+
+          <!-- Entered By Column -->
+          <ng-container matColumnDef="enteredByName">
+            <th mat-header-cell *matHeaderCellDef>Entered By</th>
+            <td mat-cell *matCellDef="let row">{{ row.enteredByName }}</td>
+          </ng-container>
+
+          <!-- Payment Type Column -->
+          <ng-container matColumnDef="paymentType">
+            <th mat-header-cell *matHeaderCellDef>Payment Type</th>
+            <td mat-cell *matCellDef="let row">{{ row.paymentType }}</td>
+          </ng-container>
+
+          <!-- Bill Date Column -->
+          <ng-container matColumnDef="billDate">
+            <th mat-header-cell *matHeaderCellDef>Bill Date</th>
+            <td mat-cell *matCellDef="let row">{{ row.billDate }}</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Step 2: Selected Bills Summary -->
+    <div class="section" *ngIf="selection.selected.length > 0">
+      <h3>Step 2: Selected Bills Summary</h3>
+      <div class="summary-box">
+        <p><strong>Number of Bills Selected:</strong> {{ selection.selected.length }}</p>
+        <p><strong>Total Amount:</strong> Rs. {{ getTotalAmount() | number:'1.2-2' }}</p>
+      </div>
+    </div>
+
+    <!-- Step 3: Consolidated Items Entry -->
+    <div class="section" *ngIf="selection.selected.length > 0">
+      <h3>Step 3: Enter Consolidated Items for Summary Load</h3>
+
+      <div class="line-item-form">
+        <div class="form-row">
+          <mat-form-field appearance="fill" class="flex-grow">
+            <mat-label>Product Name</mat-label>
+            <input
+              matInput
+              [formControl]="productSearchControl"
+              [matAutocomplete]="auto"
+            />
+            <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayProduct">
+              <mat-option *ngFor="let product of filteredProducts" [value]="product">
+                <strong>{{ product.name }}</strong>
+                <small>&nbsp;(Rs. {{ product.unitPrice | number:'1.2-2' }})</small>
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="quantity-field">
+            <mat-label>Qty</mat-label>
+            <input matInput type="number" [formControl]="productQtyControl" min="1" />
+          </mat-form-field>
+
+          <button
+            mat-raised-button
+            color="accent"
+            (click)="addLineItem()"
+            [disabled]="!canAdd"
+          >
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Line Items Table -->
+      <div *ngIf="lineItems.length > 0" class="line-items-table">
+        <table mat-table [dataSource]="lineItems" class="items-table">
+          <!-- Product Column -->
+          <ng-container matColumnDef="product">
+            <th mat-header-cell *matHeaderCellDef>Product Name</th>
+            <td mat-cell *matCellDef="let item">{{ item.productName }}</td>
+          </ng-container>
+
+          <!-- Quantity Column -->
+          <ng-container matColumnDef="quantity">
+            <th mat-header-cell *matHeaderCellDef>Qty</th>
+            <td mat-cell *matCellDef="let item">{{ item.quantity }}</td>
+          </ng-container>
+
+          <!-- Unit Price Column -->
+          <ng-container matColumnDef="unitPrice">
+            <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+            <td mat-cell *matCellDef="let item">
+              Rs. {{ item.unitPrice | number:'1.2-2' }}
+            </td>
+          </ng-container>
+
+          <!-- Line Total Column -->
+          <ng-container matColumnDef="lineTotal">
+            <th mat-header-cell *matHeaderCellDef>Line Total</th>
+            <td mat-cell *matCellDef="let item">
+              Rs. {{ item.lineTotal | number:'1.2-2' }}
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let item; let i = index">
+              <button
+                mat-icon-button
+                (click)="removeLineItem(i)"
+                matTooltip="Remove"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="itemColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: itemColumns"></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Step 4: Load Details Form -->
+    <div class="section" *ngIf="selection.selected.length > 0 && lineItems.length > 0">
+      <h3>Step 4: Enter Load Details</h3>
+      <form [formGroup]="loadForm">
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Load Date</mat-label>
+          <input matInput type="date" formControlName="loadDate" required />
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Load Notes</mat-label>
+          <textarea
+            matInput
+            formControlName="notes"
+            rows="3"
+            placeholder="e.g., Lorry A, Morning Load, etc."
+          ></textarea>
+        </mat-form-field>
+
+        <div class="form-actions">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="saveLoadBill()"
+            [disabled]="loadForm.invalid || saving"
+          >
+            <mat-icon *ngIf="!saving">save</mat-icon>
+            <mat-progress-spinner
+              *ngIf="saving"
+              diameter="20"
+              mode="indeterminate"
+            ></mat-progress-spinner>
+            Save Summary Load Bill
+          </button>
+          <button mat-stroked-button (click)="clearSelection()">Clear Selection</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Success Message -->
+    <div *ngIf="successMessage" class="success-message">
+      <mat-icon>check_circle</mat-icon>
+      <span>{{ successMessage }}</span>
+    </div>
+
+    <mat-divider class="section-divider"></mat-divider>
+
+    <!-- History Section -->
+    <div class="section">
+      <h3>Summary Load Bill History</h3>
+
+      <div *ngIf="loadBillHistory.length === 0" class="empty-state">
+        <mat-icon>inbox</mat-icon>
+        <p>No summary load bills created yet.</p>
+      </div>
+
+      <div *ngIf="loadBillHistory.length > 0" class="table-container">
+        <table mat-table [dataSource]="loadBillHistory" class="bill-table history-table">
+
+          <!-- ID Column -->
+          <ng-container matColumnDef="id">
+            <th mat-header-cell *matHeaderCellDef>#</th>
+            <td mat-cell *matCellDef="let row">{{ row.id }}</td>
+          </ng-container>
+
+          <!-- Load Date Column -->
+          <ng-container matColumnDef="loadDate">
+            <th mat-header-cell *matHeaderCellDef>Load Date</th>
+            <td mat-cell *matCellDef="let row">{{ row.loadDate }}</td>
+          </ng-container>
+
+          <!-- # Bills Column -->
+          <ng-container matColumnDef="numberOfBills">
+            <th mat-header-cell *matHeaderCellDef>Bills</th>
+            <td mat-cell *matCellDef="let row">{{ row.numberOfBills }}</td>
+          </ng-container>
+
+          <!-- Status Column -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let row">
+              <span class="status-chip"
+                [class.status-pending]="row.status === 'PENDING'"
+                [class.status-approved]="row.status === 'APPROVED'"
+                [class.status-rejected]="row.status === 'REJECTED'">
+                {{ row.status }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Created By Column -->
+          <ng-container matColumnDef="createdByName">
+            <th mat-header-cell *matHeaderCellDef>Created By</th>
+            <td mat-cell *matCellDef="let row">{{ row.createdByName }}</td>
+          </ng-container>
+
+          <!-- Created At Column -->
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>Created At</th>
+            <td mat-cell *matCellDef="let row">{{ row.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let row">
+              <ng-container *ngIf="isAdmin && row.status === 'PENDING'">
+                <button mat-icon-button color="primary"
+                  matTooltip="Approve"
+                  [disabled]="approvingId === row.id"
+                  (click)="approve(row.id)">
+                  <mat-icon>check_circle</mat-icon>
+                </button>
+                <button mat-icon-button color="warn"
+                  matTooltip="Reject"
+                  [disabled]="approvingId === row.id"
+                  (click)="reject(row.id)">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </ng-container>
+              <ng-container *ngIf="row.status === 'APPROVED'">
+                <span class="approved-by">✓ {{ row.approvedByName }}</span>
+              </ng-container>
+              <ng-container *ngIf="row.status === 'REJECTED'">
+                <span class="rejected-label">Rejected</span>
+              </ng-container>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: historyColumns"
+            [class.row-approved]="row.status === 'APPROVED'"
+            [class.row-rejected]="row.status === 'REJECTED'">
+          </tr>
+        </table>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

@@ -1,0 +1,170 @@
+<mat-card class="card-container">
+  <mat-card-header>
+    <mat-card-title>Stock Item Entry</mat-card-title>
+    <mat-card-subtitle>
+      Select a bill and enter products. SYSTEM linking bills save reference items only — no stock movement.
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+
+    <!-- Step 1: Select Bill -->
+    <div class="section">
+      <h3>Step 1: Select Bill</h3>
+
+      <div *ngIf="availableBills.length === 0" class="empty-state">
+        <mat-icon>check_circle</mat-icon>
+        <p>All bills have been stock-reduced. Nothing pending.</p>
+      </div>
+
+      <div *ngIf="availableBills.length > 0">
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Search by bill number, customer, or source</mat-label>
+          <input matInput [formControl]="billSearchControl" [matAutocomplete]="billAuto" />
+          <mat-autocomplete #billAuto="matAutocomplete" [displayWith]="displayBill" (optionSelected)="onBillSelected($event)">
+            <mat-option *ngFor="let bill of filteredBills" [value]="bill">
+              <div class="bill-option">
+                <span class="bill-number">{{ bill.billNumber }}</span>
+                <span class="bill-source source-{{ bill.billSource | lowercase }}">{{ bill.billSource }}</span>
+                <span *ngIf="bill.isLinkingBill" class="bill-ref-chip">REF ONLY</span>
+                <span class="bill-customer">{{ bill.customerName }}</span>
+                <span class="bill-amount">Rs. {{ bill.amount | number:'1.2-2' }}</span>
+                <span class="bill-date">{{ bill.billDate }}</span>
+              </div>
+            </mat-option>
+          </mat-autocomplete>
+        </mat-form-field>
+      </div>
+
+      <!-- Selected Bill Card -->
+      <div *ngIf="selectedBill" class="selected-bill-card">
+        <div class="selected-bill-row">
+          <div class="selected-bill-info">
+            <strong>{{ selectedBill.billNumber }}</strong>
+            <span class="bill-source source-{{ selectedBill.billSource | lowercase }}">{{ selectedBill.billSource }}</span>
+          </div>
+          <button mat-icon-button (click)="clearBill()" matTooltip="Change bill">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="selected-bill-details">
+          <span><mat-icon>person</mat-icon> {{ selectedBill.customerName }}</span>
+          <span><mat-icon>calendar_today</mat-icon> {{ selectedBill.billDate }}</span>
+          <span><mat-icon>payments</mat-icon> Rs. {{ selectedBill.amount | number:'1.2-2' }}</span>
+          <span><mat-icon>account_circle</mat-icon> {{ selectedBill.enteredByName }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reference-only banner for SYSTEM linking bills -->
+    <div class="reference-banner" *ngIf="selectedBill && isLinkingBill">
+      <mat-icon>info</mat-icon>
+      <div>
+        <strong>Reference Entry — No Stock Movement</strong><br>
+        <span>This is a SYSTEM linking bill. Items entered here are saved for reconciliation only.
+        Stock was already reduced when the linked DRAFT/MANUAL bills were processed.</span>
+      </div>
+    </div>
+
+    <!-- Step 2: Add Products -->
+    <div class="section" *ngIf="selectedBill">
+      <h3>Step 2: Add Products {{ isLinkingBill ? '(Reference Items)' : 'Dispatched' }}</h3>
+
+      <div class="line-item-form">
+        <div class="form-row">
+          <mat-form-field appearance="fill" class="flex-grow">
+            <mat-label>Product Name</mat-label>
+            <input matInput [formControl]="productSearchControl" [matAutocomplete]="productAuto" />
+            <mat-autocomplete #productAuto="matAutocomplete" [displayWith]="displayProduct">
+              <mat-option *ngFor="let product of filteredProducts" [value]="product">
+                <strong>{{ product.name }}</strong>
+                <small>&nbsp;(Rs. {{ product.unitPrice | number:'1.2-2' }})</small>
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="quantity-field">
+            <mat-label>Qty</mat-label>
+            <input matInput type="number" [formControl]="productQtyControl" min="1" />
+          </mat-form-field>
+
+          <button mat-raised-button color="accent" (click)="addLineItem()" [disabled]="!canAdd">
+            <mat-icon>add</mat-icon> Add
+          </button>
+        </div>
+      </div>
+
+      <!-- Line Items Table -->
+      <div *ngIf="lineItems.length > 0" class="line-items-table">
+        <table mat-table [dataSource]="lineItems" class="items-table">
+          <ng-container matColumnDef="product">
+            <th mat-header-cell *matHeaderCellDef>Product</th>
+            <td mat-cell *matCellDef="let item">{{ item.productName }}</td>
+          </ng-container>
+          <ng-container matColumnDef="quantity">
+            <th mat-header-cell *matHeaderCellDef>Qty</th>
+            <td mat-cell *matCellDef="let item">{{ item.quantity }}</td>
+          </ng-container>
+          <ng-container matColumnDef="unitPrice">
+            <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+            <td mat-cell *matCellDef="let item">Rs. {{ item.unitPrice | number:'1.2-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="lineTotal">
+            <th mat-header-cell *matHeaderCellDef>Line Total</th>
+            <td mat-cell *matCellDef="let item">Rs. {{ item.lineTotal | number:'1.2-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let item; let i = index">
+              <button mat-icon-button color="warn" (click)="removeLineItem(i)" matTooltip="Remove">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="itemColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: itemColumns"></tr>
+        </table>
+
+        <div class="total-row">
+          <strong>Total Stock Value:</strong>
+          <span>Rs. {{ totalAmount | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Save -->
+    <div class="section" *ngIf="selectedBill && lineItems.length > 0">
+      <h3>Step 3: {{ isLinkingBill ? 'Save Reference Items' : 'Confirm Stock Reduction' }}</h3>
+
+      <p class="confirm-note" *ngIf="!isLinkingBill">
+        <mat-icon>info</mat-icon>
+        This will immediately reduce stock for the selected products. This action cannot be undone.
+      </p>
+      <p class="confirm-note ref-confirm" *ngIf="isLinkingBill">
+        <mat-icon>receipt_long</mat-icon>
+        Items will be saved as reference only — <strong>no stock will be deducted</strong>.
+        Use this to record the system invoice quantities for reconciliation against the linked bills.
+      </p>
+
+      <div class="form-actions">
+        <button mat-raised-button [color]="isLinkingBill ? 'accent' : 'primary'" (click)="save()" [disabled]="saving">
+          <mat-icon *ngIf="!saving">{{ isLinkingBill ? 'receipt_long' : 'remove_circle' }}</mat-icon>
+          <mat-progress-spinner *ngIf="saving" diameter="20" mode="indeterminate"></mat-progress-spinner>
+          {{ isLinkingBill ? 'Save Reference Items' : 'Reduce Stock for This Bill' }}
+        </button>
+        <button mat-stroked-button (click)="reset()">Reset</button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div *ngIf="successMessage" class="success-message">
+      <mat-icon>check_circle</mat-icon>
+      <span>{{ successMessage }}</span>
+    </div>
+    <div *ngIf="errorMessage" class="error-message">
+      <mat-icon>error</mat-icon>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+  </mat-card-content>
+</mat-card>

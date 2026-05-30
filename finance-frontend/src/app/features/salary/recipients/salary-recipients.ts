@@ -73,6 +73,12 @@ export class SalaryRecipientsPage implements OnInit {
     });
   }
 
+  startAdd(): void {
+    this.showAddForm = true;
+    this.newEntry = { name: '', designation: '', monthlySalary: 0 };
+    this.cdr.detectChanges();
+  }
+
   saveAdd(): void {
     if (!this.newEntry.name || !this.newEntry.designation || this.newEntry.monthlySalary <= 0) return;
     this.adding = true;

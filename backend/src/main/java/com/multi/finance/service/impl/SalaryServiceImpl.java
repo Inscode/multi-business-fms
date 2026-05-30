@@ -14,7 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -109,12 +113,27 @@ public class SalaryServiceImpl {
         List<SalaryPayment> payments = month != null
                 ? paymentRepository.findByMonthOrderByCreatedAtDesc(month)
                 : paymentRepository.findAllByOrderByCreatedAtDesc();
-        return payments.stream().map(p -> {
-            BigDecimal paid = paymentRepository.sumPaidForMonth(p.getRecipient().getId(), p.getMonth());
-            return toPaymentResponse(p, paid.subtract(
-                    isCountable(p.getStatus()) ? p.getAmount() : BigDecimal.ZERO
-            ), p.getRecipient().getMonthlySalary());
-        }).toList();
+
+        List<SalaryPayment> ascending = payments.stream()
+                .sorted(Comparator.comparing(SalaryPayment::getCreatedAt))
+                .toList();
+
+        Map<String, BigDecimal> runningTotals = new HashMap<>();
+        Map<Long, BigDecimal> paidBeforeMap = new LinkedHashMap<>();
+
+        for (SalaryPayment p : ascending) {
+            String key = p.getRecipient().getId() + ":" + p.getMonth();
+            BigDecimal before = runningTotals.getOrDefault(key, BigDecimal.ZERO);
+            paidBeforeMap.put(p.getId(), before);
+            if (isCountable(p.getStatus())) {
+                runningTotals.put(key, before.add(p.getAmount()));
+            }
+        }
+
+        return payments.stream().map(p ->
+                toPaymentResponse(p, paidBeforeMap.getOrDefault(p.getId(), BigDecimal.ZERO),
+                        p.getRecipient().getMonthlySalary())
+        ).toList();
     }
 
     @Transactional(readOnly = true)

@@ -60,4 +60,27 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findByBusinessAndStatusOrderByCreatedAtDesc(BusinessType business, BillStatus status);
     List<Bill> findByStatusInOrderByCreatedAtDesc(List<BillStatus> statuses);
 
+    // SYSTEM bills not yet assigned to any SummaryLoadBill, and not already a linking parent
+    @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.billSource = 'SYSTEM' " +
+           "AND b NOT IN (SELECT sb FROM SummaryLoadBill slb JOIN slb.systemBills sb) " +
+           "AND b NOT IN (SELECT l.systemBill FROM BillStockLink l) " +
+           "ORDER BY b.billDate DESC")
+    List<Bill> findUnassignedSystemBills();
+
+    // DRAFT/MANUAL bills not yet linked to any system bill via BillStockLink (all businesses)
+    @Query("SELECT b FROM Bill b WHERE b.billSource IN ('DRAFT', 'MANUAL') " +
+           "AND b NOT IN (SELECT l.childBill FROM BillStockLink l) " +
+           "ORDER BY b.billDate DESC")
+    List<Bill> findUnlinkedDraftManualBills();
+
+    // SYSTEM bills available for linking (not already a parent in BillStockLink)
+    @Query("SELECT b FROM Bill b WHERE b.billSource = 'SYSTEM' " +
+           "AND b NOT IN (SELECT l.systemBill FROM BillStockLink l) " +
+           "ORDER BY b.billDate DESC")
+    List<Bill> findAvailableSystemBillsForLinking();
+
+    // SYSTEM bills that ARE linked (have child bills)
+    @Query("SELECT DISTINCT l.systemBill FROM BillStockLink l")
+    List<Bill> findLinkedSystemBills();
+
 }

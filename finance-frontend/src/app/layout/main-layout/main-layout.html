@@ -82,6 +82,10 @@
         <mat-icon>group</mat-icon>
         <span *ngIf="!collapsed">Salary Recipients</span>
       </a>
+      <a class="nav-item" routerLink="/stock" routerLinkActive="active" matRipple *ngIf="showStock" (click)="isMobile && sidenav.close()">
+        <mat-icon>inventory</mat-icon>
+        <span *ngIf="!collapsed">Stock</span>
+      </a>
     </nav>
 
     <div class="nav-footer" *ngIf="!collapsed">

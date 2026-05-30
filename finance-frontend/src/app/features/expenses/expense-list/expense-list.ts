@@ -2,6 +2,8 @@ import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -27,6 +29,8 @@ import { ExpenseResponse, ExpenseService } from '../../../core/services/expense'
     MatInputModule,
     MatSelectModule,
     MatProgressSpinnerModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
   ],
   templateUrl: './expense-list.html',
   styleUrl: './expense-list.scss',
@@ -47,11 +51,11 @@ export class ExpenseList implements OnInit {
   filterBusiness = '';
   filterCategory = '';
   filterStatus = '';
-  filterDate = '';
-  filterMonth = '';
+  filterFrom: Date | null = null;
+  filterTo: Date | null = null;
 
   businesses = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
-  categories = ['FUEL', 'TEA', 'PARKING', 'REPAIR', 'SALARY', 'PETTY_CASH', 'OTHER'];
+  categories = ['FUEL', 'TEA', 'PARKING', 'REPAIR', 'PETTY_CASH', 'OTHER'];
 
   get isOwnerOrAdmin(): boolean {
     const r = this.auth.getRole();
@@ -72,12 +76,18 @@ export class ExpenseList implements OnInit {
   }
 
   get activeFilterLabel(): string {
-    if (this.filterDate) return new Date(this.filterDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    if (this.filterMonth) {
-      const [y, m] = this.filterMonth.split('-');
-      return new Date(+y, +m - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (this.filterFrom && this.filterTo) {
+      const sameDay = this.filterFrom.toDateString() === this.filterTo.toDateString();
+      return sameDay ? fmt(this.filterFrom) : `${fmt(this.filterFrom)} – ${fmt(this.filterTo)}`;
     }
+    if (this.filterFrom) return `From ${fmt(this.filterFrom)}`;
+    if (this.filterTo)   return `Until ${fmt(this.filterTo)}`;
     return 'All time';
+  }
+
+  private toIsoDate(d: Date | null): string | undefined {
+    return d ? d.toISOString().split('T')[0] : undefined;
   }
 
   constructor(
@@ -115,68 +125,36 @@ export class ExpenseList implements OnInit {
         this.loadBalance();
         this.cdr.detectChanges();
       },
-      error: () => {
-        this.addingFund = false;
-        this.cdr.detectChanges();
-      },
+      error: () => { this.addingFund = false; this.cdr.detectChanges(); },
     });
   }
 
   setToday(): void {
-    this.filterDate = new Date().toISOString().split('T')[0];
-    this.filterMonth = '';
-    this.load();
-  }
-
-  onDateChange(): void {
-    this.filterMonth = '';
-    this.load();
-  }
-
-  onMonthChange(): void {
-    this.filterDate = '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    this.filterFrom = today;
+    this.filterTo   = new Date(today);
     this.load();
   }
 
   clearDateFilters(): void {
-    this.filterDate = '';
-    this.filterMonth = '';
+    this.filterFrom = null;
+    this.filterTo   = null;
     this.load();
   }
 
   load(): void {
     this.loading = true;
     this.error = false;
-
-    let from: string | undefined;
-    let to: string | undefined;
-
-    if (this.filterDate) {
-      from = this.filterDate;
-      to   = this.filterDate;
-    } else if (this.filterMonth) {
-      const [y, m] = this.filterMonth.split('-').map(Number);
-      from = `${this.filterMonth}-01`;
-      to   = new Date(y, m, 0).toISOString().split('T')[0];
-    }
-
     this.expenseService.getAll({
       business: this.filterBusiness || undefined,
       category: this.filterCategory || undefined,
       status:   this.filterStatus   || undefined,
-      from,
-      to,
+      from:     this.toIsoDate(this.filterFrom),
+      to:       this.toIsoDate(this.filterTo),
     }).subscribe({
-      next: (e) => {
-        this.expenses = e;
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.error = true;
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
+      next: (e) => { this.expenses = e; this.loading = false; this.cdr.detectChanges(); },
+      error: () => { this.error = true; this.loading = false; this.cdr.detectChanges(); },
     });
   }
 
@@ -191,7 +169,7 @@ export class ExpenseList implements OnInit {
   categoryLabel(cat: string): string {
     const map: Record<string, string> = {
       FUEL: 'Fuel', TEA: 'Tea', PARKING: 'Parking',
-      REPAIR: 'Repair', SALARY: 'Salary', PETTY_CASH: 'Petty Cash', OTHER: 'Other',
+      REPAIR: 'Repair', PETTY_CASH: 'Petty Cash', OTHER: 'Other',
     };
     return map[cat] ?? cat;
   }

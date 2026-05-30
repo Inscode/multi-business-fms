@@ -8,5 +8,6 @@ import java.util.List;
 
 public interface ReturnProductRepository extends JpaRepository<ReturnProduct, Long> {
     List<ReturnProduct> findByBusinessAndActiveTrue(BusinessType business);
+    List<ReturnProduct> findByBusiness(BusinessType business);
     List<ReturnProduct> findAllByOrderByBusinessAscNameAsc();
 }

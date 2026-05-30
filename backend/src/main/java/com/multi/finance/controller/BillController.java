@@ -81,6 +81,12 @@ public class BillController {
         return ResponseEntity.ok(billService.markReceived(id));
     }
 
+    @PatchMapping("/{id}/complete")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> markCompleted(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.markCompleted(id));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<BillResponse> getBillById(@PathVariable Long id) {

@@ -5,7 +5,6 @@ public enum ExpenseCategory {
     TEA,
     PARKING,
     REPAIR,
-    SALARY,
     PETTY_CASH,
     OTHER
 }
