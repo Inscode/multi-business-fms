@@ -158,6 +158,11 @@
               <mat-icon>notifications</mat-icon>
               <span>Set Reminder</span>
             </button>
+            <button mat-menu-item *ngIf="canMarkCompleted(b)" (click)="markCompleted(b)"
+              style="color:#2e7d32">
+              <mat-icon style="color:#2e7d32">task_alt</mat-icon>
+              <span>Mark Completed</span>
+            </button>
           </mat-menu>
           <mat-menu #mobileAssignMenu="matMenu">
             <button mat-menu-item *ngFor="let w of workers" (click)="assignBill(b.id, w.id)">
@@ -277,6 +282,11 @@
                 <button mat-menu-item *ngIf="canSetReminder" (click)="openReminderDialog(b)">
                   <mat-icon>notifications</mat-icon>
                   <span>Set Reminder</span>
+                </button>
+                <button mat-menu-item *ngIf="canMarkCompleted(b)" (click)="markCompleted(b)"
+                  style="color:#2e7d32">
+                  <mat-icon style="color:#2e7d32">task_alt</mat-icon>
+                  <span>Mark Completed</span>
                 </button>
               </mat-menu>
               <mat-menu #assignMenu="matMenu">

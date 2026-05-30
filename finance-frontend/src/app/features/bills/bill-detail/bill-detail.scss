@@ -204,3 +204,287 @@
     margin-bottom: 16px;
   }
 }
+
+.return-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.return-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  &:last-child { border-bottom: none; }
+  &:hover { background: #fafbfc; }
+}
+
+.return-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.return-row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.type-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+  &.damage  { background: #fce4ec; color: #ad1457; }
+  &.salable { background: #e8f5e9; color: #2e7d32; }
+}
+
+.return-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.return-items {
+  font-size: 12px;
+  color: #607d8b;
+}
+
+.return-date {
+  font-size: 12px;
+  color: #607d8b;
+}
+
+.badge {
+  &-pending  { background: #fff3e0; color: #e65100; }
+  &-approved { background: #e8f5e9; color: #2e7d32; }
+  &-rejected { background: #ffebee; color: #c62828; }
+}
+
+// ── Stock Status section ──────────────────────────────────────
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  &.status-not_reduced      { background: #fce4ec; color: #ad1457; }
+  &.status-summary_pending  { background: #fff3e0; color: #e65100; }
+  &.status-summary_approved { background: #e8f5e9; color: #2e7d32; }
+  &.status-individually_reduced { background: #e3f2fd; color: #1565c0; }
+  &.status-linked           { background: #f3e5f5; color: #6a1b9a; }
+  &.status-pending  { background: #fff3e0; color: #e65100; }
+  &.status-approved { background: #e8f5e9; color: #2e7d32; }
+  &.status-rejected { background: #ffebee; color: #c62828; }
+}
+
+.stock-status-card {
+  padding: 0 !important;
+  margin-bottom: 28px;
+}
+
+.stock-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a1a2e;
+  padding: 12px 16px 6px;
+  background: #f8f9fb;
+  border-bottom: 1px solid #e8edf2;
+  margin-top: 4px;
+  &:first-child { margin-top: 0; border-radius: 10px 10px 0 0; }
+}
+
+.stock-sub-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #607d8b;
+  padding: 8px 16px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: #1a1a2e;
+  flex-wrap: wrap;
+  .meta-label {
+    font-size: 11px;
+    color: #607d8b;
+  }
+}
+
+.stock-table {
+  width: 100%;
+  th { font-size: 11px; color: #607d8b; font-weight: 600; }
+  td { font-size: 12px; }
+}
+
+.stock-table-sm {
+  td, th { padding: 4px 12px !important; }
+}
+
+.related-bills-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.related-bill-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  &:last-child { border-bottom: none; }
+  &:hover { background: #fafbfc; }
+}
+
+.related-bill-num    { font-weight: 700; color: #1a1a2e; min-width: 100px; }
+.related-bill-customer { color: #607d8b; flex: 1; }
+.related-bill-amount { color: #1a1a2e; }
+.related-bill-qty    { font-size: 12px; color: #607d8b; }
+
+.linked-child {
+  border-bottom: 1px solid #f0f4f8;
+  &:last-child { border-bottom: none; }
+  padding-bottom: 8px;
+}
+
+.linked-child-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 4px;
+  font-size: 13px;
+}
+
+.linked-child-customer { color: #607d8b; flex: 1; }
+.linked-child-amount   { font-weight: 600; }
+
+.linked-child-meta {
+  font-size: 11px;
+  color: #607d8b;
+  padding: 0 16px 6px;
+}
+
+.source-chip {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  &.source-system { background: #e3f2fd; color: #1565c0; }
+  &.source-draft  { background: #fff3e0; color: #e65100; }
+  &.source-manual { background: #f3e5f5; color: #6a1b9a; }
+}
+
+.no-items-note {
+  font-size: 12px;
+  color: #90a4ae;
+  padding: 4px 16px 8px;
+  font-style: italic;
+}
+
+.comparison-table {
+  .diff-ok    { color: #2e7d32; display: flex; align-items: center; gap: 4px; }
+  .diff-short { color: #c62828; display: flex; align-items: center; gap: 4px; }
+  .diff-over  { color: #e65100; display: flex; align-items: center; gap: 4px; }
+  .diff-icon  { font-size: 14px; width: 14px; height: 14px; }
+  .diff-label { font-size: 10px; font-weight: 700; }
+  .no-data    { color: #b0bec5; font-style: italic; font-size: 11px; }
+}
+
+.reconcile-note {
+  font-size: 12px;
+  color: #607d8b;
+  padding: 6px 16px 10px;
+  background: #f0f7ff;
+  border-bottom: 1px solid #e3edf8;
+}
+
+.ref-note {
+  font-size: 10px;
+  font-weight: 400;
+  color: #90a4ae;
+  background: #f5f7fa;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+.ref-entry-form {
+  padding: 12px 16px;
+  background: #fafbfd;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.ref-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  .ref-product-field { flex: 1; min-width: 200px; }
+  .ref-qty-field     { width: 100px; }
+}
+
+.ref-staged {
+  margin-top: 10px;
+  border: 1px solid #e0e6ed;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ref-staged-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  &:last-of-type { border-bottom: none; }
+}
+
+.ref-staged-name { flex: 1; font-weight: 500; }
+.ref-staged-qty  { color: #607d8b; }
+
+.ref-staged-actions {
+  padding: 10px 12px;
+  background: #f5f7fa;
+  display: flex;
+  gap: 10px;
+}
+
+.ref-success {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding: 8px 12px;
+  background: #e8f5e9; border-radius: 4px; color: #2e7d32; font-size: 13px;
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+.ref-error {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding: 8px 12px;
+  background: #ffebee; border-radius: 4px; color: #c62828; font-size: 13px;
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}

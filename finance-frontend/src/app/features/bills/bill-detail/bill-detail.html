@@ -60,6 +60,11 @@
         <mat-icon>delete</mat-icon>
         Delete Bill
       </button>
+
+      <a mat-stroked-button routerLink="/returns" *ngIf="isAccountant || isMainAccountant || isAdmin">
+        <mat-icon>assignment_return</mat-icon>
+        Submit Return
+      </a>
     </div>
 
     <!-- bill overview -->
@@ -87,6 +92,10 @@
           <div class="info-row">
             <span class="label">Bill Source</span>
             <span class="value">{{ bill.billSource }}</span>
+          </div>
+          <div class="info-row" *ngIf="bill.area">
+            <span class="label">Area</span>
+            <span class="value">{{ bill.area }}</span>
           </div>
           <div class="info-row">
             <span class="label">Bill Date</span>
@@ -148,6 +157,334 @@
         </div>
       </mat-card>
     </div>
+
+    <!-- stock status -->
+    <div class="section-header">
+      <span class="section-title">Stock Status</span>
+      <span *ngIf="stockStatus" class="status-badge status-{{ stockStatus.reductionStatus | lowercase }}">
+        {{ stockStatus.reductionStatus | uppercase }}
+      </span>
+    </div>
+
+    <mat-card class="table-card stock-status-card">
+      <div class="loading-state" *ngIf="stockLoading">
+        <mat-spinner diameter="28"></mat-spinner>
+      </div>
+
+      <ng-container *ngIf="!stockLoading && stockStatus">
+
+        <!-- Own stock items (individually reduced) -->
+        <ng-container *ngIf="stockStatus.ownItems.length">
+          <div class="stock-section-label">Stock Items</div>
+          <table mat-table [dataSource]="stockStatus.ownItems" class="stock-table">
+            <ng-container matColumnDef="productName">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let i">{{ i.productName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="quantity">
+              <th mat-header-cell *matHeaderCellDef>Qty</th>
+              <td mat-cell *matCellDef="let i">{{ i.quantity }}</td>
+            </ng-container>
+            <ng-container matColumnDef="unitPrice">
+              <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+              <td mat-cell *matCellDef="let i">Rs {{ i.unitPrice | number:'1.2-2' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="lineTotal">
+              <th mat-header-cell *matHeaderCellDef>Line Total</th>
+              <td mat-cell *matCellDef="let i">Rs {{ i.lineTotal | number:'1.2-2' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="stockItemColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: stockItemColumns"></tr>
+          </table>
+        </ng-container>
+
+        <!-- Summary load context -->
+        <ng-container *ngIf="stockStatus.summaryLoadId">
+          <div class="stock-section-label">
+            Summary Load #{{ stockStatus.summaryLoadId }}
+            <span class="status-badge status-{{ stockStatus.summaryStatus | lowercase }}">
+              {{ stockStatus.summaryStatus }}
+            </span>
+          </div>
+          <div class="stock-meta-row">
+            <span class="meta-label">Created by</span>
+            <span>{{ stockStatus.summaryCreatedByName }}</span>
+            <span class="meta-label">Load Date</span>
+            <span>{{ stockStatus.summaryLoadDate | date:'dd MMM yyyy' }}</span>
+          </div>
+
+          <!-- Summary items (products in the load) -->
+          <div class="stock-sub-label" *ngIf="stockStatus.summaryItems?.length">Summary Load Items</div>
+          <table mat-table [dataSource]="stockStatus.summaryItems!" class="stock-table" *ngIf="stockStatus.summaryItems?.length">
+            <ng-container matColumnDef="productName">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let i">{{ i.productName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="quantity">
+              <th mat-header-cell *matHeaderCellDef>Qty</th>
+              <td mat-cell *matCellDef="let i">{{ i.quantity }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['productName','quantity']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['productName','quantity']"></tr>
+          </table>
+
+          <!-- Other system bills in this summary -->
+          <ng-container *ngIf="stockStatus.summaryRelatedBills?.length">
+            <div class="stock-sub-label">Other Bills in This Summary Load</div>
+            <div class="related-bills-list">
+              <div class="related-bill-row" *ngFor="let b of stockStatus.summaryRelatedBills">
+                <span class="related-bill-num">{{ b.billNumber }}</span>
+                <span class="related-bill-customer">{{ b.customerName }}</span>
+                <span class="related-bill-amount">Rs {{ b.amount | number }}</span>
+                <span class="related-bill-qty">Qty: {{ b.totalQty }}</span>
+                <a mat-icon-button [routerLink]="['/bills', b.billId]" matTooltip="View bill">
+                  <mat-icon>open_in_new</mat-icon>
+                </a>
+              </div>
+            </div>
+          </ng-container>
+        </ng-container>
+
+        <!-- SYSTEM bill with linked DRAFT/MANUAL children -->
+        <ng-container *ngIf="stockStatus.linkedChildren?.length">
+
+          <!-- Aggregate comparison: system ref items vs sum of all children -->
+          <div class="stock-section-label">
+            <mat-icon style="font-size:16px;width:16px;height:16px;">compare_arrows</mat-icon>
+            Reconciliation — System Bill vs Linked Children
+            <span class="status-badge status-linked">STOCK COVERED BY CHILDREN</span>
+          </div>
+          <div class="reconcile-note">
+            Stock was reduced when each DRAFT/MANUAL bill was processed.
+            Enter the system bill's reference items to verify quantities match.
+          </div>
+
+          <!-- Aggregate comparison table (shown once children have items) -->
+          <ng-container *ngIf="stockStatus.childrenAggregateComparison?.length">
+            <div class="stock-sub-label">Product-wise Comparison</div>
+            <table mat-table [dataSource]="stockStatus.childrenAggregateComparison!" class="stock-table comparison-table">
+              <ng-container matColumnDef="productName">
+                <th mat-header-cell *matHeaderCellDef>Product</th>
+                <td mat-cell *matCellDef="let r">{{ r.productName }}</td>
+              </ng-container>
+              <ng-container matColumnDef="systemQty">
+                <th mat-header-cell *matHeaderCellDef>System Ref Qty</th>
+                <td mat-cell *matCellDef="let r">
+                  <span [class.no-data]="r.systemQty === 0">{{ r.systemQty === 0 ? '—' : r.systemQty }}</span>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="childQty">
+                <th mat-header-cell *matHeaderCellDef>Children Total</th>
+                <td mat-cell *matCellDef="let r">{{ r.childQty }}</td>
+              </ng-container>
+              <ng-container matColumnDef="diff">
+                <th mat-header-cell *matHeaderCellDef>Difference</th>
+                <td mat-cell *matCellDef="let r">
+                  <span *ngIf="r.systemQty === 0" class="no-data">Enter ref items to compare</span>
+                  <span *ngIf="r.systemQty > 0" [class.diff-ok]="r.diff === 0" [class.diff-short]="r.diff < 0" [class.diff-over]="r.diff > 0">
+                    <mat-icon class="diff-icon" *ngIf="r.diff === 0">check_circle</mat-icon>
+                    <mat-icon class="diff-icon" *ngIf="r.diff !== 0">warning</mat-icon>
+                    {{ r.diff > 0 ? '+' : '' }}{{ r.diff }}
+                    <span *ngIf="r.diff < 0" class="diff-label">short</span>
+                    <span *ngIf="r.diff > 0" class="diff-label">over</span>
+                  </span>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="comparisonColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: comparisonColumns"></tr>
+            </table>
+          </ng-container>
+
+          <!-- Reference item entry (if accountant/admin) -->
+          <ng-container *ngIf="isAccountant || isMainAccountant || isAdmin">
+            <div class="stock-section-label" style="margin-top:8px">
+              <mat-icon style="font-size:16px;width:16px;height:16px;">receipt_long</mat-icon>
+              {{ stockStatus.ownItems.length ? 'Update' : 'Enter' }} System Bill Reference Items
+              <span class="ref-note">No stock movement — for reconciliation only</span>
+            </div>
+
+            <!-- Existing reference items -->
+            <ng-container *ngIf="stockStatus.ownItems.length">
+              <table mat-table [dataSource]="stockStatus.ownItems!" class="stock-table stock-table-sm">
+                <ng-container matColumnDef="productName">
+                  <th mat-header-cell *matHeaderCellDef>Product</th>
+                  <td mat-cell *matCellDef="let i">{{ i.productName }}</td>
+                </ng-container>
+                <ng-container matColumnDef="quantity">
+                  <th mat-header-cell *matHeaderCellDef>Ref Qty</th>
+                  <td mat-cell *matCellDef="let i">{{ i.quantity }}</td>
+                </ng-container>
+                <ng-container matColumnDef="unitPrice">
+                  <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+                  <td mat-cell *matCellDef="let i">Rs {{ i.unitPrice | number:'1.2-2' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="lineTotal">
+                  <th mat-header-cell *matHeaderCellDef>Line Total</th>
+                  <td mat-cell *matCellDef="let i">Rs {{ i.lineTotal | number:'1.2-2' }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="stockItemColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: stockItemColumns"></tr>
+              </table>
+            </ng-container>
+
+            <!-- Inline entry form -->
+            <div class="ref-entry-form">
+              <div class="ref-entry-row">
+                <mat-form-field appearance="outline" class="ref-product-field">
+                  <mat-label>Product</mat-label>
+                  <input matInput [formControl]="refProductCtrl" [matAutocomplete]="refAuto" placeholder="Search product..." />
+                  <mat-autocomplete #refAuto="matAutocomplete" [displayWith]="displayRefProduct"
+                    (optionSelected)="$event.option.value">
+                    <mat-option *ngFor="let p of filteredRefProducts" [value]="p">{{ p.name }}</mat-option>
+                  </mat-autocomplete>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="ref-qty-field">
+                  <mat-label>Qty</mat-label>
+                  <input matInput type="number" [formControl]="refQtyCtrl" min="1" />
+                </mat-form-field>
+                <button mat-stroked-button (click)="addRefItem()" [disabled]="!canAddRefItem">
+                  <mat-icon>add</mat-icon> Add
+                </button>
+              </div>
+
+              <!-- Staged items -->
+              <div class="ref-staged" *ngIf="refLineItems.length > 0">
+                <div class="ref-staged-row" *ngFor="let r of refLineItems; let i = index">
+                  <span class="ref-staged-name">{{ r.productName }}</span>
+                  <span class="ref-staged-qty">× {{ r.quantity }}</span>
+                  <button mat-icon-button color="warn" (click)="removeRefItem(i)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+                <div class="ref-staged-actions">
+                  <button mat-flat-button color="primary" (click)="saveRefItems()" [disabled]="savingRefItems">
+                    <mat-spinner *ngIf="savingRefItems" diameter="18"></mat-spinner>
+                    <mat-icon *ngIf="!savingRefItems">save</mat-icon>
+                    {{ stockStatus.ownItems.length ? 'Update Reference Items' : 'Save Reference Items' }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="ref-success" *ngIf="refItemSuccess">
+                <mat-icon>check_circle</mat-icon> {{ refItemSuccess }}
+              </div>
+              <div class="ref-error" *ngIf="refItemError">
+                <mat-icon>error</mat-icon> {{ refItemError }}
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Linked child bills list -->
+          <div class="stock-section-label" style="margin-top:8px">
+            <mat-icon style="font-size:16px;width:16px;height:16px;">link</mat-icon>
+            Linked Child Bills ({{ stockStatus.linkedChildren!.length }})
+          </div>
+          <div class="linked-child" *ngFor="let child of stockStatus.linkedChildren">
+            <div class="linked-child-header">
+              <span class="source-chip source-{{ child.billSource | lowercase }}">{{ child.billSource }}</span>
+              <strong>{{ child.billNumber }}</strong>
+              <span class="linked-child-customer">{{ child.customerName }}</span>
+              <span class="linked-child-amount">Rs {{ child.amount | number }}</span>
+              <a mat-icon-button [routerLink]="['/bills', child.billId]" matTooltip="View bill">
+                <mat-icon>open_in_new</mat-icon>
+              </a>
+            </div>
+            <div class="linked-child-meta">
+              Linked by {{ child.linkedByName }} · {{ child.linkedAt | date:'dd MMM yyyy' }}
+              <span *ngIf="child.notes"> · {{ child.notes }}</span>
+            </div>
+            <ng-container *ngIf="child.items.length">
+              <table mat-table [dataSource]="child.items" class="stock-table stock-table-sm">
+                <ng-container matColumnDef="productName">
+                  <th mat-header-cell *matHeaderCellDef>Product</th>
+                  <td mat-cell *matCellDef="let i">{{ i.productName }}</td>
+                </ng-container>
+                <ng-container matColumnDef="quantity">
+                  <th mat-header-cell *matHeaderCellDef>Qty (reduced)</th>
+                  <td mat-cell *matCellDef="let i">{{ i.quantity }}</td>
+                </ng-container>
+                <ng-container matColumnDef="unitPrice">
+                  <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+                  <td mat-cell *matCellDef="let i">Rs {{ i.unitPrice | number:'1.2-2' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="lineTotal">
+                  <th mat-header-cell *matHeaderCellDef>Line Total</th>
+                  <td mat-cell *matCellDef="let i">Rs {{ i.lineTotal | number:'1.2-2' }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="stockItemColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: stockItemColumns"></tr>
+              </table>
+            </ng-container>
+            <div class="no-items-note" *ngIf="!child.items.length">No stock items recorded for this bill.</div>
+          </div>
+        </ng-container>
+
+        <!-- Linked parent (DRAFT/MANUAL linked to a SYSTEM bill) -->
+        <ng-container *ngIf="stockStatus.linkedParent">
+          <div class="stock-section-label">
+            Linked to System Bill
+            <a mat-icon-button [routerLink]="['/bills', stockStatus.linkedParent.billId]" matTooltip="View system bill">
+              <mat-icon>open_in_new</mat-icon>
+            </a>
+          </div>
+          <div class="stock-meta-row">
+            <span class="meta-label">Bill #</span>
+            <strong>{{ stockStatus.linkedParent.billNumber }}</strong>
+            <span class="meta-label">Customer</span>
+            <span>{{ stockStatus.linkedParent.customerName }}</span>
+            <span class="meta-label">Amount</span>
+            <span>Rs {{ stockStatus.linkedParent.amount | number }}</span>
+          </div>
+          <div class="stock-meta-row">
+            <span class="meta-label">Linked by</span>
+            <span>{{ stockStatus.linkedParent.linkedByName }}</span>
+            <span class="meta-label">Linked at</span>
+            <span>{{ stockStatus.linkedParent.linkedAt | date:'dd MMM yyyy' }}</span>
+            <span *ngIf="stockStatus.linkedParent.notes" class="meta-label">Notes</span>
+            <span *ngIf="stockStatus.linkedParent.notes">{{ stockStatus.linkedParent.notes }}</span>
+          </div>
+
+          <!-- Item-wise comparison -->
+          <div class="stock-sub-label">Item-wise Qty Comparison (this bill vs system bill)</div>
+          <table mat-table [dataSource]="stockStatus.linkedParent.comparison" class="stock-table comparison-table">
+            <ng-container matColumnDef="productName">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let r">{{ r.productName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="systemQty">
+              <th mat-header-cell *matHeaderCellDef>System Qty</th>
+              <td mat-cell *matCellDef="let r">{{ r.systemQty }}</td>
+            </ng-container>
+            <ng-container matColumnDef="childQty">
+              <th mat-header-cell *matHeaderCellDef>This Bill Qty</th>
+              <td mat-cell *matCellDef="let r">{{ r.childQty }}</td>
+            </ng-container>
+            <ng-container matColumnDef="diff">
+              <th mat-header-cell *matHeaderCellDef>Difference</th>
+              <td mat-cell *matCellDef="let r">
+                <span [class.diff-ok]="r.diff === 0" [class.diff-short]="r.diff < 0" [class.diff-over]="r.diff > 0">
+                  <mat-icon class="diff-icon" *ngIf="r.diff === 0">check_circle</mat-icon>
+                  <mat-icon class="diff-icon" *ngIf="r.diff !== 0">warning</mat-icon>
+                  {{ r.diff > 0 ? '+' : '' }}{{ r.diff }}
+                  <span *ngIf="r.diff < 0" class="diff-label">short</span>
+                  <span *ngIf="r.diff > 0" class="diff-label">over</span>
+                </span>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="comparisonColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: comparisonColumns"></tr>
+          </table>
+        </ng-container>
+
+        <!-- No stock info yet -->
+        <div class="empty-state"
+          *ngIf="!stockStatus.ownItems.length && !stockStatus.summaryLoadId && !stockStatus.linkedChildren?.length && !stockStatus.linkedParent">
+          <mat-icon>inventory_2</mat-icon>
+          <p>No stock reduction recorded for this bill yet</p>
+        </div>
+
+      </ng-container>
+    </mat-card>
 
     <!-- payment history -->
     <div class="section-header">
@@ -224,6 +561,38 @@
       <div class="empty-state" *ngIf="!paymentsLoading && payments.length === 0">
         <mat-icon>receipt</mat-icon>
         <p>No payments recorded yet</p>
+      </div>
+    </mat-card>
+
+    <!-- returns history -->
+    <div class="section-header">
+      <span class="section-title">Returns</span>
+    </div>
+
+    <mat-card class="table-card">
+      <div class="loading-state" *ngIf="returnsLoading">
+        <mat-spinner diameter="28"></mat-spinner>
+      </div>
+
+      <div class="empty-state" *ngIf="!returnsLoading && returns.length === 0">
+        <mat-icon>assignment_return</mat-icon>
+        <p>No returns submitted for this bill</p>
+      </div>
+
+      <div class="return-rows" *ngIf="!returnsLoading && returns.length > 0">
+        <div class="return-row" *ngFor="let r of returns">
+          <div class="return-row-left">
+            <span class="type-chip" [class.damage]="r.returnType === 'DAMAGE'" [class.salable]="r.returnType === 'SALABLE'">
+              {{ r.returnType }}
+            </span>
+            <span class="return-amount">Rs {{ (r.approvedAmount ?? r.calculatedReturnAmount) | number:'1.2-2' }}</span>
+            <span class="return-items">{{ r.items.length }} item(s)</span>
+          </div>
+          <div class="return-row-right">
+            <span class="badge badge-{{ r.status | lowercase }}">{{ r.status }}</span>
+            <span class="return-date">{{ r.submittedAt | date:'dd MMM yyyy' }}</span>
+          </div>
+        </div>
       </div>
     </mat-card>
   </ng-container>

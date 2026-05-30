@@ -43,6 +43,7 @@ export class RequestEditDialog implements OnInit {
   submitting = false;
   errorMsg = '';
 
+  businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
   billTypes    = ['CASH', 'CREDIT'];
   divisions    = ['STORE', 'SHOP'];
   paymentTypes = ['CASH', 'CHEQUE', 'BANK_TRANSFER'];
@@ -73,6 +74,7 @@ export class RequestEditDialog implements OnInit {
       this.form = this.fb.group({
         customerName: [c['customerName'] ?? '', Validators.required],
         totalAmount:  [c['totalAmount']  ?? null, [Validators.required, Validators.min(0.01)]],
+        business:     [c['business']     ?? null],
         billType:     [c['billType']     ?? null, Validators.required],
         division:     [c['division']     ?? null],
         area:         [c['area']         ?? null],

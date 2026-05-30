@@ -205,6 +205,74 @@ public class BillServiceImpl {
         return toResponse(billRepository.save(bill));
     }
 
+    @Transactional
+    public BillResponse markCompleted(Long id) {
+        Bill bill = findBillById(id);
+        if (bill.getStatus() == BillStatus.COMPLETED) {
+            throw new RuntimeException("Bill is already completed");
+        }
+        if (bill.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException("Cannot complete a cancelled bill");
+        }
+        bill.setStatus(BillStatus.COMPLETED);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    @Transactional
+    public BillResponse updateBill(Long id, BillRequest request) {
+        Bill bill = findBillById(id);
+
+        if (request.getCustomerName() != null && !request.getCustomerName().isBlank()) {
+            bill.setCustomerName(request.getCustomerName());
+        }
+        if (request.getArea() != null) {
+            bill.setArea(request.getArea());
+        }
+        if (request.getBillDate() != null) {
+            bill.setBillDate(request.getBillDate());
+        }
+        if (request.getNotes() != null) {
+            bill.setNotes(request.getNotes());
+        }
+        if (request.getBusiness() != null) {
+            bill.setBusiness(request.getBusiness());
+        }
+        if (request.getDivision() != null && !request.getDivision().isBlank()) {
+            bill.setDivision(request.getDivision());
+        }
+        if (request.getBillType() != null) {
+            bill.setBillType(request.getBillType());
+        }
+        if (request.getTotalAmount() != null) {
+            bill.setTotalAmount(request.getTotalAmount());
+            BigDecimal newBalance = request.getTotalAmount().subtract(bill.getAmountPaid());
+            bill.setBalanceRemaining(newBalance.max(BigDecimal.ZERO));
+            bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
+        }
+        if (request.getWorkerId() != null) {
+            Worker worker = workerRepository.findById(request.getWorkerId())
+                    .orElseThrow(() -> new RuntimeException("Worker not found"));
+            bill.setCurrentHolder(worker);
+        }
+
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    @Transactional
+    public void deleteBill(Long id) {
+        Bill bill = findBillById(id);
+
+        boolean hasConfirmed = paymentRepository.existsByBillIdAndStatus(bill.getId(), com.multi.finance.enums.PaymentStatus.CONFIRMED);
+        if (hasConfirmed) {
+            throw new RuntimeException("Cannot delete a bill that has confirmed payments");
+        }
+
+        paymentRepository.deleteAll(paymentRepository.findByBillId(bill.getId()));
+        billRepository.delete(bill);
+    }
+
     @Transactional(readOnly = true)
     private Bill findBillById(Long id) {
         return billRepository.findById(id)
@@ -240,6 +308,7 @@ public class BillServiceImpl {
                 .balanceRemaining(bill.getBalanceRemaining())
                 .customerName(bill.getCustomerName())
                 .totalAmount(bill.getTotalAmount())
+                .fullyPaid(bill.getFullyPaid())
                 .status(bill.getStatus())
                 .workerId(bill.getCurrentHolder() != null ? bill.getCurrentHolder().getId() : null)
                 .workerName(bill.getCurrentHolder() != null ? bill.getCurrentHolder().getFullName() : null)

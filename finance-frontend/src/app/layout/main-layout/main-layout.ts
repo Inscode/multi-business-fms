@@ -7,6 +7,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar';
 import { Auth } from '../../core/services/auth';
 import { EditRequestService } from '../../core/services/edit-request';
+import { BillReturnService } from '../../core/services/bill-return';
+import { ExpenseService } from '../../core/services/expense';
+import { SalaryService } from '../../core/services/salary';
 
 @Component({
   selector: 'app-main-layout',
@@ -29,14 +32,24 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   collapsed = false;
   isMobile  = false;
   pendingEditRequests = 0;
+  pendingReturns = 0;
+  pendingExpenses = 0;
+  pendingSalary = 0;
 
-  constructor(private auth: Auth, private editRequestService: EditRequestService) {}
+  constructor(
+    private auth: Auth,
+    private editRequestService: EditRequestService,
+    private billReturnService: BillReturnService,
+    private expenseService: ExpenseService,
+    private salaryService: SalaryService,
+  ) {}
 
   ngOnInit(): void {
     this.checkScreen();
-    if (this.showEditRequests) {
-      this.loadPendingCount();
-    }
+    if (this.showEditRequests) this.loadPendingCount();
+    if (this.showReturnsReview) this.loadPendingReturns();
+    if (this.showExpenses) this.loadPendingExpenses();
+    if (this.showSalaryReview) this.loadPendingSalary();
   }
 
   ngAfterViewInit(): void {}
@@ -61,12 +74,41 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     });
   }
 
-  get currentRole(): string      { return this.auth.getRole() ?? ''; }
-  get isShopAccountant(): boolean { return this.currentRole === 'SHOP_ACCOUNTANT'; }
-  get showBills(): boolean        { return !this.isShopAccountant; }
-  get showPayments(): boolean     { return !this.isShopAccountant; }
-  get showStaff(): boolean        { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
-  get showUsers(): boolean        { return this.currentRole === 'ADMIN'; }
-  get showCollect(): boolean      { return this.currentRole === 'OWNER'; }
-  get showEditRequests(): boolean { return this.currentRole === 'ADMIN'; }
+  private loadPendingReturns(): void {
+    this.billReturnService.getPendingCount().subscribe({
+      next: (res) => this.pendingReturns = res.count,
+      error: () => this.pendingReturns = 0,
+    });
+  }
+
+  private loadPendingExpenses(): void {
+    this.expenseService.getPendingCount().subscribe({
+      next: (res) => this.pendingExpenses = res.count,
+      error: () => this.pendingExpenses = 0,
+    });
+  }
+
+  private loadPendingSalary(): void {
+    this.salaryService.getPendingCount().subscribe({
+      next: (res) => this.pendingSalary = res.count,
+      error: () => this.pendingSalary = 0,
+    });
+  }
+
+  get currentRole(): string         { return this.auth.getRole() ?? ''; }
+  get isShopAccountant(): boolean   { return this.currentRole === 'SHOP_ACCOUNTANT'; }
+  get showBills(): boolean          { return !this.isShopAccountant; }
+  get showPayments(): boolean       { return !this.isShopAccountant; }
+  get showStaff(): boolean          { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
+  get showUsers(): boolean          { return this.currentRole === 'ADMIN'; }
+  get showCollect(): boolean        { return this.currentRole === 'OWNER'; }
+  get showEditRequests(): boolean   { return this.currentRole === 'ADMIN'; }
+  get showSubmitReturn(): boolean   { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
+  get showReturnsReview(): boolean  { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
+  get showReturnProducts(): boolean { return this.currentRole === 'ADMIN'; }
+  get showExpenses(): boolean       { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
+  get showSalary(): boolean         { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
+  get showSalaryReview(): boolean   { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
+  get showSalaryRecipients(): boolean { return this.currentRole === 'ADMIN'; }
+  get showStock(): boolean           { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'OWNER'].includes(this.currentRole); }
 }

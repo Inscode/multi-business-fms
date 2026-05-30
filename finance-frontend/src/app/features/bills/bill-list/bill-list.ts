@@ -18,6 +18,7 @@ import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Bill, BillResponse } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
+import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { CollectionNoteService, CollectionNoteResponse } from '../../../core/services/collection-note';
 import { BillReminderResponse, BillReminderService } from '../../../core/services/bill-reminder';
 import { ReminderDialog } from '../reminder-dialog/reminder-dialog';
@@ -76,6 +77,7 @@ export class BillList implements OnInit {
   displayedColumns: string[];
 
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
+  get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
 
   get canEnterPayment(): boolean {
     return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
@@ -237,24 +239,37 @@ export class BillList implements OnInit {
     });
   }
 
+  private showError(message: string): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Error',
+        message,
+        confirmText: 'Close',
+        confirmColor: 'warn',
+        hideCancel: true,
+      },
+      width: '380px',
+    });
+  }
+
   assignBill(billId: number, workerId: number): void {
     this.billService.assignBill(billId, workerId).subscribe({
       next: () => this.load(),
-      error: () => alert('Failed to assign bill.'),
+      error: (err) => this.showError(err?.error?.message ?? 'Failed to assign bill.'),
     });
   }
 
   markReceived(billId: number): void {
     this.billService.markReceived(billId).subscribe({
       next: () => this.load(),
-      error: () => alert('Failed to mark as received.'),
+      error: (err) => this.showError(err?.error?.message ?? 'Failed to mark as received.'),
     });
   }
 
   markShopReceived(billId: number): void {
     this.billService.markShopReceived(billId).subscribe({
       next: () => this.load(),
-      error: () => alert('Failed to mark as shop received.'),
+      error: (err) => this.showError(err?.error?.message ?? 'Failed to mark as shop received.'),
     });
   }
 
@@ -271,11 +286,36 @@ export class BillList implements OnInit {
       ['CREATED', 'ASSIGNED', 'STORE_RECEIVED'].includes(bill.status);
   }
 
+  canMarkCompleted(bill: BillResponse): boolean {
+    return this.isAdmin && bill.status !== 'COMPLETED' && bill.status !== 'CANCELLED';
+  }
+
+  markCompleted(bill: BillResponse): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Mark Bill as Completed',
+        message:
+          `Bill: ${bill.billNumber}\nCustomer: ${bill.customerName}\n\n` +
+          `This cannot be undone. Completed bills cannot be assigned, received, or have new payments entered.`,
+        confirmText: 'Mark Completed',
+        confirmColor: 'primary',
+      },
+      width: '420px',
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.billService.markCompleted(bill.id).subscribe({
+        next: () => this.load(),
+        error: (err) => this.showError(err?.error?.message ?? 'Failed to mark bill as completed.'),
+      });
+    });
+  }
+
   hasActions(bill: BillResponse): boolean {
     return !this.isOwner && (
       this.canAssign(bill) ||
       this.canMarkStoreReceived(bill) ||
       this.canMarkShopReceived(bill) ||
+      this.canMarkCompleted(bill) ||
       this.canSetReminder
     );
   }

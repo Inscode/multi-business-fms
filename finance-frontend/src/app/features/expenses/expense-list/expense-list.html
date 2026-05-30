@@ -1,0 +1,167 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Expenses</h1>
+      <p class="page-sub pending" *ngIf="pendingCount > 0">{{ pendingCount }} pending review</p>
+    </div>
+    <a mat-flat-button color="primary" routerLink="/expenses/add">
+      <mat-icon>add</mat-icon> Add Expense
+    </a>
+  </div>
+
+  <div class="balance-card" *ngIf="balance" [class]="balanceClass">
+    <div class="balance-left">
+      <div class="balance-label">Petty Cash Balance</div>
+      <div class="balance-amount">Rs {{ balance.balance | number:'1.2-2' }}</div>
+      <div class="balance-detail">
+        Funded: Rs {{ balance.totalFunded | number:'1.2-2' }}
+        &nbsp;·&nbsp;
+        Spent: Rs {{ balance.totalSpent | number:'1.2-2' }}
+      </div>
+    </div>
+    <button mat-flat-button *ngIf="isOwnerOrAdmin" (click)="showAddFunds = !showAddFunds">
+      <mat-icon>add</mat-icon> Add Funds
+    </button>
+  </div>
+
+  <div class="add-funds-form" *ngIf="showAddFunds && isOwnerOrAdmin">
+    <div class="add-funds-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Amount</mat-label>
+        <input matInput type="number" [(ngModel)]="newFundAmount" min="1" placeholder="0.00">
+        <span matPrefix>Rs&nbsp;</span>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Date</mat-label>
+        <input matInput type="date" [(ngModel)]="newFundDate">
+      </mat-form-field>
+      <mat-form-field appearance="outline" style="flex:2">
+        <mat-label>Note (optional)</mat-label>
+        <input matInput [(ngModel)]="newFundDescription" placeholder="e.g. Weekly petty cash top-up">
+      </mat-form-field>
+      <button mat-flat-button color="primary" [disabled]="addingFund || newFundAmount <= 0" (click)="saveAddFunds()">
+        <mat-spinner diameter="16" *ngIf="addingFund"></mat-spinner>
+        <span *ngIf="!addingFund">Save</span>
+      </button>
+      <button mat-icon-button (click)="showAddFunds = false"><mat-icon>close</mat-icon></button>
+    </div>
+  </div>
+
+  <div class="filters-bar">
+    <div class="date-filters">
+      <button mat-stroked-button (click)="setToday()">
+        <mat-icon>today</mat-icon> Today
+      </button>
+
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>From</mat-label>
+        <input matInput [matDatepicker]="fromPicker" [(ngModel)]="filterFrom" (dateChange)="load()" readonly>
+        <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
+        <mat-datepicker #fromPicker></mat-datepicker>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>To</mat-label>
+        <input matInput [matDatepicker]="toPicker" [(ngModel)]="filterTo" (dateChange)="load()" readonly>
+        <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
+        <mat-datepicker #toPicker></mat-datepicker>
+      </mat-form-field>
+
+      <button mat-icon-button *ngIf="filterFrom !== null || filterTo !== null" (click)="clearDateFilters()" title="Clear">
+        <mat-icon>clear</mat-icon>
+      </button>
+    </div>
+
+    <div class="other-filters">
+      <mat-form-field appearance="outline">
+        <mat-label>Business</mat-label>
+        <mat-select [(ngModel)]="filterBusiness" (ngModelChange)="load()">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Category</mat-label>
+        <mat-select [(ngModel)]="filterCategory" (ngModelChange)="load()">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let c of categories" [value]="c">{{ categoryLabel(c) }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Status</mat-label>
+        <mat-select [(ngModel)]="filterStatus" (ngModelChange)="load()">
+          <mat-option value="">All</mat-option>
+          <mat-option value="RECORDED">Recorded</mat-option>
+          <mat-option value="PENDING_REVIEW">Pending Review</mat-option>
+          <mat-option value="REVIEWED">Reviewed</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <div class="active-filter-label" *ngIf="filterFrom !== null || filterTo !== null">
+    <mat-icon>event</mat-icon>
+    Showing: <strong>{{ activeFilterLabel }}</strong>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>Failed to load expenses.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="empty-state" *ngIf="expenses.length === 0">
+      <mat-icon>receipt_long</mat-icon>
+      <p>No expenses for {{ activeFilterLabel }}</p>
+    </div>
+
+    <div class="expense-table" *ngIf="expenses.length > 0">
+      <div class="table-header">
+        <span>Date</span>
+        <span>Business</span>
+        <span>Category</span>
+        <span>Description</span>
+        <span>Worker</span>
+        <span class="col-right">Amount</span>
+        <span>Status</span>
+        <span *ngIf="isOwnerOrAdmin"></span>
+      </div>
+
+      <div class="table-row"
+           *ngFor="let e of expenses"
+           [class.flagged]="e.status === 'PENDING_REVIEW'">
+        <span class="date-cell">{{ e.date | date:'dd MMM yyyy' }}</span>
+        <span class="biz-chip">{{ e.business }}</span>
+        <span class="cat-chip cat-{{ e.category | lowercase }}">{{ categoryLabel(e.category) }}</span>
+        <span class="desc-cell">{{ e.description || '—' }}</span>
+        <span class="worker-cell">{{ e.workerName || '—' }}</span>
+        <span class="amount-cell col-right">Rs {{ e.amount | number:'1.2-2' }}</span>
+        <span class="status-badge status-{{ e.status | lowercase }}">
+          {{ e.status === 'PENDING_REVIEW' ? 'Pending' : e.status === 'REVIEWED' ? 'Reviewed' : 'Recorded' }}
+        </span>
+        <span *ngIf="isOwnerOrAdmin">
+          <button mat-icon-button color="primary"
+                  *ngIf="e.status === 'PENDING_REVIEW'"
+                  title="Mark reviewed"
+                  (click)="review(e)">
+            <mat-icon>check_circle</mat-icon>
+          </button>
+          <span class="reviewed-by" *ngIf="e.status === 'REVIEWED'">
+            <mat-icon>verified</mat-icon> {{ e.reviewedByName }}
+          </span>
+        </span>
+      </div>
+
+      <div class="table-total">
+        <span>Total — {{ expenses.length }} record(s) · {{ activeFilterLabel }}</span>
+        <span class="total-amount">Rs {{ total | number:'1.2-2' }}</span>
+      </div>
+    </div>
+  </ng-container>
+</div>

@@ -85,6 +85,53 @@ export const routes: Routes = [
           .then(m => m.EditRequestsPage),
         canActivate: [adminGuard]
       },
+      {
+        path: 'admin/return-products',
+        loadComponent: () => import('./features/admin/return-products/return-products')
+          .then(m => m.ReturnProductsPage),
+        canActivate: [adminGuard]
+      },
+      {
+        path: 'returns',
+        loadComponent: () => import('./features/returns/submit-return/submit-return')
+          .then(m => m.SubmitReturn)
+      },
+      {
+        path: 'returns/review',
+        loadComponent: () => import('./features/returns/review-returns/review-returns')
+          .then(m => m.ReviewReturns)
+      },
+      {
+        path: 'expenses',
+        loadComponent: () => import('./features/expenses/expense-list/expense-list')
+          .then(m => m.ExpenseList)
+      },
+      {
+        path: 'expenses/add',
+        loadComponent: () => import('./features/expenses/add-expense/add-expense')
+          .then(m => m.AddExpense)
+      },
+      {
+        path: 'salary',
+        loadComponent: () => import('./features/salary/enter-salary/enter-salary')
+          .then(m => m.EnterSalary)
+      },
+      {
+        path: 'salary/review',
+        loadComponent: () => import('./features/salary/salary-review/salary-review')
+          .then(m => m.SalaryReview)
+      },
+      {
+        path: 'salary/recipients',
+        loadComponent: () => import('./features/salary/recipients/salary-recipients')
+          .then(m => m.SalaryRecipientsPage),
+        canActivate: [adminGuard]
+      },
+      {
+        path: 'stock',
+        loadComponent: () => import('./features/stock/stock-tab')
+          .then(m => m.StockTab)
+      },
     ]
   },
   { path: '**', redirectTo: 'login' }

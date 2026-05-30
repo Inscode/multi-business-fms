@@ -1,0 +1,785 @@
+package com.multi.finance.service.impl;
+
+import com.multi.finance.dto.request.CreateStockBillRequest;
+import com.multi.finance.dto.request.CreateSummaryLoadBillRequest;
+import com.multi.finance.dto.request.IndividualStockReductionRequest;
+import com.multi.finance.dto.request.LinkBillsRequest;
+import com.multi.finance.dto.request.StockItemRequest;
+import com.multi.finance.dto.response.BillStockItemResponse;
+import com.multi.finance.dto.response.BillStockStatusResponse;
+import com.multi.finance.dto.response.StockBillResponse;
+import com.multi.finance.dto.response.StockReductionStatusResponse;
+import com.multi.finance.dto.response.SummaryLoadBillResponse;
+import com.multi.finance.entity.*;
+import com.multi.finance.enums.BillSource;
+import com.multi.finance.enums.BusinessType;
+import com.multi.finance.repository.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class StockServiceImpl {
+
+    private final BillRepository billRepository;
+    private final ReturnProductRepository returnProductRepository;
+    private final ShadowStockMovementRepository shadowStockMovementRepository;
+    private final BillStockItemRepository billStockItemRepository;
+    private final BillStockLinkRepository billStockLinkRepository;
+    private final SummaryLoadBillRepository summaryLoadBillRepository;
+    private final SummaryLoadBillItemRepository summaryLoadBillItemRepository;
+    private final UserRepository userRepository;
+
+    // ─────────────────────────────────────────────────────────────
+    // SUMMARY LOAD BILL
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional
+    public SummaryLoadBillResponse createSummaryLoadBill(CreateSummaryLoadBillRequest request) {
+        User currentUser = getCurrentUser();
+
+        List<Bill> systemBills = billRepository.findAllById(request.getSystemBillIds());
+        if (systemBills.size() != request.getSystemBillIds().size()) {
+            throw new RuntimeException("Some system bills not found");
+        }
+
+        SummaryLoadBill summaryLoadBill = SummaryLoadBill.builder()
+                .systemBills(new HashSet<>(systemBills))
+                .loadDate(request.getLoadDate())
+                .notes(request.getNotes())
+                .status(SummaryLoadBill.ApprovalStatus.PENDING)
+                .createdBy(currentUser)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        SummaryLoadBill saved = summaryLoadBillRepository.save(summaryLoadBill);
+
+        // Store items for later use at approval — NO stock movements yet
+        for (StockItemRequest item : request.getItems()) {
+            ReturnProduct product = returnProductRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+
+            SummaryLoadBillItem lineItem = SummaryLoadBillItem.builder()
+                    .summaryLoadBill(saved)
+                    .product(product)
+                    .quantity(item.getQuantity())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            summaryLoadBillItemRepository.save(lineItem);
+        }
+
+        return toSummaryLoadBillResponse(saved);
+    }
+
+    @Transactional
+    public void approveSummaryLoadBill(Long summaryLoadBillId) {
+        User currentUser = getCurrentUser();
+
+        SummaryLoadBill summaryLoadBill = summaryLoadBillRepository.findById(summaryLoadBillId)
+                .orElseThrow(() -> new RuntimeException("Summary load bill not found"));
+
+        if (summaryLoadBill.getStatus() != SummaryLoadBill.ApprovalStatus.PENDING) {
+            throw new RuntimeException("Only PENDING summary load bills can be approved");
+        }
+
+        summaryLoadBill.setStatus(SummaryLoadBill.ApprovalStatus.APPROVED);
+        summaryLoadBill.setApprovedBy(currentUser);
+        summaryLoadBill.setApprovedAt(LocalDateTime.now());
+        summaryLoadBill.setUpdatedAt(LocalDateTime.now());
+        summaryLoadBillRepository.save(summaryLoadBill);
+
+        // NOW create stock movements — deduction happens only on approval
+        List<SummaryLoadBillItem> items = summaryLoadBillItemRepository.findBySummaryLoadBillId(summaryLoadBillId);
+        for (SummaryLoadBillItem item : items) {
+            createShadowStockMovement(
+                    item.getProduct(),
+                    item.getQuantity(),
+                    ShadowStockMovement.MovementType.BILL_OUT,
+                    null,
+                    "LOAD-" + summaryLoadBillId,
+                    currentUser
+            );
+        }
+    }
+
+    @Transactional
+    public void rejectSummaryLoadBill(Long summaryLoadBillId) {
+        SummaryLoadBill summaryLoadBill = summaryLoadBillRepository.findById(summaryLoadBillId)
+                .orElseThrow(() -> new RuntimeException("Summary load bill not found"));
+
+        if (summaryLoadBill.getStatus() != SummaryLoadBill.ApprovalStatus.PENDING) {
+            throw new RuntimeException("Only PENDING summary load bills can be rejected");
+        }
+
+        // No stock movements were created at save time, so nothing to reverse
+        summaryLoadBill.setStatus(SummaryLoadBill.ApprovalStatus.REJECTED);
+        summaryLoadBill.setUpdatedAt(LocalDateTime.now());
+        summaryLoadBillRepository.save(summaryLoadBill);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SummaryLoadBillResponse> getAllSummaryLoadBills() {
+        return summaryLoadBillRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toSummaryLoadBillResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // INDIVIDUAL STOCK REDUCTION (Stock Item Entry)
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Reduce stock for a specific existing bill individually.
+     * For SYSTEM linking bills: saves BillStockItems as reference only (no shadow movement).
+     * For all other bills: saves BillStockItems + BILL_OUT shadow movements.
+     */
+    @Transactional
+    public void reduceStockForBill(IndividualStockReductionRequest request) {
+        User currentUser = getCurrentUser();
+
+        Bill bill = billRepository.findById(request.getBillId())
+                .orElseThrow(() -> new RuntimeException("Bill not found: " + request.getBillId()));
+
+        // SYSTEM linking bills: save reference items only — stock already reduced by linked children
+        boolean isLinkingBill = !billStockLinkRepository.findBySystemBillId(bill.getId()).isEmpty();
+        if (isLinkingBill) {
+            enterReferenceItemsForSystemBill(bill.getId(), request.getItems());
+            return;
+        }
+
+        // Guard: already individually reduced?
+        List<ShadowStockMovement> existing = shadowStockMovementRepository
+                .findByBillId(bill.getId());
+        if (!existing.isEmpty()) {
+            throw new RuntimeException("Stock has already been reduced for this bill");
+        }
+
+        for (StockItemRequest item : request.getItems()) {
+            ReturnProduct product = returnProductRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+
+            // Save bill-product link (for audit trail)
+            BillStockItem billItem = BillStockItem.builder()
+                    .bill(bill)
+                    .product(product)
+                    .quantity(item.getQuantity())
+                    .unitPrice(product.getUnitPrice())
+                    .lineTotal(BigDecimal.valueOf(item.getQuantity()).multiply(product.getUnitPrice()))
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            billStockItemRepository.save(billItem);
+
+            // Create stock deduction movement
+            createShadowStockMovement(
+                    product,
+                    item.getQuantity(),
+                    ShadowStockMovement.MovementType.BILL_OUT,
+                    bill,
+                    null,
+                    currentUser
+            );
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // STOCK REDUCTION STATUS TRACKING
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<StockReductionStatusResponse> getStockReductionStatus() {
+        List<Bill> allBills = billRepository.findByBusinessOrderByCreatedAtDesc(BusinessType.RAINCO);
+
+        // Build lookup: billId → summaryLoadBill (and its status)
+        Map<Long, SummaryLoadBill> billToSummary = new HashMap<>();
+        summaryLoadBillRepository.findAllByOrderByCreatedAtDesc().forEach(slb ->
+            slb.getSystemBills().forEach(b -> billToSummary.put(b.getId(), slb))
+        );
+
+        // Bills with individual movements (bill_id not null, not cancelled)
+        Set<Long> individuallyReduced = shadowStockMovementRepository
+                .findAll().stream()
+                .filter(m -> m.getBill() != null && !m.getCancelled())
+                .map(m -> m.getBill().getId())
+                .collect(Collectors.toSet());
+
+        // System bills that are linked (stock covered by child draft/manual bills)
+        Set<Long> linkedSystemBillIds = billRepository.findLinkedSystemBills()
+                .stream().map(Bill::getId).collect(Collectors.toSet());
+
+        return allBills.stream().map(bill -> {
+            String status;
+            Long summaryId = null;
+
+            if (bill.getBillSource() == BillSource.SYSTEM && linkedSystemBillIds.contains(bill.getId())) {
+                status = "LINKED"; // Stock covered by linked draft/manual bills — no separate reduction needed
+            } else if (individuallyReduced.contains(bill.getId())) {
+                status = "INDIVIDUALLY_REDUCED";
+            } else if (billToSummary.containsKey(bill.getId())) {
+                SummaryLoadBill slb = billToSummary.get(bill.getId());
+                summaryId = slb.getId();
+                status = switch (slb.getStatus()) {
+                    case APPROVED -> "SUMMARY_APPROVED";
+                    case REJECTED -> "NOT_REDUCED"; // rejected — treat as not reduced
+                    default -> "SUMMARY_PENDING";
+                };
+            } else {
+                status = "NOT_REDUCED";
+            }
+
+            return StockReductionStatusResponse.builder()
+                    .billId(bill.getId())
+                    .billNumber(bill.getBillNumber())
+                    .billSource(bill.getBillSource().name())
+                    .customerName(bill.getCustomerName())
+                    .amount(bill.getTotalAmount())
+                    .billDate(bill.getBillDate())
+                    .reductionStatus(status)
+                    .summaryLoadBillId(summaryId)
+                    .enteredByName(bill.getEnteredBy() != null ? bill.getEnteredBy().getFullName() : null)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PER-BILL STOCK STATUS
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public BillStockStatusResponse getBillStockStatus(Long billId) {
+        Bill bill = billRepository.findById(billId)
+                .orElseThrow(() -> new RuntimeException("Bill not found: " + billId));
+
+        List<BillStockItemResponse> ownItems = getBillItems(billId);
+        String reductionStatus = computeReductionStatus(bill);
+
+        BillStockStatusResponse.BillStockStatusResponseBuilder builder = BillStockStatusResponse.builder()
+                .billId(bill.getId())
+                .billNumber(bill.getBillNumber())
+                .billSource(bill.getBillSource().name())
+                .reductionStatus(reductionStatus)
+                .ownItems(ownItems)
+                .linkedChildren(Collections.emptyList());
+
+        // Summary load context
+        summaryLoadBillRepository.findBySystemBillId(billId).ifPresent(slb -> {
+            List<BillStockStatusResponse.SummaryItemInfo> summaryItems =
+                    summaryLoadBillItemRepository.findBySummaryLoadBillId(slb.getId()).stream()
+                            .map(item -> BillStockStatusResponse.SummaryItemInfo.builder()
+                                    .productId(item.getProduct().getId())
+                                    .productName(item.getProduct().getName())
+                                    .quantity(item.getQuantity())
+                                    .build())
+                            .collect(Collectors.toList());
+
+            List<BillStockStatusResponse.SiblingBillInfo> siblings = slb.getSystemBills().stream()
+                    .filter(b -> !b.getId().equals(billId))
+                    .map(b -> BillStockStatusResponse.SiblingBillInfo.builder()
+                            .billId(b.getId())
+                            .billNumber(b.getBillNumber())
+                            .customerName(b.getCustomerName())
+                            .amount(b.getTotalAmount())
+                            .totalQty(billStockItemRepository.findByBillId(b.getId()).stream()
+                                    .mapToLong(BillStockItem::getQuantity).sum())
+                            .build())
+                    .collect(Collectors.toList());
+
+            builder.summaryLoadId(slb.getId())
+                   .summaryStatus(slb.getStatus().name())
+                   .summaryCreatedByName(slb.getCreatedBy().getFullName())
+                   .summaryLoadDate(slb.getLoadDate())
+                   .summaryItems(summaryItems)
+                   .summaryRelatedBills(siblings);
+        });
+
+        // Linked children (this is a SYSTEM bill with linked DRAFT/MANUAL children)
+        List<BillStockLink> childLinks = billStockLinkRepository.findBySystemBillId(billId);
+        if (!childLinks.isEmpty()) {
+            List<BillStockStatusResponse.LinkedChildInfo> children = childLinks.stream()
+                    .map(link -> {
+                        Bill child = link.getChildBill();
+                        return BillStockStatusResponse.LinkedChildInfo.builder()
+                                .billId(child.getId())
+                                .billNumber(child.getBillNumber())
+                                .billSource(child.getBillSource().name())
+                                .customerName(child.getCustomerName())
+                                .amount(child.getTotalAmount())
+                                .items(getBillItems(child.getId()))
+                                .linkedByName(link.getLinkedBy().getFullName())
+                                .linkedAt(link.getLinkedAt())
+                                .notes(link.getNotes())
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+            builder.linkedChildren(children);
+
+            // Aggregate comparison: system bill reference items vs sum of all children items
+            Map<Long, String> nameMap = new HashMap<>();
+            Map<Long, Long> childAggQty = new HashMap<>();
+            for (BillStockStatusResponse.LinkedChildInfo child : children) {
+                for (BillStockItemResponse item : child.getItems()) {
+                    nameMap.put(item.getProductId(), item.getProductName());
+                    childAggQty.merge(item.getProductId(), item.getQuantity(), Long::sum);
+                }
+            }
+            Map<Long, Long> sysRefQty = new HashMap<>();
+            for (BillStockItemResponse item : ownItems) {
+                nameMap.put(item.getProductId(), item.getProductName());
+                sysRefQty.merge(item.getProductId(), item.getQuantity(), Long::sum);
+            }
+            Set<Long> aggProducts = new HashSet<>();
+            aggProducts.addAll(childAggQty.keySet());
+            aggProducts.addAll(sysRefQty.keySet());
+
+            if (!aggProducts.isEmpty()) {
+                List<BillStockStatusResponse.ItemComparisonRow> aggComparison = aggProducts.stream()
+                        .map(pid -> {
+                            long sq = sysRefQty.getOrDefault(pid, 0L);
+                            long cq = childAggQty.getOrDefault(pid, 0L);
+                            return BillStockStatusResponse.ItemComparisonRow.builder()
+                                    .productId(pid)
+                                    .productName(nameMap.get(pid))
+                                    .systemQty(sq)
+                                    .childQty(cq)
+                                    .diff(cq - sq)
+                                    .build();
+                        })
+                        .sorted(Comparator.comparing(BillStockStatusResponse.ItemComparisonRow::getProductName))
+                        .collect(Collectors.toList());
+                builder.childrenAggregateComparison(aggComparison);
+            }
+        }
+
+        // Linked parent (this DRAFT/MANUAL is linked to a SYSTEM parent)
+        List<BillStockLink> parentLinks = billStockLinkRepository.findByChildBillId(billId);
+        if (!parentLinks.isEmpty()) {
+            BillStockLink link = parentLinks.get(0);
+            Bill systemBill = link.getSystemBill();
+            List<BillStockItemResponse> systemItems = getBillItems(systemBill.getId());
+
+            // Build item-wise comparison: this child bill vs system bill
+            Map<Long, String> nameMap = new HashMap<>();
+            Map<Long, Long> sysQtyMap = new HashMap<>();
+            for (BillStockItemResponse i : systemItems) {
+                nameMap.put(i.getProductId(), i.getProductName());
+                sysQtyMap.merge(i.getProductId(), i.getQuantity(), Long::sum);
+            }
+            Map<Long, Long> childQtyMap = new HashMap<>();
+            for (BillStockItemResponse i : ownItems) {
+                nameMap.put(i.getProductId(), i.getProductName());
+                childQtyMap.merge(i.getProductId(), i.getQuantity(), Long::sum);
+            }
+            Set<Long> allProducts = new HashSet<>();
+            allProducts.addAll(sysQtyMap.keySet());
+            allProducts.addAll(childQtyMap.keySet());
+
+            List<BillStockStatusResponse.ItemComparisonRow> comparison = allProducts.stream()
+                    .map(pid -> {
+                        long sq = sysQtyMap.getOrDefault(pid, 0L);
+                        long cq = childQtyMap.getOrDefault(pid, 0L);
+                        return BillStockStatusResponse.ItemComparisonRow.builder()
+                                .productId(pid)
+                                .productName(nameMap.get(pid))
+                                .systemQty(sq)
+                                .childQty(cq)
+                                .diff(cq - sq)
+                                .build();
+                    })
+                    .sorted(Comparator.comparing(BillStockStatusResponse.ItemComparisonRow::getProductName))
+                    .collect(Collectors.toList());
+
+            builder.linkedParent(BillStockStatusResponse.LinkedParentInfo.builder()
+                    .billId(systemBill.getId())
+                    .billNumber(systemBill.getBillNumber())
+                    .customerName(systemBill.getCustomerName())
+                    .amount(systemBill.getTotalAmount())
+                    .systemItems(systemItems)
+                    .comparison(comparison)
+                    .linkedByName(link.getLinkedBy().getFullName())
+                    .linkedAt(link.getLinkedAt())
+                    .notes(link.getNotes())
+                    .build());
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * Enter reference items on a SYSTEM linking bill for reconciliation.
+     * Saves BillStockItems only — no shadow stock movements are created
+     * because stock was already reduced through the linked DRAFT/MANUAL bills.
+     */
+    @Transactional
+    public void enterReferenceItemsForSystemBill(Long billId, List<StockItemRequest> items) {
+        Bill bill = billRepository.findById(billId)
+                .orElseThrow(() -> new RuntimeException("Bill not found: " + billId));
+
+        if (bill.getBillSource() != BillSource.SYSTEM) {
+            throw new RuntimeException("Reference items can only be entered for SYSTEM bills");
+        }
+        List<BillStockLink> childLinks = billStockLinkRepository.findBySystemBillId(billId);
+        if (childLinks.isEmpty()) {
+            throw new RuntimeException("This SYSTEM bill has no linked child bills");
+        }
+
+        // Clear existing reference items (allow re-entry / correction)
+        billStockItemRepository.deleteAll(billStockItemRepository.findByBillId(billId));
+
+        for (StockItemRequest item : items) {
+            ReturnProduct product = returnProductRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+            billStockItemRepository.save(BillStockItem.builder()
+                    .bill(bill)
+                    .product(product)
+                    .quantity(item.getQuantity())
+                    .unitPrice(product.getUnitPrice())
+                    .lineTotal(BigDecimal.valueOf(item.getQuantity()).multiply(product.getUnitPrice()))
+                    .createdAt(LocalDateTime.now())
+                    .build());
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<BillStockItemResponse> getBillItems(Long billId) {
+        return billStockItemRepository.findByBillId(billId).stream()
+                .map(item -> BillStockItemResponse.builder()
+                        .id(item.getId())
+                        .billId(item.getBill().getId())
+                        .productId(item.getProduct().getId())
+                        .productName(item.getProduct().getName())
+                        .quantity(item.getQuantity())
+                        .unitPrice(item.getUnitPrice())
+                        .lineTotal(item.getLineTotal())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private String computeReductionStatus(Bill bill) {
+        List<ShadowStockMovement> movements = shadowStockMovementRepository.findByBillId(bill.getId());
+        if (movements.stream().anyMatch(m -> !m.getCancelled())) {
+            return "INDIVIDUALLY_REDUCED";
+        }
+        Optional<SummaryLoadBill> summary = summaryLoadBillRepository.findBySystemBillId(bill.getId());
+        if (summary.isPresent()) {
+            return switch (summary.get().getStatus()) {
+                case APPROVED -> "SUMMARY_APPROVED";
+                case REJECTED -> "NOT_REDUCED";
+                default -> "SUMMARY_PENDING";
+            };
+        }
+        if (billStockLinkRepository.existsByChildBillId(bill.getId())) return "LINKED";
+        if (!billStockLinkRepository.findBySystemBillId(bill.getId()).isEmpty()) return "LINKED";
+        return "NOT_REDUCED";
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // QUERY HELPERS (for dropdowns / bill lists)
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<StockBillResponse> getUnassignedSystemBills() {
+        return billRepository.findUnassignedSystemBills().stream()
+                .map(this::toStockBillResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockBillResponse> getUnlinkedDraftManualBills() {
+        return billRepository.findUnlinkedDraftManualBills().stream()
+                .map(this::toStockBillResponseWithItems)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockBillResponse> getAvailableSystemBillsForLinking() {
+        return billRepository.findAvailableSystemBillsForLinking().stream()
+                .map(this::toStockBillResponseWithItems)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Bills available for stock item entry.
+     * Includes SYSTEM linking bills that have no reference items yet — they appear with isLinkingBill=true
+     * so the UI can show a "reference only" label. Saving items for them skips stock movements.
+     */
+    @Transactional(readOnly = true)
+    public List<StockBillResponse> getBillsNotYetReduced() {
+        List<Bill> allBills = billRepository.findByBusinessOrderByCreatedAtDesc(BusinessType.RAINCO);
+
+        // Bills already in a summary load (any status except REJECTED)
+        Set<Long> inSummary = new HashSet<>();
+        summaryLoadBillRepository.findAllByOrderByCreatedAtDesc().stream()
+                .filter(slb -> slb.getStatus() != SummaryLoadBill.ApprovalStatus.REJECTED)
+                .forEach(slb -> slb.getSystemBills().forEach(b -> inSummary.add(b.getId())));
+
+        // Bills already individually reduced (have non-cancelled shadow movements)
+        Set<Long> individuallyReduced = shadowStockMovementRepository.findAll().stream()
+                .filter(m -> m.getBill() != null && !m.getCancelled())
+                .map(m -> m.getBill().getId())
+                .collect(Collectors.toSet());
+
+        // SYSTEM linking bills (have linked DRAFT/MANUAL children)
+        Set<Long> linkedSystemBills = billRepository.findLinkedSystemBills()
+                .stream().map(Bill::getId).collect(Collectors.toSet());
+
+        // Linking bills that already have reference items entered — exclude them
+        Set<Long> linkingBillsWithItems = linkedSystemBills.stream()
+                .filter(id -> !billStockItemRepository.findByBillId(id).isEmpty())
+                .collect(Collectors.toSet());
+
+        return allBills.stream()
+                .filter(b -> !inSummary.contains(b.getId())
+                          && !individuallyReduced.contains(b.getId())
+                          && !linkingBillsWithItems.contains(b.getId()))
+                // Linked system bills with items are excluded; without items they are included
+                .map(b -> toStockBillResponseWithFlag(b, linkedSystemBills.contains(b.getId())))
+                .collect(Collectors.toList());
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // EXISTING (unchanged)
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional
+    public Bill createStockBill(CreateStockBillRequest request) {
+        User currentUser = getCurrentUser();
+
+        if (request.getItems().isEmpty()) {
+            throw new RuntimeException("Bill must have at least one item");
+        }
+
+        Bill bill = Bill.builder()
+                .business(BusinessType.RAINCO)
+                .division("STORE")
+                .billType(com.multi.finance.enums.BillType.CASH)
+                .billSource(request.getBillSource())
+                .customerName(request.getCustomerName())
+                .billNumber(generateBillNumber(request.getBillSource()))
+                .area(request.getArea())
+                .totalAmount(request.getActualAmount() != null ? request.getActualAmount() : request.getCalculatedAmount())
+                .amountPaid(BigDecimal.ZERO)
+                .balanceRemaining(request.getActualAmount() != null ? request.getActualAmount() : request.getCalculatedAmount())
+                .fullyPaid(false)
+                .status(com.multi.finance.enums.BillStatus.CREATED)
+                .enteredBy(currentUser)
+                .billDate(request.getBillDate() != null ? request.getBillDate() : LocalDate.now())
+                .notes(request.getNotes())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        Bill savedBill = billRepository.save(bill);
+
+        for (StockItemRequest item : request.getItems()) {
+            ReturnProduct product = returnProductRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+
+            BigDecimal lineTotal = BigDecimal.valueOf(item.getQuantity()).multiply(product.getUnitPrice());
+
+            BillStockItem billItem = BillStockItem.builder()
+                    .bill(savedBill)
+                    .product(product)
+                    .quantity(item.getQuantity())
+                    .unitPrice(product.getUnitPrice())
+                    .lineTotal(lineTotal)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            billStockItemRepository.save(billItem);
+        }
+
+        return savedBill;
+    }
+
+    @Transactional
+    public void linkBills(LinkBillsRequest request) {
+        User currentUser = getCurrentUser();
+
+        List<Bill> childBills = billRepository.findAllById(request.getDraftManualBillIds());
+        if (childBills.size() != request.getDraftManualBillIds().size()) {
+            throw new RuntimeException("Some bills not found");
+        }
+
+        for (Bill bill : childBills) {
+            if (!Arrays.asList(BillSource.DRAFT, BillSource.MANUAL).contains(bill.getBillSource())) {
+                throw new RuntimeException("Only DRAFT and MANUAL bills can be linked");
+            }
+        }
+
+        Bill systemBill;
+        if (request.getSystemBillId() != null) {
+            systemBill = billRepository.findById(request.getSystemBillId())
+                    .orElseThrow(() -> new RuntimeException("System bill not found"));
+            if (systemBill.getBillSource() != BillSource.SYSTEM) {
+                throw new RuntimeException("Selected bill is not a system bill");
+            }
+        } else if (request.getSystemBillNumber() != null) {
+            systemBill = Bill.builder()
+                    .business(BusinessType.RAINCO)
+                    .division("STORE")
+                    .billType(com.multi.finance.enums.BillType.CASH)
+                    .billSource(BillSource.SYSTEM)
+                    .customerName("System Bill")
+                    .billNumber("SYS-" + request.getSystemBillNumber())
+                    .totalAmount(BigDecimal.ZERO)
+                    .amountPaid(BigDecimal.ZERO)
+                    .balanceRemaining(BigDecimal.ZERO)
+                    .fullyPaid(false)
+                    .status(com.multi.finance.enums.BillStatus.CREATED)
+                    .enteredBy(getCurrentUser())
+                    .billDate(LocalDate.now())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            systemBill = billRepository.save(systemBill);
+        } else {
+            throw new RuntimeException("Either system bill ID or number must be provided");
+        }
+
+        for (Bill childBill : childBills) {
+            BillStockLink link = BillStockLink.builder()
+                    .systemBill(systemBill)
+                    .childBill(childBill)
+                    .linkedBy(currentUser)
+                    .linkedAt(LocalDateTime.now())
+                    .notes(request.getNotes())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            billStockLinkRepository.save(link);
+            // Stock movements on DRAFT/MANUAL bills are preserved — stock was already reduced
+            // when those bills were processed. The SYSTEM bill is linked purely for reconciliation.
+        }
+    }
+
+    public Map<Long, Long> getShadowStockBalance(BusinessType business) {
+        List<ReturnProduct> products = returnProductRepository.findByBusiness(business);
+        Map<Long, Long> balances = new HashMap<>();
+        for (ReturnProduct product : products) {
+            Long balance = shadowStockMovementRepository.getAvailableBalance(product);
+            balances.put(product.getId(), balance != null ? balance : 0L);
+        }
+        return balances;
+    }
+
+    public Map<Long, Long> getDamageStockBalance(BusinessType business) {
+        List<ReturnProduct> products = returnProductRepository.findByBusiness(business);
+        Map<Long, Long> balances = new HashMap<>();
+        for (ReturnProduct product : products) {
+            Long balance = shadowStockMovementRepository.getDamageBalance(product);
+            balances.put(product.getId(), balance != null ? balance : 0L);
+        }
+        return balances;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PRIVATE HELPERS
+    // ─────────────────────────────────────────────────────────────
+
+    private void createShadowStockMovement(
+            ReturnProduct product, Long quantity,
+            ShadowStockMovement.MovementType type,
+            Bill bill, String invoiceNumber, User enteredBy) {
+
+        ShadowStockMovement movement = ShadowStockMovement.builder()
+                .product(product)
+                .type(type)
+                .quantity(quantity)
+                .bill(bill)
+                .invoiceNumber(invoiceNumber)
+                .movementDate(LocalDate.now())
+                .enteredBy(enteredBy)
+                .cancelled(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        shadowStockMovementRepository.save(movement);
+    }
+
+    private String generateBillNumber(BillSource source) {
+        return switch (source) {
+            case SYSTEM -> "SYS-" + System.currentTimeMillis();
+            case DRAFT  -> "DFT-" + System.currentTimeMillis();
+            case MANUAL -> "MAN-" + System.currentTimeMillis();
+        };
+    }
+
+    private User getCurrentUser() {
+        return (User) SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+    }
+
+    private StockBillResponse toStockBillResponse(Bill bill) {
+        long totalQty = billStockItemRepository.findByBillId(bill.getId())
+                .stream().mapToLong(BillStockItem::getQuantity).sum();
+        return StockBillResponse.builder()
+                .id(bill.getId())
+                .billNumber(bill.getBillNumber())
+                .billSource(bill.getBillSource().name())
+                .customerName(bill.getCustomerName())
+                .amount(bill.getTotalAmount())
+                .paymentType(bill.getBillType().name())
+                .billDate(bill.getBillDate())
+                .enteredByName(bill.getEnteredBy() != null ? bill.getEnteredBy().getFullName() : null)
+                .totalQty(totalQty)
+                .build();
+    }
+
+    private StockBillResponse toStockBillResponseWithFlag(Bill bill, boolean isLinkingBill) {
+        long totalQty = billStockItemRepository.findByBillId(bill.getId())
+                .stream().mapToLong(BillStockItem::getQuantity).sum();
+        return StockBillResponse.builder()
+                .id(bill.getId())
+                .billNumber(bill.getBillNumber())
+                .billSource(bill.getBillSource().name())
+                .customerName(bill.getCustomerName())
+                .amount(bill.getTotalAmount())
+                .paymentType(bill.getBillType().name())
+                .billDate(bill.getBillDate())
+                .enteredByName(bill.getEnteredBy() != null ? bill.getEnteredBy().getFullName() : null)
+                .totalQty(totalQty)
+                .isLinkingBill(isLinkingBill)
+                .build();
+    }
+
+    private StockBillResponse toStockBillResponseWithItems(Bill bill) {
+        List<BillStockItemResponse> items = getBillItems(bill.getId());
+        long totalQty = items.stream().mapToLong(BillStockItemResponse::getQuantity).sum();
+        return StockBillResponse.builder()
+                .id(bill.getId())
+                .billNumber(bill.getBillNumber())
+                .billSource(bill.getBillSource().name())
+                .customerName(bill.getCustomerName())
+                .amount(bill.getTotalAmount())
+                .paymentType(bill.getBillType().name())
+                .billDate(bill.getBillDate())
+                .enteredByName(bill.getEnteredBy() != null ? bill.getEnteredBy().getFullName() : null)
+                .totalQty(totalQty)
+                .items(items)
+                .build();
+    }
+
+    private SummaryLoadBillResponse toSummaryLoadBillResponse(SummaryLoadBill slb) {
+        List<Long> billIds = slb.getSystemBills().stream()
+                .map(Bill::getId)
+                .collect(Collectors.toList());
+
+        return SummaryLoadBillResponse.builder()
+                .id(slb.getId())
+                .systemBillIds(billIds)
+                .numberOfBills(slb.getSystemBills().size())
+                .loadDate(slb.getLoadDate())
+                .notes(slb.getNotes())
+                .status(slb.getStatus().toString())
+                .createdByName(slb.getCreatedBy().getFullName())
+                .createdAt(slb.getCreatedAt())
+                .approvedByName(slb.getApprovedBy() != null ? slb.getApprovedBy().getFullName() : null)
+                .approvedAt(slb.getApprovedAt())
+                .build();
+    }
+}

@@ -1,0 +1,111 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Salary Recipients</h1>
+      <p class="page-sub">People who receive salary payments</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="startAdd()" *ngIf="!showAddForm">
+      <mat-icon>add</mat-icon> Add Person
+    </button>
+  </div>
+
+  <div class="add-form-card" *ngIf="showAddForm">
+    <div class="form-title">New Recipient</div>
+    <div class="add-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Designation</mat-label>
+        <mat-select [(ngModel)]="newEntry.designation">
+          <mat-option *ngFor="let d of designations" [value]="d">{{ designationLabel(d) }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" style="flex:2">
+        <mat-label>Full Name</mat-label>
+        <input matInput [(ngModel)]="newEntry.name" placeholder="e.g. Kamala Silva">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Monthly Salary</mat-label>
+        <input matInput type="number" [(ngModel)]="newEntry.monthlySalary" min="1">
+        <span matPrefix>Rs&nbsp;</span>
+      </mat-form-field>
+    </div>
+    <div class="add-row link-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Link to Worker (optional)</mat-label>
+        <mat-select [(ngModel)]="newEntry.linkedWorkerId">
+          <mat-option [value]="undefined">None</mat-option>
+          <mat-option *ngFor="let w of workers" [value]="w.id">{{ w.fullName }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Link to User (optional)</mat-label>
+        <mat-select [(ngModel)]="newEntry.linkedUserId">
+          <mat-option [value]="undefined">None</mat-option>
+          <mat-option *ngFor="let u of users" [value]="u.id">{{ u.fullName }} ({{ u.role }})</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <div class="form-actions">
+      <button mat-stroked-button (click)="showAddForm = false">Cancel</button>
+      <button mat-flat-button color="primary"
+              [disabled]="!newEntry.name || !newEntry.designation || newEntry.monthlySalary <= 0 || adding"
+              (click)="saveAdd()">
+        <mat-spinner diameter="16" *ngIf="adding"></mat-spinner>
+        <span *ngIf="!adding">Save</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading"><mat-spinner diameter="32"></mat-spinner></div>
+
+  <div class="recipients-table" *ngIf="!loading">
+    <div class="table-header">
+      <span>Name</span>
+      <span>Designation</span>
+      <span class="col-right">Monthly Salary</span>
+      <span>Status</span>
+      <span></span>
+    </div>
+
+    <ng-container *ngFor="let r of recipients">
+      <div class="table-row" [class.inactive]="!r.active" *ngIf="editingId !== r.id">
+        <span class="name-cell">{{ r.name }}</span>
+        <span class="desig-chip desig-{{ r.designation | lowercase }}">{{ designationLabel(r.designation) }}</span>
+        <span class="salary-cell col-right">Rs {{ r.monthlySalary | number:'1.2-2' }}</span>
+        <span class="status-badge" [class.active]="r.active" [class.inactive]="!r.active">
+          {{ r.active ? 'Active' : 'Inactive' }}
+        </span>
+        <div class="row-actions">
+          <button mat-icon-button title="Edit" (click)="startEdit(r)"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button [title]="r.active ? 'Deactivate' : 'Activate'" (click)="toggle(r)">
+            <mat-icon>{{ r.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="edit-row" *ngIf="editingId === r.id">
+        <mat-form-field appearance="outline">
+          <mat-label>Designation</mat-label>
+          <mat-select [(ngModel)]="editState.designation">
+            <mat-option *ngFor="let d of designations" [value]="d">{{ designationLabel(d) }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="flex:2">
+          <mat-label>Name</mat-label>
+          <input matInput [(ngModel)]="editState.name">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Monthly Salary</mat-label>
+          <input matInput type="number" [(ngModel)]="editState.monthlySalary">
+          <span matPrefix>Rs&nbsp;</span>
+        </mat-form-field>
+        <button mat-flat-button color="primary" (click)="saveEdit(r.id)">Save</button>
+        <button mat-stroked-button (click)="editingId = null">Cancel</button>
+      </div>
+    </ng-container>
+
+    <div class="empty-state" *ngIf="recipients.length === 0">
+      <mat-icon>people</mat-icon>
+      <p>No salary recipients added yet</p>
+    </div>
+  </div>
+</div>

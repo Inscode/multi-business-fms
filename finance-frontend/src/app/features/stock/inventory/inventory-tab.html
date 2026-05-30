@@ -1,0 +1,323 @@
+<mat-tab-group>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 1: Available Stock (all roles)
+  ══════════════════════════════════════════════ -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>inventory</mat-icon>&nbsp;Available Stock</ng-template>
+
+    <mat-card class="card-container">
+      <mat-card-header>
+        <mat-card-title>RAINCO — Current Stock Levels</mat-card-title>
+        <mat-card-subtitle>Real-time balance per product</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+
+        <div class="toolbar-row">
+          <mat-form-field appearance="outline" class="search-field">
+            <mat-label>Search product</mat-label>
+            <input matInput [(ngModel)]="balanceSearch" (input)="applyBalanceFilter()" placeholder="Product name..." />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+
+          <button mat-stroked-button (click)="loadBalances()">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+
+          <button *ngIf="isAccOrAdmin" mat-raised-button color="primary" (click)="openAddProduct()">
+            <mat-icon>add</mat-icon> Add New Product
+          </button>
+        </div>
+
+        <!-- Add/Edit Product form -->
+        <div *ngIf="showProductForm" class="product-form-card">
+          <h4>{{ editingProductId ? 'Edit Product' : 'New Product' }}</h4>
+          <form [formGroup]="productForm" class="product-form">
+            <mat-form-field appearance="fill" class="flex-grow">
+              <mat-label>Product Name</mat-label>
+              <input matInput formControlName="name" />
+            </mat-form-field>
+            <mat-form-field appearance="fill" class="price-field">
+              <mat-label>Unit Price (Rs.)</mat-label>
+              <input matInput type="number" formControlName="unitPrice" min="0.01" step="0.01" />
+            </mat-form-field>
+            <div class="form-btns">
+              <button mat-raised-button color="primary" (click)="saveProduct()" [disabled]="productForm.invalid || savingProduct">
+                <mat-progress-spinner *ngIf="savingProduct" diameter="18" mode="indeterminate"></mat-progress-spinner>
+                <mat-icon *ngIf="!savingProduct">save</mat-icon>
+                {{ editingProductId ? 'Update' : 'Save' }}
+              </button>
+              <button mat-stroked-button (click)="showProductForm = false">Cancel</button>
+            </div>
+          </form>
+          <p *ngIf="productMessage" class="form-msg">{{ productMessage }}</p>
+        </div>
+
+        <div *ngIf="loadingBalances" class="loading-center">
+          <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
+        </div>
+
+        <div *ngIf="!loadingBalances" class="table-container">
+          <table mat-table [dataSource]="filteredBalances" class="balance-table">
+
+            <ng-container matColumnDef="productName">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let r">
+                <strong>{{ r.productName }}</strong>
+                <span *ngIf="!r.active" class="inactive-badge">Inactive</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="unitPrice">
+              <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+              <td mat-cell *matCellDef="let r">Rs. {{ r.unitPrice | number:'1.2-2' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="availableQty">
+              <th mat-header-cell *matHeaderCellDef>Available Qty</th>
+              <td mat-cell *matCellDef="let r">
+                <span class="qty-cell" [class.qty-low]="r.availableQty <= 0" [class.qty-ok]="r.availableQty > 0">
+                  {{ r.availableQty }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="damageQty">
+              <th mat-header-cell *matHeaderCellDef>Damage Qty</th>
+              <td mat-cell *matCellDef="let r">
+                <span [class.qty-damage]="r.damageQty > 0">{{ r.damageQty }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let r">
+                <button *ngIf="isAccOrAdmin" mat-icon-button matTooltip="Edit product" (click)="openEditProduct(r)">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button *ngIf="isAdmin" mat-icon-button color="warn" matTooltip="Delete product" (click)="deleteProduct(r)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="balanceColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: balanceColumns"
+              [class.row-zero]="row.availableQty <= 0"></tr>
+          </table>
+
+          <div *ngIf="filteredBalances.length === 0" class="empty-state">
+            <mat-icon>inventory_2</mat-icon>
+            <p>No products found.</p>
+          </div>
+        </div>
+
+      </mat-card-content>
+    </mat-card>
+  </mat-tab>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 2: Add Stock
+  ══════════════════════════════════════════════ -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>add_circle</mat-icon>&nbsp;Add Stock</ng-template>
+
+    <mat-card class="card-container">
+      <mat-card-header>
+        <mat-card-title>Add Incoming Stock</mat-card-title>
+        <mat-card-subtitle *ngIf="!isAdmin">Your request will be sent to Admin for approval</mat-card-subtitle>
+        <mat-card-subtitle *ngIf="isAdmin">Admin can add stock directly (no approval) or submit a normal request</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+
+        <form [formGroup]="stockInForm">
+          <div class="form-row-3">
+            <mat-form-field appearance="fill" class="flex-grow">
+              <mat-label>Reference / Invoice Number</mat-label>
+              <input matInput formControlName="referenceNumber" placeholder="e.g. INV-001" />
+            </mat-form-field>
+            <mat-form-field appearance="fill" class="date-field">
+              <mat-label>Stock Date</mat-label>
+              <input matInput type="date" formControlName="stockDate" required />
+            </mat-form-field>
+          </div>
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Notes</mat-label>
+            <textarea matInput formControlName="notes" rows="2"></textarea>
+          </mat-form-field>
+        </form>
+
+        <mat-divider></mat-divider>
+        <h4 style="margin: 16px 0 8px">Add Products</h4>
+
+        <div class="item-row">
+          <mat-form-field appearance="fill" class="flex-grow">
+            <mat-label>Search Product</mat-label>
+            <input matInput [formControl]="productSearchCtrl" [matAutocomplete]="prodAuto" />
+            <mat-autocomplete #prodAuto="matAutocomplete" [displayWith]="displayProduct">
+              <mat-option *ngFor="let p of filteredProducts" [value]="p">
+                {{ p.productName }}
+                <small class="stock-hint">— stock: {{ p.availableQty }}</small>
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+          <mat-form-field appearance="fill" class="qty-field">
+            <mat-label>Qty</mat-label>
+            <input matInput type="number" [formControl]="qtyCtrl" min="1" />
+          </mat-form-field>
+          <button mat-raised-button color="accent" (click)="addItem()" [disabled]="!canAddItem">
+            <mat-icon>add</mat-icon> Add
+          </button>
+        </div>
+
+        <div *ngIf="stockInItems.length > 0" class="items-table-wrap">
+          <table mat-table [dataSource]="stockInItems" class="items-table">
+            <ng-container matColumnDef="productName">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let r">{{ r.productName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="quantity">
+              <th mat-header-cell *matHeaderCellDef>Qty</th>
+              <td mat-cell *matCellDef="let r; let i = index">
+                {{ r.quantity }}
+                <button mat-icon-button color="warn" (click)="removeItem(i)" matTooltip="Remove">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="lineItemColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: lineItemColumns"></tr>
+          </table>
+        </div>
+
+        <div class="action-btns" *ngIf="stockInItems.length > 0">
+          <!-- ADMIN: can add directly or submit for record -->
+          <ng-container *ngIf="isAdmin">
+            <button mat-raised-button color="warn" (click)="addOpeningStock()" [disabled]="savingStockIn">
+              <mat-icon>bolt</mat-icon> Add as Opening/Direct Stock (No Approval)
+            </button>
+            <button mat-stroked-button color="primary" (click)="submitStockIn()" [disabled]="savingStockIn">
+              <mat-icon>send</mat-icon> Submit as Request (For Record)
+            </button>
+          </ng-container>
+          <!-- ACC: only submit -->
+          <ng-container *ngIf="!isAdmin">
+            <button mat-raised-button color="primary" (click)="submitStockIn()" [disabled]="savingStockIn">
+              <mat-progress-spinner *ngIf="savingStockIn" diameter="18" mode="indeterminate"></mat-progress-spinner>
+              <mat-icon *ngIf="!savingStockIn">send</mat-icon>
+              Submit for Approval
+            </button>
+          </ng-container>
+        </div>
+
+        <div *ngIf="stockInMessage" class="success-msg"><mat-icon>check_circle</mat-icon> {{ stockInMessage }}</div>
+        <div *ngIf="stockInError"   class="error-msg"><mat-icon>error</mat-icon> {{ stockInError }}</div>
+
+        <mat-divider style="margin: 24px 0;"></mat-divider>
+        <h4>My Stock-In History</h4>
+
+        <mat-accordion>
+          <mat-expansion-panel *ngFor="let r of stockInHistory" class="history-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <strong>#{{ r.id }}</strong>&nbsp;
+                <span *ngIf="r.referenceNumber" class="ref-number">{{ r.referenceNumber }}</span>
+              </mat-panel-title>
+              <mat-panel-description>
+                {{ r.stockDate }} &nbsp;|&nbsp;
+                <span class="status-chip"
+                  [class.status-pending]="r.status === 'PENDING'"
+                  [class.status-approved]="r.status === 'APPROVED'"
+                  [class.status-rejected]="r.status === 'REJECTED'">
+                  {{ statusLabel(r.status) }}
+                </span>
+                &nbsp;— {{ r.items.length }} product(s)
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+            <table mat-table [dataSource]="r.items" class="inner-table">
+              <ng-container matColumnDef="productName">
+                <th mat-header-cell *matHeaderCellDef>Product</th>
+                <td mat-cell *matCellDef="let i">{{ i.productName }}</td>
+              </ng-container>
+              <ng-container matColumnDef="quantity">
+                <th mat-header-cell *matHeaderCellDef>Qty</th>
+                <td mat-cell *matCellDef="let i">{{ i.quantity }}</td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="lineItemColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: lineItemColumns"></tr>
+            </table>
+            <p *ngIf="r.rejectionReason" class="reject-reason">Rejected: {{ r.rejectionReason }}</p>
+            <p *ngIf="r.approvedByName" class="approved-by">✓ Approved by {{ r.approvedByName }}</p>
+          </mat-expansion-panel>
+        </mat-accordion>
+        <p *ngIf="stockInHistory.length === 0" class="empty-note">No stock-in requests yet.</p>
+
+      </mat-card-content>
+    </mat-card>
+  </mat-tab>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 3: Approvals (ADMIN only)
+  ══════════════════════════════════════════════ -->
+  <mat-tab *ngIf="isAdmin">
+    <ng-template mat-tab-label>
+      <mat-icon>verified</mat-icon>&nbsp;Approve Stock
+      <span *ngIf="pendingRequests.length > 0" class="badge">{{ pendingRequests.length }}</span>
+    </ng-template>
+
+    <mat-card class="card-container">
+      <mat-card-header>
+        <mat-card-title>Pending Stock-In Approvals</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+
+        <div *ngIf="approvalMessage" class="success-msg"><mat-icon>check_circle</mat-icon> {{ approvalMessage }}</div>
+
+        <div *ngIf="pendingRequests.length === 0" class="empty-state">
+          <mat-icon>check_circle</mat-icon>
+          <p>No pending stock-in requests.</p>
+        </div>
+
+        <mat-accordion>
+          <mat-expansion-panel *ngFor="let r of pendingRequests" class="history-panel pending-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <strong>#{{ r.id }}</strong>&nbsp;
+                <span *ngIf="r.referenceNumber" class="ref-number">{{ r.referenceNumber }}</span>
+              </mat-panel-title>
+              <mat-panel-description>
+                {{ r.stockDate }} &nbsp;|&nbsp; By {{ r.submittedByName }} &nbsp;|&nbsp; {{ r.items.length }} product(s)
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <table mat-table [dataSource]="r.items" class="inner-table">
+              <ng-container matColumnDef="productName">
+                <th mat-header-cell *matHeaderCellDef>Product</th>
+                <td mat-cell *matCellDef="let i">{{ i.productName }}</td>
+              </ng-container>
+              <ng-container matColumnDef="quantity">
+                <th mat-header-cell *matHeaderCellDef>Qty</th>
+                <td mat-cell *matCellDef="let i">{{ i.quantity }}</td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="lineItemColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: lineItemColumns"></tr>
+            </table>
+
+            <p *ngIf="r.notes" class="notes-text">Notes: {{ r.notes }}</p>
+
+            <div class="approval-actions">
+              <button mat-raised-button color="primary" (click)="approve(r.id)" [disabled]="approvingId === r.id">
+                <mat-icon>check_circle</mat-icon> Approve
+              </button>
+              <button mat-stroked-button color="warn" (click)="reject(r.id)" [disabled]="approvingId === r.id">
+                <mat-icon>cancel</mat-icon> Reject
+              </button>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+
+      </mat-card-content>
+    </mat-card>
+  </mat-tab>
+
+</mat-tab-group>
