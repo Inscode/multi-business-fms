@@ -7,8 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { Auth } from '../../../core/services/auth';
 import { SalaryPaymentResponse, SalaryRecipientResponse, SalaryService } from '../../../core/services/salary';
+import { WorkerAdvanceBonusResponse, WorkerFinanceService, WorkerTabPurchaseResponse } from '../../../core/services/worker-finance';
 
 @Component({
   selector: 'app-enter-salary',
@@ -30,6 +30,8 @@ import { SalaryPaymentResponse, SalaryRecipientResponse, SalaryService } from '.
 export class EnterSalary implements OnInit {
   recipients: SalaryRecipientResponse[] = [];
   myPayments: SalaryPaymentResponse[] = [];
+  paidTabPurchases: WorkerTabPurchaseResponse[] = [];
+  outstandingAdvances: WorkerAdvanceBonusResponse[] = [];
 
   recipientId: number | null = null;
   month = new Date().toISOString().substring(0, 7);
@@ -41,13 +43,29 @@ export class EnterSalary implements OnInit {
   errorMsg = '';
   successMsg = '';
 
-  get needsApproval(): boolean {
-    return this.amount > 5000;
+  get needsApproval(): boolean { return this.amount > 5000; }
+
+  get totalTabDeductions(): number {
+    return this.paidTabPurchases.reduce((s, t) => s + t.totalAmount, 0);
+  }
+
+  get totalAdvanceDeductions(): number {
+    return this.outstandingAdvances.reduce((s, a) => s + (a.amount - a.recoveredAmount), 0);
+  }
+
+  get totalPendingDeductions(): number {
+    return this.totalTabDeductions + this.totalAdvanceDeductions;
+  }
+
+  get suggestedNet(): number {
+    const recipient = this.recipients.find(r => r.id === this.recipientId);
+    const gross = recipient?.monthlySalary ?? 0;
+    return Math.max(0, gross - this.totalPendingDeductions);
   }
 
   constructor(
     private salaryService: SalaryService,
-    private auth: Auth,
+    private workerFinanceService: WorkerFinanceService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -57,6 +75,22 @@ export class EnterSalary implements OnInit {
       error: () => {},
     });
     this.loadMyPayments();
+  }
+
+  onWorkerOrMonthChange(): void {
+    if (!this.recipientId || !this.month) return;
+    this.paidTabPurchases = [];
+    this.outstandingAdvances = [];
+
+    this.workerFinanceService.getPaidTabPurchasesForMonth(this.recipientId, this.month).subscribe({
+      next: (list) => { this.paidTabPurchases = list; this.cdr.detectChanges(); },
+      error: () => { this.paidTabPurchases = []; },
+    });
+
+    this.workerFinanceService.getOutstandingAdvances(this.recipientId).subscribe({
+      next: (list) => { this.outstandingAdvances = list; this.cdr.detectChanges(); },
+      error: () => { this.outstandingAdvances = []; },
+    });
   }
 
   loadMyPayments(): void {
@@ -86,6 +120,8 @@ export class EnterSalary implements OnInit {
           : 'Salary payment recorded successfully.';
         this.amount = 0;
         this.notes = '';
+        this.paidTabPurchases = [];
+        this.outstandingAdvances = [];
         this.loadMyPayments();
         this.cdr.detectChanges();
       },
@@ -98,7 +134,9 @@ export class EnterSalary implements OnInit {
   }
 
   statusLabel(s: string): string {
-    const map: Record<string,string> = { RECORDED: 'Recorded', PENDING_APPROVAL: 'Pending Approval', APPROVED: 'Approved', REJECTED: 'Rejected' };
+    const map: Record<string, string> = {
+      RECORDED: 'Recorded', PENDING_APPROVAL: 'Pending Approval', APPROVED: 'Approved', REJECTED: 'Rejected',
+    };
     return map[s] ?? s;
   }
 }

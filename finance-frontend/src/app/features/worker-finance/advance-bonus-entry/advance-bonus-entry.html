@@ -1,0 +1,171 @@
+<mat-card class="card-container">
+  <mat-card-header>
+    <mat-card-title>Worker Advance / Bonus</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <mat-tab-group>
+
+      <!-- ══ TAB 1: Enter Advance / Bonus ══ -->
+      <mat-tab label="Enter Advance / Bonus">
+        <div class="tab-body">
+          <p class="hint">
+            <strong>Advance</strong> — cash given to worker, deducted from salary over time. Petty cash reduced immediately on admin confirmation.<br>
+            <strong>Bonus</strong> — gift to worker, petty cash reduced on admin confirmation. No salary deduction.
+          </p>
+
+          <div class="form-grid">
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Worker / Recipient</mat-label>
+              <mat-select [(ngModel)]="recipientId" required>
+                <mat-option *ngFor="let r of recipients" [value]="r.id">{{ r.name }} — {{ r.designation }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Type</mat-label>
+              <mat-select [(ngModel)]="type" required>
+                <mat-option value="ADVANCE">Advance (recovered from salary)</mat-option>
+                <mat-option value="BONUS">Bonus (no salary deduction)</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Amount (Rs)</mat-label>
+              <input matInput type="number" [(ngModel)]="amount" min="1" step="0.01" required />
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Reason (e.g., Sinhala New Year Festival)</mat-label>
+              <input matInput [(ngModel)]="reason" required />
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Month</mat-label>
+              <input matInput type="month" [(ngModel)]="month" required />
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Notes (optional)</mat-label>
+              <textarea matInput [(ngModel)]="notes" rows="2"></textarea>
+            </mat-form-field>
+          </div>
+
+          <div class="form-actions">
+            <button mat-raised-button color="primary"
+              (click)="submit()"
+              [disabled]="!recipientId || !amount || !reason || !month || submitting">
+              <mat-progress-spinner *ngIf="submitting" diameter="20" mode="indeterminate"></mat-progress-spinner>
+              <mat-icon *ngIf="!submitting">send</mat-icon>
+              Submit for Owner Approval
+            </button>
+          </div>
+
+          <div class="success-msg" *ngIf="successMsg">{{ successMsg }}</div>
+          <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
+
+          <div class="section-title">Recent Entries</div>
+          <div class="entries-table" *ngIf="myEntries.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Worker</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Reason</th>
+                  <th>Month</th>
+                  <th>Status</th>
+                  <th>Recovered</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let e of myEntries">
+                  <td>{{ e.recipientName }}</td>
+                  <td><span class="type-badge" [class]="e.type.toLowerCase()">{{ e.type }}</span></td>
+                  <td>Rs {{ e.amount | number:'1.2-2' }}</td>
+                  <td>{{ e.reason }}</td>
+                  <td>{{ e.month }}</td>
+                  <td><span class="status-badge" [class]="e.status.toLowerCase().replace('_','-')">{{ statusLabel(e.status) }}</span></td>
+                  <td>
+                    <ng-container *ngIf="e.type === 'ADVANCE'">
+                      Rs {{ e.recoveredAmount | number:'1.2-2' }}
+                      <span *ngIf="e.fullyRecovered" class="recovered-tag">✓ Done</span>
+                    </ng-container>
+                    <ng-container *ngIf="e.type === 'BONUS'">—</ng-container>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="empty-msg" *ngIf="myEntries.length === 0">No entries yet.</p>
+        </div>
+      </mat-tab>
+
+      <!-- ══ TAB 2: Advance Recovery from Salary ══ -->
+      <mat-tab label="Recover Advance from Salary">
+        <div class="tab-body">
+          <p class="hint">
+            Select a worker to see their outstanding advances. Enter a recovery amount (partial or full) to deduct from their salary. Petty cash is NOT affected — it was already deducted when the advance was confirmed.
+          </p>
+
+          <div class="recovery-picker">
+            <mat-form-field appearance="fill" style="flex:1">
+              <mat-label>Select Worker</mat-label>
+              <mat-select [(ngModel)]="recoveryRecipientId" (ngModelChange)="loadOutstandingAdvances()">
+                <mat-option *ngFor="let r of recipients" [value]="r.id">{{ r.name }} — {{ r.designation }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div *ngIf="recoveryRecipientId && outstandingAdvances.length === 0" class="empty-msg">
+            No outstanding advances for this worker.
+          </div>
+
+          <div class="advance-recovery-list" *ngIf="outstandingAdvances.length > 0">
+            <div class="advance-card" *ngFor="let a of outstandingAdvances">
+              <div class="advance-header">
+                <div>
+                  <span class="advance-reason">{{ a.reason }}</span>
+                  <span class="advance-month">{{ a.month }}</span>
+                </div>
+                <div class="advance-amounts">
+                  <span class="total-amt">Total: Rs {{ a.amount | number:'1.2-2' }}</span>
+                  <span class="recovered-amt">Recovered: Rs {{ a.recoveredAmount | number:'1.2-2' }}</span>
+                  <span class="outstanding-amt">Outstanding: <strong>Rs {{ outstanding(a) | number:'1.2-2' }}</strong></span>
+                </div>
+              </div>
+
+              <div class="recovery-input-row">
+                <mat-form-field appearance="fill" class="recovery-field">
+                  <mat-label>Recovery Amount this time (Rs)</mat-label>
+                  <input matInput type="number"
+                    [(ngModel)]="recoveryAmounts[a.id]"
+                    [max]="outstanding(a)"
+                    min="1" step="0.01" />
+                </mat-form-field>
+                <button mat-raised-button color="accent"
+                  (click)="recoverAdvance(a)"
+                  [disabled]="!recoveryAmounts[a.id] || recovering[a.id]">
+                  <mat-progress-spinner *ngIf="recovering[a.id]" diameter="18" mode="indeterminate"></mat-progress-spinner>
+                  <mat-icon *ngIf="!recovering[a.id]">remove_circle</mat-icon>
+                  Record Recovery
+                </button>
+              </div>
+
+              <div class="recovery-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="(a.recoveredAmount / a.amount) * 100"></div>
+                </div>
+                <span class="progress-pct">{{ ((a.recoveredAmount / a.amount) * 100) | number:'1.0-0' }}% recovered</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="success-msg" *ngIf="recoveryMsg">{{ recoveryMsg }}</div>
+          <div class="error-msg" *ngIf="recoveryError">{{ recoveryError }}</div>
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+  </mat-card-content>
+</mat-card>

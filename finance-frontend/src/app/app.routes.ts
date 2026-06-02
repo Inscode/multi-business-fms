@@ -86,20 +86,9 @@ export const routes: Routes = [
         canActivate: [adminGuard]
       },
       {
-        path: 'admin/return-products',
-        loadComponent: () => import('./features/admin/return-products/return-products')
-          .then(m => m.ReturnProductsPage),
-        canActivate: [adminGuard]
-      },
-      {
         path: 'returns',
-        loadComponent: () => import('./features/returns/submit-return/submit-return')
-          .then(m => m.SubmitReturn)
-      },
-      {
-        path: 'returns/review',
-        loadComponent: () => import('./features/returns/review-returns/review-returns')
-          .then(m => m.ReviewReturns)
+        loadComponent: () => import('./features/returns/returns-main/returns-main')
+          .then(m => m.ReturnsMain)
       },
       {
         path: 'expenses',
@@ -113,24 +102,18 @@ export const routes: Routes = [
       },
       {
         path: 'salary',
-        loadComponent: () => import('./features/salary/enter-salary/enter-salary')
-          .then(m => m.EnterSalary)
-      },
-      {
-        path: 'salary/review',
-        loadComponent: () => import('./features/salary/salary-review/salary-review')
-          .then(m => m.SalaryReview)
-      },
-      {
-        path: 'salary/recipients',
-        loadComponent: () => import('./features/salary/recipients/salary-recipients')
-          .then(m => m.SalaryRecipientsPage),
-        canActivate: [adminGuard]
+        loadComponent: () => import('./features/salary/salary-main/salary-main')
+          .then(m => m.SalaryMain)
       },
       {
         path: 'stock',
         loadComponent: () => import('./features/stock/stock-tab')
           .then(m => m.StockTab)
+      },
+      {
+        path: 'workers/finance',
+        loadComponent: () => import('./features/worker-finance/worker-finance-main/worker-finance-main')
+          .then(m => m.WorkerFinanceMain)
       },
     ]
   },

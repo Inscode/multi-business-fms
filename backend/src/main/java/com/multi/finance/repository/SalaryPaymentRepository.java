@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface SalaryPaymentRepository extends JpaRepository<SalaryPayment, Long> {
@@ -27,4 +28,6 @@ public interface SalaryPaymentRepository extends JpaRepository<SalaryPayment, Lo
     BigDecimal sumPaidForMonth(@Param("recipientId") Long recipientId, @Param("month") String month);
 
     boolean existsByRecipientIdAndMonthAndStatusIn(Long recipientId, String month, List<SalaryPaymentStatus> statuses);
+
+    List<SalaryPayment> findByPaymentDateBetweenOrderByPaymentDateDesc(LocalDate from, LocalDate to);
 }

@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +91,15 @@ public class SalaryController {
             @RequestBody(required = false) Map<String, String> body) {
         String reason = body != null ? body.getOrDefault("reason", "") : "";
         return ResponseEntity.ok(salaryService.reject(id, reason));
+    }
+
+    @GetMapping("/payments/by-date-range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<SalaryPaymentResponse>> getByDateRange(
+            @RequestParam String from,
+            @RequestParam String to) {
+        return ResponseEntity.ok(salaryService.getPaymentsByDateRange(
+                LocalDate.parse(from), LocalDate.parse(to)));
     }
 
     @GetMapping("/payments/pending-count")
