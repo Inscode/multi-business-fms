@@ -6,6 +6,36 @@
 .form-card { background: #fff; border: 1.5px solid #e0e6ed; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .full-width { width: 100%; }
+.deductions-panel {
+  background: #fff8e1;
+  border: 1.5px solid #ffe082;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.deductions-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: #e65100; margin-bottom: 8px;
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+.deduction-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: #795548; margin: 8px 0 4px;
+}
+.deduction-line {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0;
+  border-bottom: 1px dashed #ffe082;
+  &:last-of-type { border-bottom: none; }
+}
+.d-type { font-weight: 600; color: #6d4c41; min-width: 130px; font-size: 12px; }
+.d-desc { flex: 1; color: #5d4037; font-size: 12px; }
+.d-amt  { font-weight: 700; color: #c62828; white-space: nowrap; }
+.deductions-total {
+  margin-top: 8px; padding-top: 8px; border-top: 1.5px solid #ffe082;
+  font-size: 13px; color: #4e342e;
+  strong { color: #1565c0; }
+}
+
 .approval-warning { display: flex; align-items: center; gap: 8px; background: #fff3e0; color: #e65100; border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 12px; mat-icon { font-size: 18px; width: 18px; height: 18px; } }
 .success-msg { display: flex; align-items: center; gap: 8px; background: #e8f5e9; color: #2e7d32; border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 12px; mat-icon { font-size: 18px; width: 18px; height: 18px; } }
 .error-msg { background: #ffebee; color: #c62828; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }

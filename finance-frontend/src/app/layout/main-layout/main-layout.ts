@@ -10,6 +10,7 @@ import { EditRequestService } from '../../core/services/edit-request';
 import { BillReturnService } from '../../core/services/bill-return';
 import { ExpenseService } from '../../core/services/expense';
 import { SalaryService } from '../../core/services/salary';
+import { WorkerFinanceService } from '../../core/services/worker-finance';
 
 @Component({
   selector: 'app-main-layout',
@@ -35,6 +36,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   pendingReturns = 0;
   pendingExpenses = 0;
   pendingSalary = 0;
+  pendingWorkerFinanceOwner = 0;
+  pendingWorkerFinanceAdmin = 0;
 
   constructor(
     private auth: Auth,
@@ -42,14 +45,16 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     private billReturnService: BillReturnService,
     private expenseService: ExpenseService,
     private salaryService: SalaryService,
+    private workerFinanceService: WorkerFinanceService,
   ) {}
 
   ngOnInit(): void {
     this.checkScreen();
     if (this.showEditRequests) this.loadPendingCount();
-    if (this.showReturnsReview) this.loadPendingReturns();
+    if (this.showReturns) this.loadPendingReturns();
     if (this.showExpenses) this.loadPendingExpenses();
-    if (this.showSalaryReview) this.loadPendingSalary();
+    if (this.showSalary) this.loadPendingSalary();
+    if (this.showWorkerFinanceReview) this.loadWorkerFinanceCounts();
   }
 
   ngAfterViewInit(): void {}
@@ -95,6 +100,23 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
     });
   }
 
+  private loadWorkerFinanceCounts(): void {
+    this.workerFinanceService.getTabCounts().subscribe({
+      next: (res) => {
+        this.pendingWorkerFinanceOwner += res.pendingOwner;
+        this.pendingWorkerFinanceAdmin += res.pendingAdmin;
+      },
+      error: () => {},
+    });
+    this.workerFinanceService.getAdvanceBonusCounts().subscribe({
+      next: (res) => {
+        this.pendingWorkerFinanceOwner += res.pendingOwner;
+        this.pendingWorkerFinanceAdmin += res.pendingAdmin;
+      },
+      error: () => {},
+    });
+  }
+
   get currentRole(): string         { return this.auth.getRole() ?? ''; }
   get isShopAccountant(): boolean   { return this.currentRole === 'SHOP_ACCOUNTANT'; }
   get showBills(): boolean          { return !this.isShopAccountant; }
@@ -103,12 +125,10 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   get showUsers(): boolean          { return this.currentRole === 'ADMIN'; }
   get showCollect(): boolean        { return this.currentRole === 'OWNER'; }
   get showEditRequests(): boolean   { return this.currentRole === 'ADMIN'; }
-  get showSubmitReturn(): boolean   { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
-  get showReturnsReview(): boolean  { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
-  get showReturnProducts(): boolean { return this.currentRole === 'ADMIN'; }
+  get showReturns(): boolean         { return ['ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showExpenses(): boolean       { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
-  get showSalary(): boolean         { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
-  get showSalaryReview(): boolean   { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
-  get showSalaryRecipients(): boolean { return this.currentRole === 'ADMIN'; }
-  get showStock(): boolean           { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'OWNER'].includes(this.currentRole); }
+  get showSalary(): boolean          { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
+  get showStock(): boolean              { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'OWNER'].includes(this.currentRole); }
+  get showWorkerFinance(): boolean       { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
+  get showWorkerFinanceReview(): boolean { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
 }

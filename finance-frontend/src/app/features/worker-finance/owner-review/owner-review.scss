@@ -1,0 +1,28 @@
+.card-container { max-width: 800px; margin: 24px auto; }
+.loading { display: flex; justify-content: center; padding: 40px; }
+.tab-content { padding: 16px 0; }
+.empty-msg { color: #888; font-size: 14px; padding: 16px 0; }
+.summary-bar { font-size: 14px; color: #555; margin-bottom: 12px; padding: 8px 12px; background: #f5f5f5; border-radius: 6px; }
+.tab-count { background: #e53935; color: #fff; border-radius: 10px; font-size: 11px; padding: 1px 7px; margin-left: 6px; }
+
+.item-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.item-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.worker-name { font-weight: 600; font-size: 15px; flex: 1; }
+.amount { font-size: 15px; font-weight: 600; color: #1565c0; }
+.item-details { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: #555; margin-bottom: 8px; }
+.item-lines { margin-bottom: 8px; }
+.item-line { font-size: 13px; color: #444; padding: 2px 0; border-bottom: 1px dashed #f0f0f0; }
+.item-notes { font-size: 12px; color: #888; margin-bottom: 8px; }
+.deduction-note { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #e65100; margin-bottom: 8px; }
+.bonus-note { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #2e7d32; margin-bottom: 8px; }
+.item-actions { display: flex; gap: 10px; }
+
+.type-badge { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.type-badge.advance { background: #fff3e0; color: #e65100; }
+.type-badge.bonus   { background: #e8f5e9; color: #2e7d32; }

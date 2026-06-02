@@ -1,0 +1,129 @@
+<div class="entry-page">
+  <!-- Bill Header -->
+  <div class="bill-header">
+    <h3 class="section-title">New Purchase Bill</h3>
+
+    <div class="header-fields">
+      <mat-form-field appearance="fill" class="worker-field">
+        <mat-label>Worker / Recipient</mat-label>
+        <mat-select [(ngModel)]="recipientId" required>
+          <mat-option *ngFor="let r of recipients" [value]="r.id">{{ r.name }} — {{ r.designation }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="date-field">
+        <mat-label>Bill Date</mat-label>
+        <input matInput type="date" [(ngModel)]="billDate" required />
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="notes-field">
+        <mat-label>Notes (optional)</mat-label>
+        <input matInput [(ngModel)]="notes" />
+      </mat-form-field>
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="items-section">
+    <div class="items-header">
+      <span class="col-desc">Description</span>
+      <span class="col-num">Qty</span>
+      <span class="col-num">Unit Price (Rs)</span>
+      <span class="col-num">Line Total</span>
+      <span class="col-action"></span>
+    </div>
+
+    <div class="item-row" *ngFor="let item of draftItems; let i = index">
+      <mat-form-field appearance="fill" class="col-desc">
+        <input matInput placeholder="Item description" [(ngModel)]="item.description" />
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="col-num">
+        <input matInput type="number" placeholder="Qty" [(ngModel)]="item.quantity" min="0.01" step="0.01" />
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="col-num">
+        <input matInput type="number" placeholder="Price" [(ngModel)]="item.unitPrice" min="0.01" step="0.01" />
+      </mat-form-field>
+
+      <div class="col-num line-total">
+        <span *ngIf="lineTotal(item) > 0">Rs {{ lineTotal(item) | number:'1.2-2' }}</span>
+      </div>
+
+      <div class="col-action">
+        <button mat-icon-button color="warn" (click)="removeItem(i)"
+          [disabled]="draftItems.length === 1" matTooltip="Remove row">
+          <mat-icon>remove_circle_outline</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="items-footer">
+      <button mat-stroked-button (click)="addItem()">
+        <mat-icon>add</mat-icon> Add Item
+      </button>
+      <div class="bill-total" *ngIf="billTotal > 0">
+        Bill Total: <strong>Rs {{ billTotal | number:'1.2-2' }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="form-actions">
+    <button mat-raised-button color="primary" (click)="submit()" [disabled]="!canSubmit || submitting">
+      <mat-progress-spinner *ngIf="submitting" diameter="20" mode="indeterminate"></mat-progress-spinner>
+      <mat-icon *ngIf="!submitting">send</mat-icon>
+      Submit for Owner Approval
+    </button>
+    <button mat-stroked-button (click)="resetForm()">
+      <mat-icon>clear</mat-icon> Reset
+    </button>
+  </div>
+
+  <div class="success-msg" *ngIf="successMsg"><mat-icon>check_circle</mat-icon> {{ successMsg }}</div>
+  <div class="error-msg" *ngIf="errorMsg"><mat-icon>error</mat-icon> {{ errorMsg }}</div>
+
+  <!-- Recent Bills -->
+  <h3 class="section-title recent-title">Recent Purchase Bills</h3>
+  <p class="empty-msg" *ngIf="myEntries.length === 0">No purchase bills yet.</p>
+
+  <div class="bills-list" *ngIf="myEntries.length > 0">
+    <div class="bill-card" *ngFor="let b of myEntries">
+      <div class="bill-card-header" (click)="toggleExpand(b.id)">
+        <div class="bill-meta">
+          <span class="bill-worker">{{ b.recipientName }}</span>
+          <span class="bill-date">{{ b.billDate }}</span>
+          <span class="bill-month">{{ b.month }}</span>
+        </div>
+        <div class="bill-right">
+          <span class="bill-total-amt">Rs {{ b.totalAmount | number:'1.2-2' }}</span>
+          <span class="status-badge" [class]="b.status.toLowerCase().replace('_','-')">{{ statusLabel(b.status) }}</span>
+          <mat-icon>{{ expandedId === b.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </div>
+      </div>
+
+      <div class="bill-items" *ngIf="expandedId === b.id">
+        <table>
+          <thead>
+            <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Total</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of b.items">
+              <td>{{ item.description }}</td>
+              <td class="num">{{ item.quantity }}</td>
+              <td class="num">Rs {{ item.unitPrice | number:'1.2-2' }}</td>
+              <td class="num">Rs {{ item.lineTotal | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="bill-notes" *ngIf="b.notes">Notes: {{ b.notes }}</div>
+        <div class="bill-footer-info">
+          Entered by: {{ b.enteredByName }}
+          <span *ngIf="b.ownerReviewedByName"> · Reviewed by: {{ b.ownerReviewedByName }}</span>
+          <span *ngIf="b.adminConfirmedByName"> · Confirmed by: {{ b.adminConfirmedByName }}</span>
+          <span *ngIf="b.rejectionReason" class="reject-reason"> · Rejected: {{ b.rejectionReason }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

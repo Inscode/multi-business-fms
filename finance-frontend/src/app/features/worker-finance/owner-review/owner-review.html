@@ -1,0 +1,100 @@
+<mat-card class="card-container">
+  <mat-card-header>
+    <mat-card-title>Worker Finance — Owner Review</mat-card-title>
+    <mat-card-subtitle>Approve or reject pending tab purchases and advance/bonus requests</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="loading" *ngIf="loading">
+      <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
+    </div>
+
+    <mat-tab-group *ngIf="!loading">
+      <!-- Tab Purchases -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Tab Purchases
+          <span class="tab-count" *ngIf="tabPurchases.length > 0">{{ tabPurchases.length }}</span>
+        </ng-template>
+
+        <div class="tab-content">
+          <div *ngIf="tabPurchases.length === 0" class="empty-msg">No pending tab purchases.</div>
+
+          <div class="summary-bar" *ngIf="tabPurchases.length > 0">
+            {{ tabPurchases.length }} item(s) — Total: <strong>Rs {{ tabTotal | number:'1.2-2' }}</strong>
+          </div>
+
+          <div class="item-card" *ngFor="let t of tabPurchases">
+            <div class="item-header">
+              <span class="worker-name">{{ t.recipientName }}</span>
+              <span class="amount">Rs {{ t.totalAmount | number:'1.2-2' }}</span>
+            </div>
+            <div class="item-details">
+              <span>Date: {{ t.billDate }}</span>
+              <span>Month: {{ t.month }}</span>
+              <span>Entered by: {{ t.enteredByName }}</span>
+            </div>
+            <div class="item-lines" *ngIf="t.items.length">
+              <div class="item-line" *ngFor="let li of t.items">
+                {{ li.description }} — Qty {{ li.quantity }} × Rs {{ li.unitPrice | number:'1.2-2' }} = Rs {{ li.lineTotal | number:'1.2-2' }}
+              </div>
+            </div>
+            <div class="item-notes" *ngIf="t.notes">Notes: {{ t.notes }}</div>
+            <div class="item-actions">
+              <button mat-raised-button color="primary" (click)="approveTab(t.id)">
+                <mat-icon>check</mat-icon> Approve
+              </button>
+              <button mat-stroked-button color="warn" (click)="rejectTab(t.id)">
+                <mat-icon>close</mat-icon> Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Advance / Bonus -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Advances &amp; Bonuses
+          <span class="tab-count" *ngIf="advanceBonuses.length > 0">{{ advanceBonuses.length }}</span>
+        </ng-template>
+
+        <div class="tab-content">
+          <div *ngIf="advanceBonuses.length === 0" class="empty-msg">No pending advances or bonuses.</div>
+
+          <div class="summary-bar" *ngIf="advanceBonuses.length > 0">
+            {{ advanceBonuses.length }} item(s) — Total: <strong>Rs {{ abTotal | number:'1.2-2' }}</strong>
+          </div>
+
+          <div class="item-card" *ngFor="let a of advanceBonuses">
+            <div class="item-header">
+              <span class="worker-name">{{ a.recipientName }}</span>
+              <span class="amount">Rs {{ a.amount | number:'1.2-2' }}</span>
+              <span class="type-badge" [class]="a.type.toLowerCase()">{{ a.type }}</span>
+            </div>
+            <div class="item-details">
+              <span>Reason: {{ a.reason }}</span>
+              <span>Month: {{ a.month }}</span>
+              <span>Entered by: {{ a.enteredByName }}</span>
+            </div>
+            <div class="deduction-note" *ngIf="a.type === 'ADVANCE'">
+              <mat-icon>info</mat-icon> This advance will be deducted from salary.
+            </div>
+            <div class="bonus-note" *ngIf="a.type === 'BONUS'">
+              <mat-icon>card_giftcard</mat-icon> Bonus — no salary deduction.
+            </div>
+            <div class="item-notes" *ngIf="a.notes">Notes: {{ a.notes }}</div>
+            <div class="item-actions">
+              <button mat-raised-button color="primary" (click)="approveAb(a.id)">
+                <mat-icon>check</mat-icon> Approve
+              </button>
+              <button mat-stroked-button color="warn" (click)="rejectAb(a.id)">
+                <mat-icon>close</mat-icon> Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </mat-card-content>
+</mat-card>

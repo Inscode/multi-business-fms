@@ -7,6 +7,7 @@ import com.multi.finance.entity.CashFund;
 import com.multi.finance.entity.User;
 import com.multi.finance.repository.CashFundRepository;
 import com.multi.finance.repository.ExpenseRepository;
+import com.multi.finance.repository.PettyCashDeductionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class CashFundServiceImpl {
 
     private final CashFundRepository cashFundRepository;
     private final ExpenseRepository expenseRepository;
+    private final PettyCashDeductionRepository pettyCashDeductionRepository;
 
     @Transactional
     public CashFundResponse addFund(CashFundRequest req) {
@@ -37,8 +39,10 @@ public class CashFundServiceImpl {
 
     @Transactional(readOnly = true)
     public CashBalanceResponse getBalance() {
-        BigDecimal totalFunded = cashFundRepository.totalFunded();
-        BigDecimal totalSpent  = expenseRepository.totalSpent();
+        BigDecimal totalFunded     = cashFundRepository.totalFunded();
+        BigDecimal expensesSpent   = expenseRepository.totalSpent();
+        BigDecimal deductionsSpent = pettyCashDeductionRepository.totalDeducted();
+        BigDecimal totalSpent      = expensesSpent.add(deductionsSpent);
         return CashBalanceResponse.builder()
                 .totalFunded(totalFunded)
                 .totalSpent(totalSpent)

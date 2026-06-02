@@ -1,0 +1,50 @@
+.entry-page { display: flex; flex-direction: column; gap: 16px; }
+.section-title { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+.recent-title  { margin-top: 16px; }
+
+.bill-header { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 16px; }
+.header-fields { display: flex; gap: 12px; flex-wrap: wrap; }
+.worker-field { flex: 2; min-width: 200px; }
+.date-field   { flex: 1; min-width: 140px; }
+.notes-field  { flex: 2; min-width: 180px; }
+
+.items-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+.items-header { display: grid; grid-template-columns: 1fr 100px 130px 120px 44px; gap: 8px; padding: 8px 12px; background: #f5f5f5; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; border-bottom: 1.5px solid #ddd; }
+.item-row { display: grid; grid-template-columns: 1fr 100px 130px 120px 44px; gap: 8px; padding: 4px 12px; align-items: center; border-bottom: 1px solid #f0f0f0; }
+.col-desc { }
+.col-num  { text-align: right; }
+.col-action { display: flex; justify-content: center; }
+.line-total { font-weight: 600; font-size: 13px; color: #333; padding-right: 4px; }
+
+.items-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1.5px solid #e0e0e0; }
+.bill-total { font-size: 15px; color: #1565c0; }
+
+.form-actions { display: flex; gap: 12px; }
+.success-msg { display: flex; align-items: center; gap: 6px; color: #2e7d32; font-size: 14px; }
+.error-msg   { display: flex; align-items: center; gap: 6px; color: #c62828; font-size: 14px; }
+
+.empty-msg { color: #888; font-size: 14px; }
+.bills-list { display: flex; flex-direction: column; gap: 8px; }
+.bill-card { border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; }
+.bill-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; &:hover { background: #fafafa; } }
+.bill-meta { display: flex; gap: 12px; align-items: center; }
+.bill-worker { font-weight: 600; font-size: 14px; }
+.bill-date   { font-size: 12px; color: #888; }
+.bill-month  { font-size: 12px; color: #888; }
+.bill-right  { display: flex; align-items: center; gap: 10px; }
+.bill-total-amt { font-weight: 700; color: #1565c0; font-size: 14px; }
+
+.status-badge { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.status-badge.pending-owner  { background: #fff3e0; color: #e65100; }
+.status-badge.owner-approved { background: #e8f5e9; color: #2e7d32; }
+.status-badge.paid           { background: #e3f2fd; color: #1565c0; }
+.status-badge.rejected       { background: #fce4ec; color: #b71c1c; }
+
+.bill-items { padding: 12px 16px; background: #fafafa; border-top: 1px solid #eee; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+th { padding: 6px 8px; text-align: left; font-weight: 600; font-size: 11px; color: #888; border-bottom: 1px solid #ddd; }
+td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
+.num { text-align: right; }
+.bill-notes       { font-size: 12px; color: #888; margin-bottom: 6px; }
+.bill-footer-info { font-size: 12px; color: #888; }
+.reject-reason    { color: #c62828; }

@@ -10,7 +10,7 @@
     <div class="form-row">
       <mat-form-field appearance="outline" style="flex:2">
         <mat-label>Recipient</mat-label>
-        <mat-select [(ngModel)]="recipientId">
+        <mat-select [(ngModel)]="recipientId" (ngModelChange)="onWorkerOrMonthChange()">
           <mat-option *ngFor="let r of recipients" [value]="r.id">
             {{ r.name }} — {{ r.designation | titlecase }}
           </mat-option>
@@ -19,13 +19,43 @@
 
       <mat-form-field appearance="outline">
         <mat-label>Month</mat-label>
-        <input matInput type="month" [(ngModel)]="month">
+        <input matInput type="month" [(ngModel)]="month" (ngModelChange)="onWorkerOrMonthChange()">
       </mat-form-field>
+    </div>
+
+    <!-- Deductions panel: paid tab purchases + outstanding advances -->
+    <div class="deductions-panel" *ngIf="recipientId && month && (paidTabPurchases.length > 0 || outstandingAdvances.length > 0)">
+      <div class="deductions-title"><mat-icon>info</mat-icon> Deductions for this worker / month:</div>
+
+      <!-- Tab purchases confirmed this month -->
+      <ng-container *ngIf="paidTabPurchases.length > 0">
+        <div class="deduction-section-label">Tab Purchases (confirmed)</div>
+        <div class="deduction-line" *ngFor="let t of paidTabPurchases">
+          <span class="d-type">Tab Purchase</span>
+          <span class="d-desc">{{ t.items.length }} item(s) — {{ t.billDate }}</span>
+          <span class="d-amt">− Rs {{ t.totalAmount | number:'1.2-2' }}</span>
+        </div>
+      </ng-container>
+
+      <!-- Outstanding advances (unpaid balance) -->
+      <ng-container *ngIf="outstandingAdvances.length > 0">
+        <div class="deduction-section-label">Outstanding Advances</div>
+        <div class="deduction-line" *ngFor="let a of outstandingAdvances">
+          <span class="d-type">Advance</span>
+          <span class="d-desc">{{ a.reason }} ({{ a.month }}) — balance Rs {{ (a.amount - a.recoveredAmount) | number:'1.2-2' }}</span>
+          <span class="d-amt">− Rs {{ (a.amount - a.recoveredAmount) | number:'1.2-2' }}</span>
+        </div>
+      </ng-container>
+
+      <div class="deductions-total">
+        Total deductions: <strong>Rs {{ totalPendingDeductions | number:'1.2-2' }}</strong>
+        &nbsp;·&nbsp; Suggested net: <strong>Rs {{ suggestedNet | number:'1.2-2' }}</strong>
+      </div>
     </div>
 
     <div class="form-row">
       <mat-form-field appearance="outline">
-        <mat-label>Amount</mat-label>
+        <mat-label>Amount (net salary to pay out)</mat-label>
         <input matInput type="number" [(ngModel)]="amount" min="1" placeholder="0.00">
         <span matPrefix>Rs&nbsp;</span>
       </mat-form-field>
