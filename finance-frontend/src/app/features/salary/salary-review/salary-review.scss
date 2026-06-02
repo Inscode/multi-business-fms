@@ -1,39 +1,73 @@
-.page { max-width: 1100px; width: 100%; }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+.page { max-width: 1200px; width: 100%; }
+
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
   .page-title { font-size: 20px; font-weight: 600; color: #1a1a2e; margin: 0; }
   .page-sub   { font-size: 13px; color: #607d8b; margin: 2px 0 0; }
   .page-sub.pending { color: #e65100; font-weight: 600; }
 }
-.header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.summary-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-.summary-pill { background: #f8f9fb; border: 1.5px solid #e0e6ed; border-radius: 8px; padding: 10px 16px; display: flex; flex-direction: column; gap: 2px;
-  &.warn { background: #fff3e0; border-color: #ffe082; }
-  .pill-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
-  .pill-value { font-size: 18px; font-weight: 800; color: #1a1a2e; }
+
+.date-range {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  .date-field { width: 150px; }
+  .date-sep   { color: #888; font-size: 18px; }
 }
+
+.summary-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.summary-pill {
+  background: #f8f9fb; border: 1.5px solid #e0e6ed; border-radius: 8px;
+  padding: 10px 16px; display: flex; flex-direction: column; gap: 2px;
+  &.warn   { background: #fff3e0; border-color: #ffe082; }
+  &.orange { background: #fff3e0; border-color: #ffb74d; }
+  &.red    { background: #ffebee; border-color: #ef9a9a; }
+  &.green  { background: #e8f5e9; border-color: #a5d6a7; }
+  .pill-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
+  .pill-value { font-size: 16px; font-weight: 800; color: #1a1a2e; }
+}
+
 .loading-state { display: flex; justify-content: center; padding: 40px; }
-.error-state { text-align: center; padding: 40px; color: #607d8b; p { margin-bottom: 12px; } }
-.empty-state { display: flex; flex-direction: column; align-items: center; padding: 48px; color: #607d8b;
+.error-state   { text-align: center; padding: 40px; color: #607d8b; p { margin-bottom: 12px; } }
+
+.review-tabs { margin-top: 4px; }
+.tab-icon { font-size: 18px; width: 18px; height: 18px; margin-right: 4px; vertical-align: middle; }
+.tab-badge { background: #e53935; color: #fff; border-radius: 10px; font-size: 11px; padding: 1px 7px; margin-left: 6px; }
+
+.tab-body    { padding: 16px 0; }
+.tab-filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; padding: 48px; color: #607d8b;
   mat-icon { font-size: 40px; width: 40px; height: 40px; margin-bottom: 8px; }
   p { font-size: 14px; margin: 0; }
 }
+
+/* ── Salary payments table ── */
 .payments-table { background: #fff; border: 1.5px solid #e0e6ed; border-radius: 12px; overflow: hidden; }
-.table-header { display: grid; grid-template-columns: 1.4fr 90px 120px 120px 130px 100px 120px 80px; gap: 8px; padding: 10px 14px; background: #f8f9fb; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1.5px solid #e0e6ed; }
-.table-row { display: grid; grid-template-columns: 1.4fr 90px 120px 120px 130px 100px 120px 80px; gap: 8px; padding: 11px 14px; align-items: center; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #1a1a2e;
+.table-header {
+  display: grid; grid-template-columns: 1.4fr 90px 120px 120px 130px 100px 120px 80px;
+  gap: 8px; padding: 10px 14px; background: #f8f9fb;
+  font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;
+  letter-spacing: 0.4px; border-bottom: 1.5px solid #e0e6ed;
+}
+.table-row {
+  display: grid; grid-template-columns: 1.4fr 90px 120px 120px 130px 100px 120px 80px;
+  gap: 8px; padding: 11px 14px; align-items: center;
+  border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #1a1a2e;
   &:last-child { border-bottom: none; }
   &:hover { background: #fafbfc; }
-  &.pending { background: #fffde7; border-left: 3px solid #f57c00; }
+  &.pending    { background: #fffde7; border-left: 3px solid #f57c00; }
   &.over-salary { background: #fff8f0; }
 }
 .col-right { text-align: right; }
-.recip-cell { display: flex; flex-direction: column; gap: 2px; }
-.recip-name { font-weight: 700; font-size: 13px; }
-.desig-badge { font-size: 10px; color: #607d8b; }
-.month-cell { font-size: 12px; color: #607d8b; }
-.amount-cell { font-weight: 700; }
-.salary-cell { font-size: 12px; color: #607d8b; }
-.remaining-cell { font-size: 13px; font-weight: 600;
-  &.over { color: #c62828; }
+.recip-cell   { display: flex; flex-direction: column; gap: 2px; }
+.recip-name   { font-weight: 700; font-size: 13px; }
+.desig-badge  { font-size: 10px; color: #607d8b; }
+.month-cell   { font-size: 12px; color: #607d8b; }
+.amount-cell  { font-weight: 700; }
+.salary-cell  { font-size: 12px; color: #607d8b; }
+.remaining-cell {
+  font-size: 13px; font-weight: 600; &.over { color: #c62828; }
   display: flex; align-items: center; justify-content: flex-end; gap: 3px;
   .warn-icon { font-size: 14px; width: 14px; height: 14px; }
 }
@@ -43,7 +77,32 @@
   &.status-approved           { background: #e3f2fd; color: #1565c0; }
   &.status-rejected           { background: #ffebee; color: #c62828; }
 }
-.entered-by { font-size: 12px; color: #607d8b; }
+.entered-by  { font-size: 12px; color: #607d8b; }
 .row-actions { display: flex; align-items: center; gap: 2px; }
 .reviewed-by { font-size: 11px; color: #607d8b; }
 .reject-reason { display: flex; align-items: center; color: #c62828; mat-icon { font-size: 14px; width: 14px; height: 14px; } }
+
+/* ── Generic table (purchases, advance/bonus) ── */
+.generic-table { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; }
+th { background: #f5f5f5; padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #e0e0e0; }
+td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a2e; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafbfc; }
+tfoot td { border-top: 2px solid #e0e0e0; background: #fafafa; font-size: 13px; padding: 8px 12px; }
+.bold { font-weight: 700; }
+.muted { color: #888; font-size: 12px; }
+.total-row  { color: #c62828; font-size: 14px; }
+.green-total { color: #2e7d32; font-size: 14px; }
+
+.type-badge { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.type-badge.advance { background: #fff3e0; color: #e65100; }
+.type-badge.bonus   { background: #e8f5e9; color: #2e7d32; }
+
+.wf-status { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.wf-status.paid           { background: #e3f2fd; color: #1565c0; }
+.wf-status.pending-owner  { background: #fff3e0; color: #e65100; }
+.wf-status.owner-approved { background: #e8f5e9; color: #2e7d32; }
+.wf-status.rejected       { background: #ffebee; color: #c62828; }
+
+.recovered-tag { color: #2e7d32; font-size: 11px; margin-left: 4px; }

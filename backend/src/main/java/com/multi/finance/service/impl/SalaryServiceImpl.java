@@ -7,12 +7,14 @@ import com.multi.finance.dto.response.SalaryRecipientResponse;
 import com.multi.finance.entity.*;
 import com.multi.finance.enums.SalaryPaymentStatus;
 import com.multi.finance.repository.*;
+import com.multi.finance.repository.PettyCashDeductionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -30,6 +32,7 @@ public class SalaryServiceImpl {
     private final SalaryPaymentRepository paymentRepository;
     private final WorkerRepository workerRepository;
     private final UserRepository userRepository;
+    private final PettyCashDeductionRepository pettyCashDeductionRepository;
 
     @Transactional
     public SalaryRecipientResponse createRecipient(SalaryRecipientRequest req) {
@@ -105,7 +108,13 @@ public class SalaryServiceImpl {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return toPaymentResponse(paymentRepository.save(payment), alreadyPaid, recipient.getMonthlySalary());
+        SalaryPayment saved = paymentRepository.save(payment);
+        // Deduct from petty cash immediately for RECORDED payments (< threshold, no approval needed)
+        if (saved.getStatus() == SalaryPaymentStatus.RECORDED) {
+            createPettyCashDeduction("SALARY", saved.getId(), recipient.getName(),
+                    saved.getAmount(), "Salary - " + recipient.getName() + " (" + req.getMonth() + ")");
+        }
+        return toPaymentResponse(saved, alreadyPaid, recipient.getMonthlySalary());
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +167,11 @@ public class SalaryServiceImpl {
         payment.setStatus(SalaryPaymentStatus.APPROVED);
         payment.setReviewedBy(getCurrentUser());
         payment.setReviewedAt(LocalDateTime.now());
-        return toPaymentResponse(paymentRepository.save(payment), alreadyPaid, payment.getRecipient().getMonthlySalary());
+        SalaryPayment approved = paymentRepository.save(payment);
+        // Deduct from petty cash when approval granted (was PENDING_APPROVAL)
+        createPettyCashDeduction("SALARY", approved.getId(), approved.getRecipient().getName(),
+                approved.getAmount(), "Salary - " + approved.getRecipient().getName() + " (" + approved.getMonth() + ")");
+        return toPaymentResponse(approved, alreadyPaid, payment.getRecipient().getMonthlySalary());
     }
 
     @Transactional
@@ -176,8 +189,48 @@ public class SalaryServiceImpl {
     }
 
     @Transactional(readOnly = true)
+    public List<SalaryPaymentResponse> getPaymentsByDateRange(LocalDate from, LocalDate to) {
+        List<SalaryPayment> payments = paymentRepository.findByPaymentDateBetweenOrderByPaymentDateDesc(from, to);
+
+        List<SalaryPayment> ascending = payments.stream()
+                .sorted(Comparator.comparing(SalaryPayment::getCreatedAt))
+                .toList();
+
+        Map<String, BigDecimal> runningTotals = new HashMap<>();
+        Map<Long, BigDecimal> paidBeforeMap = new LinkedHashMap<>();
+
+        for (SalaryPayment p : ascending) {
+            String key = p.getRecipient().getId() + ":" + p.getMonth();
+            BigDecimal before = runningTotals.getOrDefault(key, BigDecimal.ZERO);
+            paidBeforeMap.put(p.getId(), before);
+            if (isCountable(p.getStatus())) {
+                runningTotals.put(key, before.add(p.getAmount()));
+            }
+        }
+
+        return payments.stream().map(p ->
+                toPaymentResponse(p, paidBeforeMap.getOrDefault(p.getId(), BigDecimal.ZERO),
+                        p.getRecipient().getMonthlySalary())
+        ).toList();
+    }
+
+    @Transactional(readOnly = true)
     public long getPendingCount() {
         return paymentRepository.countByStatus(SalaryPaymentStatus.PENDING_APPROVAL);
+    }
+
+    private void createPettyCashDeduction(String refType, Long refId, String recipientName,
+                                          java.math.BigDecimal amount, String description) {
+        if (pettyCashDeductionRepository.existsByReferenceTypeAndReferenceId(refType, refId)) return;
+        pettyCashDeductionRepository.save(PettyCashDeduction.builder()
+                .referenceType(refType)
+                .referenceId(refId)
+                .recipientName(recipientName)
+                .amount(amount)
+                .description(description)
+                .deductedBy(getCurrentUser())
+                .createdAt(LocalDateTime.now())
+                .build());
     }
 
     private SalaryPayment findPaymentById(Long id) {

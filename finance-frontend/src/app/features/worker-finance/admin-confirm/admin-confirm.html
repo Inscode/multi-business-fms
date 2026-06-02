@@ -1,0 +1,105 @@
+<mat-card class="card-container">
+  <mat-card-header>
+    <mat-card-title>Worker Finance — Confirm Payment</mat-card-title>
+    <mat-card-subtitle>Confirm that funds have been disbursed. Advances will be deducted from salary.</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="loading" *ngIf="loading">
+      <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
+    </div>
+
+    <mat-tab-group *ngIf="!loading">
+      <!-- Tab Purchases -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Tab Purchases
+          <span class="tab-count" *ngIf="tabPurchases.length > 0">{{ tabPurchases.length }}</span>
+        </ng-template>
+
+        <div class="tab-content">
+          <div *ngIf="tabPurchases.length === 0" class="empty-msg">No owner-approved tab purchases awaiting payment confirmation.</div>
+
+          <div class="summary-bar" *ngIf="tabPurchases.length > 0">
+            {{ tabPurchases.length }} item(s) — Total: <strong>Rs {{ tabTotal | number:'1.2-2' }}</strong>
+          </div>
+
+          <div class="item-card" *ngFor="let t of tabPurchases">
+            <div class="item-header">
+              <span class="worker-name">{{ t.recipientName }}</span>
+              <span class="amount">Rs {{ t.totalAmount | number:'1.2-2' }}</span>
+            </div>
+            <div class="item-details">
+              <span>Date: {{ t.billDate }}</span>
+              <span>Month: {{ t.month }}</span>
+              <span>Entered by: {{ t.enteredByName }}</span>
+              <span>Owner approved by: {{ t.ownerReviewedByName }}</span>
+            </div>
+            <div class="item-lines" *ngIf="t.items.length">
+              <div class="item-line" *ngFor="let li of t.items">
+                {{ li.description }} — Qty {{ li.quantity }} × Rs {{ li.unitPrice | number:'1.2-2' }} = Rs {{ li.lineTotal | number:'1.2-2' }}
+              </div>
+            </div>
+            <div class="deduction-note">
+              <mat-icon>info</mat-icon> Confirming will mark this as PAID — deductible from {{ t.recipientName }}'s salary for {{ t.month }}.
+            </div>
+            <div class="item-actions">
+              <button mat-raised-button color="primary"
+                (click)="confirmTab(t.id)"
+                [disabled]="confirmingId === t.id">
+                <mat-progress-spinner *ngIf="confirmingId === t.id" diameter="18" mode="indeterminate"></mat-progress-spinner>
+                <mat-icon *ngIf="confirmingId !== t.id">payments</mat-icon>
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Advance / Bonus -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Advances &amp; Bonuses
+          <span class="tab-count" *ngIf="advanceBonuses.length > 0">{{ advanceBonuses.length }}</span>
+        </ng-template>
+
+        <div class="tab-content">
+          <div *ngIf="advanceBonuses.length === 0" class="empty-msg">No owner-approved advances or bonuses awaiting confirmation.</div>
+
+          <div class="summary-bar" *ngIf="advanceBonuses.length > 0">
+            {{ advanceBonuses.length }} item(s) — Total: <strong>Rs {{ abTotal | number:'1.2-2' }}</strong>
+          </div>
+
+          <div class="item-card" *ngFor="let a of advanceBonuses">
+            <div class="item-header">
+              <span class="worker-name">{{ a.recipientName }}</span>
+              <span class="amount">Rs {{ a.amount | number:'1.2-2' }}</span>
+              <span class="type-badge" [class]="a.type.toLowerCase()">{{ a.type }}</span>
+            </div>
+            <div class="item-details">
+              <span>Reason: {{ a.reason }}</span>
+              <span>Month: {{ a.month }}</span>
+              <span>Entered by: {{ a.enteredByName }}</span>
+              <span>Owner approved by: {{ a.ownerReviewedByName }}</span>
+            </div>
+            <div class="deduction-note" *ngIf="a.type === 'ADVANCE'">
+              <mat-icon>info</mat-icon> Confirming will mark this advance as PAID — outstanding balance will show on salary review for deduction.
+            </div>
+            <div class="bonus-note" *ngIf="a.type === 'BONUS'">
+              <mat-icon>card_giftcard</mat-icon> Bonus — confirming marks as PAID. No salary deduction will occur.
+            </div>
+            <div class="item-actions">
+              <button mat-raised-button color="primary"
+                (click)="confirmAb(a.id, a.type)"
+                [disabled]="confirmingId === a.id">
+                <mat-progress-spinner *ngIf="confirmingId === a.id" diameter="18" mode="indeterminate"></mat-progress-spinner>
+                <mat-icon *ngIf="confirmingId !== a.id">payments</mat-icon>
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </mat-card-content>
+</mat-card>

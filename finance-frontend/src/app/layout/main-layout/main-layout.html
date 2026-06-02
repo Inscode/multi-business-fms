@@ -48,19 +48,11 @@
         <span class="nav-badge" *ngIf="pendingEditRequests > 0 && !collapsed">{{ pendingEditRequests }}</span>
         <span class="nav-badge-dot" *ngIf="pendingEditRequests > 0 && collapsed"></span>
       </a>
-      <a class="nav-item" routerLink="/returns" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}" matRipple *ngIf="showSubmitReturn" (click)="isMobile && sidenav.close()">
+      <a class="nav-item" routerLink="/returns" routerLinkActive="active" matRipple *ngIf="showReturns" (click)="isMobile && sidenav.close()">
         <mat-icon>assignment_return</mat-icon>
-        <span *ngIf="!collapsed">Submit Return</span>
-      </a>
-      <a class="nav-item" routerLink="/returns/review" routerLinkActive="active" matRipple *ngIf="showReturnsReview" (click)="isMobile && sidenav.close()">
-        <mat-icon>rate_review</mat-icon>
-        <span *ngIf="!collapsed">Returns Review</span>
+        <span *ngIf="!collapsed">Returns</span>
         <span class="nav-badge" *ngIf="pendingReturns > 0 && !collapsed">{{ pendingReturns }}</span>
         <span class="nav-badge-dot" *ngIf="pendingReturns > 0 && collapsed"></span>
-      </a>
-      <a class="nav-item" routerLink="/admin/return-products" routerLinkActive="active" matRipple *ngIf="showReturnProducts" (click)="isMobile && sidenav.close()">
-        <mat-icon>inventory_2</mat-icon>
-        <span *ngIf="!collapsed">Return Products</span>
       </a>
       <a class="nav-item" routerLink="/expenses" routerLinkActive="active" matRipple *ngIf="showExpenses" (click)="isMobile && sidenav.close()">
         <mat-icon>account_balance_wallet</mat-icon>
@@ -68,23 +60,21 @@
         <span class="nav-badge" *ngIf="pendingExpenses > 0 && !collapsed">{{ pendingExpenses }}</span>
         <span class="nav-badge-dot" *ngIf="pendingExpenses > 0 && collapsed"></span>
       </a>
-      <a class="nav-item" routerLink="/salary" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}" matRipple *ngIf="showSalary" (click)="isMobile && sidenav.close()">
+      <a class="nav-item" routerLink="/salary" routerLinkActive="active" matRipple *ngIf="showSalary" (click)="isMobile && sidenav.close()">
         <mat-icon>payments</mat-icon>
         <span *ngIf="!collapsed">Salary</span>
-      </a>
-      <a class="nav-item" routerLink="/salary/review" routerLinkActive="active" matRipple *ngIf="showSalaryReview" (click)="isMobile && sidenav.close()">
-        <mat-icon>fact_check</mat-icon>
-        <span *ngIf="!collapsed">Salary Review</span>
         <span class="nav-badge" *ngIf="pendingSalary > 0 && !collapsed">{{ pendingSalary }}</span>
         <span class="nav-badge-dot" *ngIf="pendingSalary > 0 && collapsed"></span>
-      </a>
-      <a class="nav-item" routerLink="/salary/recipients" routerLinkActive="active" matRipple *ngIf="showSalaryRecipients" (click)="isMobile && sidenav.close()">
-        <mat-icon>group</mat-icon>
-        <span *ngIf="!collapsed">Salary Recipients</span>
       </a>
       <a class="nav-item" routerLink="/stock" routerLinkActive="active" matRipple *ngIf="showStock" (click)="isMobile && sidenav.close()">
         <mat-icon>inventory</mat-icon>
         <span *ngIf="!collapsed">Stock</span>
+      </a>
+      <a class="nav-item" routerLink="/workers/finance" routerLinkActive="active" matRipple *ngIf="showWorkerFinance" (click)="isMobile && sidenav.close()">
+        <mat-icon>group_work</mat-icon>
+        <span *ngIf="!collapsed">Workers Finance</span>
+        <span class="nav-badge" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && !collapsed">{{ pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin }}</span>
+        <span class="nav-badge-dot" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && collapsed"></span>
       </a>
     </nav>
 

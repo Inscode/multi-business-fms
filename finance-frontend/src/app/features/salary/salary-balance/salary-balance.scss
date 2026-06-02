@@ -1,0 +1,84 @@
+.page { max-width: 1100px; }
+
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px;
+  .page-title { font-size: 20px; font-weight: 600; color: #1a1a2e; margin: 0; }
+  .page-sub   { font-size: 13px; color: #607d8b; margin: 2px 0 0; }
+}
+.controls { display: flex; align-items: center; gap: 8px; }
+.month-field { width: 160px; }
+
+.loading-wrap { display: flex; justify-content: center; padding: 48px; }
+
+.summary-bar {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+}
+.pill {
+  background: #f5f5f5; border-radius: 10px; padding: 10px 16px; min-width: 120px;
+  .pill-label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 4px; }
+  .pill-value { display: block; font-size: 16px; font-weight: 700; color: #1a1a2e; }
+  &.green { background: #e8f5e9; .pill-value { color: #2e7d32; } }
+  &.orange { background: #fff3e0; .pill-value { color: #e65100; } }
+  &.red   { background: #ffebee; .pill-value { color: #c62828; } }
+  &.blue  { background: #e3f2fd; .pill-value { color: #1565c0; } }
+}
+
+.empty-state {
+  text-align: center; padding: 48px; color: #aaa;
+  mat-icon { font-size: 40px; width: 40px; height: 40px; }
+  p { margin: 8px 0 0; font-size: 14px; }
+}
+
+.table-wrap { overflow-x: auto; }
+
+.balance-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+
+  thead tr {
+    background: #f8f9fa;
+    th {
+      padding: 10px 14px; text-align: left; font-weight: 700; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.5px; color: #607d8b;
+      border-bottom: 2px solid #e0e6ed; white-space: nowrap;
+    }
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    &:hover { background: #fafafa; }
+    &.fully-paid { background: #f1f8e9; }
+    td { padding: 12px 14px; vertical-align: middle; }
+  }
+
+  tfoot .total-row td {
+    padding: 12px 14px; border-top: 2px solid #e0e6ed; background: #f8f9fa;
+  }
+}
+
+.col-right { text-align: right !important; }
+
+.emp-name { display: block; font-weight: 600; color: #1a1a2e; }
+.desig    { display: block; font-size: 11px; color: #888; margin-top: 1px; }
+.muted    { color: #bbb; }
+
+.paid-cell { color: #2e7d32; font-weight: 600; }
+
+.pending-badge {
+  background: #fff3e0; color: #e65100; border-radius: 6px;
+  padding: 2px 8px; font-size: 12px; font-weight: 600;
+}
+.deduct-badge {
+  background: #ffebee; color: #c62828; border-radius: 6px;
+  padding: 2px 8px; font-size: 12px; font-weight: 600;
+}
+.advance-badge {
+  background: #fce4ec; color: #ad1457; border-radius: 6px;
+  padding: 2px 8px; font-size: 12px; font-weight: 600;
+}
+
+.balance-chip {
+  display: inline-block; border-radius: 8px; padding: 3px 10px;
+  font-size: 13px; font-weight: 700;
+  &.positive { background: #e3f2fd; color: #1565c0; }
+  &.zero     { background: #e8f5e9; color: #2e7d32; }
+}

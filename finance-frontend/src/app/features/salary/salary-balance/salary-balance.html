@@ -1,0 +1,119 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Salary Balance</h2>
+      <p class="page-sub">Per-employee breakdown for the selected month</p>
+    </div>
+    <div class="controls">
+      <mat-form-field appearance="outline" class="month-field">
+        <mat-label>Month</mat-label>
+        <input matInput type="month" [(ngModel)]="month" (change)="load()">
+      </mat-form-field>
+      <button mat-icon-button (click)="load()" title="Refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-wrap" *ngIf="loading">
+    <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <!-- Summary pills -->
+    <div class="summary-bar">
+      <div class="pill">
+        <span class="pill-label">Total Payroll</span>
+        <span class="pill-value">Rs {{ grandGross | number:'1.2-2' }}</span>
+      </div>
+      <div class="pill green">
+        <span class="pill-label">Paid</span>
+        <span class="pill-value">Rs {{ grandPaid | number:'1.2-2' }}</span>
+      </div>
+      <div class="pill orange" *ngIf="grandPending > 0">
+        <span class="pill-label">Pending Approval</span>
+        <span class="pill-value">Rs {{ grandPending | number:'1.2-2' }}</span>
+      </div>
+      <div class="pill red" *ngIf="grandTab > 0">
+        <span class="pill-label">Tab Deductions</span>
+        <span class="pill-value">Rs {{ grandTab | number:'1.2-2' }}</span>
+      </div>
+      <div class="pill red" *ngIf="grandAdvance > 0">
+        <span class="pill-label">Outstanding Advances</span>
+        <span class="pill-value">Rs {{ grandAdvance | number:'1.2-2' }}</span>
+      </div>
+      <div class="pill blue">
+        <span class="pill-label">Remaining</span>
+        <span class="pill-value">Rs {{ grandRemaining | number:'1.2-2' }}</span>
+      </div>
+    </div>
+
+    <div class="empty-state" *ngIf="balances.length === 0">
+      <mat-icon>people</mat-icon>
+      <p>No active salary recipients found.</p>
+    </div>
+
+    <div class="table-wrap" *ngIf="balances.length > 0">
+      <table class="balance-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th class="col-right">Monthly Salary</th>
+            <th class="col-right">Paid</th>
+            <th class="col-right">Pending Approval</th>
+            <th class="col-right">Tab Deductions</th>
+            <th class="col-right">Outstanding Advances</th>
+            <th class="col-right">Balance Remaining</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let b of balances" [class.fully-paid]="b.salaryRemaining <= 0">
+            <td>
+              <span class="emp-name">{{ b.name }}</span>
+              <span class="desig">{{ designationLabel(b.designation) }}</span>
+            </td>
+            <td class="col-right">Rs {{ b.monthlySalary | number:'1.2-2' }}</td>
+            <td class="col-right paid-cell">Rs {{ b.totalPaid | number:'1.2-2' }}</td>
+            <td class="col-right">
+              <span *ngIf="b.pendingApproval > 0" class="pending-badge">Rs {{ b.pendingApproval | number:'1.2-2' }}</span>
+              <span *ngIf="b.pendingApproval === 0" class="muted">—</span>
+            </td>
+            <td class="col-right">
+              <span *ngIf="b.tabDeductions > 0" class="deduct-badge">− Rs {{ b.tabDeductions | number:'1.2-2' }}</span>
+              <span *ngIf="b.tabDeductions === 0" class="muted">—</span>
+            </td>
+            <td class="col-right">
+              <span *ngIf="b.outstandingAdvance > 0" class="advance-badge">− Rs {{ b.outstandingAdvance | number:'1.2-2' }}</span>
+              <span *ngIf="b.outstandingAdvance === 0" class="muted">—</span>
+            </td>
+            <td class="col-right">
+              <span class="balance-chip" [class.zero]="b.salaryRemaining <= 0" [class.positive]="b.salaryRemaining > 0">
+                Rs {{ b.salaryRemaining | number:'1.2-2' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td><strong>Total</strong></td>
+            <td class="col-right"><strong>Rs {{ grandGross | number:'1.2-2' }}</strong></td>
+            <td class="col-right paid-cell"><strong>Rs {{ grandPaid | number:'1.2-2' }}</strong></td>
+            <td class="col-right">
+              <strong *ngIf="grandPending > 0">Rs {{ grandPending | number:'1.2-2' }}</strong>
+              <span *ngIf="grandPending === 0" class="muted">—</span>
+            </td>
+            <td class="col-right">
+              <strong *ngIf="grandTab > 0">Rs {{ grandTab | number:'1.2-2' }}</strong>
+              <span *ngIf="grandTab === 0" class="muted">—</span>
+            </td>
+            <td class="col-right">
+              <strong *ngIf="grandAdvance > 0">Rs {{ grandAdvance | number:'1.2-2' }}</strong>
+              <span *ngIf="grandAdvance === 0" class="muted">—</span>
+            </td>
+            <td class="col-right"><strong class="balance-chip positive">Rs {{ grandRemaining | number:'1.2-2' }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </ng-container>
+</div>
