@@ -45,12 +45,15 @@ export class AddExpense implements OnInit {
     { value: 'TEA',        label: 'Tea',          hint: 'Morning / evening tea' },
     { value: 'PARKING',    label: 'Parking',      hint: 'Parking fees' },
     { value: 'REPAIR',     label: 'Repair',       hint: 'Vehicle or equipment repair — needs review' },
-    { value: 'PETTY_CASH', label: 'Petty Cash',   hint: 'Small in-office expenses' },
-    { value: 'OTHER',      label: 'Other',        hint: 'Unplanned expense — needs review' },
+    { value: 'PETTY_CASH',    label: 'Petty Cash',     hint: 'Small in-office expenses' },
+    { value: 'DRIVER_SALARY', label: 'Driver Salary',  hint: 'Temporary driver salary — needs review if over Rs 3,000' },
+    { value: 'OTHER',         label: 'Other',          hint: 'Unplanned expense — needs review' },
   ];
 
   get needsReview(): boolean {
     const cat = this.form.get('category')?.value;
+    const amt = Number(this.form.get('amount')?.value ?? 0);
+    if (cat === 'DRIVER_SALARY') return amt > 3000;
     return cat === 'REPAIR' || cat === 'OTHER';
   }
 

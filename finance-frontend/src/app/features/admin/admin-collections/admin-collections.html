@@ -1,0 +1,81 @@
+<div class="panel">
+  <div class="panel-header">
+    <h3>All Collection Notes</h3>
+    <button mat-stroked-button (click)="load()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <p class="empty" *ngIf="!loading && notes.length === 0">No collection notes found.</p>
+
+  <div class="table-wrap" *ngIf="!loading && notes.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Bill #</th>
+          <th>Area</th>
+          <th class="r">Amount</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Collected By</th>
+          <th>Date</th>
+          <th>Notes</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let n of notes">
+          <td class="bold">{{ n.customerName }}</td>
+          <td>{{ n.billNumber }}</td>
+          <td class="muted">{{ n.area }}</td>
+
+          <!-- Amount: inline edit when editing -->
+          <td class="r bold">
+            <span *ngIf="editingId !== n.id">Rs {{ n.amount | number:'1.2-2' }}</span>
+            <input *ngIf="editingId === n.id" type="number" [(ngModel)]="editAmount" class="inline-input" />
+          </td>
+
+          <!-- Payment type: inline select when editing -->
+          <td>
+            <span *ngIf="editingId !== n.id">{{ n.paymentType }}</span>
+            <select *ngIf="editingId === n.id" [(ngModel)]="editType" class="inline-select">
+              <option value="CASH">CASH</option>
+              <option value="CHEQUE">CHEQUE</option>
+            </select>
+          </td>
+
+          <td>
+            <span class="status-chip" [class]="n.status.toLowerCase()">{{ n.status }}</span>
+          </td>
+          <td class="muted">{{ n.collectedByName }}</td>
+          <td class="muted">{{ n.collectedAt | date:'dd MMM HH:mm' }}</td>
+          <td class="muted small">{{ n.notes }}</td>
+
+          <td class="actions">
+            <ng-container *ngIf="editingId !== n.id">
+              <button mat-icon-button title="Edit" (click)="startEdit(n)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button color="warn" title="Delete" (click)="remove(n.id)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </ng-container>
+            <ng-container *ngIf="editingId === n.id">
+              <button mat-icon-button color="primary" title="Save" (click)="saveEdit(n)">
+                <mat-icon>check</mat-icon>
+              </button>
+              <button mat-icon-button title="Cancel edit" (click)="cancelEdit()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

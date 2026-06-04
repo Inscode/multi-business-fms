@@ -74,15 +74,9 @@ export const routes: Routes = [
         canActivate: [staffGuard]
       },
       {
-        path: 'admin/users',
-        loadComponent: () => import('./features/admin/users-page/users-page')
-          .then(m => m.UsersPage),
-        canActivate: [adminGuard]
-      },
-      {
-        path: 'admin/edit-requests',
-        loadComponent: () => import('./features/admin/edit-requests/edit-requests')
-          .then(m => m.EditRequestsPage),
+        path: 'admin',
+        loadComponent: () => import('./features/admin/admin-main/admin-main')
+          .then(m => m.AdminMain),
         canActivate: [adminGuard]
       },
       {
@@ -114,6 +108,16 @@ export const routes: Routes = [
         path: 'workers/finance',
         loadComponent: () => import('./features/worker-finance/worker-finance-main/worker-finance-main')
           .then(m => m.WorkerFinanceMain)
+      },
+      {
+        path: 'bill-checklist',
+        loadComponent: () => import('./features/bill-checklist/bill-checklist-main/bill-checklist-main')
+          .then(m => m.BillChecklistMain)
+      },
+      {
+        path: 'customers',
+        loadComponent: () => import('./features/customers/customers-page/customers-page')
+          .then(m => m.CustomersPage)
       },
     ]
   },

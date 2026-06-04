@@ -345,6 +345,18 @@ export class BillDetail implements OnInit {
     });
   }
 
+  cancelBill(): void {
+    if (!this.bill) return;
+    if (!confirm(`Cancel bill ${this.bill.billNumber}? The bill will be marked as CANCELLED.`)) return;
+    this.billService.cancelBill(this.bill.id).subscribe({
+      next: (updated) => {
+        this.bill = updated;
+        this.cdr.detectChanges();
+      },
+      error: (err) => alert(err?.error?.message ?? 'Failed to cancel bill.'),
+    });
+  }
+
   deleteBill(): void {
     if (!this.bill) return;
     const ref = this.bill.billNumber;

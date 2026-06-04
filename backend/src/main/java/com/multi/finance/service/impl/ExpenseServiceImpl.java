@@ -42,9 +42,10 @@ public class ExpenseServiceImpl {
                     .orElseThrow(() -> new RuntimeException("Worker not found"));
         }
 
-        ExpenseStatus status = FLAGGED_CATEGORIES.contains(req.getCategory())
-                ? ExpenseStatus.PENDING_REVIEW
-                : ExpenseStatus.RECORDED;
+        boolean needsReview = FLAGGED_CATEGORIES.contains(req.getCategory())
+                || (req.getCategory() == ExpenseCategory.DRIVER_SALARY
+                    && req.getAmount().compareTo(new java.math.BigDecimal("3000")) > 0);
+        ExpenseStatus status = needsReview ? ExpenseStatus.PENDING_REVIEW : ExpenseStatus.RECORDED;
 
         Expense expense = Expense.builder()
                 .business(req.getBusiness())

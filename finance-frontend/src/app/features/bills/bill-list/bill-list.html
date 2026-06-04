@@ -56,7 +56,12 @@
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+    <!-- Shop accountant sees shop credit bills + store bills currently at the shop -->
+    <div class="filter-scope-chip" *ngIf="isShopAccountant">
+      <mat-icon>storefront</mat-icon> Shop Bills &amp; Shop Received
+    </div>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field" *ngIf="!isShopAccountant">
       <mat-label>Business</mat-label>
       <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
         <mat-option value="">All</mat-option>

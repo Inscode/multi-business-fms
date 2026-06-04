@@ -1,0 +1,49 @@
+<div class="main-page">
+  <h2 class="page-title">Admin</h2>
+
+  <mat-tab-group animationDuration="150ms">
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>handshake</mat-icon>&nbsp;Mark Collection
+      </ng-template>
+      <div class="tab-body"><app-owner-collect /></div>
+    </mat-tab>
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>receipt_long</mat-icon>&nbsp;All Collections
+      </ng-template>
+      <div class="tab-body"><app-admin-collections /></div>
+    </mat-tab>
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>notifications</mat-icon>&nbsp;Reminders
+      </ng-template>
+      <div class="tab-body"><app-admin-reminders /></div>
+    </mat-tab>
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>edit_note</mat-icon>&nbsp;Edit Requests
+      </ng-template>
+      <div class="tab-body"><app-edit-requests /></div>
+    </mat-tab>
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>inventory_2</mat-icon>&nbsp;Return Products
+      </ng-template>
+      <div class="tab-body"><app-return-products /></div>
+    </mat-tab>
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>manage_accounts</mat-icon>&nbsp;Users
+      </ng-template>
+      <div class="tab-body"><app-users-page /></div>
+    </mat-tab>
+
+  </mat-tab-group>
+</div>

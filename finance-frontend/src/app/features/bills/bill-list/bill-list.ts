@@ -60,7 +60,16 @@ export class BillList implements OnInit {
   selectedStatus = '';
   selectedArea = '';
 
-  businesses = ['', 'RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
+  get businesses(): string[] {
+    const role = this.auth.getRole();
+    if (role === 'SHOP_ACCOUNTANT') return ['RETAIL_SHOP'];
+    if (role === 'ACCOUNTANT' || role === 'MAIN_ACCOUNTANT')
+      return ['', 'RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+    return ['', 'RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE']; // ADMIN / OWNER
+  }
+
+  get isShopAccountant(): boolean { return this.auth.getRole() === 'SHOP_ACCOUNTANT'; }
+
   statuses = ['', 'CREATED', 'ASSIGNED', 'SHOP_WORKER_ASSIGNED',
               'SHOP_RECEIVED', 'STORE_RECEIVED', 'COMPLETED', 'CANCELLED'];
 
@@ -121,6 +130,10 @@ export class BillList implements OnInit {
     private reminderService: BillReminderService,
     private router: Router,
   ) {
+    // Lock shop accountants to RETAIL_SHOP scope from the start
+    if (this.auth.getRole() === 'SHOP_ACCOUNTANT') {
+      this.selectedBusiness = 'RETAIL_SHOP';
+    }
     this.displayedColumns = this.canEnterPayment
       ? ['select', 'billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions']
       : ['billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];

@@ -18,7 +18,7 @@ public class CollectionNoteController {
 
     private final CollectionNoteServiceImpl collectionNoteService;
 
-    // Owner marks a bill as collected
+    // Only owner/admin marks a bill as collected
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     public ResponseEntity<CollectionNoteResponse> create(
@@ -26,7 +26,7 @@ public class CollectionNoteController {
         return ResponseEntity.ok(collectionNoteService.create(request));
     }
 
-    // Owner sees their own collection notes
+    // Owner/Admin sees their own collection notes
     @GetMapping("/my")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     public ResponseEntity<List<CollectionNoteResponse>> getMyNotes() {
@@ -38,5 +38,29 @@ public class CollectionNoteController {
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<CollectionNoteResponse>> getPendingNotes() {
         return ResponseEntity.ok(collectionNoteService.getPendingNotes());
+    }
+
+    // Admin sees all collection notes
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<CollectionNoteResponse>> getAll() {
+        return ResponseEntity.ok(collectionNoteService.getAll());
+    }
+
+    // Admin edits a collection note
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CollectionNoteResponse> update(
+            @PathVariable Long id,
+            @RequestBody CollectionNoteRequest request) {
+        return ResponseEntity.ok(collectionNoteService.update(id, request));
+    }
+
+    // Admin deletes a collection note
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        collectionNoteService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

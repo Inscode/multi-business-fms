@@ -4,6 +4,7 @@ import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.entity.Bill;
+import com.multi.finance.entity.Customer;
 import com.multi.finance.entity.User;
 import com.multi.finance.entity.Worker;
 import com.multi.finance.enums.BillSource;
@@ -11,6 +12,7 @@ import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.CustomerRepository;
 import com.multi.finance.repository.PaymentRepository;
 import com.multi.finance.repository.UserRepository;
 import com.multi.finance.repository.WorkerRepository;
@@ -32,6 +34,7 @@ public class BillServiceImpl {
     private final WorkerRepository workerRepository;
     private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
 
     public BillResponse createBill(BillRequest request) {
         User currentUser = getCurrentUser();
@@ -59,13 +62,23 @@ public class BillServiceImpl {
                     .orElseThrow(() -> new RuntimeException("Worker not found"));
         }
 
+        // Resolve customer: if customerId provided, use it and derive name from it
+        Customer customer = null;
+        String customerName = request.getCustomerName();
+        if (request.getCustomerId() != null) {
+            customer = customerRepository.findById(request.getCustomerId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found"));
+            customerName = customer.getName();
+        }
+
         Bill bill = Bill.builder()
                 .billNumber(billNumber)
                 .business(request.getBusiness())
                 .division(request.getDivision())
                 .billType(request.getBillType())
                 .billSource(request.getBillSource())
-                .customerName(request.getCustomerName())
+                .customerName(customerName)
+                .customer(customer)
                 .totalAmount(request.getTotalAmount())
                 .area(request.getArea())
                 .amountPaid(BigDecimal.ZERO)
@@ -88,6 +101,39 @@ public class BillServiceImpl {
 
     @Transactional(readOnly = true)
     public List<BillResponse> getAllBills(BusinessType business, BillStatus status) {
+        User caller = getCurrentUser();
+
+        // SHOP_ACCOUNTANT: sees RETAIL_SHOP bills + any bill currently at the shop
+        if (caller.getRole() == UserRole.SHOP_ACCOUNTANT) {
+            if (status != null) {
+                return billRepository
+                        .findShopAccountantBillsByStatus(status)
+                        .stream().map(this::toResponse).toList();
+            }
+            return billRepository
+                    .findShopAccountantBills()
+                    .stream().map(this::toResponse).toList();
+        }
+
+        List<BusinessType> allowed = getAllowedBusinessTypes(caller.getRole());
+
+        // Store roles (ACCOUNTANT, MAIN_ACCOUNTANT) — restricted to store businesses
+        if (allowed != null) {
+            if (business != null && !allowed.contains(business)) {
+                return List.of(); // requested a business outside their scope
+            }
+            List<BusinessType> scope = (business != null) ? List.of(business) : allowed;
+            if (status != null) {
+                return billRepository
+                        .findByBusinessInAndStatusOrderByCreatedAtDesc(scope, status)
+                        .stream().map(this::toResponse).toList();
+            }
+            return billRepository
+                    .findByBusinessInOrderByCreatedAtDesc(scope)
+                    .stream().map(this::toResponse).toList();
+        }
+
+        // ADMIN / OWNER — unrestricted, original behaviour
         if (business != null && status != null) {
             return billRepository
                     .findByBusinessAndStatusOrderByCreatedAtDesc(business, status)
@@ -106,6 +152,21 @@ public class BillServiceImpl {
         return billRepository
                 .findAllByOrderByCreatedAtDesc()
                 .stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * Returns the business types visible to the given role.
+     * Returns null for ADMIN/OWNER (unrestricted) and for SHOP_ACCOUNTANT
+     * (their query is special — handled separately via findShopAccountantBills).
+     */
+    private List<BusinessType> getAllowedBusinessTypes(UserRole role) {
+        return switch (role) {
+            case SHOP_ACCOUNTANT  -> null; // handled by dedicated query
+            case ACCOUNTANT, MAIN_ACCOUNTANT -> List.of(
+                    BusinessType.RAINCO, BusinessType.STATIONERY,
+                    BusinessType.PLASTIC, BusinessType.HARDWARE);
+            case ADMIN, OWNER -> null; // unrestricted
+        };
     }
 
     @Transactional(readOnly=true)
@@ -206,6 +267,20 @@ public class BillServiceImpl {
     }
 
     @Transactional
+    public BillResponse cancelBill(Long id) {
+        Bill bill = findBillById(id);
+        if (bill.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException("Bill is already cancelled");
+        }
+        if (bill.getStatus() == BillStatus.COMPLETED) {
+            throw new RuntimeException("Cannot cancel a completed bill");
+        }
+        bill.setStatus(BillStatus.CANCELLED);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    @Transactional
     public BillResponse markCompleted(Long id) {
         Bill bill = findBillById(id);
         if (bill.getStatus() == BillStatus.COMPLETED) {
@@ -223,7 +298,12 @@ public class BillServiceImpl {
     public BillResponse updateBill(Long id, BillRequest request) {
         Bill bill = findBillById(id);
 
-        if (request.getCustomerName() != null && !request.getCustomerName().isBlank()) {
+        if (request.getCustomerId() != null) {
+            Customer customer = customerRepository.findById(request.getCustomerId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found"));
+            bill.setCustomer(customer);
+            bill.setCustomerName(customer.getName());
+        } else if (request.getCustomerName() != null && !request.getCustomerName().isBlank()) {
             bill.setCustomerName(request.getCustomerName());
         }
         if (request.getArea() != null) {
@@ -307,6 +387,7 @@ public class BillServiceImpl {
                 .area(bill.getArea())
                 .balanceRemaining(bill.getBalanceRemaining())
                 .customerName(bill.getCustomerName())
+                .customerId(bill.getCustomer() != null ? bill.getCustomer().getId() : null)
                 .totalAmount(bill.getTotalAmount())
                 .fullyPaid(bill.getFullyPaid())
                 .status(bill.getStatus())

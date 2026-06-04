@@ -323,3 +323,101 @@
     margin-bottom: 16px;
   }
 }
+
+// ── Bill Checklist cards ──────────────────────────────────────────
+.checklist-section { margin-bottom: 28px; }
+
+.checklist-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.cl-card {
+  flex: 1;
+  min-width: 160px;
+  max-width: 220px;
+  padding: 16px 18px !important;
+  border-radius: 12px !important;
+  border-left: 4px solid #90caf9;
+
+  &.cl-done    { border-left-color: #66bb6a; background: #f9fbe7; }
+  &.cl-pending { border-left-color: #ffa726; background: #fff8f0; }
+}
+
+.cl-item {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  text-transform: capitalize;
+  margin-bottom: 12px;
+}
+
+.cl-numbers {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cl-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.cl-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+  &.entered       { color: #2e7d32; }
+  &.balance-warn  { color: #e65100; }
+  &.balance-ok    { color: #2e7d32; }
+}
+
+.cl-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.cl-divider {
+  width: 1px;
+  height: 30px;
+  background: #e0e0e0;
+}
+
+.cl-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.cl-status {
+  font-weight: 600;
+  &.done    { color: #2e7d32; }
+  &.pending { color: #e65100; }
+}
+
+.cl-carry {
+  font-size: 11px;
+  color: #888;
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+
+.cl-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #aaa;
+  font-size: 13px;
+  padding: 12px 4px;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  a { color: #1565c0; text-decoration: none; font-weight: 600; &:hover { text-decoration: underline; } }
+}

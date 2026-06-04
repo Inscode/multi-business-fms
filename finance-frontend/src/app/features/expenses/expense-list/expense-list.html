@@ -47,6 +47,27 @@
     </div>
   </div>
 
+  <!-- Pending Review Banner — always visible regardless of date filter -->
+  <div class="pending-banner" *ngIf="isOwnerOrAdmin && pendingReviewExpenses.length > 0">
+    <div class="pending-banner-title">
+      <mat-icon>pending_actions</mat-icon>
+      {{ pendingReviewExpenses.length }} expense(s) pending your review
+    </div>
+    <div class="pending-banner-rows">
+      <div class="pending-row" *ngFor="let e of pendingReviewExpenses">
+        <span class="pr-cat">{{ categoryLabel(e.category) }}</span>
+        <span class="pr-biz">{{ e.business }}</span>
+        <span class="pr-desc" *ngIf="e.description">{{ e.description }}</span>
+        <span class="pr-amt">Rs {{ e.amount | number:'1.2-2' }}</span>
+        <span class="pr-date">{{ e.date }}</span>
+        <span class="pr-by">by {{ e.enteredByName }}</span>
+        <button mat-stroked-button color="primary" (click)="review(e)">
+          <mat-icon>check</mat-icon> Review
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="filters-bar">
     <div class="date-filters">
       <button mat-stroked-button (click)="setToday()">

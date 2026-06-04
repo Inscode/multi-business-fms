@@ -60,6 +60,22 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findByBusinessAndStatusOrderByCreatedAtDesc(BusinessType business, BillStatus status);
     List<Bill> findByStatusInOrderByCreatedAtDesc(List<BillStatus> statuses);
 
+    // Role-scoped: only return bills whose business is in the allowed set
+    List<Bill> findByBusinessInOrderByCreatedAtDesc(List<BusinessType> businesses);
+    List<Bill> findByBusinessInAndStatusOrderByCreatedAtDesc(List<BusinessType> businesses, BillStatus status);
+
+    // Shop accountant: RETAIL_SHOP bills + any bill currently at the shop (status filter)
+    @Query("SELECT b FROM Bill b WHERE b.business = 'RETAIL_SHOP' " +
+           "OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED') " +
+           "ORDER BY b.createdAt DESC")
+    List<Bill> findShopAccountantBills();
+
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' " +
+           "OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) " +
+           "AND b.status = :status " +
+           "ORDER BY b.createdAt DESC")
+    List<Bill> findShopAccountantBillsByStatus(@Param("status") BillStatus status);
+
     // SYSTEM bills not yet assigned to any SummaryLoadBill, and not already a linking parent
     @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.billSource = 'SYSTEM' " +
            "AND b NOT IN (SELECT sb FROM SummaryLoadBill slb JOIN slb.systemBills sb) " +

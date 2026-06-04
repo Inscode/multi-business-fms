@@ -100,12 +100,15 @@
       </div>
     </div>
 
-    <!-- Amount input -->
+    <!-- Amount input — read-only for ACC/MAIN_ACC -->
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
       <mat-label>Amount Collected</mat-label>
       <span matPrefix>Rs&nbsp;</span>
-      <input matInput type="number" [(ngModel)]="amount" min="0.01" />
+      <input matInput type="number" [(ngModel)]="amount" min="0.01" [readonly]="!canEditAmount" />
     </mat-form-field>
+    <p class="amount-locked-note" *ngIf="!canEditAmount">
+      <mat-icon>lock</mat-icon> Amount is set to the outstanding balance and cannot be changed.
+    </p>
 
     <!-- Payment type — big tap buttons -->
     <p class="type-label">Payment Type</p>

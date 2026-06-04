@@ -56,6 +56,13 @@
         Request Edit
       </button>
 
+      <button mat-stroked-button color="warn"
+              *ngIf="isAdmin && bill?.status !== 'CANCELLED' && bill?.status !== 'COMPLETED'"
+              (click)="cancelBill()">
+        <mat-icon>cancel</mat-icon>
+        Cancel Bill
+      </button>
+
       <button mat-stroked-button color="warn" *ngIf="isAdmin" (click)="deleteBill()">
         <mat-icon>delete</mat-icon>
         Delete Bill

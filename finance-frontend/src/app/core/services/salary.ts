@@ -100,6 +100,10 @@ export class SalaryService {
     return this.http.patch<SalaryPaymentResponse>(`${this.apiUrl}/payments/${id}/reject`, { reason });
   }
 
+  getPendingApprovalPayments(): Observable<SalaryPaymentResponse[]> {
+    return this.http.get<SalaryPaymentResponse[]>(`${this.apiUrl}/payments/pending-approval`);
+  }
+
   getPaymentsByDateRange(from: string, to: string): Observable<SalaryPaymentResponse[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<SalaryPaymentResponse[]>(`${this.apiUrl}/payments/by-date-range`, { params });

@@ -9,12 +9,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { Dashboard, OwnerDashboardData } from '../../../core/services/dashboard';
 import { Auth } from '../../../core/services/auth';
+import { BillChecklistService, ChecklistVerifyRow } from '../../../core/services/bill-checklist';
 import { Payment } from '../../../core/services/payment';
 import { MatDialog } from '@angular/material/dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { firstValueFrom } from 'rxjs';
 import { SelectionModel } from '@angular/cdk/collections';
 import { CdkTableModule } from '@angular/cdk/table';
+import { RouterLink } from '@angular/router';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
@@ -32,6 +34,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     LowerCasePipe,
     MatCheckboxModule,
     CdkTableModule,
+    RouterLink,
   ],
   templateUrl: './owner-dashboard.html',
   styleUrl: './owner-dashboard.scss',
@@ -41,6 +44,9 @@ export class OwnerDashboard implements OnInit {
   data: OwnerDashboardData | null = null;
   loading = true;
   error = false;
+
+  checklistRows: ChecklistVerifyRow[] = [];
+  checklistLoading = false;
 
   selectedBusiness = 'RAINCO';
   businesses = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
@@ -62,10 +68,27 @@ export class OwnerDashboard implements OnInit {
     public auth: Auth,
     private cdr: ChangeDetectorRef,
     private paymentService: Payment,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private checklistService: BillChecklistService,
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.loadChecklist();
+  }
+
+  loadChecklist(): void {
+    this.checklistLoading = true;
+    const today = new Date().toISOString().split('T')[0];
+    this.checklistService.getVerifyView(today).subscribe({
+      next: (rows) => {
+        this.checklistRows = rows;
+        this.checklistLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.checklistLoading = false; this.cdr.detectChanges(); },
+    });
+  }
 
   onBusinessChange(): void { this.load(); }
 

@@ -53,4 +53,18 @@ public class BillReminderController {
     public ResponseEntity<BillReminderResponse> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(reminderService.cancel(id));
     }
+
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BillReminderResponse>> getAll() {
+        return ResponseEntity.ok(reminderService.getAll());
+    }
+
+    @PatchMapping("/{id}/update")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillReminderResponse> update(
+            @PathVariable Long id,
+            @RequestBody BillReminderRequest request) {
+        return ResponseEntity.ok(reminderService.update(id, request));
+    }
 }
