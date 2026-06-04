@@ -102,6 +102,12 @@ public class SalaryController {
                 LocalDate.parse(from), LocalDate.parse(to)));
     }
 
+    @GetMapping("/payments/pending-approval")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<SalaryPaymentResponse>> getPendingApproval() {
+        return ResponseEntity.ok(salaryService.getPendingApprovalPayments());
+    }
+
     @GetMapping("/payments/pending-count")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     public ResponseEntity<Map<String, Long>> getPendingCount() {

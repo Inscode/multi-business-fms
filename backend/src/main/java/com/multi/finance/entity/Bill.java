@@ -48,6 +48,10 @@ public class Bill {
     @Column(name = "customer_name", nullable = false)
     private String customerName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 

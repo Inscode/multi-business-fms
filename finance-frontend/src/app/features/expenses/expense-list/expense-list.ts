@@ -38,6 +38,7 @@ import { ExpenseResponse, ExpenseService } from '../../../core/services/expense'
 })
 export class ExpenseList implements OnInit {
   expenses: ExpenseResponse[] = [];
+  pendingReviewExpenses: ExpenseResponse[] = [];
   loading = true;
   error = false;
 
@@ -55,7 +56,7 @@ export class ExpenseList implements OnInit {
   filterTo: Date | null = null;
 
   businesses = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
-  categories = ['FUEL', 'TEA', 'PARKING', 'REPAIR', 'PETTY_CASH', 'OTHER'];
+  categories = ['FUEL', 'TEA', 'PARKING', 'REPAIR', 'PETTY_CASH', 'DRIVER_SALARY', 'OTHER'];
 
   get isOwnerOrAdmin(): boolean {
     const r = this.auth.getRole();
@@ -146,6 +147,15 @@ export class ExpenseList implements OnInit {
   load(): void {
     this.loading = true;
     this.error = false;
+
+    // Always load pending review items regardless of date filter
+    if (this.isOwnerOrAdmin) {
+      this.expenseService.getAll({ status: 'PENDING_REVIEW' }).subscribe({
+        next: (e) => { this.pendingReviewExpenses = e; this.cdr.detectChanges(); },
+        error: () => { this.pendingReviewExpenses = []; },
+      });
+    }
+
     this.expenseService.getAll({
       business: this.filterBusiness || undefined,
       category: this.filterCategory || undefined,
@@ -169,7 +179,8 @@ export class ExpenseList implements OnInit {
   categoryLabel(cat: string): string {
     const map: Record<string, string> = {
       FUEL: 'Fuel', TEA: 'Tea', PARKING: 'Parking',
-      REPAIR: 'Repair', PETTY_CASH: 'Petty Cash', OTHER: 'Other',
+      REPAIR: 'Repair', PETTY_CASH: 'Petty Cash',
+      DRIVER_SALARY: 'Driver Salary', OTHER: 'Other',
     };
     return map[cat] ?? cat;
   }

@@ -22,6 +22,7 @@ public class BillResponse {
     private BillType billType;
     private BillSource billSource;
     private String customerName;
+    private Long customerId;
     private String area;
     private BigDecimal totalAmount;
     private BigDecimal amountPaid;

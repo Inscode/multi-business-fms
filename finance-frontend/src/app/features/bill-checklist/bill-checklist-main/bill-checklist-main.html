@@ -1,0 +1,215 @@
+<div class="page">
+  <h2 class="page-title">Bill Checklist</h2>
+
+  <mat-tab-group animationDuration="150ms" (selectedIndexChange)="onTabChange($event)">
+
+    <!-- ══ TAB 1: ADD NOTES ══ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>add_circle_outline</mat-icon>&nbsp;Add Notes
+      </ng-template>
+
+      <div class="tab-body">
+
+        <!-- Quick-add form -->
+        <div class="add-card">
+          <div class="add-row">
+            <mat-form-field appearance="outline" class="field-date">
+              <mat-label>Date</mat-label>
+              <input matInput type="date" [(ngModel)]="addDate">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="field-item">
+              <mat-label>Item</mat-label>
+              <mat-select [(ngModel)]="addItem">
+                <mat-option *ngFor="let opt of itemOptions" [value]="opt">{{ opt }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="field-count">
+              <mat-label>Count</mat-label>
+              <input matInput type="number" [(ngModel)]="addCount" min="1"
+                     placeholder="0" (keyup.enter)="submitNote()">
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="field-note">
+            <mat-label>Note (optional)</mat-label>
+            <input matInput [(ngModel)]="addNote"
+                   placeholder="e.g. from Ahmed, balance tomorrow"
+                   (keyup.enter)="submitNote()">
+          </mat-form-field>
+
+          <div class="add-actions">
+            <div class="add-error" *ngIf="addError">{{ addError }}</div>
+            <button mat-flat-button color="primary"
+                    [disabled]="!addItem.trim() || !addCount || addCount <= 0 || adding"
+                    (click)="submitNote()">
+              <mat-spinner diameter="18" *ngIf="adding"></mat-spinner>
+              <mat-icon *ngIf="!adding">add</mat-icon>
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Notes list for selected date -->
+        <div class="list-header">
+          <span class="list-title">Entries for</span>
+          <mat-form-field appearance="outline" class="field-date-sm">
+            <input matInput type="date" [(ngModel)]="notesDate" (change)="loadNotes()">
+          </mat-form-field>
+        </div>
+
+        <!-- Item summary -->
+        <div class="item-summary" *ngIf="itemSummary.length > 0">
+          <span class="summary-chip" *ngFor="let s of itemSummary">
+            {{ s.item }} <strong>×{{ s.total }}</strong>
+          </span>
+        </div>
+
+        <div class="empty-state" *ngIf="notes.length === 0">
+          <mat-icon>inbox</mat-icon>
+          <p>No entries for this date</p>
+        </div>
+
+        <div class="notes-list" *ngIf="notes.length > 0">
+          <div class="note-row" *ngFor="let n of notes">
+            <div class="note-left">
+              <span class="note-item">{{ n.itemName }}</span>
+              <span class="note-count">×{{ n.count }}</span>
+              <span class="note-memo" *ngIf="n.note">"{{ n.note }}"</span>
+            </div>
+            <div class="note-right">
+              <span class="note-time">{{ n.createdAt | date:'h:mm a' }}</span>
+              <button mat-icon-button class="delete-btn" (click)="deleteNote(n.id)"
+                      matTooltip="Delete">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </mat-tab>
+
+    <!-- ══ TAB 2: VERIFY & CLOSE ══ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>checklist</mat-icon>&nbsp;Verify &amp; Close
+        <span class="tab-badge" *ngIf="totalBalance > 0">{{ totalBalance }}</span>
+      </ng-template>
+
+      <div class="tab-body">
+
+        <div class="verify-header">
+          <mat-form-field appearance="outline" class="field-date">
+            <mat-label>Date</mat-label>
+            <input matInput type="date" [(ngModel)]="verifyDate" (change)="loadVerify()">
+          </mat-form-field>
+          <button mat-icon-button (click)="loadVerify()" matTooltip="Refresh">
+            <mat-icon>refresh</mat-icon>
+          </button>
+        </div>
+
+        <div class="loading-wrap" *ngIf="verifyLoading">
+          <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+        </div>
+
+        <ng-container *ngIf="!verifyLoading">
+
+          <div class="empty-state" *ngIf="verifyRows.length === 0">
+            <mat-icon>check_circle</mat-icon>
+            <p>Nothing to verify for this date</p>
+          </div>
+
+          <div *ngIf="verifyRows.length > 0">
+
+            <div class="success-banner" *ngIf="saveSuccess">
+              <mat-icon>check_circle</mat-icon> Saved — balances carried forward automatically.
+            </div>
+
+            <div class="verify-table-wrap">
+              <table class="verify-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th class="col-center">Carry Forward</th>
+                    <th class="col-center">Added Today</th>
+                    <th class="col-center">Total</th>
+                    <th class="col-center">Mark Entered</th>
+                    <th class="col-center">Balance</th>
+                    <th class="col-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of verifyRows"
+                      [class.row-done]="rowBalance(row) === 0"
+                      [class.row-pending]="rowBalance(row) > 0">
+                    <td class="item-cell">{{ row.itemName }}</td>
+                    <td class="col-center">
+                      <span *ngIf="row.carryForward > 0" class="carry-chip">
+                        +{{ row.carryForward }}
+                        <span class="carry-from" *ngIf="row.carryFromDate">
+                          from {{ row.carryFromDate | date:'MMM d' }}
+                        </span>
+                      </span>
+                      <span *ngIf="row.carryForward === 0" class="muted">—</span>
+                    </td>
+                    <td class="col-center">
+                      <span *ngIf="row.todayNotes > 0">+{{ row.todayNotes }}</span>
+                      <span *ngIf="row.todayNotes === 0" class="muted">—</span>
+                    </td>
+                    <td class="col-center total-cell">{{ row.total }}</td>
+                    <td class="col-center">
+                      <input class="entered-input"
+                             type="number"
+                             [(ngModel)]="row.draft"
+                             min="0"
+                             [max]="row.total"
+                             placeholder="0">
+                    </td>
+                    <td class="col-center">
+                      <span class="balance-val" [class.zero]="rowBalance(row) === 0">
+                        {{ rowBalance(row) }}
+                      </span>
+                    </td>
+                    <td class="col-center">
+                      <span class="status-chip done"    *ngIf="rowBalance(row) === 0">✓ Done</span>
+                      <span class="status-chip pending" *ngIf="rowBalance(row) > 0">⏳ Carry</span>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td><strong>Total Balance</strong></td>
+                    <td colspan="5"></td>
+                    <td class="col-center">
+                      <strong class="balance-val" [class.zero]="totalBalance === 0">
+                        {{ totalBalance }}
+                      </strong>
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="save-row">
+              <span class="save-hint">
+                Remaining balance will automatically carry forward to the next day.
+              </span>
+              <button mat-flat-button color="primary" [disabled]="saving" (click)="saveClosing()">
+                <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+                <mat-icon *ngIf="!saving">save</mat-icon>
+                Save &amp; Carry Forward
+              </button>
+            </div>
+
+          </div>
+        </ng-container>
+
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+</div>

@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Auth } from '../../../../core/services/auth';
 import { Bill, BillResponse } from '../../../../core/services/bill';
 import { CollectionNoteService } from '../../../../core/services/collection-note';
 
@@ -43,9 +44,15 @@ export class OwnerCollect implements OnInit {
   successMsg = '';
   errorMsg = '';
 
+  get canEditAmount(): boolean {
+    const r = this.auth.getRole();
+    return r === 'ADMIN' || r === 'OWNER';
+  }
+
   constructor(
     private billService: Bill,
     private collectionService: CollectionNoteService,
+    private auth: Auth,
     private cdr: ChangeDetectorRef
   ) {}
 

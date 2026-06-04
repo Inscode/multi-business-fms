@@ -31,6 +31,7 @@ import { WorkerAdvanceBonusResponse, WorkerFinanceService, WorkerTabPurchaseResp
 })
 export class SalaryReview implements OnInit {
   payments: SalaryPaymentResponse[] = [];
+  pendingApprovals: SalaryPaymentResponse[] = [];
   tabPurchases: WorkerTabPurchaseResponse[] = [];
   advanceBonuses: WorkerAdvanceBonusResponse[] = [];
   loading = false;
@@ -87,14 +88,30 @@ export class SalaryReview implements OnInit {
     if (!this.fromDate || !this.toDate) return;
     this.loading = true;
     this.error = false;
+
+    let rangePayments: SalaryPaymentResponse[] = [];
+    let pending: SalaryPaymentResponse[] = [];
     let loaded = 0;
+
     const done = (ok: boolean) => {
       if (!ok) this.error = true;
-      if (++loaded === 3) { this.loading = false; this.cdr.detectChanges(); }
+      if (++loaded === 4) {
+        // Merge: date-range results + pending approvals not in range
+        const ids = new Set(rangePayments.map(x => x.id));
+        this.pendingApprovals = pending;
+        this.payments = [...rangePayments, ...pending.filter(x => !ids.has(x.id))];
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
     };
 
+    this.salaryService.getPendingApprovalPayments().subscribe({
+      next: (p) => { pending = p; done(true); },
+      error: () => done(true),
+    });
+
     this.salaryService.getPaymentsByDateRange(this.fromDate, this.toDate).subscribe({
-      next: (p) => { this.payments = p; done(true); },
+      next: (p) => { rangePayments = p; done(true); },
       error: () => done(false),
     });
 

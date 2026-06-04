@@ -35,4 +35,16 @@ export class CollectionNoteService {
   getPendingNotes(): Observable<CollectionNoteResponse[]> {
     return this.http.get<CollectionNoteResponse[]>(`${this.apiUrl}/pending`);
   }
+
+  getAllNotes(): Observable<CollectionNoteResponse[]> {
+    return this.http.get<CollectionNoteResponse[]>(`${this.apiUrl}/all`);
+  }
+
+  updateNote(id: number, payload: { amount: number; paymentType: 'CASH' | 'CHEQUE'; notes?: string }): Observable<CollectionNoteResponse> {
+    return this.http.patch<CollectionNoteResponse>(`${this.apiUrl}/${id}`, payload);
+  }
+
+  deleteNote(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
 }

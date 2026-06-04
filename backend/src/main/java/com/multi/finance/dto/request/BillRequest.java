@@ -33,6 +33,8 @@ public class BillRequest {
     @NotBlank(message = "Customer name is required")
     private String customerName;
 
+    private Long customerId;
+
     @NotNull(message = "Amount is required")
     @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
     private BigDecimal totalAmount;

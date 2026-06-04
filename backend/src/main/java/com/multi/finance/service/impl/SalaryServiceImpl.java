@@ -92,7 +92,7 @@ public class SalaryServiceImpl {
         BigDecimal totalAfter  = alreadyPaid.add(req.getAmount());
         boolean overSalary     = totalAfter.compareTo(recipient.getMonthlySalary()) > 0;
 
-        SalaryPaymentStatus status = req.getAmount().compareTo(APPROVAL_THRESHOLD) > 0
+        SalaryPaymentStatus status = req.getAmount().compareTo(APPROVAL_THRESHOLD) >= 0
                 ? SalaryPaymentStatus.PENDING_APPROVAL
                 : SalaryPaymentStatus.RECORDED;
 
@@ -212,6 +212,16 @@ public class SalaryServiceImpl {
                 toPaymentResponse(p, paidBeforeMap.getOrDefault(p.getId(), BigDecimal.ZERO),
                         p.getRecipient().getMonthlySalary())
         ).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SalaryPaymentResponse> getPendingApprovalPayments() {
+        return paymentRepository.findByStatusOrderByCreatedAtDesc(SalaryPaymentStatus.PENDING_APPROVAL)
+                .stream()
+                .map(p -> toPaymentResponse(p,
+                        paymentRepository.sumPaidForMonth(p.getRecipient().getId(), p.getMonth()),
+                        p.getRecipient().getMonthlySalary()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
