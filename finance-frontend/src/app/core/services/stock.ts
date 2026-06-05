@@ -75,7 +75,7 @@ export interface StockReductionStatus {
   customerName: string;
   amount: number;
   billDate: string;
-  reductionStatus: 'NOT_REDUCED' | 'SUMMARY_PENDING' | 'SUMMARY_APPROVED' | 'INDIVIDUALLY_REDUCED' | 'LINKED';
+  reductionStatus: 'NOT_REDUCED' | 'SUMMARY_PENDING' | 'SUMMARY_APPROVED' | 'INDIVIDUALLY_REDUCED' | 'LINKED' | 'WILL_LINK';
   totalQty?: number;
   summaryLoadBillId?: number;
   enteredByName: string;
@@ -202,6 +202,19 @@ export class StockService {
   // Bills not yet reduced (for Stock Item Entry)
   getBillsNotYetReduced(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/bills/not-reduced`);
+  }
+
+  // All unlinked draft/manual bills (pending linking dashboard)
+  getUnlinkedDashboard(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/bills/unlinked-dashboard`);
+  }
+
+  // Create a SYSTEM bill flagged as willBeLinked=true
+  createLinkingSystemBill(req: {
+    billNumber: string; customerName: string;
+    amount: number; billDate: string; notes?: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/bills/linking-system-bill`, req);
   }
 
   // Stock reduction status for all RAINCO bills

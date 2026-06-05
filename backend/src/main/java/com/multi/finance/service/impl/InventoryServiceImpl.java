@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,19 +36,29 @@ public class InventoryServiceImpl {
 
     @Transactional(readOnly = true)
     public List<ProductStockBalanceResponse> getRaincoStockBalances() {
-        List<ReturnProduct> products = productRepository.findByBusiness(BusinessType.RAINCO);
-        return products.stream().map(p -> {
-            Long available = movementRepository.getAvailableBalance(p);
-            Long damage    = movementRepository.getDamageBalance(p);
-            return ProductStockBalanceResponse.builder()
-                    .productId(p.getId())
-                    .productName(p.getName())
-                    .unitPrice(p.getUnitPrice())
-                    .active(p.getActive())
-                    .availableQty(available != null ? available : 0L)
-                    .damageQty(damage != null ? damage : 0L)
-                    .build();
-        }).collect(Collectors.toList());
+        // Single aggregate query — avoids N+1 (2 queries per product previously)
+        List<Object[]> rows = movementRepository.getAggregatedBalancesForRainco();
+        Map<Long, long[]> balanceMap = new HashMap<>();
+        for (Object[] row : rows) {
+            Long productId  = ((Number) row[0]).longValue();
+            long available  = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            long damage     = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            balanceMap.put(productId, new long[]{available, damage});
+        }
+
+        return productRepository.findByBusiness(BusinessType.RAINCO).stream()
+                .map(p -> {
+                    long[] bal = balanceMap.getOrDefault(p.getId(), new long[]{0L, 0L});
+                    return ProductStockBalanceResponse.builder()
+                            .productId(p.getId())
+                            .productName(p.getName())
+                            .unitPrice(p.getUnitPrice())
+                            .active(p.getActive())
+                            .availableQty(bal[0])
+                            .damageQty(bal[1])
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     @Transactional

@@ -87,6 +87,23 @@ public class BillReminderServiceImpl {
         return toResponse(reminderRepository.save(reminder));
     }
 
+    @Transactional(readOnly = true)
+    public List<BillReminderResponse> getAll() {
+        return reminderRepository.findAll().stream()
+                .sorted((a, b) -> b.getReminderDate().compareTo(a.getReminderDate()))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public BillReminderResponse update(Long id, BillReminderRequest request) {
+        BillReminder reminder = getById(id);
+        reminder.setReminderDate(request.getReminderDate());
+        reminder.setPeriod(request.getPeriod());
+        reminder.setNote(request.getNote());
+        return toResponse(reminderRepository.save(reminder));
+    }
+
     private BillReminder getById(Long id) {
         return reminderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Reminder not found"));

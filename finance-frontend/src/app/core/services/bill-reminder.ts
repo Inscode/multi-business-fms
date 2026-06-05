@@ -54,4 +54,12 @@ export class BillReminderService {
   cancel(id: number): Observable<BillReminderResponse> {
     return this.http.patch<BillReminderResponse>(`${this.apiUrl}/${id}/cancel`, {});
   }
+
+  getAllReminders(): Observable<BillReminderResponse[]> {
+    return this.http.get<BillReminderResponse[]>(`${this.apiUrl}/all`);
+  }
+
+  updateReminder(id: number, payload: { reminderDate: string; period: string; note?: string }): Observable<BillReminderResponse> {
+    return this.http.patch<BillReminderResponse>(`${this.apiUrl}/${id}/update`, payload);
+  }
 }

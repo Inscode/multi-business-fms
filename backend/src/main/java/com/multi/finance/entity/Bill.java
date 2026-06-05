@@ -48,6 +48,10 @@ public class Bill {
     @Column(name = "customer_name", nullable = false)
     private String customerName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
@@ -86,6 +90,15 @@ public class Bill {
 
     @Column(name = "fully_paid", nullable = false)
     private Boolean fullyPaid;
+
+    /**
+     * True for SYSTEM bills that will be reconciled via End-of-Month linking to DRAFT/MANUAL bills.
+     * When true: excluded from Summary Load + Stock Item Entry; only appears in Linking tab.
+     * Stock is covered by the linked children — no separate stock movement needed.
+     */
+    @Column(name = "will_be_linked", nullable = false)
+    @Builder.Default
+    private Boolean willBeLinked = false;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

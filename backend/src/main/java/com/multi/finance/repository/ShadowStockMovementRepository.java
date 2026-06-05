@@ -39,4 +39,17 @@ public interface ShadowStockMovementRepository extends JpaRepository<ShadowStock
            "FROM ShadowStockMovement ssm " +
            "WHERE ssm.product = :product AND ssm.cancelled = false")
     Long getDamageBalance(@Param("product") ReturnProduct product);
+
+    /**
+     * Single aggregate query returning [productId, availableQty, damageQty] for ALL RAINCO products.
+     * Replaces N+1 calls to getAvailableBalance + getDamageBalance per product.
+     */
+    @Query("SELECT p.id, " +
+           "COALESCE(SUM(CASE WHEN m.cancelled = false AND m.type IN ('STOCK_IN','SALABLE_RETURN') THEN m.quantity " +
+           "                  WHEN m.cancelled = false AND m.type = 'BILL_OUT' THEN -m.quantity ELSE 0 END), 0), " +
+           "COALESCE(SUM(CASE WHEN m.cancelled = false AND m.type = 'DAMAGE_IN' THEN m.quantity " +
+           "                  WHEN m.cancelled = false AND m.type = 'DAMAGE_TO_COMPANY' THEN -m.quantity ELSE 0 END), 0) " +
+           "FROM ReturnProduct p LEFT JOIN ShadowStockMovement m ON m.product = p " +
+           "WHERE p.business = 'RAINCO' GROUP BY p.id")
+    List<Object[]> getAggregatedBalancesForRainco();
 }

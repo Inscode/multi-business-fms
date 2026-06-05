@@ -43,7 +43,7 @@ export class EnterSalary implements OnInit {
   errorMsg = '';
   successMsg = '';
 
-  get needsApproval(): boolean { return this.amount > 5000; }
+  get needsApproval(): boolean { return this.amount >= 5000; }
 
   get totalTabDeductions(): number {
     return this.paidTabPurchases.reduce((s, t) => s + t.totalAmount, 0);

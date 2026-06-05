@@ -1,5 +1,5 @@
 ﻿import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
@@ -9,10 +9,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Router } from '@angular/router';
 import { Bill } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
+import { CustomerService } from '../../../core/services/customer';
 
 @Component({
   selector: 'app-create-bill',
@@ -25,7 +27,9 @@ import { Auth } from '../../../core/services/auth';
     MatDatepickerModule,
     MatNativeDateModule,
     MatProgressSpinnerModule,
-    MatIconModule, CommonModule],
+    MatIconModule,
+    MatAutocompleteModule,
+    CommonModule],
   templateUrl: './create-bill.html',
   styleUrl: './create-bill.scss',
 })
@@ -34,6 +38,9 @@ export class CreateBill implements OnInit{
   loading = false;
   errorMsg = '';
   workers: WorkerResponse[] = [];
+  allCustomers: { id: number; name: string; area?: string }[] = [];
+  filteredCustomers: { id: number; name: string; area?: string }[] = [];
+  selectedCustomerId: number | null = null;
 
 
 
@@ -41,13 +48,6 @@ export class CreateBill implements OnInit{
   divisions   = ['STORE', 'SHOP'];
   billTypes   = ['CASH', 'CREDIT'];
   billSources = ['SYSTEM', 'MANUAL', 'DRAFT'];
-  areas = [
-  'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
-  'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
-  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
-  'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
-  'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
-];
 
   get isDraft(): boolean {
     return this.form.get('billSource')?.value === 'DRAFT';
@@ -65,6 +65,7 @@ export class CreateBill implements OnInit{
     private fb: FormBuilder,
     private billService: Bill,
     private workerService: Worker,
+    private customerService: CustomerService,
     private router: Router,
     private auth: Auth
   ) {
@@ -95,8 +96,31 @@ export class CreateBill implements OnInit{
   }
 
 
+  filterCustomers(value: string): void {
+    const q = (value ?? '').toLowerCase();
+    this.filteredCustomers = q.length === 0
+      ? this.allCustomers.slice(0, 50)
+      : this.allCustomers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 50);
+  }
+
+  onCustomerSelected(name: string): void {
+    const match = this.allCustomers.find(c => c.name === name);
+    this.selectedCustomerId = match?.id ?? null;
+    // Auto-fill area from customer profile if available
+    if (match?.area) {
+      this.form.get('area')?.setValue(match.area);
+    }
+  }
+
+  onCustomerInput(): void {
+    // Clear ID and area when user types freely (not selecting from list)
+    this.selectedCustomerId = null;
+    this.form.get('area')?.setValue(null);
+  }
+
   ngOnInit(): void {
     this.loadWorkers();
+    this.loadCustomers();
 
     if (this.isEditing) {
       const b = this.editingBill;
@@ -131,6 +155,18 @@ export class CreateBill implements OnInit{
     });
   }
 
+  private loadCustomers(): void {
+    this.customerService.getActive().subscribe({
+      next: (list) => {
+        this.allCustomers = list.map(c => ({ id: c.id, name: c.name, area: c.area }));
+        this.filteredCustomers = this.allCustomers.slice(0, 50);
+        const ctrl = this.form.get('customerName');
+        ctrl?.valueChanges.subscribe(v => this.filterCustomers(v ?? ''));
+      },
+      error: () => {}
+    });
+  }
+
   private watchBillSource(): void {
     this.form.get('billSource')?.valueChanges.subscribe(source => {
       const billNumberControl = this.form.get('billNumber');
@@ -153,8 +189,9 @@ export class CreateBill implements OnInit{
     this.loading = true;
     this.errorMsg = '';
 
-    const payload = { ...this.form.getRawValue() };
+    const payload = { ...this.form.getRawValue(), customerId: this.selectedCustomerId };
     if (!payload.workerId) delete payload.workerId;
+    if (!payload.customerId) delete payload.customerId;
 
     if (this.isEditing) {
       this.billService.updateBill(this.editingBill.id, payload).subscribe({

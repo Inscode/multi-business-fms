@@ -7,6 +7,7 @@ import com.multi.finance.dto.response.BillReturnItemResponse;
 import com.multi.finance.dto.response.BillReturnResponse;
 import com.multi.finance.entity.*;
 import com.multi.finance.enums.ReturnStatus;
+import com.multi.finance.enums.ReturnType;
 import com.multi.finance.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,7 @@ public class BillReturnServiceImpl {
     private final BillRepository billRepository;
     private final ReturnProductRepository returnProductRepository;
     private final WorkerRepository workerRepository;
+    private final ShadowStockMovementRepository shadowStockMovementRepository;
 
     @Transactional
     public BillReturnResponse create(Long billId, CreateBillReturnRequest req) {
@@ -186,12 +189,38 @@ public class BillReturnServiceImpl {
         bill.setUpdatedAt(LocalDateTime.now());
         billRepository.save(bill);
 
+        User reviewer = getCurrentUser();
         ret.setStatus(ReturnStatus.APPROVED);
         ret.setApprovedWith(req.getApproveWith().toUpperCase());
         ret.setApprovedAmount(approvedAmount);
-        ret.setReviewedBy(getCurrentUser());
+        ret.setReviewedBy(reviewer);
         ret.setReviewedAt(LocalDateTime.now());
-        return toResponse(billReturnRepository.save(ret));
+        BillReturn saved = billReturnRepository.save(ret);
+
+        // Create shadow stock movements for products that have a quantity returned
+        ShadowStockMovement.MovementType movementType = (ret.getReturnType() == ReturnType.DAMAGE)
+                ? ShadowStockMovement.MovementType.DAMAGE_IN
+                : ShadowStockMovement.MovementType.SALABLE_RETURN;
+
+        for (BillReturnItem item : ret.getItems()) {
+            int qty = item.getQuantityReturned() != null ? item.getQuantityReturned() : 0;
+            if (qty > 0 && item.getProduct() != null) {
+                ShadowStockMovement movement = ShadowStockMovement.builder()
+                        .product(item.getProduct())
+                        .type(movementType)
+                        .quantity((long) qty)
+                        .bill(ret.getBill())
+                        .invoiceNumber("RET-" + saved.getId())
+                        .movementDate(LocalDate.now())
+                        .enteredBy(reviewer)
+                        .cancelled(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                shadowStockMovementRepository.save(movement);
+            }
+        }
+
+        return toResponse(saved);
     }
 
     @Transactional

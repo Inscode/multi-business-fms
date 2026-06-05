@@ -38,13 +38,9 @@
         <mat-icon>badge</mat-icon>
         <span *ngIf="!collapsed">Staff</span>
       </a>
-      <a class="nav-item" routerLink="/admin/users" routerLinkActive="active" matRipple *ngIf="showUsers" (click)="isMobile && sidenav.close()">
-        <mat-icon>manage_accounts</mat-icon>
-        <span *ngIf="!collapsed">Users</span>
-      </a>
-      <a class="nav-item" routerLink="/admin/edit-requests" routerLinkActive="active" matRipple *ngIf="showEditRequests" (click)="isMobile && sidenav.close()">
-        <mat-icon>edit_note</mat-icon>
-        <span *ngIf="!collapsed">Edit Requests</span>
+      <a class="nav-item" routerLink="/admin" routerLinkActive="active" matRipple *ngIf="showUsers" (click)="isMobile && sidenav.close()">
+        <mat-icon>admin_panel_settings</mat-icon>
+        <span *ngIf="!collapsed">Admin</span>
         <span class="nav-badge" *ngIf="pendingEditRequests > 0 && !collapsed">{{ pendingEditRequests }}</span>
         <span class="nav-badge-dot" *ngIf="pendingEditRequests > 0 && collapsed"></span>
       </a>
@@ -70,11 +66,19 @@
         <mat-icon>inventory</mat-icon>
         <span *ngIf="!collapsed">Stock</span>
       </a>
+      <a class="nav-item" routerLink="/bill-checklist" routerLinkActive="active" matRipple *ngIf="showBillChecklist" (click)="isMobile && sidenav.close()">
+        <mat-icon>checklist</mat-icon>
+        <span *ngIf="!collapsed">Bill Checklist</span>
+      </a>
       <a class="nav-item" routerLink="/workers/finance" routerLinkActive="active" matRipple *ngIf="showWorkerFinance" (click)="isMobile && sidenav.close()">
         <mat-icon>group_work</mat-icon>
         <span *ngIf="!collapsed">Workers Finance</span>
         <span class="nav-badge" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && !collapsed">{{ pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin }}</span>
         <span class="nav-badge-dot" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && collapsed"></span>
+      </a>
+      <a class="nav-item" routerLink="/customers" routerLinkActive="active" matRipple *ngIf="showCustomers" (click)="isMobile && sidenav.close()">
+        <mat-icon>people</mat-icon>
+        <span *ngIf="!collapsed">Customers</span>
       </a>
     </nav>
 

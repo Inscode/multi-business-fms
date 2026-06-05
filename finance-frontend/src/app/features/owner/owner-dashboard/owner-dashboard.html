@@ -52,6 +52,55 @@
       </mat-card>
     </div>
 
+    <!-- ── Bill Checklist ── -->
+    <div class="checklist-section">
+      <div class="section-header">
+        <span class="section-title">Today's Bill Checklist</span>
+        <button mat-icon-button (click)="loadChecklist()" title="Refresh">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      </div>
+
+      <div class="cl-empty" *ngIf="!checklistLoading && checklistRows.length === 0">
+        <mat-icon>checklist</mat-icon>
+        No bills noted today — <a routerLink="/bill-checklist">Add notes</a>
+      </div>
+
+      <div class="checklist-cards">
+        <mat-card class="cl-card" *ngFor="let row of checklistRows"
+                  [class.cl-done]="row.balance === 0"
+                  [class.cl-pending]="row.balance > 0">
+          <div class="cl-item">{{ row.itemName }}</div>
+          <div class="cl-numbers">
+            <div class="cl-stat">
+              <span class="cl-val">{{ row.total }}</span>
+              <span class="cl-lbl">Total</span>
+            </div>
+            <div class="cl-divider"></div>
+            <div class="cl-stat">
+              <span class="cl-val entered">{{ row.markedEntered }}</span>
+              <span class="cl-lbl">Entered</span>
+            </div>
+            <div class="cl-divider"></div>
+            <div class="cl-stat">
+              <span class="cl-val" [class.balance-warn]="row.balance > 0"
+                                   [class.balance-ok]="row.balance === 0">
+                {{ row.balance }}
+              </span>
+              <span class="cl-lbl">Balance</span>
+            </div>
+          </div>
+          <div class="cl-footer">
+            <span class="cl-status done"    *ngIf="row.balance === 0">✓ All entered</span>
+            <span class="cl-status pending" *ngIf="row.balance > 0">{{ row.balance }} remaining</span>
+            <span class="cl-carry" *ngIf="row.carryForward > 0">
+              +{{ row.carryForward }} carried
+            </span>
+          </div>
+        </mat-card>
+      </div>
+    </div>
+
     <!-- payments awaiting confirmation -->
     <div class="section-header">
       <span class="section-title">Payments Awaiting Confirmation</span>

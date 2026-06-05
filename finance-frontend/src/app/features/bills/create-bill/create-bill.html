@@ -72,7 +72,14 @@
       <div class="form-row">
         <mat-form-field appearance="outline" class="field-full">
           <mat-label>Customer Name</mat-label>
-          <input matInput formControlName="customerName" />
+          <input matInput formControlName="customerName"
+                 [matAutocomplete]="customerAuto"
+                 placeholder="Type to search or enter new name"
+                 (input)="onCustomerInput()" />
+          <mat-autocomplete #customerAuto="matAutocomplete"
+                            (optionSelected)="onCustomerSelected($event.option.value)">
+            <mat-option *ngFor="let c of filteredCustomers" [value]="c.name">{{ c.name }}</mat-option>
+          </mat-autocomplete>
           <mat-error *ngIf="form.get('customerName')?.hasError('required')">Required</mat-error>
         </mat-form-field>
       </div>
@@ -80,9 +87,12 @@
       <div class="form-row">
         <mat-form-field appearance="outline" class="field-full">
           <mat-label>Area</mat-label>
-          <mat-select formControlName="area">
-            <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
-          </mat-select>
+          <input matInput formControlName="area" readonly
+                 [placeholder]="selectedCustomerId ? '' : 'Select a customer first'" />
+          <mat-icon matSuffix *ngIf="form.get('area')?.value" style="color:#4caf50">location_on</mat-icon>
+          <mat-hint *ngIf="!form.get('area')?.value && selectedCustomerId" style="color:#e65100">
+            No area on file for this customer
+          </mat-hint>
         </mat-form-field>
       </div>
 

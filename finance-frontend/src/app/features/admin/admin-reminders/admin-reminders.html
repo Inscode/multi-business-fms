@@ -1,0 +1,82 @@
+<div class="panel">
+  <div class="panel-header">
+    <h3>All Bill Reminders</h3>
+    <button mat-stroked-button (click)="load()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <p class="empty" *ngIf="!loading && reminders.length === 0">No reminders found.</p>
+
+  <div class="table-wrap" *ngIf="!loading && reminders.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Bill #</th>
+          <th class="r">Balance</th>
+          <th>Date</th>
+          <th>Period</th>
+          <th>Note</th>
+          <th>Status</th>
+          <th>Created By</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Edit row -->
+        <tr *ngIf="editingId !== null" class="edit-row">
+          <td colspan="3" class="muted edit-label">Editing reminder —</td>
+          <td>
+            <input type="date" [(ngModel)]="editDate" class="inline-input" />
+          </td>
+          <td>
+            <select [(ngModel)]="editPeriod" class="inline-select">
+              <option *ngFor="let p of periods" [value]="p">{{ p }}</option>
+            </select>
+          </td>
+          <td>
+            <input type="text" [(ngModel)]="editNote" placeholder="Note" class="inline-input wide" />
+          </td>
+          <td></td>
+          <td></td>
+          <td class="actions">
+            <button mat-icon-button color="primary" title="Save" (click)="saveEdit()">
+              <mat-icon>check</mat-icon>
+            </button>
+            <button mat-icon-button title="Cancel" (click)="cancelEdit()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </td>
+        </tr>
+
+        <tr *ngFor="let r of reminders" [class.cancelled]="r.status === 'CANCELLED'" [class.done]="r.status === 'DONE'">
+          <td class="bold">{{ r.customerName }}</td>
+          <td>{{ r.billNumber }}</td>
+          <td class="r muted">Rs {{ r.balanceRemaining | number:'1.0-0' }}</td>
+          <td>{{ r.reminderDate }}</td>
+          <td>{{ r.period }}</td>
+          <td class="muted small">{{ r.note }}</td>
+          <td>
+            <span class="status-chip" [class]="statusClass(r.status)">{{ r.status }}</span>
+          </td>
+          <td class="muted">{{ r.createdByName }}</td>
+          <td class="actions">
+            <ng-container *ngIf="r.status === 'PENDING'">
+              <button mat-icon-button title="Edit" (click)="startEdit(r)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button color="warn" title="Cancel reminder" (click)="cancel(r.id)">
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

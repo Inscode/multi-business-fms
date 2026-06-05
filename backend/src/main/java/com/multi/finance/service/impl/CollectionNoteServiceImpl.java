@@ -64,6 +64,31 @@ public class CollectionNoteServiceImpl {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<CollectionNoteResponse> getAll() {
+        return collectionNoteRepository.findAll().stream()
+                .sorted((a, b) -> b.getCollectedAt().compareTo(a.getCollectedAt()))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public CollectionNoteResponse update(Long id, CollectionNoteRequest request) {
+        CollectionNote note = collectionNoteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Collection note not found"));
+        note.setAmount(request.getAmount());
+        note.setPaymentType(request.getPaymentType());
+        if (request.getNotes() != null) note.setNotes(request.getNotes());
+        return toResponse(collectionNoteRepository.save(note));
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        collectionNoteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Collection note not found"));
+        collectionNoteRepository.deleteById(id);
+    }
+
     public CollectionNoteResponse toResponse(CollectionNote note) {
         return CollectionNoteResponse.builder()
                 .id(note.getId())

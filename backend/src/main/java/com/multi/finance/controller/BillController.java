@@ -31,7 +31,7 @@ public class BillController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getAllBills(
             @RequestParam(required = false) BusinessType business,
             @RequestParam(required = false) BillStatus status) {
@@ -85,6 +85,12 @@ public class BillController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BillResponse> markCompleted(@PathVariable Long id) {
         return ResponseEntity.ok(billService.markCompleted(id));
+    }
+
+    @PatchMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> cancelBill(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.cancelBill(id));
     }
 
     @GetMapping("/{id}")

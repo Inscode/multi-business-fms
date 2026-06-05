@@ -3,6 +3,30 @@
   width: 100%;
 }
 
+.pending-banner {
+  background: #fff8e1;
+  border: 1.5px solid #ffe082;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.pending-banner-title {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 700; font-size: 13px; color: #e65100; margin-bottom: 10px;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+.pending-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 6px 0; border-bottom: 1px dashed #ffe082; font-size: 13px;
+  &:last-child { border-bottom: none; }
+}
+.pr-cat  { font-weight: 600; color: #5d4037; }
+.pr-biz  { color: #888; font-size: 12px; }
+.pr-desc { flex: 1; color: #555; font-style: italic; }
+.pr-amt  { font-weight: 700; color: #1565c0; }
+.pr-date { color: #888; font-size: 12px; }
+.pr-by   { color: #888; font-size: 12px; }
+
 .page-header {
   display: flex;
   align-items: center;
