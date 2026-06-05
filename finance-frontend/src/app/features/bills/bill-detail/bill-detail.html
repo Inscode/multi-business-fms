@@ -381,6 +381,47 @@
             </div>
           </ng-container>
 
+          <!-- Savings summary box -->
+          <div class="savings-box" *ngIf="stockStatus.savingsAmount !== undefined">
+            <div class="savings-row">
+              <span class="savings-label">System Bill Total</span>
+              <span class="savings-val">Rs {{ bill.totalAmount | number }}</span>
+            </div>
+            <div class="savings-row">
+              <span class="savings-label">Linked Bills Total</span>
+              <span class="savings-val">Rs {{ stockStatus.childrenTotalAmount | number }}</span>
+            </div>
+            <div class="savings-row savings-total" [class.savings-positive]="stockStatus.savingsAmount! > 0">
+              <span class="savings-label">
+                <mat-icon>savings</mat-icon>
+                {{ stockStatus.savingsAmount! > 0 ? 'Savings (Bulk Discount)' : 'Difference' }}
+              </span>
+              <span class="savings-val">Rs {{ stockStatus.savingsAmount | number }}</span>
+            </div>
+          </div>
+
+          <!-- Reconcile action (admin only) -->
+          <div class="reconcile-action" *ngIf="isAdmin">
+            <div class="reconciled-badge" *ngIf="stockStatus.stockReconciled">
+              <mat-icon>verified</mat-icon>
+              Stock Reconciled
+            </div>
+            <ng-container *ngIf="!stockStatus.stockReconciled">
+              <div class="qty-match-hint" [class.match-ok]="stockStatus.quantitiesMatch" [class.match-warn]="!stockStatus.quantitiesMatch">
+                <mat-icon>{{ stockStatus.quantitiesMatch ? 'check_circle' : 'warning' }}</mat-icon>
+                {{ stockStatus.quantitiesMatch ? 'Quantities match — ready to reconcile' : 'Quantities do not fully match' }}
+              </div>
+              <button mat-flat-button color="primary" (click)="markStockReconciled()" [disabled]="reconcilingStock">
+                <mat-spinner diameter="16" *ngIf="reconcilingStock"></mat-spinner>
+                <mat-icon *ngIf="!reconcilingStock">verified</mat-icon>
+                Mark Stock Reconciled
+              </button>
+              <div class="ref-error" *ngIf="reconcileError">
+                <mat-icon>error</mat-icon> {{ reconcileError }}
+              </div>
+            </ng-container>
+          </div>
+
           <!-- Linked child bills list -->
           <div class="stock-section-label" style="margin-top:8px">
             <mat-icon style="font-size:16px;width:16px;height:16px;">link</mat-icon>
@@ -388,6 +429,11 @@
           </div>
           <div class="linked-child" *ngFor="let child of stockStatus.linkedChildren">
             <div class="linked-child-header">
+              <!-- Green check if child has items recorded -->
+              <mat-icon class="child-check-icon" [class.check-done]="child.items.length > 0" [class.check-pending]="child.items.length === 0"
+                matTooltip="{{ child.items.length > 0 ? 'Stock items recorded' : 'No stock items yet' }}">
+                {{ child.items.length > 0 ? 'check_circle' : 'radio_button_unchecked' }}
+              </mat-icon>
               <span class="source-chip source-{{ child.billSource | lowercase }}">{{ child.billSource }}</span>
               <strong>{{ child.billNumber }}</strong>
               <span class="linked-child-customer">{{ child.customerName }}</span>

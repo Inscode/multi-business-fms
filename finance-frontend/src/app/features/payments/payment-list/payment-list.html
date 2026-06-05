@@ -36,11 +36,18 @@
         <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
       </mat-select>
     </mat-form-field>
+
+    <button mat-stroked-button class="toggle-all-btn" [class.active]="showAll"
+            (click)="toggleShowAll()"
+            [matTooltip]="showAll ? 'Showing all payments — click to show pending only' : 'Showing pending confirmation only — click to show all'">
+      <mat-icon>{{ showAll ? 'visibility_off' : 'visibility' }}</mat-icon>
+      {{ showAll ? 'Pending only' : 'Show all' }}
+    </button>
   </div>
 
   <ng-container *ngIf="!error; else errorBlock">
     <mat-card class="table-card">
-      <table mat-table [dataSource]="payments">
+      <table mat-table [dataSource]="dataSource">
         <ng-container matColumnDef="billNumber">
           <th mat-header-cell *matHeaderCellDef>Bill No.</th>
           <td mat-cell *matCellDef="let p">{{ p.billNumber }}</td>
@@ -118,14 +125,16 @@
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>
 
-      <div class="empty-state" *ngIf="!loading && payments.length === 0">
+      <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
         <mat-icon>payments</mat-icon>
-        <p>No payments found</p>
+        <p>{{ showAll ? 'No payments found' : 'No pending payments' }}</p>
       </div>
 
       <div class="loading-state" *ngIf="loading">
         <mat-spinner diameter="32"></mat-spinner>
       </div>
+
+      <mat-paginator [pageSizeOptions]="[20, 50, 100]" pageSize="20" showFirstLastButtons></mat-paginator>
     </mat-card>
   </ng-container>
 

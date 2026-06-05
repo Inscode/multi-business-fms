@@ -201,33 +201,45 @@ public class StockServiceImpl {
     public List<StockReductionStatusResponse> getStockReductionStatus() {
         List<Bill> allBills = billRepository.findByBusinessOrderByCreatedAtDesc(BusinessType.RAINCO);
 
-        // Build lookup: billId → summaryLoadBill (and its status)
         Map<Long, SummaryLoadBill> billToSummary = new HashMap<>();
         summaryLoadBillRepository.findAllByOrderByCreatedAtDesc().forEach(slb ->
             slb.getSystemBills().forEach(b -> billToSummary.put(b.getId(), slb))
         );
 
-        // Bills with individual movements (bill_id not null, not cancelled)
         Set<Long> individuallyReduced = shadowStockMovementRepository.findBillIdsWithActiveMovements();
 
-        // System bills that ARE linked (have child bills → stock covered)
-        Set<Long> linkedSystemBillIds = billRepository.findLinkedSystemBills()
-                .stream().map(Bill::getId).collect(Collectors.toSet());
+        // Batch-load all links to compute savings without N+1
+        List<BillStockLink> allLinks = billStockLinkRepository.findAllWithBills();
+        Map<Long, List<BillStockLink>> linksBySystemBill = allLinks.stream()
+                .collect(Collectors.groupingBy(l -> l.getSystemBill().getId()));
 
-        // Draft/manual bills that are child bills in a link
-        Set<Long> linkedChildBillIds = billRepository.findLinkedChildBills()
-                .stream().map(Bill::getId).collect(Collectors.toSet());
+        Set<Long> linkedSystemBillIds = linksBySystemBill.keySet();
+        Set<Long> linkedChildBillIds = allLinks.stream()
+                .map(l -> l.getChildBill().getId()).collect(Collectors.toSet());
+
+        // Children total amounts per system bill (for savings)
+        Map<Long, BigDecimal> childrenTotals = new HashMap<>();
+        linksBySystemBill.forEach((sysId, links) -> {
+            BigDecimal total = links.stream()
+                    .map(l -> l.getChildBill().getTotalAmount())
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            childrenTotals.put(sysId, total);
+        });
 
         return allBills.stream().map(bill -> {
             String status;
             Long summaryId = null;
+            BigDecimal childrenTotal = null;
+            BigDecimal savings = null;
 
             if (linkedSystemBillIds.contains(bill.getId())) {
-                status = "LINKED"; // System bill — covered by linked draft/manual children
+                status = Boolean.TRUE.equals(bill.getStockReconciled()) ? "RECONCILED" : "LINKED";
+                childrenTotal = childrenTotals.getOrDefault(bill.getId(), BigDecimal.ZERO);
+                savings = bill.getTotalAmount().subtract(childrenTotal);
             } else if (linkedChildBillIds.contains(bill.getId())) {
-                status = "LINKED"; // Draft/manual — reconciled to a system bill
+                status = "LINKED";
             } else if (Boolean.TRUE.equals(bill.getWillBeLinked())) {
-                status = "WILL_LINK"; // System bill flagged for linking, not yet linked
+                status = "WILL_LINK";
             } else if (individuallyReduced.contains(bill.getId())) {
                 status = "INDIVIDUALLY_REDUCED";
             } else if (billToSummary.containsKey(bill.getId())) {
@@ -235,7 +247,7 @@ public class StockServiceImpl {
                 summaryId = slb.getId();
                 status = switch (slb.getStatus()) {
                     case APPROVED -> "SUMMARY_APPROVED";
-                    case REJECTED -> "NOT_REDUCED"; // rejected — treat as not reduced
+                    case REJECTED -> "NOT_REDUCED";
                     default -> "SUMMARY_PENDING";
                 };
             } else {
@@ -252,6 +264,9 @@ public class StockServiceImpl {
                     .reductionStatus(status)
                     .summaryLoadBillId(summaryId)
                     .enteredByName(bill.getEnteredBy() != null ? bill.getEnteredBy().getFullName() : null)
+                    .stockReconciled(bill.getStockReconciled())
+                    .childrenTotalAmount(childrenTotal)
+                    .savingsAmount(savings)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -307,6 +322,9 @@ public class StockServiceImpl {
                    .summaryRelatedBills(siblings);
         });
 
+        // Reconciliation fields
+        builder.stockReconciled(Boolean.TRUE.equals(bill.getStockReconciled()));
+
         // Linked children (this is a SYSTEM bill with linked DRAFT/MANUAL children)
         List<BillStockLink> childLinks = billStockLinkRepository.findBySystemBillId(billId);
         if (!childLinks.isEmpty()) {
@@ -327,6 +345,13 @@ public class StockServiceImpl {
                     })
                     .collect(Collectors.toList());
             builder.linkedChildren(children);
+
+            // Savings = system bill amount - sum of all children amounts
+            BigDecimal childrenTotal = children.stream()
+                    .map(BillStockStatusResponse.LinkedChildInfo::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            builder.childrenTotalAmount(childrenTotal);
+            builder.savingsAmount(bill.getTotalAmount().subtract(childrenTotal));
 
             // Aggregate comparison: system bill reference items vs sum of all children items
             Map<Long, String> nameMap = new HashMap<>();
@@ -362,6 +387,10 @@ public class StockServiceImpl {
                         .sorted(Comparator.comparing(BillStockStatusResponse.ItemComparisonRow::getProductName))
                         .collect(Collectors.toList());
                 builder.childrenAggregateComparison(aggComparison);
+                // quantitiesMatch = all rows have diff==0 AND system items exist
+                boolean allMatch = !ownItems.isEmpty() &&
+                        aggComparison.stream().allMatch(r -> r.getDiff() == 0);
+                builder.quantitiesMatch(allMatch);
             }
         }
 
@@ -417,6 +446,25 @@ public class StockServiceImpl {
         }
 
         return builder.build();
+    }
+
+    /**
+     * Admin marks a SYSTEM linking bill as stock-reconciled.
+     * Requires the bill to have at least one linked child.
+     */
+    @Transactional
+    public void markStockReconciled(Long billId) {
+        Bill bill = billRepository.findById(billId)
+                .orElseThrow(() -> new RuntimeException("Bill not found: " + billId));
+        if (bill.getBillSource() != BillSource.SYSTEM) {
+            throw new RuntimeException("Only SYSTEM bills can be marked as stock-reconciled");
+        }
+        if (billStockLinkRepository.findBySystemBillId(billId).isEmpty()) {
+            throw new RuntimeException("Bill has no linked child bills — link first before reconciling");
+        }
+        bill.setStockReconciled(true);
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
     }
 
     /**

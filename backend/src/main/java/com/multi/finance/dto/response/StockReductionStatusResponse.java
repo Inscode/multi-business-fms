@@ -16,7 +16,12 @@ public class StockReductionStatusResponse {
     private String customerName;
     private BigDecimal amount;
     private LocalDate billDate;
-    private String reductionStatus; // NOT_REDUCED, SUMMARY_PENDING, SUMMARY_APPROVED, INDIVIDUALLY_REDUCED
-    private Long summaryLoadBillId; // populated if in a summary load
+    private String reductionStatus;
+    private Long summaryLoadBillId;
     private String enteredByName;
+
+    // Populated for SYSTEM linking bills only
+    private Boolean stockReconciled;
+    private BigDecimal childrenTotalAmount;
+    private BigDecimal savingsAmount;
 }

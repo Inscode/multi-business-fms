@@ -124,12 +124,13 @@
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef></th>
         <td mat-cell *matCellDef="let c" class="actions-cell">
-          <button mat-icon-button (click)="openEdit(c)" matTooltip="Edit">
+          <button mat-icon-button (click)="openEdit(c)" matTooltip="Edit" *ngIf="canEdit">
             <mat-icon>edit</mat-icon>
           </button>
           <button mat-icon-button (click)="toggleActive(c)"
             [matTooltip]="c.active ? 'Deactivate' : 'Activate'"
-            [color]="c.active ? '' : 'primary'">
+            [color]="c.active ? '' : 'primary'"
+            *ngIf="canEdit">
             <mat-icon>{{ c.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
           </button>
           <button mat-icon-button color="warn" (click)="remove(c)" *ngIf="canDelete" matTooltip="Delete">

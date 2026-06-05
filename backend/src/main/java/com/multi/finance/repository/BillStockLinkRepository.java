@@ -22,4 +22,7 @@ public interface BillStockLinkRepository extends JpaRepository<BillStockLink, Lo
     Optional<BillStockLink> findLinkForDraftOrManualBill(@Param("childBillId") Long childBillId);
 
     boolean existsByChildBillId(Long childBillId);
+
+    @Query("SELECT l FROM BillStockLink l JOIN FETCH l.systemBill JOIN FETCH l.childBill")
+    List<BillStockLink> findAllWithBills();
 }

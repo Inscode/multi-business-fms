@@ -74,6 +74,8 @@ export class BillDetail implements OnInit {
   savingRefItems = false;
   refItemSuccess = '';
   refItemError = '';
+  reconcilingStock = false;
+  reconcileError = '';
 
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
@@ -107,6 +109,12 @@ export class BillDetail implements OnInit {
 
   get canRequestEdit(): boolean {
     return this.isAccountant || this.isMainAccountant;
+  }
+
+  get canMarkReconciled(): boolean {
+    return this.isAdmin &&
+      !!this.stockStatus?.linkedChildren?.length &&
+      !this.stockStatus?.stockReconciled;
   }
 
   constructor(
@@ -345,6 +353,29 @@ export class BillDetail implements OnInit {
       width: '520px',
     }).afterClosed().subscribe(submitted => {
       if (submitted) this.cdr.detectChanges();
+    });
+  }
+
+  markStockReconciled(): void {
+    if (!this.bill) return;
+    const qty = this.stockStatus?.quantitiesMatch;
+    const msg = qty
+      ? `Mark ${this.bill.billNumber} as RECONCILED?\n\nAll quantities match. This confirms the stock reconciliation is complete.`
+      : `Mark ${this.bill.billNumber} as RECONCILED?\n\n⚠ Quantities do not fully match. You can still reconcile, but please verify the discrepancy.`;
+    if (!confirm(msg)) return;
+    this.reconcilingStock = true;
+    this.reconcileError = '';
+    this.stockService.reconcileBill(this.bill.id).subscribe({
+      next: () => {
+        this.reconcilingStock = false;
+        this.loadStockStatus(this.bill!.id);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.reconcileError = err?.error?.message ?? 'Failed to mark as reconciled.';
+        this.reconcilingStock = false;
+        this.cdr.detectChanges();
+      },
     });
   }
 

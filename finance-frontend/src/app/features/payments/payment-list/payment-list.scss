@@ -32,8 +32,25 @@
   display: flex;
   gap: 16px;
   margin-bottom: 20px;
-  .filter-field {
-    width: 200px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+
+  .filter-field { width: 200px; }
+}
+
+.toggle-all-btn {
+  align-self: center;
+  height: 40px;
+  font-size: 13px;
+  color: #666;
+  border-color: #ccc;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+  &.active {
+    color: #1565c0;
+    border-color: #1565c0;
+    background: #e3f2fd;
   }
 }
 
