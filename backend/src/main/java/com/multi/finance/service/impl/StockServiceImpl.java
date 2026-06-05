@@ -150,8 +150,10 @@ public class StockServiceImpl {
         Bill bill = billRepository.findById(request.getBillId())
                 .orElseThrow(() -> new RuntimeException("Bill not found: " + request.getBillId()));
 
-        // SYSTEM linking bills: save reference items only — stock already reduced by linked children
-        boolean isLinkingBill = !billStockLinkRepository.findBySystemBillId(bill.getId()).isEmpty();
+        // SYSTEM linking bills (willBeLinked=true OR already has linked children):
+        // save reference items only — stock already reduced by linked DRAFT/MANUAL bills
+        boolean isLinkingBill = Boolean.TRUE.equals(bill.getWillBeLinked())
+                || !billStockLinkRepository.findBySystemBillId(bill.getId()).isEmpty();
         if (isLinkingBill) {
             enterReferenceItemsForSystemBill(bill.getId(), request.getItems());
             return;
@@ -206,11 +208,7 @@ public class StockServiceImpl {
         );
 
         // Bills with individual movements (bill_id not null, not cancelled)
-        Set<Long> individuallyReduced = shadowStockMovementRepository
-                .findAll().stream()
-                .filter(m -> m.getBill() != null && !m.getCancelled())
-                .map(m -> m.getBill().getId())
-                .collect(Collectors.toSet());
+        Set<Long> individuallyReduced = shadowStockMovementRepository.findBillIdsWithActiveMovements();
 
         // System bills that ARE linked (have child bills → stock covered)
         Set<Long> linkedSystemBillIds = billRepository.findLinkedSystemBills()
@@ -435,7 +433,8 @@ public class StockServiceImpl {
             throw new RuntimeException("Reference items can only be entered for SYSTEM bills");
         }
         List<BillStockLink> childLinks = billStockLinkRepository.findBySystemBillId(billId);
-        if (childLinks.isEmpty()) {
+        // Allow reference entry if flagged willBeLinked (children may not be linked yet)
+        if (childLinks.isEmpty() && !Boolean.TRUE.equals(bill.getWillBeLinked())) {
             throw new RuntimeException("This SYSTEM bill has no linked child bills");
         }
 
@@ -530,10 +529,7 @@ public class StockServiceImpl {
                 .forEach(slb -> slb.getSystemBills().forEach(b -> inSummary.add(b.getId())));
 
         // Bills already individually reduced (have non-cancelled shadow movements)
-        Set<Long> individuallyReduced = shadowStockMovementRepository.findAll().stream()
-                .filter(m -> m.getBill() != null && !m.getCancelled())
-                .map(m -> m.getBill().getId())
-                .collect(Collectors.toSet());
+        Set<Long> individuallyReduced = shadowStockMovementRepository.findBillIdsWithActiveMovements();
 
         // SYSTEM linking bills (have linked DRAFT/MANUAL children)
         Set<Long> linkedSystemBills = billRepository.findLinkedSystemBills()
@@ -544,13 +540,20 @@ public class StockServiceImpl {
                 .filter(id -> !billStockItemRepository.findByBillId(id).isEmpty())
                 .collect(Collectors.toSet());
 
+        // willBeLinked bills without items yet still need reference item entry — include them
+        Set<Long> willBeLinkedWithoutItems = allBills.stream()
+                .filter(b -> Boolean.TRUE.equals(b.getWillBeLinked())
+                          && billStockItemRepository.findByBillId(b.getId()).isEmpty())
+                .map(Bill::getId)
+                .collect(Collectors.toSet());
+
         return allBills.stream()
                 .filter(b -> !inSummary.contains(b.getId())
                           && !individuallyReduced.contains(b.getId())
                           && !linkingBillsWithItems.contains(b.getId())
-                          && !Boolean.TRUE.equals(b.getWillBeLinked())) // linking bills don't need stock reduction
-                // Linked system bills with items are excluded; without items they are included
-                .map(b -> toStockBillResponseWithFlag(b, linkedSystemBills.contains(b.getId())))
+                          && (!Boolean.TRUE.equals(b.getWillBeLinked()) || willBeLinkedWithoutItems.contains(b.getId())))
+                .map(b -> toStockBillResponseWithFlag(b,
+                        linkedSystemBills.contains(b.getId()) || Boolean.TRUE.equals(b.getWillBeLinked())))
                 .collect(Collectors.toList());
     }
 
@@ -626,7 +629,7 @@ public class StockServiceImpl {
                 .billType(com.multi.finance.enums.BillType.CASH)
                 .billSource(BillSource.SYSTEM)
                 .customerName(request.getCustomerName())
-                .billNumber(request.getBillNumber())
+                .billNumber(request.getBillNumber().startsWith("SYS-") ? request.getBillNumber() : "SYS-" + request.getBillNumber())
                 .totalAmount(request.getAmount())
                 .amountPaid(BigDecimal.ZERO)
                 .balanceRemaining(request.getAmount())

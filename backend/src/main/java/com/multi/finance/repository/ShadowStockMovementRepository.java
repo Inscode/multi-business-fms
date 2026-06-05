@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface ShadowStockMovementRepository extends JpaRepository<ShadowStockMovement, Long> {
@@ -39,6 +40,10 @@ public interface ShadowStockMovementRepository extends JpaRepository<ShadowStock
            "FROM ShadowStockMovement ssm " +
            "WHERE ssm.product = :product AND ssm.cancelled = false")
     Long getDamageBalance(@Param("product") ReturnProduct product);
+
+    /** IDs of bills that have at least one active (non-cancelled) BILL_OUT movement — avoids loading all movements. */
+    @Query("SELECT DISTINCT m.bill.id FROM ShadowStockMovement m WHERE m.bill IS NOT NULL AND m.cancelled = false")
+    Set<Long> findBillIdsWithActiveMovements();
 
     /**
      * Single aggregate query returning [productId, availableQty, damageQty] for ALL RAINCO products.

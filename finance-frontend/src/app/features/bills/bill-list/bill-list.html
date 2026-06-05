@@ -84,6 +84,14 @@
         <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
       </mat-select>
     </mat-form-field>
+
+    <button mat-stroked-button class="toggle-completed-btn"
+            [class.active]="!hideCompleted"
+            (click)="toggleHideCompleted()"
+            [matTooltip]="hideCompleted ? 'Showing active bills only — click to include completed/cancelled' : 'Showing all bills — click to hide completed/cancelled'">
+      <mat-icon>{{ hideCompleted ? 'visibility_off' : 'visibility' }}</mat-icon>
+      {{ hideCompleted ? 'Completed hidden' : 'Show all' }}
+    </button>
   </div>
 
   <!-- selection hint -->

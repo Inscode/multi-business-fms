@@ -9,12 +9,23 @@ import java.util.List;
 @Data
 @Builder
 public class OwnerDashboardResponse {
-    private long unassignedBills;
+    private long assignedBills;        // bills currently out to collection (status=ASSIGNED)
     private long inFieldBills;
     private long inShopBills;
     private long awaitingConfirmation;
-    private long fullyPaidToday;
+    private long pendingBills;         // active bills (CREATED + ASSIGNED + SHOP_* + STORE_RECEIVED)
     private BigDecimal totalOutstanding;
+
+    // Today's bills entered per business
+    private long raincoTodayBills;
+    private long stationeryTodayBills;
+    private long plasticTodayBills;
+
+    // Today's payments entered per business
+    private long raincoTodayPayments;
+    private long stationeryTodayPayments;
+    private long plasticTodayPayments;
+
     private List<PaymentSummaryResponse> pendingPayments;
-    private List<BillSummaryResponse> unassignedBillList;
+    private List<BillSummaryResponse> assignedBillList;  // bills out to collection
 }
