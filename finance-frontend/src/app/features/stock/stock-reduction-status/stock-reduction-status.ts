@@ -88,6 +88,7 @@ export class StockReductionStatusComponent implements OnInit {
       SUMMARY_APPROVED: 'Summary Approved',
       INDIVIDUALLY_REDUCED: 'Individual',
       LINKED: 'Linked (covered)',
+      WILL_LINK: 'Pending Link',
     } as any)[s] ?? s;
   }
 }

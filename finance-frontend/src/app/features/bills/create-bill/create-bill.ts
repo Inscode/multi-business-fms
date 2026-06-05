@@ -1,5 +1,5 @@
 ﻿import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
@@ -38,8 +38,8 @@ export class CreateBill implements OnInit{
   loading = false;
   errorMsg = '';
   workers: WorkerResponse[] = [];
-  allCustomers: { id: number; name: string }[] = [];
-  filteredCustomers: { id: number; name: string }[] = [];
+  allCustomers: { id: number; name: string; area?: string }[] = [];
+  filteredCustomers: { id: number; name: string; area?: string }[] = [];
   selectedCustomerId: number | null = null;
 
 
@@ -48,14 +48,6 @@ export class CreateBill implements OnInit{
   divisions   = ['STORE', 'SHOP'];
   billTypes   = ['CASH', 'CREDIT'];
   billSources = ['SYSTEM', 'MANUAL', 'DRAFT'];
-  areas = [
-  'Ambagasdowa', 'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
-  'Bogakumbura', 'Boralanda', 'Demodara', 'Diyatalawa', 'Ella',
-  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
-  'Hopton', 'Kandaketiya', 'Keppatipola', 'Kumbalwela', 'Lunugala',
-  'Lunuwatta', 'Mahiyanganaya', 'Meegahakivula', 'Passara',
-  'Uva-Paranagama', 'Welimada'
-];
 
   get isDraft(): boolean {
     return this.form.get('billSource')?.value === 'DRAFT';
@@ -114,11 +106,16 @@ export class CreateBill implements OnInit{
   onCustomerSelected(name: string): void {
     const match = this.allCustomers.find(c => c.name === name);
     this.selectedCustomerId = match?.id ?? null;
+    // Auto-fill area from customer profile if available
+    if (match?.area) {
+      this.form.get('area')?.setValue(match.area);
+    }
   }
 
   onCustomerInput(): void {
-    // Clear ID if user types freely (not selecting from list)
+    // Clear ID and area when user types freely (not selecting from list)
     this.selectedCustomerId = null;
+    this.form.get('area')?.setValue(null);
   }
 
   ngOnInit(): void {
@@ -161,7 +158,7 @@ export class CreateBill implements OnInit{
   private loadCustomers(): void {
     this.customerService.getActive().subscribe({
       next: (list) => {
-        this.allCustomers = list.map(c => ({ id: c.id, name: c.name }));
+        this.allCustomers = list.map(c => ({ id: c.id, name: c.name, area: c.area }));
         this.filteredCustomers = this.allCustomers.slice(0, 50);
         const ctrl = this.form.get('customerName');
         ctrl?.valueChanges.subscribe(v => this.filterCustomers(v ?? ''));

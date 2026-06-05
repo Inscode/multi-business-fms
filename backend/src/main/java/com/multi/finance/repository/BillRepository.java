@@ -76,27 +76,36 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
            "ORDER BY b.createdAt DESC")
     List<Bill> findShopAccountantBillsByStatus(@Param("status") BillStatus status);
 
-    // SYSTEM bills not yet assigned to any SummaryLoadBill, and not already a linking parent
+    // SYSTEM bills not yet assigned to any SummaryLoadBill — excludes willBeLinked bills
     @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.billSource = 'SYSTEM' " +
-           "AND b NOT IN (SELECT sb FROM SummaryLoadBill slb JOIN slb.systemBills sb) " +
-           "AND b NOT IN (SELECT l.systemBill FROM BillStockLink l) " +
+           "AND (b.willBeLinked = false OR b.willBeLinked IS NULL) " +
+           "AND NOT EXISTS (SELECT sb FROM SummaryLoadBill slb JOIN slb.systemBills sb WHERE sb = b) " +
            "ORDER BY b.billDate DESC")
     List<Bill> findUnassignedSystemBills();
 
     // DRAFT/MANUAL bills not yet linked to any system bill via BillStockLink (all businesses)
     @Query("SELECT b FROM Bill b WHERE b.billSource IN ('DRAFT', 'MANUAL') " +
-           "AND b NOT IN (SELECT l.childBill FROM BillStockLink l) " +
+           "AND NOT EXISTS (SELECT l FROM BillStockLink l WHERE l.childBill = b) " +
            "ORDER BY b.billDate DESC")
     List<Bill> findUnlinkedDraftManualBills();
 
-    // SYSTEM bills available for linking (not already a parent in BillStockLink)
+    // All DRAFT/MANUAL bills — for the unlinked dashboard
+    @Query("SELECT b FROM Bill b WHERE b.billSource IN ('DRAFT', 'MANUAL') ORDER BY b.billDate DESC")
+    List<Bill> findAllDraftManualBills();
+
+    // SYSTEM bills available for linking: willBeLinked=true AND not yet used as parent
     @Query("SELECT b FROM Bill b WHERE b.billSource = 'SYSTEM' " +
-           "AND b NOT IN (SELECT l.systemBill FROM BillStockLink l) " +
+           "AND b.willBeLinked = true " +
+           "AND NOT EXISTS (SELECT l FROM BillStockLink l WHERE l.systemBill = b) " +
            "ORDER BY b.billDate DESC")
     List<Bill> findAvailableSystemBillsForLinking();
 
     // SYSTEM bills that ARE linked (have child bills)
     @Query("SELECT DISTINCT l.systemBill FROM BillStockLink l")
     List<Bill> findLinkedSystemBills();
+
+    // DRAFT/MANUAL bills that ARE child bills in a link
+    @Query("SELECT DISTINCT l.childBill FROM BillStockLink l WHERE l.childBill.billSource IN ('DRAFT', 'MANUAL')")
+    List<Bill> findLinkedChildBills();
 
 }

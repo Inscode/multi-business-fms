@@ -8,6 +8,124 @@
 
   <mat-card-content>
 
+    <!-- ── PENDING LINKING DASHBOARD ── -->
+    <div class="section pending-section">
+      <div class="pending-header">
+        <div>
+          <h3>Unlinked Draft / Manual Bills</h3>
+          <p class="pending-sub">
+            {{ pendingUnlinkedBills.length }} bill(s) not yet linked to a system bill
+          </p>
+        </div>
+        <button mat-raised-button color="accent" (click)="openRegisterForm()">
+          <mat-icon>add</mat-icon> Register Linking System Bill
+        </button>
+      </div>
+
+      <!-- Register form -->
+      <div *ngIf="showRegisterForm" class="register-form-card">
+        <h4>Register a Linking System Bill</h4>
+        <p class="register-note">
+          <mat-icon>info</mat-icon>
+          This creates a SYSTEM bill marked as "will be linked". No stock movement will be created for it —
+          stock is covered by the draft/manual bills you'll link below.
+        </p>
+        <form [formGroup]="registerForm" class="register-form">
+          <mat-form-field appearance="fill">
+            <mat-label>Bill Number (from company system)</mat-label>
+            <input matInput formControlName="billNumber" placeholder="e.g. SYS-4521" />
+            <mat-error *ngIf="registerForm.get('billNumber')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="customer-field">
+            <mat-label>Customer</mat-label>
+            <input matInput formControlName="customerName"
+                   [matAutocomplete]="customerAuto"
+                   placeholder="Type to search customer"
+                   (input)="onCustomerInput()" />
+            <mat-autocomplete #customerAuto="matAutocomplete"
+                              (optionSelected)="onCustomerSelected($event.option.value)">
+              <mat-option *ngFor="let c of filteredCustomers" [value]="c.name">{{ c.name }}</mat-option>
+            </mat-autocomplete>
+            <mat-error *ngIf="registerForm.get('customerName')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="amount-field">
+            <mat-label>Total Amount (Rs.)</mat-label>
+            <input matInput type="number" formControlName="amount" min="0.01" step="0.01" />
+            <mat-error *ngIf="registerForm.get('amount')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="date-field">
+            <mat-label>Bill Date</mat-label>
+            <input matInput type="date" formControlName="billDate" />
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="notes-field">
+            <mat-label>Notes</mat-label>
+            <input matInput formControlName="notes" />
+          </mat-form-field>
+          <div class="register-btns">
+            <button mat-raised-button color="primary" (click)="registerLinkingBill()"
+              [disabled]="registerForm.invalid || registering">
+              <mat-progress-spinner *ngIf="registering" diameter="18" mode="indeterminate"></mat-progress-spinner>
+              <mat-icon *ngIf="!registering">save</mat-icon>
+              Register
+            </button>
+            <button mat-stroked-button (click)="showRegisterForm = false">Cancel</button>
+          </div>
+        </form>
+        <p *ngIf="registerMessage" class="register-msg">{{ registerMessage }}</p>
+      </div>
+
+      <div *ngIf="loadingPending" class="loading-center">
+        <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+      </div>
+
+      <div *ngIf="!loadingPending && pendingUnlinkedBills.length === 0" class="all-linked-note">
+        <mat-icon>check_circle</mat-icon> All draft/manual bills are linked.
+      </div>
+
+      <div *ngIf="!loadingPending && pendingUnlinkedBills.length > 0" class="table-container">
+        <table mat-table [dataSource]="pendingUnlinkedBills" class="bill-table pending-table">
+          <ng-container matColumnDef="billNumber">
+            <th mat-header-cell *matHeaderCellDef>Bill #</th>
+            <td mat-cell *matCellDef="let r"><strong>{{ r.billNumber }}</strong></td>
+          </ng-container>
+          <ng-container matColumnDef="billSource">
+            <th mat-header-cell *matHeaderCellDef>Source</th>
+            <td mat-cell *matCellDef="let r">
+              <span class="source-chip source-{{ r.billSource | lowercase }}">{{ r.billSource }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="customerName">
+            <th mat-header-cell *matHeaderCellDef>Customer</th>
+            <td mat-cell *matCellDef="let r">{{ r.customerName }}</td>
+          </ng-container>
+          <ng-container matColumnDef="amount">
+            <th mat-header-cell *matHeaderCellDef>Amount</th>
+            <td mat-cell *matCellDef="let r">Rs. {{ r.amount | number:'1.2-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="totalQty">
+            <th mat-header-cell *matHeaderCellDef>Total Qty</th>
+            <td mat-cell *matCellDef="let r"><span [class.qty-zero]="!r.totalQty">{{ r.totalQty || '—' }}</span></td>
+          </ng-container>
+          <ng-container matColumnDef="billDate">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let r">{{ r.billDate }}</td>
+          </ng-container>
+          <ng-container matColumnDef="enteredByName">
+            <th mat-header-cell *matHeaderCellDef>Entered By</th>
+            <td mat-cell *matCellDef="let r">{{ r.enteredByName }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="pendingColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: pendingColumns"></tr>
+        </table>
+      </div>
+    </div>
+
+    <mat-divider style="margin: 8px 0;"></mat-divider>
+
     <!-- ── STEP 1: Select Draft/Manual Bills ── -->
     <div class="section">
       <h3>Step 1: Select Draft / Manual Bills</h3>

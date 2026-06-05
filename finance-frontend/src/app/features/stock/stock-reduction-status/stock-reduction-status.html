@@ -56,6 +56,7 @@
           <mat-option value="SUMMARY_APPROVED">Summary Approved</mat-option>
           <mat-option value="INDIVIDUALLY_REDUCED">Individually Reduced</mat-option>
           <mat-option value="LINKED">Linked (covered)</mat-option>
+          <mat-option value="WILL_LINK">Pending Link</mat-option>
         </mat-select>
       </mat-form-field>
 
@@ -107,7 +108,9 @@
               [class.status-not-reduced]="r.reductionStatus === 'NOT_REDUCED'"
               [class.status-summary-pending]="r.reductionStatus === 'SUMMARY_PENDING'"
               [class.status-summary-approved]="r.reductionStatus === 'SUMMARY_APPROVED'"
-              [class.status-individually-reduced]="r.reductionStatus === 'INDIVIDUALLY_REDUCED'">
+              [class.status-individually-reduced]="r.reductionStatus === 'INDIVIDUALLY_REDUCED'"
+              [class.status-linked]="r.reductionStatus === 'LINKED'"
+              [class.status-will-link]="r.reductionStatus === 'WILL_LINK'">
               {{ statusLabel(r.reductionStatus) }}
             </span>
           </td>

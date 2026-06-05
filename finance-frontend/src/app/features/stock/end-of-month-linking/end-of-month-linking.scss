@@ -116,6 +116,47 @@
   mat-icon { color: #c62828; }
 }
 
+/* Pending dashboard */
+.pending-section { background: #fffbf0; border: 1px solid #ffe082; }
+
+.pending-header {
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;
+  h3 { margin: 0; }
+  .pending-sub { margin: 4px 0 0; font-size: 13px; color: #e65100; font-weight: 500; }
+}
+
+.all-linked-note {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px; color: #2e7d32; font-size: 13px;
+  mat-icon { color: #4caf50; }
+}
+
+.pending-table td { background: transparent !important; }
+
+/* Register linking bill form */
+.register-form-card {
+  background: #e8f4fd; border: 1px solid #90caf9;
+  border-radius: 8px; padding: 20px; margin-bottom: 16px;
+  h4 { margin: 0 0 8px; color: #1565c0; }
+}
+.register-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px; color: #5c6bc0; margin: 0 0 16px;
+  mat-icon { font-size: 16px; width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+}
+.register-form {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  mat-form-field { flex: 1; min-width: 180px; }
+  .customer-field { flex: 2; min-width: 220px; }
+  .amount-field   { max-width: 160px; }
+  .date-field     { max-width: 160px; }
+  .notes-field    { flex: 2; min-width: 240px; }
+}
+.register-btns { display: flex; gap: 8px; align-items: center; width: 100%; margin-top: 4px; }
+.register-msg { margin-top: 8px; font-size: 13px; color: #1976d2; }
+
+.loading-center { display: flex; justify-content: center; padding: 24px; }
+
 .empty-state {
   text-align: center; padding: 30px; color: #4caf50;
   mat-icon { font-size: 40px; width: 40px; height: 40px; display: block; margin: 0 auto 10px; }

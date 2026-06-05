@@ -16,6 +16,10 @@ export interface CustomerResponse {
 
 export interface CustomerRequest {
   name: string;
+  phone?: string;
+  area?: string;
+  tier?: string;
+  shopType?: string;
 }
 
 @Injectable({ providedIn: 'root' })

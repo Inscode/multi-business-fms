@@ -9,19 +9,55 @@
     </button>
   </div>
 
-  <!-- Inline Form -->
+  <!-- Form Card -->
   <div class="form-card" *ngIf="showForm">
     <h3 class="form-title">{{ editingId ? 'Edit Customer' : 'New Customer' }}</h3>
-    <form [formGroup]="form" (ngSubmit)="save()" class="form-row">
-      <mat-form-field appearance="outline" class="field-full">
-        <mat-label>Customer Name</mat-label>
-        <input matInput formControlName="name" placeholder="e.g. FANCY HOUSE" />
-        <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
-        <mat-error *ngIf="form.get('name')?.hasError('minlength')">Min 2 characters</mat-error>
-      </mat-form-field>
+    <form [formGroup]="form" (ngSubmit)="save()">
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Customer Name *</mat-label>
+          <input matInput formControlName="name" placeholder="e.g. FANCY HOUSE" />
+          <mat-error *ngIf="form.get('name')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('name')?.hasError('minlength')">Min 2 characters</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row-3">
+        <mat-form-field appearance="outline">
+          <mat-label>Phone</mat-label>
+          <input matInput formControlName="phone" placeholder="07X XXXXXXX" />
+          <mat-icon matPrefix>phone</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Area</mat-label>
+          <mat-select formControlName="area">
+            <mat-option [value]="null">— None —</mat-option>
+            <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Tier</mat-label>
+          <mat-select formControlName="tier">
+            <mat-option [value]="null">— None —</mat-option>
+            <mat-option *ngFor="let t of tiers" [value]="t">{{ t }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Shop Type</mat-label>
+          <mat-select formControlName="shopType">
+            <mat-option [value]="null">— None —</mat-option>
+            <mat-option *ngFor="let s of shopTypes" [value]="s">{{ s }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
       <div class="form-actions">
         <button mat-button type="button" (click)="cancelForm()">Cancel</button>
-        <button mat-raised-button color="primary" type="submit" [disabled]="saving">
+        <button mat-raised-button color="primary" type="submit" [disabled]="saving || form.invalid">
           <mat-spinner diameter="16" *ngIf="saving"></mat-spinner>
           <span *ngIf="!saving">{{ editingId ? 'Update' : 'Save' }}</span>
         </button>
@@ -35,7 +71,7 @@
     <mat-form-field appearance="outline" class="search-field">
       <mat-label>Search</mat-label>
       <mat-icon matPrefix>search</mat-icon>
-      <input matInput (input)="onSearch($event)" placeholder="Filter by name..." />
+      <input matInput (input)="onSearch($event)" placeholder="Name, phone or area..." />
     </mat-form-field>
   </div>
 
@@ -47,9 +83,33 @@
   <!-- Table -->
   <div class="table-wrap" *ngIf="!loading">
     <table mat-table [dataSource]="filtered" class="customers-table">
+
       <ng-container matColumnDef="name">
         <th mat-header-cell *matHeaderCellDef>Name</th>
-        <td mat-cell *matCellDef="let c">{{ c.name }}</td>
+        <td mat-cell *matCellDef="let c"><strong>{{ c.name }}</strong></td>
+      </ng-container>
+
+      <ng-container matColumnDef="phone">
+        <th mat-header-cell *matHeaderCellDef>Phone</th>
+        <td mat-cell *matCellDef="let c">{{ c.phone || '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="area">
+        <th mat-header-cell *matHeaderCellDef>Area</th>
+        <td mat-cell *matCellDef="let c">{{ c.area || '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="tier">
+        <th mat-header-cell *matHeaderCellDef>Tier</th>
+        <td mat-cell *matCellDef="let c">
+          <span *ngIf="c.tier" class="tier-chip tier-{{ c.tier | lowercase }}">{{ c.tier }}</span>
+          <span *ngIf="!c.tier" class="na">—</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="shopType">
+        <th mat-header-cell *matHeaderCellDef>Shop Type</th>
+        <td mat-cell *matCellDef="let c">{{ c.shopType || '—' }}</td>
       </ng-container>
 
       <ng-container matColumnDef="status">
@@ -67,7 +127,9 @@
           <button mat-icon-button (click)="openEdit(c)" matTooltip="Edit">
             <mat-icon>edit</mat-icon>
           </button>
-          <button mat-icon-button (click)="toggleActive(c)" [matTooltip]="c.active ? 'Deactivate' : 'Activate'">
+          <button mat-icon-button (click)="toggleActive(c)"
+            [matTooltip]="c.active ? 'Deactivate' : 'Activate'"
+            [color]="c.active ? '' : 'primary'">
             <mat-icon>{{ c.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
           </button>
           <button mat-icon-button color="warn" (click)="remove(c)" *ngIf="canDelete" matTooltip="Delete">
