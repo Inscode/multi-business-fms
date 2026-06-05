@@ -79,6 +79,9 @@ export class BillDetail implements OnInit {
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
   get isMainAccountant(): boolean { return this.auth.getRole() === 'MAIN_ACCOUNTANT'; }
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
+  get isCancellable(): boolean {
+    return this.bill?.status !== 'CANCELLED' && this.bill?.status !== 'COMPLETED';
+  }
 
   get canAssign(): boolean {
     return !this.isOwner && (this.isAccountant || this.isAdmin) &&

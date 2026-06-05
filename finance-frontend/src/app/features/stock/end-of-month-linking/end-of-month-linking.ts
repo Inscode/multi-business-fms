@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormControl, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonModule } from '@angular/material/button';
@@ -15,6 +15,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { SelectionModel } from '@angular/cdk/collections';
 import { BillStockItem, StockService } from '../../../core/services/stock';
+import { CustomerService } from '../../../core/services/customer';
 
 interface UnlinkedBill {
   id: number;
@@ -53,7 +54,7 @@ interface ItemComparisonRow {
     CommonModule, FormsModule, ReactiveFormsModule, DecimalPipe,
     MatTableModule, MatCheckboxModule, MatButtonModule, MatCardModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatIconModule,
-    MatProgressSpinnerModule, MatTooltipModule, MatDividerModule, MatAutocompleteModule,
+    MatProgressSpinnerModule, MatTooltipModule, MatDividerModule, MatAutocompleteModule, MatDividerModule,
   ],
   templateUrl: './end-of-month-linking.html',
   styleUrl: './end-of-month-linking.scss',
@@ -61,7 +62,21 @@ interface ItemComparisonRow {
 })
 export class EndOfMonthLinkingComponent implements OnInit {
 
-  // ── Unlinked draft/manual bills ───────────────────────────────
+  // ── Pending-linking dashboard ─────────────────────────────────
+  pendingUnlinkedBills: UnlinkedBill[] = [];
+  pendingColumns = ['billNumber', 'billSource', 'customerName', 'amount', 'totalQty', 'billDate', 'enteredByName'];
+  loadingPending = false;
+
+  // ── Register linking system bill ──────────────────────────────
+  showRegisterForm = false;
+  registerForm: FormGroup;
+  registering = false;
+  registerMessage = '';
+  allCustomers: { id: number; name: string }[] = [];
+  filteredCustomers: { id: number; name: string }[] = [];
+  selectedCustomerId: number | null = null;
+
+  // ── Unlinked draft/manual bills (linking flow) ────────────────
   unlinkedBills: UnlinkedBill[] = [];
   filteredUnlinked: UnlinkedBill[] = [];
   selection = new SelectionModel<UnlinkedBill>(true, []);
@@ -112,11 +127,26 @@ export class EndOfMonthLinkingComponent implements OnInit {
            this.selection.selected.length === this.filteredUnlinked.length;
   }
 
-  constructor(private stockService: StockService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private stockService: StockService,
+    private customerService: CustomerService,
+    private cdr: ChangeDetectorRef,
+    private fb: FormBuilder,
+  ) {
+    this.registerForm = this.fb.group({
+      billNumber:   ['', Validators.required],
+      customerName: ['', Validators.required],
+      amount:       [null, [Validators.required, Validators.min(0.01)]],
+      billDate:     [new Date().toISOString().split('T')[0], Validators.required],
+      notes:        [''],
+    });
+  }
 
   ngOnInit(): void {
+    this.loadPendingDashboard();
     this.loadUnlinked();
     this.loadSystemBills();
+    this.loadCustomers();
 
     this.systemBillCtrl.valueChanges.subscribe(val => {
       if (typeof val === 'string') {
@@ -135,6 +165,78 @@ export class EndOfMonthLinkingComponent implements OnInit {
         this.filteredSystemBills = this.availableSystemBills.slice(0, 20);
       }
       this.cdr.detectChanges();
+    });
+  }
+
+  // ── Pending dashboard ──────────────────────────────────────────
+  loadPendingDashboard(): void {
+    this.loadingPending = true;
+    this.stockService.getUnlinkedDashboard().subscribe({
+      next: bills => {
+        this.pendingUnlinkedBills = bills as UnlinkedBill[];
+        this.loadingPending = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.loadingPending = false; this.cdr.detectChanges(); },
+    });
+  }
+
+  // ── Customers ──────────────────────────────────────────────────
+  private loadCustomers(): void {
+    this.customerService.getActive().subscribe({
+      next: list => {
+        this.allCustomers = list.map(c => ({ id: c.id, name: c.name }));
+        this.filteredCustomers = this.allCustomers.slice(0, 50);
+        this.registerForm.get('customerName')?.valueChanges.subscribe(v =>
+          this.filterCustomers(v ?? '')
+        );
+      },
+      error: () => {},
+    });
+  }
+
+  filterCustomers(value: string): void {
+    const q = (value ?? '').toLowerCase();
+    this.filteredCustomers = q.length === 0
+      ? this.allCustomers.slice(0, 50)
+      : this.allCustomers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 50);
+  }
+
+  onCustomerSelected(name: string): void {
+    const match = this.allCustomers.find(c => c.name === name);
+    this.selectedCustomerId = match?.id ?? null;
+  }
+
+  onCustomerInput(): void {
+    this.selectedCustomerId = null;
+  }
+
+  // ── Register linking system bill ───────────────────────────────
+  openRegisterForm(): void {
+    this.showRegisterForm = true;
+    this.registerMessage = '';
+    this.selectedCustomerId = null;
+    this.registerForm.reset({ billDate: new Date().toISOString().split('T')[0] });
+    this.filteredCustomers = this.allCustomers.slice(0, 50);
+    this.cdr.detectChanges();
+  }
+
+  registerLinkingBill(): void {
+    if (this.registerForm.invalid) return;
+    this.registering = true;
+    this.stockService.createLinkingSystemBill(this.registerForm.value).subscribe({
+      next: () => {
+        this.registerMessage = 'Linking system bill registered.';
+        this.registering = false;
+        this.showRegisterForm = false;
+        this.loadSystemBills(); // refresh available system bills
+        this.cdr.detectChanges();
+      },
+      error: err => {
+        this.registerMessage = err?.error?.message ?? 'Failed to register bill.';
+        this.registering = false;
+        this.cdr.detectChanges();
+      },
     });
   }
 
@@ -251,6 +353,7 @@ export class EndOfMonthLinkingComponent implements OnInit {
         this.selection.clear();
         this.clearSystemBill();
         this.notesCtrl.setValue('');
+        this.loadPendingDashboard();
         this.loadUnlinked();
         this.loadSystemBills();
         this.cdr.detectChanges();

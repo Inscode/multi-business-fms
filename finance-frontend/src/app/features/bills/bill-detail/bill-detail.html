@@ -57,7 +57,7 @@
       </button>
 
       <button mat-stroked-button color="warn"
-              *ngIf="isAdmin && bill?.status !== 'CANCELLED' && bill?.status !== 'COMPLETED'"
+              *ngIf="isAdmin && isCancellable"
               (click)="cancelBill()">
         <mat-icon>cancel</mat-icon>
         Cancel Bill

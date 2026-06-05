@@ -2,31 +2,26 @@ import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { ApproveReturnRequest, BillReturnResponse, BillReturnService, ReceivedItemDto } from '../../../core/services/bill-return';
 
-interface ReceivedQty {
-  [itemId: number]: number;
-}
+interface ReceivedQty { [itemId: number]: number; }
 
 @Component({
   selector: 'app-review-returns',
   standalone: true,
   imports: [
-    CommonModule,
-    FormsModule,
-    DatePipe,
-    DecimalPipe,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
-    MatSelectModule,
-    MatFormFieldModule,
-    MatInputModule,
+    CommonModule, FormsModule, DatePipe, DecimalPipe,
+    MatButtonModule, MatIconModule, MatProgressSpinnerModule,
+    MatSelectModule, MatFormFieldModule, MatInputModule,
+    MatDialogModule, MatSnackBarModule,
   ],
   templateUrl: './review-returns.html',
   styleUrl: './review-returns.scss',
@@ -39,7 +34,6 @@ export class ReviewReturns implements OnInit {
 
   filterStatus = '';
   filterType = '';
-
   expandedId: number | null = null;
 
   receivedQtyMap: { [returnId: number]: ReceivedQty } = {};
@@ -59,6 +53,8 @@ export class ReviewReturns implements OnInit {
   constructor(
     private billReturnService: BillReturnService,
     private cdr: ChangeDetectorRef,
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit(): void { this.load(); }
@@ -81,12 +77,14 @@ export class ReviewReturns implements OnInit {
     });
   }
 
+  /** Pre-fill received qty = quantityRequested so reviewer just confirms (or adjusts down) */
   private initQtyMaps(returns: BillReturnResponse[]): void {
     returns.forEach(r => {
       if (r.status === 'PENDING') {
         this.receivedQtyMap[r.id] = {};
         r.items.forEach(item => {
-          this.receivedQtyMap[r.id][item.id] = item.quantityReturned ?? 0;
+          // Default to requested qty — reviewer reduces if some items are missing
+          this.receivedQtyMap[r.id][item.id] = item.quantityRequested ?? 0;
         });
       }
     });
@@ -121,9 +119,7 @@ export class ReviewReturns implements OnInit {
   calcShortfall(ret: BillReturnResponse): number {
     const qtyMap = this.receivedQtyMap[ret.id] ?? {};
     return ret.items.reduce((sum, item) => {
-      const requested = item.quantityRequested;
-      const received = qtyMap[item.id] ?? 0;
-      const diff = requested - received;
+      const diff = item.quantityRequested - (qtyMap[item.id] ?? 0);
       return sum + (diff > 0 ? item.unitPrice * diff : 0);
     }, 0);
   }
@@ -138,30 +134,60 @@ export class ReviewReturns implements OnInit {
 
   approve(ret: BillReturnResponse, approveWith: string): void {
     const receivedAmount = this.calcReceivedAmount(ret);
+
     if (approveWith === 'CALCULATED' && receivedAmount <= 0) {
-      alert('Enter at least one received quantity before approving.');
+      this.snackBar.open('Enter at least one received quantity before approving.', 'OK', { duration: 4000 });
       return;
     }
+
     const label = approveWith === 'PREDICTED'
       ? `predicted value (Rs ${ret.predictedValue?.toFixed(2)})`
       : `received amount (Rs ${receivedAmount.toFixed(2)})`;
-    if (!confirm(`Approve return for ${ret.billNumber} using ${label}? This will deduct from the bill total.`)) return;
 
-    const req: ApproveReturnRequest = {
-      approveWith,
-      items: this.buildItems(ret),
-    };
-    this.billReturnService.approve(ret.id, req).subscribe({
-      next: () => this.load(),
-      error: (err) => alert(err?.error?.message ?? 'Failed to approve.'),
+    const shortfall = this.calcShortfall(ret);
+    const shortfallNote = shortfall > 0 ? `\n\nShortfall: Rs ${shortfall.toFixed(2)} will NOT be deducted.` : '';
+
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Approve Return',
+        message: `Approve return for ${ret.billNumber} using ${label}?\nThis will deduct from the bill total.${shortfallNote}`,
+        confirmText: 'Approve',
+        confirmColor: 'primary',
+      },
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      const req: ApproveReturnRequest = { approveWith, items: this.buildItems(ret) };
+      this.billReturnService.approve(ret.id, req).subscribe({
+        next: () => {
+          this.snackBar.open('Return approved. Stock updated.', 'OK', { duration: 3000 });
+          this.load();
+        },
+        error: (err) => {
+          this.snackBar.open(err?.error?.message ?? 'Failed to approve.', 'OK', { duration: 5000 });
+        },
+      });
     });
   }
 
   reject(ret: BillReturnResponse): void {
-    const reason = prompt('Rejection reason (optional):') ?? '';
-    this.billReturnService.reject(ret.id, reason).subscribe({
-      next: () => this.load(),
-      error: () => alert('Failed to reject.'),
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Reject Return',
+        message: `Reject this return for ${ret.billNumber}?`,
+        confirmText: 'Reject',
+        confirmColor: 'warn',
+        showInput: true,
+        inputLabel: 'Rejection reason (optional)',
+      },
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.billReturnService.reject(ret.id, result.inputValue ?? '').subscribe({
+        next: () => {
+          this.snackBar.open('Return rejected.', 'OK', { duration: 3000 });
+          this.load();
+        },
+        error: () => this.snackBar.open('Failed to reject.', 'OK', { duration: 4000 }),
+      });
     });
   }
 }

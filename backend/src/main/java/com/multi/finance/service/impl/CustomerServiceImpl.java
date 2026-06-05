@@ -37,6 +37,10 @@ public class CustomerServiceImpl {
         }
         Customer c = Customer.builder()
                 .name(name)
+                .phone(req.getPhone())
+                .area(req.getArea())
+                .tier(req.getTier())
+                .shopType(req.getShopType())
                 .active(true)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -52,6 +56,10 @@ public class CustomerServiceImpl {
             throw new RuntimeException("Customer already exists: " + name);
         }
         c.setName(name);
+        if (req.getPhone()    != null) c.setPhone(req.getPhone());
+        if (req.getArea()     != null) c.setArea(req.getArea());
+        if (req.getTier()     != null) c.setTier(req.getTier());
+        if (req.getShopType() != null) c.setShopType(req.getShopType());
         return toResponse(customerRepository.save(c));
     }
 

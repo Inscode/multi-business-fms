@@ -1,5 +1,6 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.dto.request.CreateLinkingSystemBillRequest;
 import com.multi.finance.dto.request.CreateStockBillRequest;
 import com.multi.finance.dto.request.CreateSummaryLoadBillRequest;
 import com.multi.finance.dto.request.IndividualStockReductionRequest;
@@ -211,16 +212,24 @@ public class StockServiceImpl {
                 .map(m -> m.getBill().getId())
                 .collect(Collectors.toSet());
 
-        // System bills that are linked (stock covered by child draft/manual bills)
+        // System bills that ARE linked (have child bills → stock covered)
         Set<Long> linkedSystemBillIds = billRepository.findLinkedSystemBills()
+                .stream().map(Bill::getId).collect(Collectors.toSet());
+
+        // Draft/manual bills that are child bills in a link
+        Set<Long> linkedChildBillIds = billRepository.findLinkedChildBills()
                 .stream().map(Bill::getId).collect(Collectors.toSet());
 
         return allBills.stream().map(bill -> {
             String status;
             Long summaryId = null;
 
-            if (bill.getBillSource() == BillSource.SYSTEM && linkedSystemBillIds.contains(bill.getId())) {
-                status = "LINKED"; // Stock covered by linked draft/manual bills — no separate reduction needed
+            if (linkedSystemBillIds.contains(bill.getId())) {
+                status = "LINKED"; // System bill — covered by linked draft/manual children
+            } else if (linkedChildBillIds.contains(bill.getId())) {
+                status = "LINKED"; // Draft/manual — reconciled to a system bill
+            } else if (Boolean.TRUE.equals(bill.getWillBeLinked())) {
+                status = "WILL_LINK"; // System bill flagged for linking, not yet linked
             } else if (individuallyReduced.contains(bill.getId())) {
                 status = "INDIVIDUALLY_REDUCED";
             } else if (billToSummary.containsKey(bill.getId())) {
@@ -538,7 +547,8 @@ public class StockServiceImpl {
         return allBills.stream()
                 .filter(b -> !inSummary.contains(b.getId())
                           && !individuallyReduced.contains(b.getId())
-                          && !linkingBillsWithItems.contains(b.getId()))
+                          && !linkingBillsWithItems.contains(b.getId())
+                          && !Boolean.TRUE.equals(b.getWillBeLinked())) // linking bills don't need stock reduction
                 // Linked system bills with items are excluded; without items they are included
                 .map(b -> toStockBillResponseWithFlag(b, linkedSystemBills.contains(b.getId())))
                 .collect(Collectors.toList());
@@ -596,6 +606,61 @@ public class StockServiceImpl {
         }
 
         return savedBill;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // LINKING SYSTEM BILL CREATION
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Creates a SYSTEM bill pre-flagged as willBeLinked=true.
+     * Stock is covered by the linked DRAFT/MANUAL children — no BILL_OUT movement will be created for this bill.
+     */
+    @Transactional
+    public StockBillResponse createLinkingSystemBill(CreateLinkingSystemBillRequest request) {
+        User currentUser = getCurrentUser();
+
+        Bill bill = Bill.builder()
+                .business(BusinessType.RAINCO)
+                .division("STORE")
+                .billType(com.multi.finance.enums.BillType.CASH)
+                .billSource(BillSource.SYSTEM)
+                .customerName(request.getCustomerName())
+                .billNumber(request.getBillNumber())
+                .totalAmount(request.getAmount())
+                .amountPaid(BigDecimal.ZERO)
+                .balanceRemaining(request.getAmount())
+                .fullyPaid(false)
+                .status(com.multi.finance.enums.BillStatus.CREATED)
+                .enteredBy(currentUser)
+                .billDate(request.getBillDate() != null ? request.getBillDate() : LocalDate.now())
+                .notes(request.getNotes())
+                .willBeLinked(true)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        return toStockBillResponse(billRepository.save(bill));
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // UNLINKED DRAFT/MANUAL DASHBOARD
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Returns ALL draft/manual bills with their linking status.
+     * Used for the "Pending Linking" dashboard in End of Month Linking tab.
+     */
+    @Transactional(readOnly = true)
+    public List<StockBillResponse> getUnlinkedDraftManualDashboard() {
+        // Bills that are already linked (child in BillStockLink)
+        Set<Long> linkedChildIds = billRepository.findLinkedChildBills()
+                .stream().map(Bill::getId).collect(Collectors.toSet());
+
+        return billRepository.findAllDraftManualBills().stream()
+                .filter(b -> !linkedChildIds.contains(b.getId())) // only unlinked
+                .map(this::toStockBillResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional

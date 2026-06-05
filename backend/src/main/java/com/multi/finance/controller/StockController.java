@@ -1,5 +1,6 @@
 package com.multi.finance.controller;
 
+import com.multi.finance.dto.request.CreateLinkingSystemBillRequest;
 import com.multi.finance.dto.request.CreateStockBillRequest;
 import com.multi.finance.dto.request.CreateSummaryLoadBillRequest;
 import com.multi.finance.dto.request.EnterReferenceItemsRequest;
@@ -148,7 +149,24 @@ public class StockController {
         return ResponseEntity.noContent().build();
     }
 
+    // ── Linking system bill creation ──────────────────────────────
+
+    /** Create a SYSTEM bill pre-flagged as willBeLinked=true (stock covered by children) */
+    @PostMapping("/bills/linking-system-bill")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<StockBillResponse> createLinkingSystemBill(
+            @Valid @RequestBody CreateLinkingSystemBillRequest request) {
+        return ResponseEntity.ok(stockService.createLinkingSystemBill(request));
+    }
+
     // ── End of month linking ──────────────────────────────────────
+
+    /** All unlinked DRAFT/MANUAL bills — for the pending-linking dashboard */
+    @GetMapping("/bills/unlinked-dashboard")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<StockBillResponse>> getUnlinkedDashboard() {
+        return ResponseEntity.ok(stockService.getUnlinkedDraftManualDashboard());
+    }
 
     @PostMapping("/bills/link")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
