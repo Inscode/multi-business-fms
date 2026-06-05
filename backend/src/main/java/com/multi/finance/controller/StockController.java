@@ -175,6 +175,16 @@ public class StockController {
         return ResponseEntity.noContent().build();
     }
 
+    // ── Reconciliation ───────────────────────────────────────────
+
+    /** Admin marks a SYSTEM linking bill as stock-reconciled (final sign-off). */
+    @PatchMapping("/bills/{billId}/reconcile")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> markStockReconciled(@PathVariable Long billId) {
+        stockService.markStockReconciled(billId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ── Stock balances ────────────────────────────────────────────
 
     @GetMapping("/balance")

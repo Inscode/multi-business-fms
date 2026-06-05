@@ -106,7 +106,7 @@
     <div class="mobile-list">
       <div
         class="bill-card"
-        *ngFor="let b of filteredBills"
+        *ngFor="let b of dataSource.data"
         [class.selected]="selection.isSelected(b)"
         [routerLink]="selection.selected.length === 0 ? ['/bills', b.id] : null"
       >
@@ -184,7 +184,7 @@
           </mat-menu>
         </div>
       </div>
-      <div class="empty-state" *ngIf="!loading && filteredBills.length === 0">
+      <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
         <mat-icon>receipt_long</mat-icon>
         <p>No bills found</p>
       </div>
@@ -195,7 +195,7 @@
 
     <!-- desktop table -->
     <mat-card class="table-card">
-      <table mat-table [dataSource]="filteredBills">
+      <table mat-table [dataSource]="dataSource">
 
         <!-- checkbox column -->
         <ng-container matColumnDef="select">
@@ -321,13 +321,14 @@
         ></tr>
       </table>
 
-      <div class="empty-state" *ngIf="!loading && filteredBills.length === 0">
+      <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
         <mat-icon>receipt_long</mat-icon>
         <p>No bills found</p>
       </div>
       <div class="loading-state" *ngIf="loading">
         <mat-spinner diameter="32"></mat-spinner>
       </div>
+      <mat-paginator [pageSizeOptions]="[20, 50, 100]" pageSize="20" showFirstLastButtons></mat-paginator>
     </mat-card>
 
   </ng-container>

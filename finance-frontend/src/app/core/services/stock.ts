@@ -75,10 +75,13 @@ export interface StockReductionStatus {
   customerName: string;
   amount: number;
   billDate: string;
-  reductionStatus: 'NOT_REDUCED' | 'SUMMARY_PENDING' | 'SUMMARY_APPROVED' | 'INDIVIDUALLY_REDUCED' | 'LINKED' | 'WILL_LINK';
+  reductionStatus: 'NOT_REDUCED' | 'SUMMARY_PENDING' | 'SUMMARY_APPROVED' | 'INDIVIDUALLY_REDUCED' | 'LINKED' | 'WILL_LINK' | 'RECONCILED';
   totalQty?: number;
   summaryLoadBillId?: number;
   enteredByName: string;
+  stockReconciled?: boolean;
+  childrenTotalAmount?: number;
+  savingsAmount?: number;
 }
 
 export interface IndividualStockReductionRequest {
@@ -155,6 +158,11 @@ export interface BillStockStatus {
   billSource: string;
   reductionStatus: string;
   ownItems: BillStockItem[];
+  // reconciliation fields (SYSTEM linking bills)
+  stockReconciled?: boolean;
+  quantitiesMatch?: boolean;
+  childrenTotalAmount?: number;
+  savingsAmount?: number;
   // summary context
   summaryLoadId?: number;
   summaryStatus?: string;
@@ -296,5 +304,10 @@ export class StockService {
   // Enter reference items on a SYSTEM linking bill (no stock movement — reconciliation only)
   enterReferenceItems(billId: number, items: { productId: number; quantity: number }[]): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/bills/${billId}/reference-items`, { items });
+  }
+
+  // Admin marks a SYSTEM linking bill as stock-reconciled
+  reconcileBill(billId: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/bills/${billId}/reconcile`, {});
   }
 }

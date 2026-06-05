@@ -1,5 +1,5 @@
 ﻿import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -7,9 +7,11 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { Auth } from '../../../core/services/auth';
 import { Router, RouterLink } from '@angular/router';
@@ -30,7 +32,9 @@ import { MatInputModule } from '@angular/material/input';
     MatFormFieldModule,
     MatMenuModule,
     MatProgressSpinnerModule,
+    MatPaginatorModule,
     MatDialogModule,
+    MatTooltipModule,
     DecimalPipe,
     LowerCasePipe,
     DatePipe,
@@ -41,23 +45,27 @@ import { MatInputModule } from '@angular/material/input';
   styleUrl: './payment-list.scss',
 })
 
-export class PaymentList implements OnInit {
-  payments: PaymentResponse[] = [];
+export class PaymentList implements OnInit, AfterViewInit {
+  dataSource = new MatTableDataSource<PaymentResponse>([]);
   loading = true;
   error = false;
 
   searchQuery = '';
   selectedArea = '';
-  selectedStatus = '';
+  selectedStatus = 'ENTERED';   // default: pending only
+  showAll = false;
 
-  allPayments: PaymentResponse[] = [];
+  private allPayments: PaymentResponse[] = [];
+
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
 
   areas = [
-    'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
-    'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
+    'Ambagasdowa', 'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
+    'Bogakumbura', 'Boralanda', 'Demodara', 'Diyatalawa', 'Ella',
     'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
-    'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
-    'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada'
+    'Hopton', 'Kandaketiya', 'Keppatipola', 'Kumbalwela', 'Lunugala',
+    'Lunuwatta', 'Mahiyanganaya', 'Meegahakivula', 'Passara',
+    'Uva-Paranagama', 'Welimada',
   ];
 
   
@@ -80,17 +88,27 @@ export class PaymentList implements OnInit {
 
   ngOnInit(): void { this.load(); }
 
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+  }
+
+  toggleShowAll(): void {
+    this.showAll = !this.showAll;
+    this.selectedStatus = this.showAll ? '' : 'ENTERED';
+    this.load();
+  }
+
   load(): void {
     this.loading = true;
-    this.cdr.detectChanges();
     this.error = false;
+    this.cdr.detectChanges();
 
     this.paymentService.getAllPayments(
       this.selectedStatus || undefined
     ).subscribe({
       next: (p) => {
         this.allPayments = p;
-        this.loading  = false;
+        this.loading = false;
         this.applyFilters();
         this.cdr.detectChanges();
       },
@@ -104,23 +122,20 @@ export class PaymentList implements OnInit {
 
   applyFilters(): void {
     const query = this.searchQuery.toLowerCase().trim();
-
-    this.payments = this.allPayments.filter(p => {
-      const matchesSearch = !query || 
-      p.customerName.toLowerCase().includes(query) || 
-      (p.billNumber ?? '').toLowerCase().includes(query);
-
-      const matchesArea = !this.selectedArea ||
-      p.area === this.selectedArea;
-
-      return matchesArea && matchesSearch;
-    })
-
+    const filtered = this.allPayments.filter(p => {
+      const matchesSearch = !query ||
+        p.customerName.toLowerCase().includes(query) ||
+        (p.billNumber ?? '').toLowerCase().includes(query);
+      const matchesArea = !this.selectedArea || p.area === this.selectedArea;
+      return matchesSearch && matchesArea;
+    });
+    this.dataSource.data = filtered;
+    if (this.paginator) this.paginator.firstPage();
     this.cdr.detectChanges();
   }
 
-  onSearchChange(): void {this.applyFilters();}
-  onAreaChange(): void {this.applyFilters()};
+  onSearchChange(): void { this.applyFilters(); }
+  onAreaChange(): void   { this.applyFilters(); }
   onFilterChange(): void { this.load(); }
 
   editPayment(payment: PaymentResponse): void {

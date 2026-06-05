@@ -17,6 +17,12 @@ public class BillStockStatusResponse {
     private String billSource;
     private String reductionStatus;
 
+    // Reconciliation fields (SYSTEM linking bills only)
+    private Boolean stockReconciled;
+    private Boolean quantitiesMatch;
+    private java.math.BigDecimal childrenTotalAmount;
+    private java.math.BigDecimal savingsAmount;
+
     /** Stock items attached directly to this bill (INDIVIDUALLY_REDUCED or legacy) */
     private List<BillStockItemResponse> ownItems;
 

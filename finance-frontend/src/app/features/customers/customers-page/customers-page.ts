@@ -96,7 +96,9 @@ export class CustomersPage implements OnInit {
 
   ngOnInit(): void { this.load(); }
 
-  get canDelete(): boolean { return this.auth.getRole() === 'ADMIN'; }
+  get isAdmin(): boolean   { return this.auth.getRole() === 'ADMIN'; }
+  get canDelete(): boolean { return this.isAdmin; }
+  get canEdit(): boolean   { return this.isAdmin; }
 
   load(): void {
     this.loading = true;

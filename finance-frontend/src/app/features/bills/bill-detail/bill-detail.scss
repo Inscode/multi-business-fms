@@ -422,6 +422,93 @@
   border-bottom: 1px solid #e3edf8;
 }
 
+// ── Savings box ──
+.savings-box {
+  margin: 8px 16px 12px;
+  border: 1px solid #e0e7ef;
+  border-radius: 8px;
+  overflow: hidden;
+
+  .savings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f4f8;
+
+    &:last-child { border-bottom: none; }
+  }
+
+  .savings-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #546e7a;
+    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  }
+
+  .savings-val { font-weight: 600; color: #1a1a2e; }
+
+  .savings-total {
+    background: #f5f7fa;
+    font-weight: 700;
+    .savings-label { color: #37474f; }
+  }
+
+  .savings-positive {
+    background: #e8f5e9;
+    .savings-label, .savings-val { color: #2e7d32; }
+  }
+}
+
+// ── Reconcile action ──
+.reconcile-action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-bottom: 1px solid #f0f4f8;
+}
+
+.reconciled-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+.qty-match-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
+  &.match-ok  { color: #2e7d32; background: #e8f5e9; }
+  &.match-warn { color: #e65100; background: #fff3e0; }
+}
+
+// ── Child check icons ──
+.child-check-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+
+  &.check-done    { color: #43a047; }
+  &.check-pending { color: #bdbdbd; }
+}
+
 .ref-note {
   font-size: 10px;
   font-weight: 400;

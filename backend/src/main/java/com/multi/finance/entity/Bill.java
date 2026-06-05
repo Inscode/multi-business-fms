@@ -100,6 +100,11 @@ public class Bill {
     @Builder.Default
     private Boolean willBeLinked = false;
 
+    /** Set by admin once the system linking bill's qty matches all linked children — final sign-off. */
+    @Column(name = "stock_reconciled", nullable = false)
+    @Builder.Default
+    private Boolean stockReconciled = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

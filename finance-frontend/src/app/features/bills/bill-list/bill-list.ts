@@ -1,5 +1,5 @@
 ﻿import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -12,6 +12,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatInput } from '@angular/material/input';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatTableDataSource } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { SelectionModel } from '@angular/cdk/collections';
@@ -42,6 +44,7 @@ import { Router } from '@angular/router';
     MatDialogModule,
     MatCheckboxModule,
     MatTooltipModule,
+    MatPaginatorModule,
     DecimalPipe,
     LowerCasePipe,
     MatInput,
@@ -50,12 +53,14 @@ import { Router } from '@angular/router';
   styleUrl: './bill-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BillList implements OnInit {
-  bills: any[] = [];
-  filteredBills: any[] = [];
+export class BillList implements OnInit, AfterViewInit {
+  dataSource = new MatTableDataSource<BillResponse>([]);
+  private allBills: BillResponse[] = [];
   workers: WorkerResponse[] = [];
   loading = true;
   error = false;
+
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
 
   searchQuery = '';
   selectedBusiness = '';
@@ -77,11 +82,12 @@ export class BillList implements OnInit {
               'SHOP_RECEIVED', 'STORE_RECEIVED', 'COMPLETED', 'CANCELLED'];
 
   areas = [
-    'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
-    'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
+    'Ambagasdowa', 'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
+    'Bogakumbura', 'Boralanda', 'Demodara', 'Diyatalawa', 'Ella',
     'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
-    'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
-    'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada',
+    'Hopton', 'Kandaketiya', 'Keppatipola', 'Kumbalwela', 'Lunugala',
+    'Lunuwatta', 'Mahiyanganaya', 'Meegahakivula', 'Passara',
+    'Uva-Paranagama', 'Welimada',
   ];
 
   selection = new SelectionModel<any>(true, []);
@@ -142,6 +148,10 @@ export class BillList implements OnInit {
       : ['billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];
   }
 
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+  }
+
   ngOnInit(): void {
     this.load();
     this.loadWorkers();
@@ -200,12 +210,12 @@ export class BillList implements OnInit {
     this.error = false;
     this.selection.clear();
     this.billService.getBills({
-      business:        this.selectedBusiness || undefined,
-      status:          this.selectedStatus   || undefined,
+      business:         this.selectedBusiness || undefined,
+      status:           this.selectedStatus   || undefined,
       excludeCompleted: this.hideCompleted,
     }).subscribe({
       next: (b) => {
-        this.bills = b;
+        this.allBills = b;
         this.loading = false;
         this.applyFilters();
         this.cdr.detectChanges();
@@ -227,13 +237,16 @@ export class BillList implements OnInit {
 
   applyFilters(): void {
     const query = this.searchQuery.toLowerCase().trim();
-    this.filteredBills = this.bills.filter(b => {
+    const filtered = this.allBills.filter(b => {
       const matchesSearch = !query ||
         b.customerName.toLowerCase().includes(query) ||
         (b.billNumber ?? '').toLowerCase().includes(query);
       const matchesArea = !this.selectedArea || b.area === this.selectedArea;
       return matchesSearch && matchesArea;
     });
+    this.dataSource.data = filtered;
+    if (this.paginator) this.paginator.firstPage();
+    this.cdr.detectChanges();
   }
 
   onSearchChange(): void { this.applyFilters(); }

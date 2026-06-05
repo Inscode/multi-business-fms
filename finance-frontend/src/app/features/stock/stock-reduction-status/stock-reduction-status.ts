@@ -10,6 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { RouterLink } from '@angular/router';
 import { StockService, StockReductionStatus } from '../../../core/services/stock';
 
 @Component({
@@ -19,7 +20,7 @@ import { StockService, StockReductionStatus } from '../../../core/services/stock
     CommonModule, FormsModule, DecimalPipe,
     MatTableModule, MatButtonModule, MatCardModule,
     MatIconModule, MatInputModule, MatFormFieldModule,
-    MatSelectModule, MatTooltipModule, MatProgressSpinnerModule,
+    MatSelectModule, MatTooltipModule, MatProgressSpinnerModule, RouterLink,
   ],
   templateUrl: './stock-reduction-status.html',
   styleUrl: './stock-reduction-status.scss',
@@ -33,8 +34,10 @@ export class StockReductionStatusComponent implements OnInit {
   filterSource = 'ALL';
   filterStatus = 'ALL';
   searchText = '';
+  showLinkingSummary = false;
 
   columns = ['billNumber', 'billSource', 'customerName', 'amount', 'billDate', 'reductionStatus', 'summaryId', 'enteredByName'];
+  linkingColumns = ['billNumber', 'customerName', 'amount', 'childrenTotal', 'savings', 'reductionStatus'];
 
   summary = { total: 0, notReduced: 0, summaryPending: 0, summaryApproved: 0, individual: 0 };
 
@@ -81,6 +84,17 @@ export class StockReductionStatusComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  get linkingBills(): StockReductionStatus[] {
+    return this.allRecords.filter(r =>
+      (r.reductionStatus === 'LINKED' || r.reductionStatus === 'RECONCILED') &&
+      r.billSource === 'SYSTEM' && r.savingsAmount !== undefined
+    );
+  }
+
+  get totalSavings(): number {
+    return this.linkingBills.reduce((sum, r) => sum + (r.savingsAmount ?? 0), 0);
+  }
+
   statusLabel(s: string): string {
     return ({
       NOT_REDUCED: 'Not Reduced',
@@ -89,6 +103,7 @@ export class StockReductionStatusComponent implements OnInit {
       INDIVIDUALLY_REDUCED: 'Individual',
       LINKED: 'Linked (covered)',
       WILL_LINK: 'Pending Link',
+      RECONCILED: 'Reconciled ✓',
     } as any)[s] ?? s;
   }
 }
