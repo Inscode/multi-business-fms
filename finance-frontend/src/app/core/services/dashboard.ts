@@ -16,14 +16,23 @@ export interface AccountantDashboardData {
 }
 
 export interface OwnerDashboardData {
-  unassignedBills: number;
+  assignedBills: number;
   inFieldBills: number;
   inShopBills: number;
   awaitingConfirmation: number;
-  fullyPaidToday: number;
+  pendingBills: number;
   totalOutstanding: number;
+
+  raincoTodayBills: number;
+  stationeryTodayBills: number;
+  plasticTodayBills: number;
+
+  raincoTodayPayments: number;
+  stationeryTodayPayments: number;
+  plasticTodayPayments: number;
+
   pendingPayments: PaymentSummary[];
-  unassignedBillList: BillSummary[];
+  assignedBillList: BillSummary[];
 }
 
 export interface BillSummary {

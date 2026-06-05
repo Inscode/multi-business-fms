@@ -49,6 +49,76 @@
   }
 }
 
+// Today's bills/payments cards
+.today-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @media (max-width: 600px) { grid-template-columns: 1fr; }
+}
+
+.today-card {
+  padding: 14px 16px;
+
+  .today-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #37474f;
+    margin-bottom: 12px;
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; color: #1565c0; }
+  }
+
+  .today-rows { display: flex; flex-direction: column; gap: 6px; }
+
+  .today-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #f0f0f0;
+
+    &.total-row {
+      border-bottom: none;
+      border-top: 2px solid #e0e0e0;
+      margin-top: 4px;
+      padding-top: 8px;
+      font-weight: 700;
+    }
+  }
+
+  .biz-label {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #eee;
+    color: #555;
+
+    &.rainco     { background: #e3f2fd; color: #1565c0; }
+    &.stationery { background: #f3e5f5; color: #6a1b9a; }
+    &.plastic    { background: #e8f5e9; color: #2e7d32; }
+  }
+
+  .biz-count {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  .today-skeleton {
+    height: 80px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    border-radius: 6px;
+    animation: shimmer 1.2s infinite;
+  }
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));

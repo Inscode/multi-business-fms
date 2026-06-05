@@ -93,6 +93,30 @@
       <div class="page-body">
         <router-outlet></router-outlet>
       </div>
+
+      <!-- Mobile bottom nav bar -->
+      <nav class="mobile-bottom-nav" *ngIf="isMobile">
+        <a class="mob-nav-item" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact:false}">
+          <mat-icon>dashboard</mat-icon>
+          <span>Home</span>
+        </a>
+        <a class="mob-nav-item" routerLink="/bills" routerLinkActive="active" *ngIf="showBills">
+          <mat-icon>receipt_long</mat-icon>
+          <span>Bills</span>
+        </a>
+        <a class="mob-nav-item" routerLink="/payments" routerLinkActive="active" *ngIf="showPayments">
+          <mat-icon>payments</mat-icon>
+          <span>Payments</span>
+        </a>
+        <a class="mob-nav-item" routerLink="/owner/collect" routerLinkActive="active" *ngIf="showCollect">
+          <mat-icon>handshake</mat-icon>
+          <span>Collect</span>
+        </a>
+        <button class="mob-nav-item mob-more-btn" (click)="sidenav.open()">
+          <mat-icon>menu</mat-icon>
+          <span>More</span>
+        </button>
+      </nav>
     </div>
   </mat-sidenav-content>
 </mat-sidenav-container>

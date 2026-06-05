@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatInput } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { SelectionModel } from '@angular/cdk/collections';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
@@ -40,6 +41,7 @@ import { Router } from '@angular/router';
     MatMenuModule,
     MatDialogModule,
     MatCheckboxModule,
+    MatTooltipModule,
     DecimalPipe,
     LowerCasePipe,
     MatInput,
@@ -59,6 +61,7 @@ export class BillList implements OnInit {
   selectedBusiness = '';
   selectedStatus = '';
   selectedArea = '';
+  hideCompleted = true;
 
   get businesses(): string[] {
     const role = this.auth.getRole();
@@ -187,13 +190,19 @@ export class BillList implements OnInit {
     });
   }
 
+  toggleHideCompleted(): void {
+    this.hideCompleted = !this.hideCompleted;
+    this.load();
+  }
+
   load(): void {
     this.loading = true;
     this.error = false;
     this.selection.clear();
     this.billService.getBills({
-      business: this.selectedBusiness || undefined,
-      status:   this.selectedStatus   || undefined,
+      business:        this.selectedBusiness || undefined,
+      status:          this.selectedStatus   || undefined,
+      excludeCompleted: this.hideCompleted,
     }).subscribe({
       next: (b) => {
         this.bills = b;

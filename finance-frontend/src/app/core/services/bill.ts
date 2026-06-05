@@ -7,6 +7,7 @@ import { Observable } from 'rxjs';
 export interface BillFilter {
   business?: string;
   status?: string;
+  excludeCompleted?: boolean;
 }
 
 export interface BillResponse {
@@ -45,6 +46,9 @@ export class Bill {
     let params = new HttpParams();
     if (filter?.business) params = params.set('business', filter.business);
     if (filter?.status)   params = params.set('status', filter.status);
+    if (filter?.excludeCompleted !== undefined) {
+      params = params.set('excludeCompleted', String(filter.excludeCompleted));
+    }
     return this.http.get<BillResponse[]>(this.apiUrl, { params });
   }
 

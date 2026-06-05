@@ -34,8 +34,9 @@ public class BillController {
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<List<BillResponse>> getAllBills(
             @RequestParam(required = false) BusinessType business,
-            @RequestParam(required = false) BillStatus status) {
-        return ResponseEntity.ok(billService.getAllBills(business, status));
+            @RequestParam(required = false) BillStatus status,
+            @RequestParam(required = false, defaultValue = "true") boolean excludeCompleted) {
+        return ResponseEntity.ok(billService.getAllBills(business, status, excludeCompleted));
     }
 
 
