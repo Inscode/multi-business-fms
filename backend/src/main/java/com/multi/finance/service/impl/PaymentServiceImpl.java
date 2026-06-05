@@ -30,6 +30,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -269,12 +271,12 @@ public class PaymentServiceImpl {
     @Transactional(readOnly = true)
     public List<PaymentResponse> getAllPayments(PaymentStatus status) {
         if (status != null) {
-            return paymentRepository.findByStatus(status)
+            return paymentRepository.findByStatusWithBill(status)
                     .stream()
                     .map(p -> toResponse(p, p.getBill()))
                     .toList();
         }
-        return paymentRepository.findAll()
+        return paymentRepository.findAllWithBill()
                 .stream()
                 .map(p -> toResponse(p, p.getBill()))
                 .toList();
@@ -498,10 +500,17 @@ public class PaymentServiceImpl {
                 ? paymentGroupRepository.findByStatusOrderByCreatedAtDesc(status)
                 : paymentGroupRepository.findAllByOrderByCreatedAtDesc();
 
-        return groups.stream().map(group -> {
-            List<Payment> payments = paymentRepository.findByGroupId(group.getId());
-            return toGroupResponse(group, payments);
-        }).toList();
+        if (groups.isEmpty()) return List.of();
+
+        // Batch-load all payments for all groups in a single query to avoid N+1
+        List<Long> groupIds = groups.stream().map(PaymentGroup::getId).collect(Collectors.toList());
+        Map<Long, List<Payment>> paymentsByGroup = paymentRepository.findByGroupIdIn(groupIds)
+                .stream()
+                .collect(Collectors.groupingBy(p -> p.getGroup().getId()));
+
+        return groups.stream()
+                .map(group -> toGroupResponse(group, paymentsByGroup.getOrDefault(group.getId(), List.of())))
+                .toList();
     }
 
     private PaymentGroupResponse toGroupResponse(PaymentGroup group, List<Payment> payments) {

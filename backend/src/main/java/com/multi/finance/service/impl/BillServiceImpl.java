@@ -100,14 +100,23 @@ public class BillServiceImpl {
     }
 
     @Transactional(readOnly = true)
-    public List<BillResponse> getAllBills(BusinessType business, BillStatus status) {
+    public List<BillResponse> getAllBills(BusinessType business, BillStatus status, boolean excludeCompleted) {
         User caller = getCurrentUser();
+
+        // When a specific status is requested, excludeCompleted doesn't apply
+        boolean doExclude = excludeCompleted && status == null;
+        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.CANCELLED);
 
         // SHOP_ACCOUNTANT: sees RETAIL_SHOP bills + any bill currently at the shop
         if (caller.getRole() == UserRole.SHOP_ACCOUNTANT) {
             if (status != null) {
                 return billRepository
                         .findShopAccountantBillsByStatus(status)
+                        .stream().map(this::toResponse).toList();
+            }
+            if (doExclude) {
+                return billRepository
+                        .findShopAccountantActiveBills()
                         .stream().map(this::toResponse).toList();
             }
             return billRepository
@@ -120,7 +129,7 @@ public class BillServiceImpl {
         // Store roles (ACCOUNTANT, MAIN_ACCOUNTANT) — restricted to store businesses
         if (allowed != null) {
             if (business != null && !allowed.contains(business)) {
-                return List.of(); // requested a business outside their scope
+                return List.of();
             }
             List<BusinessType> scope = (business != null) ? List.of(business) : allowed;
             if (status != null) {
@@ -128,18 +137,28 @@ public class BillServiceImpl {
                         .findByBusinessInAndStatusOrderByCreatedAtDesc(scope, status)
                         .stream().map(this::toResponse).toList();
             }
+            if (doExclude) {
+                return billRepository
+                        .findByBusinessInAndStatusNotInOrderByCreatedAtDesc(scope, excluded)
+                        .stream().map(this::toResponse).toList();
+            }
             return billRepository
                     .findByBusinessInOrderByCreatedAtDesc(scope)
                     .stream().map(this::toResponse).toList();
         }
 
-        // ADMIN / OWNER — unrestricted, original behaviour
+        // ADMIN / OWNER — unrestricted
         if (business != null && status != null) {
             return billRepository
                     .findByBusinessAndStatusOrderByCreatedAtDesc(business, status)
                     .stream().map(this::toResponse).toList();
         }
         if (business != null) {
+            if (doExclude) {
+                return billRepository
+                        .findByBusinessAndStatusNotInOrderByCreatedAtDesc(business, excluded)
+                        .stream().map(this::toResponse).toList();
+            }
             return billRepository
                     .findByBusinessOrderByCreatedAtDesc(business)
                     .stream().map(this::toResponse).toList();
@@ -147,6 +166,11 @@ public class BillServiceImpl {
         if (status != null) {
             return billRepository
                     .findByStatusOrderByCreatedAtDesc(status)
+                    .stream().map(this::toResponse).toList();
+        }
+        if (doExclude) {
+            return billRepository
+                    .findByStatusNotInOrderByCreatedAtDesc(excluded)
                     .stream().map(this::toResponse).toList();
         }
         return billRepository

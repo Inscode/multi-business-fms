@@ -36,6 +36,12 @@ public class DashboardServiceImpl {
             BillStatus.SHOP_RECEIVED
     );
 
+    private static final List<BillStatus> PENDING_STATUSES = List.of(
+            BillStatus.CREATED, BillStatus.ASSIGNED,
+            BillStatus.SHOP_RECEIVED, BillStatus.SHOP_WORKER_ASSIGNED,
+            BillStatus.STORE_RECEIVED
+    );
+
     private static final List<BillStatus> SHOP_DASHBOARD_STATUSES = List.of(
             BillStatus.ASSIGNED,
             BillStatus.SHOP_RECEIVED,
@@ -68,27 +74,39 @@ public class DashboardServiceImpl {
     @Transactional(readOnly = true)
     public OwnerDashboardResponse getOwnerDashboard(BusinessType business) {
         LocalDate today = LocalDate.now();
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
         return OwnerDashboardResponse.builder()
-                .unassignedBills(billRepository
-                        .countByBusinessAndStatus(business, BillStatus.CREATED))
+                .assignedBills(billRepository
+                        .countByBusinessAndStatus(business, BillStatus.ASSIGNED))
                 .inFieldBills(billRepository
                         .countByBusinessAndStatus(business, BillStatus.ASSIGNED))
                 .inShopBills(billRepository
                         .countByBusinessAndStatusIn(business, SHOP_STATUSES))
                 .awaitingConfirmation(paymentRepository
                         .countByStatus(PaymentStatus.ENTERED))
-                .fullyPaidToday(billRepository
-                        .countByBillDateAndStatus(today, BillStatus.COMPLETED))
+                .pendingBills(billRepository
+                        .countByBusinessAndStatusIn(business, PENDING_STATUSES))
                 .totalOutstanding(billRepository
                         .sumOutstandingByBusiness(business))
+                // Today's bills by business
+                .raincoTodayBills(billRepository
+                        .countByBusinessAndBillDateAndStatusNot(BusinessType.RAINCO, today, BillStatus.CANCELLED))
+                .stationeryTodayBills(billRepository
+                        .countByBusinessAndBillDateAndStatusNot(BusinessType.STATIONERY, today, BillStatus.CANCELLED))
+                .plasticTodayBills(billRepository
+                        .countByBusinessAndBillDateAndStatusNot(BusinessType.PLASTIC, today, BillStatus.CANCELLED))
+                // Today's payments by business
+                .raincoTodayPayments(paymentRepository
+                        .countByPaymentDateAndBillBusiness(today, BusinessType.RAINCO))
+                .stationeryTodayPayments(paymentRepository
+                        .countByPaymentDateAndBillBusiness(today, BusinessType.STATIONERY))
+                .plasticTodayPayments(paymentRepository
+                        .countByPaymentDateAndBillBusiness(today, BusinessType.PLASTIC))
                 .pendingPayments(paymentRepository
                         .findByStatusOrderByCreatedAtDesc(PaymentStatus.ENTERED)
                         .stream().map(this::toPaymentSummary).toList())
-                .unassignedBillList(billRepository
-                        .findByBusinessAndStatus(business, BillStatus.CREATED)
+                .assignedBillList(billRepository
+                        .findByBusinessAndStatus(business, BillStatus.ASSIGNED)
                         .stream().map(this::toBillSummary).toList())
                 .build();
     }

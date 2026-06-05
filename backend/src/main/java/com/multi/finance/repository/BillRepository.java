@@ -31,6 +31,8 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
             String business, LocalDate from , LocalDate to
     );
     long countByBillDate(LocalDate date);
+
+    long countByBusinessAndBillDateAndStatusNot(BusinessType business, LocalDate date, BillStatus status);
     List<Bill> findTop5ByOrderByCreatedAtDesc();
 
     long countByBillDateAndStatusNot(LocalDate date, BillStatus status);
@@ -99,6 +101,19 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
            "AND NOT EXISTS (SELECT l FROM BillStockLink l WHERE l.systemBill = b) " +
            "ORDER BY b.billDate DESC")
     List<Bill> findAvailableSystemBillsForLinking();
+
+    // Exclude completed/cancelled — used when hideCompleted=true
+    List<Bill> findByStatusNotInOrderByCreatedAtDesc(List<BillStatus> statuses);
+
+    List<Bill> findByBusinessAndStatusNotInOrderByCreatedAtDesc(BusinessType business, List<BillStatus> statuses);
+
+    List<Bill> findByBusinessInAndStatusNotInOrderByCreatedAtDesc(List<BusinessType> businesses, List<BillStatus> statuses);
+
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' " +
+           "OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) " +
+           "AND b.status NOT IN ('COMPLETED', 'CANCELLED') " +
+           "ORDER BY b.createdAt DESC")
+    List<Bill> findShopAccountantActiveBills();
 
     // SYSTEM bills that ARE linked (have child bills)
     @Query("SELECT DISTINCT l.systemBill FROM BillStockLink l")
