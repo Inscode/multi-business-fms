@@ -1,0 +1,187 @@
+<div class="wbl-page">
+
+  <!-- Multi-select toolbar -->
+  <div class="multi-bar" *ngIf="multiSelectMode">
+    <span>{{ selectedBills.length }} selected</span>
+    <button class="combined-btn" *ngIf="selectedBills.length >= 2" (click)="openCombinedSheet()">
+      <mat-icon>link</mat-icon> {{ tr.t('combined_payment') }}
+    </button>
+    <button class="cancel-multi-btn" (click)="toggleMultiSelect()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Search bar with clear -->
+  <div class="wbl-search">
+    <mat-icon class="search-icon">search</mat-icon>
+    <input class="search-input" [(ngModel)]="searchQuery" (ngModelChange)="applyFilter()"
+           [placeholder]="tr.t('search')" />
+    <button class="clear-btn" *ngIf="searchQuery" (click)="clearSearch()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Status filter chips -->
+  <div class="filter-chips" *ngIf="!loading && !error">
+    <button class="filter-chip" [class.active]="statusFilter === 'all'" (click)="setStatusFilter('all')">
+      {{ tr.t('filter_all') }} <span class="chip-count">{{ bills.length }}</span>
+    </button>
+    <button class="filter-chip chip-not-visited" [class.active]="statusFilter === 'not_visited'" (click)="setStatusFilter('not_visited')">
+      <mat-icon>radio_button_unchecked</mat-icon>
+      {{ tr.t('filter_not_visited') }} <span class="chip-count">{{ filterCount('not_visited') }}</span>
+    </button>
+    <button class="filter-chip chip-not-delivered" [class.active]="statusFilter === 'not_delivered'" (click)="setStatusFilter('not_delivered')">
+      <mat-icon>schedule</mat-icon>
+      {{ tr.t('filter_not_delivered') }} <span class="chip-count">{{ filterCount('not_delivered') }}</span>
+    </button>
+    <button class="filter-chip chip-awaiting" [class.active]="statusFilter === 'awaiting'" (click)="setStatusFilter('awaiting')">
+      <mat-icon>local_shipping</mat-icon>
+      {{ tr.t('filter_awaiting') }} <span class="chip-count">{{ filterCount('awaiting') }}</span>
+    </button>
+    <button class="filter-chip chip-submitted" [class.active]="statusFilter === 'submitted'" (click)="setStatusFilter('submitted')">
+      <mat-icon>pending_actions</mat-icon>
+      {{ tr.t('filter_submitted') }} <span class="chip-count">{{ filterCount('submitted') }}</span>
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="w-center" *ngIf="loading">
+    <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
+  </div>
+
+  <!-- Error -->
+  <div class="w-center" *ngIf="error && !loading">
+    <mat-icon style="color:#ef5350;font-size:40px">error_outline</mat-icon>
+    <button class="w-retry-btn" (click)="load()">Retry</button>
+  </div>
+
+  <!-- Empty -->
+  <div class="w-center" *ngIf="!loading && !error && filtered.length === 0">
+    <mat-icon style="color:#bdbdbd;font-size:48px">receipt_long</mat-icon>
+    <p style="color:#9e9e9e;margin:8px 0 0">{{ tr.t('no_bills') }}</p>
+  </div>
+
+  <!-- Multi-select toggle button -->
+  <button class="multi-toggle-btn" *ngIf="!loading && !error && filtered.length > 0 && !multiSelectMode"
+          (click)="toggleMultiSelect()">
+    <mat-icon>checklist</mat-icon> {{ tr.t('combined_payment') }}
+  </button>
+
+  <!-- Bill cards -->
+  <div class="wbl-list" *ngIf="!loading && !error">
+    <div class="bill-card" [class.card-selected]="isSelected(b)"
+         *ngFor="let b of filtered"
+         (click)="multiSelectMode ? toggleBillSelect(b, $event) : openBill(b)">
+
+      <!-- Checkbox (multi-select) or visit dot -->
+      <div class="visit-dot" [style.background]="billVisitColor(b)" *ngIf="!multiSelectMode"></div>
+      <div class="select-check" *ngIf="multiSelectMode">
+        <mat-checkbox [checked]="isSelected(b)" (click)="$event.stopPropagation(); toggleBillSelect(b, $event)"></mat-checkbox>
+      </div>
+
+      <div class="bill-card-body">
+        <div class="bill-top-row">
+          <span class="bill-num">{{ b.billNumber }}</span>
+          <span class="bill-amt">Rs {{ b.tempBalance | number }}</span>
+        </div>
+
+        <div class="bill-customer">{{ b.customerName }}</div>
+
+        <div class="bill-bottom-row">
+          <span class="bill-area">
+            <mat-icon>location_on</mat-icon>{{ b.area ?? '—' }}
+          </span>
+          <span class="visit-chip" [style.color]="billVisitColor(b)">
+            <mat-icon [style.color]="billVisitColor(b)">{{ billVisitIcon(b) }}</mat-icon>
+            {{ billVisitLabel(b) }}
+          </span>
+        </div>
+
+        <!-- Management note banner -->
+        <div class="mgmt-note" *ngIf="b.managementNotes.length > 0">
+          <mat-icon>push_pin</mat-icon>
+          {{ b.managementNotes[0] }}
+        </div>
+
+        <!-- Visit note (revisit or delivery reason) -->
+        <div class="revisit-note" *ngIf="b.visitNote && (b.visitStatus === 'REVISIT_REQUESTED' || b.visitStatus === 'DELIVERED_PENDING')">
+          <mat-icon>schedule</mat-icon>
+          {{ b.visitNote }}
+        </div>
+      </div>
+
+      <mat-icon class="chevron">chevron_right</mat-icon>
+    </div>
+  </div>
+
+  <!-- Combined payment bottom sheet -->
+  <div class="sheet-backdrop" *ngIf="showCombinedSheet" (click)="closeCombinedSheet()"></div>
+  <div class="bottom-sheet" *ngIf="showCombinedSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">{{ tr.t('combined_payment') }}</div>
+
+    <!-- Payment type -->
+    <div class="pay-type-row">
+      <button class="pay-type-btn" [class.active]="combinedPayType === 'CASH'" (click)="combinedPayType = 'CASH'">
+        💵 {{ tr.t('cash') }}
+      </button>
+      <button class="pay-type-btn" [class.active]="combinedPayType === 'CHEQUE'" (click)="combinedPayType = 'CHEQUE'">
+        🧾 {{ tr.t('cheque') }}
+      </button>
+    </div>
+
+    <!-- Cheque fields -->
+    <ng-container *ngIf="combinedPayType === 'CHEQUE'">
+      <div class="field-group">
+        <label>{{ tr.t('cheque_no') }} *</label>
+        <input [(ngModel)]="combinedChequeNo" placeholder="XXXX-XXXX" />
+      </div>
+      <div class="field-group">
+        <label>{{ tr.t('bank') }}</label>
+        <input [(ngModel)]="combinedBank" />
+      </div>
+      <div class="field-group">
+        <label>{{ tr.t('branch') }}</label>
+        <input [(ngModel)]="combinedBranch" />
+      </div>
+    </ng-container>
+
+    <!-- Per-bill amounts -->
+    <div class="bills-amounts">
+      <div class="bill-amt-row" *ngFor="let b of selectedBills">
+        <div class="bill-amt-info">
+          <span class="bill-amt-num">{{ b.billNumber }}</span>
+          <span class="bill-amt-cust">{{ b.customerName }}</span>
+        </div>
+        <input class="amt-input" type="number"
+               [ngModel]="combinedAmounts.get(b.id)"
+               (ngModelChange)="combinedAmounts.set(b.id, $event)" />
+      </div>
+      <div class="combined-total-row">
+        <span>Total</span>
+        <span class="combined-total-val">Rs {{ combinedTotal | number }}</span>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label>{{ tr.t('note') }}</label>
+      <input [(ngModel)]="combinedNote" [placeholder]="tr.t('note_hint')" />
+    </div>
+
+    <div class="pay-error" *ngIf="combinedError">{{ combinedError }}</div>
+
+    <button class="w-btn w-btn-primary sheet-submit"
+            [disabled]="savingCombined || selectedBills.length < 2"
+            (click)="submitCombined()">
+      <mat-progress-spinner *ngIf="savingCombined" diameter="18" mode="indeterminate"></mat-progress-spinner>
+      {{ tr.t('confirm') }}
+    </button>
+  </div>
+
+  <!-- Bill detail overlay -->
+  <app-worker-bill-detail
+    *ngIf="selectedBill"
+    [bill]="selectedBill"
+    (close)="onDetailClose($event)"
+  ></app-worker-bill-detail>
+</div>

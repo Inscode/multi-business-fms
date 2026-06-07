@@ -24,6 +24,9 @@ export class RoleRedirect implements OnInit{
       case 'SHOP_ACCOUNTANT':
         this.router.navigate(['/dashboard/shop']);
         break;
+      case 'WORKER':
+        this.router.navigate(['/worker']);
+        break;
       default:
         this.router.navigate(['/login']);
     }

@@ -1,5 +1,6 @@
 package com.multi.finance.entity;
 
+import com.multi.finance.entity.User;
 import com.multi.finance.enums.WorkerType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -40,6 +41,11 @@ public class Worker {
     private LocalDate joinedDate;
 
     private String notes;
+
+    /** Linked login account — set when admin creates a WORKER user for this worker */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

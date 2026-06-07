@@ -1,0 +1,242 @@
+<div class="wbd-overlay">
+
+  <!-- Header -->
+  <div class="wbd-header">
+    <button class="back-btn" (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="wbd-title">
+      <span class="wbd-bill-num">{{ b.billNumber }}</span>
+      <span class="wbd-customer">{{ b.customerName }}</span>
+    </div>
+  </div>
+
+  <div class="wbd-scroll" *ngIf="!loading">
+
+    <!-- Management note -->
+    <div class="mgmt-banner" *ngFor="let note of b.managementNotes">
+      <mat-icon>push_pin</mat-icon>
+      <span>{{ note }}</span>
+    </div>
+
+    <!-- Balance card -->
+    <div class="balance-card">
+      <div class="bal-row">
+        <span class="bal-label">{{ tr.t('total_amount') }}</span>
+        <span class="bal-val">Rs {{ b.totalAmount | number }}</span>
+      </div>
+      <div class="bal-row">
+        <span class="bal-label">{{ tr.t('balance') }}</span>
+        <span class="bal-val">Rs {{ b.balanceRemaining | number }}</span>
+      </div>
+      <div class="bal-row highlight" *ngIf="b.workerPendingTotal > 0">
+        <span class="bal-label">{{ tr.t('your_collected') }}</span>
+        <span class="bal-val collected">− Rs {{ b.workerPendingTotal | number }}</span>
+      </div>
+      <div class="bal-row total-row" [class.fully-paid]="isFullyCollected">
+        <span class="bal-label">{{ tr.t('temp_balance') }}</span>
+        <span class="bal-val">Rs {{ b.tempBalance | number }}</span>
+      </div>
+    </div>
+
+    <!-- Visit status -->
+    <div class="section-label">Delivery Status: <strong>{{ visitStatusLabel(b.visitStatus) }}</strong></div>
+
+    <!-- Revisit / delivery note -->
+    <div class="revisit-banner" *ngIf="(b.visitStatus === 'REVISIT_REQUESTED' || b.visitStatus === 'DELIVERED_PENDING') && b.visitNote">
+      <mat-icon>schedule</mat-icon> {{ b.visitNote }}
+    </div>
+
+    <!-- Actions: not yet visited or can change -->
+    <ng-container *ngIf="!isFullyCollected">
+
+      <!-- Mark delivered / not delivered -->
+      <div class="action-row" *ngIf="!isDelivered">
+        <button class="w-btn w-btn-primary" (click)="openDeliveredChoice()" [disabled]="savingVisit">
+          <mat-icon>local_shipping</mat-icon>
+          {{ tr.t('delivered') }}
+        </button>
+        <button class="w-btn w-btn-outline" (click)="openNotDelivered()" [disabled]="savingVisit">
+          <mat-icon>cancel</mat-icon>
+          {{ tr.t('not_delivered') }}
+        </button>
+      </div>
+
+      <!-- Payment buttons (only once delivered) -->
+      <div class="action-row" *ngIf="isDelivered">
+        <button class="w-btn w-btn-primary" (click)="openPayment()">
+          <mat-icon>add</mat-icon>
+          {{ tr.t('add_payment') }}
+        </button>
+      </div>
+    </ng-container>
+
+    <div class="fully-collected-badge" *ngIf="isFullyCollected">
+      <mat-icon>check_circle</mat-icon>
+      {{ tr.t('fully_collected') }}
+    </div>
+
+    <!-- Entered payments -->
+    <div class="section-label" *ngIf="b.workerPayments.length > 0">
+      Entered Payments
+    </div>
+    <div class="payment-entry" *ngFor="let p of b.workerPayments">
+      <div class="pe-row">
+        <span class="pe-type-chip" [class.cash]="p.paymentType === 'CASH'" [class.cheque]="p.paymentType === 'CHEQUE'">
+          {{ p.paymentType }}
+        </span>
+        <span class="pe-amt">Rs {{ p.amount | number }}</span>
+        <span class="pe-status" [class.pending]="p.status === 'PENDING'" [class.confirmed]="p.status === 'OWNER_CONFIRMED'" [class.rejected]="p.status === 'REJECTED'">
+          {{ tr.t(p.status.toLowerCase()) }}
+        </span>
+      </div>
+      <div class="pe-cheque" *ngIf="p.chequeNumber">
+        Cheque: {{ p.chequeNumber }} · {{ p.bankName }}
+      </div>
+      <div class="pe-note" *ngIf="p.workerNote">💬 {{ p.workerNote }}</div>
+      <div class="pe-actions" *ngIf="p.status === 'PENDING'">
+        <button class="pe-btn" (click)="openEditPayment(p)">
+          <mat-icon>edit</mat-icon> {{ tr.t('edit') }}
+        </button>
+        <button class="pe-btn pe-btn-del" (click)="deletePayment(p)">
+          <mat-icon>delete</mat-icon> {{ tr.t('delete') }}
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Loading -->
+  <div class="w-center" *ngIf="loading">
+    <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+  </div>
+
+  <!-- ── Bottom sheet: Delivered Choice ── -->
+  <div class="sheet-backdrop" *ngIf="activeSheet === 'delivered_choice'" (click)="closeSheet()"></div>
+  <div class="bottom-sheet" *ngIf="activeSheet === 'delivered_choice'">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">{{ tr.t('delivered') }}</div>
+
+    <button class="reason-btn" style="border-color:#1976d2;background:#e3f2fd;color:#1565c0" (click)="collectNow()" [disabled]="savingVisit">
+      <mat-icon style="color:#1565c0">payments</mat-icon>
+      {{ tr.t('add_payment') }}
+    </button>
+
+    <button class="reason-btn" (click)="activeSheet = 'no_payment_reason'" style="margin-top:4px">
+      <mat-icon>schedule</mat-icon>
+      {{ tr.t('payment_later') }}
+    </button>
+  </div>
+
+  <!-- ── Bottom sheet: No Payment Reason ── -->
+  <div class="sheet-backdrop" *ngIf="activeSheet === 'no_payment_reason'" (click)="closeSheet()"></div>
+  <div class="bottom-sheet" *ngIf="activeSheet === 'no_payment_reason'">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">{{ tr.t('payment_later') }}</div>
+
+    <div class="note-field">
+      <label>{{ tr.t('note') }} * <span style="color:#9e9e9e;font-weight:400">({{ tr.t('note_hint') }})</span></label>
+      <input [(ngModel)]="deliveryNoPaymentNote" [placeholder]="tr.t('note_hint')" />
+      <span class="req-hint" *ngIf="!deliveryNoPaymentNote.trim()">{{ tr.t('reason_required') }}</span>
+    </div>
+
+    <button class="w-btn w-btn-primary sheet-submit"
+            [disabled]="!deliveryNoPaymentNote.trim() || savingVisit"
+            (click)="confirmDeliveryNoPayment()">
+      {{ tr.t('confirm') }}
+    </button>
+  </div>
+
+  <!-- ── Bottom sheet: Not Delivered ── -->
+  <div class="sheet-backdrop" *ngIf="activeSheet === 'visit_not_delivered'" (click)="closeSheet()"></div>
+  <div class="bottom-sheet" *ngIf="activeSheet === 'visit_not_delivered'">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">{{ tr.t('why_not_delivered') }}</div>
+
+    <button class="reason-btn" [class.selected]="notDeliveredReason === 'SHOP_CLOSED'"
+            (click)="notDeliveredReason = 'SHOP_CLOSED'">
+      <mat-icon>store</mat-icon> {{ tr.t('shop_closed') }}
+    </button>
+    <button class="reason-btn" [class.selected]="notDeliveredReason === 'REVISIT_REQUESTED'"
+            (click)="notDeliveredReason = 'REVISIT_REQUESTED'">
+      <mat-icon>schedule</mat-icon> {{ tr.t('come_later') }}
+    </button>
+
+    <div class="note-field" *ngIf="notDeliveredReason === 'REVISIT_REQUESTED'">
+      <label>{{ tr.t('note') }} *</label>
+      <input [(ngModel)]="notDeliveredNote" [placeholder]="tr.t('note_hint')" />
+      <span class="req-hint" *ngIf="notDeliveredReason === 'REVISIT_REQUESTED' && !notDeliveredNote.trim()">
+        {{ tr.t('reason_required') }}
+      </span>
+    </div>
+
+    <button class="w-btn w-btn-primary sheet-submit"
+            [disabled]="!notDeliveredReason || savingVisit || (notDeliveredReason === 'REVISIT_REQUESTED' && !notDeliveredNote.trim())"
+            (click)="confirmNotDelivered()">
+      {{ tr.t('confirm') }}
+    </button>
+  </div>
+
+  <!-- ── Bottom sheet: Payment ── -->
+  <div class="sheet-backdrop" *ngIf="activeSheet === 'payment'" (click)="closeSheet()"></div>
+  <div class="bottom-sheet" *ngIf="activeSheet === 'payment'">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">
+      {{ editingEntry ? tr.t('edit') : tr.t('add_payment') }}
+    </div>
+
+    <div class="pay-type-row">
+      <button class="pay-type-btn" [class.active]="payType === 'CASH'" (click)="payType = 'CASH'">
+        💵 {{ tr.t('cash') }}
+      </button>
+      <button class="pay-type-btn" [class.active]="payType === 'CHEQUE'" (click)="payType = 'CHEQUE'">
+        🧾 {{ tr.t('cheque') }}
+      </button>
+    </div>
+
+    <div class="field-group">
+      <label>{{ tr.t('amount') }}</label>
+      <input type="number" [(ngModel)]="payAmount" [placeholder]="tr.t('amount')" />
+    </div>
+
+    <ng-container *ngIf="payType === 'CHEQUE'">
+      <div class="field-group">
+        <label>{{ tr.t('cheque_no') }} *</label>
+        <input [(ngModel)]="payChequeNo" placeholder="XXXX-XXXX" />
+      </div>
+      <div class="field-group">
+        <label>Cheque Date *</label>
+        <input type="date" [(ngModel)]="payChequeDate" class="date-input" />
+      </div>
+      <div class="field-group">
+        <label>{{ tr.t('bank') }} *</label>
+        <select [(ngModel)]="payBank" class="bank-select">
+          <option value="">— Select Bank —</option>
+          <option *ngFor="let b of banks" [value]="b">{{ b }}</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>{{ tr.t('branch') }}</label>
+        <select [(ngModel)]="payBranch" class="bank-select">
+          <option value="">— Select Branch Area —</option>
+          <option *ngFor="let a of areas" [value]="a">{{ a }}</option>
+        </select>
+      </div>
+    </ng-container>
+
+    <div class="field-group">
+      <label>{{ tr.t('note') }}</label>
+      <input [(ngModel)]="payNote" [placeholder]="tr.t('pay_note_hint')" />
+    </div>
+
+    <div class="pay-error" *ngIf="payError">{{ payError }}</div>
+
+    <button class="w-btn w-btn-primary sheet-submit"
+            [disabled]="savingPayment || !payAmount || payAmount <= 0"
+            (click)="submitPayment()">
+      <mat-progress-spinner *ngIf="savingPayment" diameter="18" mode="indeterminate"></mat-progress-spinner>
+      {{ tr.t('submit') }}
+    </button>
+  </div>
+
+</div>

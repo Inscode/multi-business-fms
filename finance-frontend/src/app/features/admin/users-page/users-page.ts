@@ -13,6 +13,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { UserService, UserResponse } from '../../../core/services/user';
+import { Worker as WorkerApi, WorkerResponse } from '../../../core/services/worker';
 
 @Component({
   selector: 'app-users-page',
@@ -40,6 +41,7 @@ import { UserService, UserResponse } from '../../../core/services/user';
 export class UsersPage implements OnInit {
   users: UserResponse[] = [];
   filteredUsers: UserResponse[] = [];
+  workers: WorkerResponse[] = [];
   loading = true;
   error = false;
   formLoading = false;
@@ -53,10 +55,11 @@ export class UsersPage implements OnInit {
   displayedColumns = ['fullName', 'username', 'role', 'status', 'actions'];
 
   readonly roles = [
-    { value: 'OWNER',           label: 'Owner' },
-    { value: 'MAIN_ACCOUNTANT', label: 'Main Accountant' },
+    { value: 'WORKER',          label: 'Delivery' },
     { value: 'ACCOUNTANT',      label: 'Accountant' },
+    { value: 'MAIN_ACCOUNTANT', label: 'Main Accountant' },
     { value: 'SHOP_ACCOUNTANT', label: 'Shop Accountant' },
+    { value: 'OWNER',           label: 'Owner' },
   ];
 
   form: FormGroup;
@@ -69,9 +72,12 @@ export class UsersPage implements OnInit {
     return this.roles.find(r => r.value === value)?.label ?? value;
   }
 
+  get selectedRole(): string { return this.form.get('role')?.value ?? ''; }
+
   constructor(
     private fb: FormBuilder,
     private userService: UserService,
+    private workerService: WorkerApi,
     private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
@@ -79,10 +85,17 @@ export class UsersPage implements OnInit {
       username: ['', Validators.required],
       password: ['', Validators.required],
       role:     [null, Validators.required],
+      workerId: [null],
     });
   }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.workerService.getAllWorkers().subscribe({
+      next: (list: WorkerResponse[]) => { this.workers = list.filter(w => w.active); this.cdr.detectChanges(); },
+      error: () => {},
+    });
+  }
 
   load(): void {
     this.loading = true;
@@ -161,7 +174,7 @@ export class UsersPage implements OnInit {
     this.formError = '';
     this.cdr.detectChanges();
 
-    const { fullName, username, password, role } = this.form.value;
+    const { fullName, username, password, role, workerId } = this.form.value;
 
     const updatePayload = password?.trim()
       ? { fullName, username, role, password }
@@ -169,7 +182,7 @@ export class UsersPage implements OnInit {
 
     const request$ = this.editingUser
       ? this.userService.update(this.editingUser.id, updatePayload)
-      : this.userService.create({ fullName, username, password, role });
+      : this.userService.create({ fullName, username, password, role, ...(workerId ? { workerId } : {}) });
 
     request$.subscribe({
       next: () => {

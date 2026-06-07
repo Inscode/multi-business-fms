@@ -139,9 +139,19 @@ public class InventoryServiceImpl {
 
         StockInRequest saved = stockInRequestRepository.save(stockIn);
 
+        List<Long> productIds = request.getItems().stream()
+                .map(StockItemRequest::getProductId)
+                .collect(Collectors.toList());
+
+        Map<Long, ReturnProduct> productMap = productRepository.findAllById(productIds)
+                .stream()
+                .collect(Collectors.toMap(ReturnProduct::getId, p -> p));
+
         for (StockItemRequest item : request.getItems()) {
-            ReturnProduct product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+            ReturnProduct product = productMap.get(item.getProductId());
+            if (product == null) {
+                throw new RuntimeException("Product not found: " + item.getProductId());
+            }
             StockInRequestItem lineItem = StockInRequestItem.builder()
                     .stockInRequest(saved)
                     .product(product)

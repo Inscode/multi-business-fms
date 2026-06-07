@@ -190,6 +190,7 @@ public class BillServiceImpl {
                     BusinessType.RAINCO, BusinessType.STATIONERY,
                     BusinessType.PLASTIC, BusinessType.HARDWARE);
             case ADMIN, OWNER -> null; // unrestricted
+            case WORKER -> List.of(); // workers don't access the main bill list
         };
     }
 

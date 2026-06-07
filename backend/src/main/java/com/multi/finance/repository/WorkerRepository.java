@@ -10,4 +10,5 @@ import java.util.List;
 public interface WorkerRepository extends JpaRepository<Worker, Long> {
     List<Worker> findByActiveTrue();
     List<Worker> findByWorkerType(WorkerType workerType);
+    java.util.Optional<Worker> findByUserId(Long userId);
 }

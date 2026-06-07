@@ -119,7 +119,18 @@ export const routes: Routes = [
         loadComponent: () => import('./features/customers/customers-page/customers-page')
           .then(m => m.CustomersPage)
       },
+      {
+        path: 'worker-collections',
+        loadComponent: () => import('./features/worker-collections/worker-collections-page')
+          .then(m => m.WorkerCollectionsPage)
+      },
     ]
+  },
+  {
+    path: 'worker',
+    loadComponent: () => import('./features/worker/worker-shell/worker-shell')
+      .then(m => m.WorkerShell),
+    canActivate: [authGuard],
   },
   { path: '**', redirectTo: 'login' }
 ];

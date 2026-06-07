@@ -1,0 +1,56 @@
+.wp-page { padding: 12px; }
+
+.wp-header { font-size: 13px; font-weight: 700; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+.w-center { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; gap: 8px; }
+
+.summary-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+
+  .sum-item {
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+
+    &.total { background: #0d2137; .sum-label, .sum-val { color: #fff; } }
+  }
+
+  .sum-label { display: block; font-size: 11px; color: #9e9e9e; }
+  .sum-val { display: block; font-size: 14px; font-weight: 700; color: #1a1a2e; margin-top: 2px; }
+}
+
+.wp-list { display: flex; flex-direction: column; gap: 8px; }
+
+.wp-entry {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.wpe-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.wpe-bill { font-size: 12px; color: #9e9e9e; font-weight: 500; flex: 1; }
+
+.wpe-type-chip {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px;
+  &.cash { background: #e8f5e9; color: #2e7d32; }
+  &.cheque { background: #e3f2fd; color: #1565c0; }
+}
+
+.wpe-status {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px;
+  &.pending { background: #fff3e0; color: #e65100; }
+  &.confirmed { background: #e8f5e9; color: #2e7d32; }
+  &.rejected { background: #ffebee; color: #c62828; }
+}
+
+.wpe-main-row { display: flex; justify-content: space-between; align-items: baseline; }
+.wpe-customer { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+.wpe-amt { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+.wpe-cheque { font-size: 12px; color: #757575; margin-top: 3px; }
+.wpe-note { font-size: 12px; color: #757575; margin-top: 3px; }

@@ -6,4 +6,5 @@ public enum UserRole {
     ACCOUNTANT,
     SHOP_ACCOUNTANT,
     MAIN_ACCOUNTANT,
+    WORKER,
 }

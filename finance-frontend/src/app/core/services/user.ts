@@ -16,6 +16,7 @@ export interface CreateUserRequest {
   password: string;
   fullName: string;
   role: string;
+  workerId?: number;
 }
 
 export interface UpdateUserRequest {
