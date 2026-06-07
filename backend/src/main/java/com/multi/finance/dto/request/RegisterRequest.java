@@ -21,4 +21,6 @@ public class RegisterRequest {
     @NotNull
     private UserRole role;
 
+    /** Optional: link to an existing Worker entity when role = WORKER */
+    private Long workerId;
 }

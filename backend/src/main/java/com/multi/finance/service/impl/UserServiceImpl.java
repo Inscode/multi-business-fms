@@ -4,7 +4,10 @@ import com.multi.finance.dto.request.RegisterRequest;
 import com.multi.finance.dto.request.UpdateUserRequest;
 import com.multi.finance.dto.response.UserResponse;
 import com.multi.finance.entity.User;
+import com.multi.finance.entity.Worker;
+import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.UserRepository;
+import com.multi.finance.repository.WorkerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,7 @@ public class UserServiceImpl {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WorkerRepository workerRepository;
 
     public UserResponse createUser(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -32,7 +36,18 @@ public class UserServiceImpl {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-        return toResponse(userRepository.save(user));
+
+        User saved = userRepository.save(user);
+
+        // If WORKER role and a workerId provided, link the Worker entity
+        if (request.getRole() == UserRole.WORKER && request.getWorkerId() != null) {
+            Worker worker = workerRepository.findById(request.getWorkerId())
+                    .orElseThrow(() -> new RuntimeException("Worker not found: " + request.getWorkerId()));
+            worker.setUser(saved);
+            workerRepository.save(worker);
+        }
+
+        return toResponse(saved);
     }
 
     public List<UserResponse> getAllUsers() {

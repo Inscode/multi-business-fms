@@ -15,7 +15,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401) {
+      if (error.status === 401 || error.status === 403) {
         localStorage.removeItem('token');
         router.navigate(['/login']);
       }

@@ -1,0 +1,149 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Worker Collections</h1>
+      <p class="page-sub">Payments collected by field workers</p>
+    </div>
+    <button mat-stroked-button (click)="load()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <mat-tab-group *ngIf="!loading">
+
+    <!-- ── Tab 1: Pending Confirmation ── -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>pending</mat-icon>&nbsp;
+        Pending
+        <span class="tab-badge" *ngIf="pendingEntries.length > 0">{{ pendingEntries.length }}</span>
+      </ng-template>
+
+      <div class="tab-content">
+        <div class="empty-state" *ngIf="pendingEntries.length === 0">
+          <mat-icon>check_circle</mat-icon>
+          <p>No pending worker payments</p>
+        </div>
+
+        <div class="entry-card" *ngFor="let e of pendingEntries">
+          <div class="entry-header">
+            <div class="entry-worker">
+              <mat-icon>person</mat-icon>
+              <strong>{{ e.workerName }}</strong>
+            </div>
+            <span class="type-chip" [class.cash]="e.paymentType === 'CASH'" [class.cheque]="e.paymentType === 'CHEQUE'">
+              {{ e.paymentType }}
+            </span>
+          </div>
+
+          <div class="entry-row">
+            <span class="bill-ref">{{ e.billNumber }} · {{ e.customerName }}</span>
+            <span class="entry-amt">Rs {{ e.amount | number }}</span>
+          </div>
+
+          <div class="entry-cheque" *ngIf="e.chequeNumber">
+            🧾 {{ e.chequeNumber }} · {{ e.bankName }}<span *ngIf="e.branchName"> · {{ e.branchName }}</span>
+          </div>
+
+          <div class="entry-note" *ngIf="e.workerNote">
+            💬 {{ e.workerNote }}
+          </div>
+
+          <div class="entry-meta">
+            Entered {{ e.enteredAt | date:'dd MMM, h:mm a' }}
+          </div>
+
+          <!-- Reject input -->
+          <div class="reject-input" *ngIf="showRejectInput === e.id">
+            <input [(ngModel)]="rejectReason" placeholder="Reason for rejection" />
+            <button mat-flat-button color="warn" (click)="submitReject(e.id)" [disabled]="!rejectReason.trim()">Reject</button>
+            <button mat-stroked-button (click)="cancelReject()">Cancel</button>
+          </div>
+
+          <!-- Actions: owner/admin only -->
+          <div class="entry-actions" *ngIf="isOwnerOrAdmin && showRejectInput !== e.id">
+            <button mat-flat-button color="primary" (click)="confirm(e.id)">
+              <mat-icon>check</mat-icon> Confirm
+            </button>
+            <button mat-stroked-button color="warn" (click)="startReject(e.id)">
+              <mat-icon>close</mat-icon> Reject
+            </button>
+          </div>
+
+          <!-- Acc/Main_Acc: read-only label -->
+          <div class="readonly-label" *ngIf="!isOwnerOrAdmin">
+            Awaiting owner confirmation
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 2: Confirmed ── -->
+    <mat-tab label="Confirmed">
+      <div class="tab-content">
+        <div class="empty-state" *ngIf="confirmedEntries.length === 0">
+          <mat-icon>payments</mat-icon>
+          <p>No confirmed collections yet</p>
+        </div>
+
+        <div class="entry-card confirmed-card" *ngFor="let e of confirmedEntries">
+          <div class="entry-header">
+            <div class="entry-worker">
+              <mat-icon>person</mat-icon>
+              <strong>{{ e.workerName }}</strong>
+            </div>
+            <span class="type-chip" [class.cash]="e.paymentType === 'CASH'" [class.cheque]="e.paymentType === 'CHEQUE'">
+              {{ e.paymentType }}
+            </span>
+          </div>
+          <div class="entry-row">
+            <span class="bill-ref">{{ e.billNumber }} · {{ e.customerName }}</span>
+            <span class="entry-amt">Rs {{ e.amount | number }}</span>
+          </div>
+          <div class="entry-cheque" *ngIf="e.chequeNumber">
+            🧾 {{ e.chequeNumber }} · {{ e.bankName }}
+          </div>
+          <div class="entry-meta">
+            Confirmed by {{ e.confirmedByName }} · {{ e.confirmedAt | date:'dd MMM, h:mm a' }}
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 3: Worker Bills Delivery Status ── -->
+    <mat-tab label="Delivery Status">
+      <div class="tab-content">
+        <div class="empty-state" *ngIf="bills.length === 0">
+          <mat-icon>receipt_long</mat-icon>
+          <p>No assigned bills</p>
+        </div>
+
+        <div class="bill-status-card" *ngFor="let b of bills">
+          <div class="bsc-left">
+            <div class="visit-dot" [style.background]="visitColor(b.visitStatus)"></div>
+          </div>
+          <div class="bsc-body">
+            <div class="bsc-row">
+              <strong>{{ b.billNumber }}</strong>
+              <span class="bsc-amt">Rs {{ b.balanceRemaining | number }}</span>
+            </div>
+            <div class="bsc-customer">{{ b.customerName }}</div>
+            <div class="bsc-row">
+              <span class="bsc-area">{{ b.area || '—' }}</span>
+              <span class="bsc-worker" *ngIf="b.workerName">👤 {{ b.workerName }}</span>
+            </div>
+            <div class="visit-label" [style.color]="visitColor(b.visitStatus)">
+              {{ visitLabel(b.visitStatus) }}
+            </div>
+            <div class="bsc-note" *ngIf="b.visitNote">💬 {{ b.visitNote }}</div>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+</div>

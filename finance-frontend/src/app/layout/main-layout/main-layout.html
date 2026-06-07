@@ -80,6 +80,10 @@
         <mat-icon>people</mat-icon>
         <span *ngIf="!collapsed">Customers</span>
       </a>
+      <a class="nav-item" routerLink="/worker-collections" routerLinkActive="active" matRipple *ngIf="showWorkerCollections" (click)="isMobile && sidenav.close()">
+        <mat-icon>directions_bike</mat-icon>
+        <span *ngIf="!collapsed">Worker Collections</span>
+      </a>
     </nav>
 
     <div class="nav-footer" *ngIf="!collapsed">

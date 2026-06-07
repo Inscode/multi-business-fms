@@ -189,6 +189,18 @@
           <mat-error *ngIf="form.get('role')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
+        <!-- Link to existing Worker entity when role = WORKER -->
+        <mat-form-field appearance="outline" class="full-width" *ngIf="selectedRole === 'WORKER'">
+          <mat-label>Link to Worker Profile</mat-label>
+          <mat-select formControlName="workerId">
+            <mat-option [value]="null">— Not linked —</mat-option>
+            <mat-option *ngFor="let w of workers" [value]="w.id">
+              {{ w.fullName }} · {{ w.workerType }}
+            </mat-option>
+          </mat-select>
+          <mat-hint>Link this login to an existing worker so they can see assigned bills</mat-hint>
+        </mat-form-field>
+
         <div class="form-error" *ngIf="formError">
           <mat-icon>error_outline</mat-icon>
           <span>{{ formError }}</span>
