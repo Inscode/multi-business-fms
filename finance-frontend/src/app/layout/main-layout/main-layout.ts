@@ -51,9 +51,9 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   ngOnInit(): void {
     this.checkScreen();
     if (this.showUsers) this.loadPendingCount();
-    if (this.showReturns) this.loadPendingReturns();
-    if (this.showExpenses) this.loadPendingExpenses();
-    if (this.showSalary) this.loadPendingSalary();
+    if (this.isAdminOrOwner) this.loadPendingReturns();
+    if (this.isAdminOrOwner) this.loadPendingExpenses();
+    if (this.isAdminOrOwner) this.loadPendingSalary();
     if (this.showWorkerFinanceReview) this.loadWorkerFinanceCounts();
   }
 
@@ -118,6 +118,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   }
 
   get currentRole(): string         { return this.auth.getRole() ?? ''; }
+  get isAdminOrOwner(): boolean     { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
   get isShopAccountant(): boolean   { return this.currentRole === 'SHOP_ACCOUNTANT'; }
   get showBills(): boolean          { return !this.isShopAccountant; }
   get showPayments(): boolean       { return !this.isShopAccountant; }
