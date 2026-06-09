@@ -13,7 +13,8 @@ import { BillChecklistService, ChecklistVerifyRow } from '../../../core/services
 import { Payment } from '../../../core/services/payment';
 import { MatDialog } from '@angular/material/dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
-import { firstValueFrom } from 'rxjs';
+import { from } from 'rxjs';
+import { concatMap } from 'rxjs/operators';
 import { SelectionModel } from '@angular/cdk/collections';
 import { CdkTableModule } from '@angular/cdk/table';
 import { RouterLink } from '@angular/router';
@@ -166,13 +167,12 @@ export class OwnerDashboard implements OnInit {
       width: '360px'
     }).afterClosed().subscribe(confirmed => {
       if (!confirmed) return;
-      Promise.all(
-        this.selection.selected.map(p =>
-          firstValueFrom(this.paymentService.confirmPayment(p.id))
-        )
-      ).then(() => {
-        this.selection.clear();
-        this.load();
+      const selected = [...this.selection.selected];
+      from(selected).pipe(
+        concatMap(p => this.paymentService.confirmPayment(p.id))
+      ).subscribe({
+        error: (err) => alert(err?.error?.message ?? 'Failed to confirm a payment.'),
+        complete: () => { this.selection.clear(); this.load(); },
       });
     });
   }

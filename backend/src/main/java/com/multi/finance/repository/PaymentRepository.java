@@ -44,6 +44,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByStatusOrderByCreatedAtDesc(PaymentStatus status);
 
+    @Query("SELECT p FROM Payment p JOIN FETCH p.bill WHERE p.paymentDate BETWEEN :from AND :to ORDER BY p.createdAt DESC")
+    List<Payment> findAllWithBillBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    @Query("SELECT p FROM Payment p JOIN FETCH p.bill WHERE p.status = :status AND p.paymentDate BETWEEN :from AND :to ORDER BY p.createdAt DESC")
+    List<Payment> findByStatusWithBillBetween(@Param("status") PaymentStatus status, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
     List<Payment> findByEnteredByIdAndStatusOrderByCreatedAtDesc(Long enteredById, PaymentStatus status);
 
     @Query("SELECT COUNT(p) FROM Payment p WHERE p.paymentDate = :date AND p.bill.business = :business")
@@ -56,4 +62,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("paymentStatus") PaymentStatus paymentStatus,
             @Param("billStatus") BillStatus billStatus
     );
+
+    /** Sum of ENTERED (not-yet-confirmed) payments for a bill — used to prevent double-entry overpayment */
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.bill.id = :billId AND p.status = 'ENTERED'")
+    BigDecimal sumEnteredForBill(@Param("billId") Long billId);
 }

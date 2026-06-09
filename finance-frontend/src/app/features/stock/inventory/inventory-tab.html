@@ -24,7 +24,7 @@
             <mat-icon>refresh</mat-icon> Refresh
           </button>
 
-          <button *ngIf="isAccOrAdmin" mat-raised-button color="primary" (click)="openAddProduct()">
+          <button *ngIf="isAdmin" mat-raised-button color="primary" (click)="openAddProduct()">
             <mat-icon>add</mat-icon> Add New Product
           </button>
         </div>
@@ -76,9 +76,16 @@
             <ng-container matColumnDef="availableQty">
               <th mat-header-cell *matHeaderCellDef>Available Qty</th>
               <td mat-cell *matCellDef="let r">
-                <span class="qty-cell" [class.qty-low]="r.availableQty <= 0" [class.qty-ok]="r.availableQty > 0">
-                  {{ r.availableQty }}
-                </span>
+                <ng-container *ngIf="setQtyId !== r.productId">
+                  <span class="qty-cell" [class.qty-low]="r.availableQty <= 0" [class.qty-ok]="r.availableQty > 0">
+                    {{ r.availableQty }}
+                  </span>
+                </ng-container>
+                <ng-container *ngIf="isAdmin && setQtyId === r.productId">
+                  <input type="number" [(ngModel)]="setQtyValue" min="0" class="qty-edit-input" />
+                  <button mat-icon-button color="primary" (click)="saveSetQty(r)" matTooltip="Save"><mat-icon>check</mat-icon></button>
+                  <button mat-icon-button (click)="cancelSetQty()" matTooltip="Cancel"><mat-icon>close</mat-icon></button>
+                </ng-container>
               </td>
             </ng-container>
 
@@ -92,18 +99,32 @@
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let r">
-                <button *ngIf="isAccOrAdmin" mat-icon-button matTooltip="Edit product" (click)="openEditProduct(r)">
-                  <mat-icon>edit</mat-icon>
-                </button>
-                <button *ngIf="isAdmin" mat-icon-button color="warn" matTooltip="Delete product" (click)="deleteProduct(r)">
-                  <mat-icon>delete</mat-icon>
-                </button>
+                <ng-container *ngIf="isAdmin">
+                  <button mat-icon-button matTooltip="Edit product name / price" (click)="openEditProduct(r)">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button mat-icon-button matTooltip="Adjust quantity" (click)="startSetQty(r)"
+                          [disabled]="setQtyId !== null">
+                    <mat-icon>edit_note</mat-icon>
+                  </button>
+                  <button mat-icon-button
+                          [color]="r.active ? 'warn' : 'primary'"
+                          [matTooltip]="r.active ? 'Deactivate' : 'Activate'"
+                          [disabled]="togglingId === r.productId"
+                          (click)="toggleActive(r)">
+                    <mat-icon>{{ r.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+                  </button>
+                  <button mat-icon-button color="warn" matTooltip="Delete product" (click)="deleteProduct(r)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </ng-container>
               </td>
             </ng-container>
 
             <tr mat-header-row *matHeaderRowDef="balanceColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: balanceColumns"
-              [class.row-zero]="row.availableQty <= 0"></tr>
+              [class.row-zero]="row.availableQty <= 0 && row.active"
+              [class.row-inactive]="!row.active"></tr>
           </table>
 
           <div *ngIf="filteredBalances.length === 0" class="empty-state">

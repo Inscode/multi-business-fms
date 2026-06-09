@@ -72,11 +72,16 @@ public class PaymentServiceImpl {
             }
         }
 
-        if (request.getAmount()
-                .compareTo(bill.getBalanceRemaining()) > 0) {
-
+        // Deduct already-ENTERED (not yet confirmed) payments so two drafts
+        // for the same bill can't together exceed the real balance.
+        BigDecimal alreadyEntered = paymentRepository.sumEnteredForBill(billId);
+        BigDecimal effectiveBalance = bill.getBalanceRemaining().subtract(alreadyEntered);
+        if (request.getAmount().compareTo(effectiveBalance) > 0) {
             throw new RuntimeException(
-                    "Payment amount exceeds remaining balance");
+                    "Payment amount exceeds remaining balance" +
+                    (alreadyEntered.compareTo(BigDecimal.ZERO) > 0
+                        ? " (Rs " + alreadyEntered.toPlainString() + " is already pending confirmation)"
+                        : ""));
         }
 
         /*
@@ -94,7 +99,7 @@ public class PaymentServiceImpl {
         }
 
         boolean isPartial = request.getAmount()
-                .compareTo(bill.getBalanceRemaining()) < 0;
+                .compareTo(effectiveBalance) < 0;
 
         CollectionNote collectionNote = null;
         if (request.getCollectionNoteId() != null) {
@@ -156,6 +161,13 @@ public class PaymentServiceImpl {
         }
 
         Bill bill = payment.getBill();
+
+        if (payment.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
+            throw new RuntimeException(
+                    "Payment amount (Rs " + payment.getAmount().toPlainString() +
+                    ") exceeds the current bill balance (Rs " + bill.getBalanceRemaining().toPlainString() +
+                    "). Another payment for this bill may have been confirmed first.");
+        }
 
         // Update payment
         payment.setStatus(PaymentStatus.CONFIRMED);
@@ -269,7 +281,20 @@ public class PaymentServiceImpl {
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getAllPayments(PaymentStatus status) {
+    public List<PaymentResponse> getAllPayments(PaymentStatus status, LocalDate from, LocalDate to) {
+        boolean hasDates = from != null && to != null;
+        if (hasDates) {
+            if (status != null) {
+                return paymentRepository.findByStatusWithBillBetween(status, from, to)
+                        .stream()
+                        .map(p -> toResponse(p, p.getBill()))
+                        .toList();
+            }
+            return paymentRepository.findAllWithBillBetween(from, to)
+                    .stream()
+                    .map(p -> toResponse(p, p.getBill()))
+                    .toList();
+        }
         if (status != null) {
             return paymentRepository.findByStatusWithBill(status)
                     .stream()
@@ -373,11 +398,16 @@ public class PaymentServiceImpl {
             if (bill.getFullyPaid()) {
                 throw new RuntimeException("Bill " + item.getBillId() + " is already fully paid");
             }
-            if (item.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
-                throw new RuntimeException("Amount exceeds balance for bill: " + item.getBillId());
+            BigDecimal alreadyEntered = paymentRepository.sumEnteredForBill(item.getBillId());
+            BigDecimal effectiveBalance = bill.getBalanceRemaining().subtract(alreadyEntered);
+            if (item.getAmount().compareTo(effectiveBalance) > 0) {
+                throw new RuntimeException("Amount exceeds balance for bill: " + item.getBillId() +
+                    (alreadyEntered.compareTo(BigDecimal.ZERO) > 0
+                        ? " (Rs " + alreadyEntered.toPlainString() + " pending confirmation)"
+                        : ""));
             }
 
-            boolean isPartial = item.getAmount().compareTo(bill.getBalanceRemaining()) < 0;
+            boolean isPartial = item.getAmount().compareTo(effectiveBalance) < 0;
 
             return Payment.builder()
                     .bill(bill)
@@ -418,6 +448,13 @@ public class PaymentServiceImpl {
 
         for (Payment payment : payments) {
             Bill bill = payment.getBill();
+
+            if (payment.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
+                throw new RuntimeException(
+                        "Payment amount (Rs " + payment.getAmount().toPlainString() +
+                        ") exceeds bill balance (Rs " + bill.getBalanceRemaining().toPlainString() +
+                        ") for bill " + bill.getBillNumber() + ". Confirm individual payments separately.");
+            }
 
             BigDecimal newAmountPaid = bill.getAmountPaid().add(payment.getAmount());
             BigDecimal newBalance    = bill.getTotalAmount().subtract(newAmountPaid);

@@ -36,7 +36,10 @@ public class InventoryServiceImpl {
 
     @Transactional(readOnly = true)
     public List<ProductStockBalanceResponse> getRaincoStockBalances() {
-        // Single aggregate query — avoids N+1 (2 queries per product previously)
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
         List<Object[]> rows = movementRepository.getAggregatedBalancesForRainco();
         Map<Long, long[]> balanceMap = new HashMap<>();
         for (Object[] row : rows) {
@@ -47,6 +50,7 @@ public class InventoryServiceImpl {
         }
 
         return productRepository.findByBusiness(BusinessType.RAINCO).stream()
+                .filter(p -> isAdmin || p.getActive())
                 .map(p -> {
                     long[] bal = balanceMap.getOrDefault(p.getId(), new long[]{0L, 0L});
                     return ProductStockBalanceResponse.builder()
@@ -72,6 +76,39 @@ public class InventoryServiceImpl {
                 .build();
         ReturnProduct saved = productRepository.save(product);
         return toProductResponse(saved);
+    }
+
+    @Transactional
+    public void setProductActive(Long id, boolean active) {
+        ReturnProduct p = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found: " + id));
+        p.setActive(active);
+        productRepository.save(p);
+    }
+
+    @Transactional
+    public void setProductQty(Long id, Long targetQty) {
+        if (targetQty < 0) throw new RuntimeException("Qty must be >= 0");
+        User currentUser = getCurrentUser();
+        ReturnProduct product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found: " + id));
+        Long currentQty = movementRepository.getAvailableBalance(product);
+        if (currentQty == null) currentQty = 0L;
+        long delta = targetQty - currentQty;
+        if (delta == 0) return;
+        ShadowStockMovement movement = ShadowStockMovement.builder()
+                .product(product)
+                .type(delta > 0
+                        ? ShadowStockMovement.MovementType.STOCK_IN
+                        : ShadowStockMovement.MovementType.BILL_OUT)
+                .quantity(Math.abs(delta))
+                .movementDate(LocalDate.now())
+                .notes("Admin qty adjustment: " + currentQty + " → " + targetQty)
+                .enteredBy(currentUser)
+                .cancelled(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        movementRepository.save(movement);
     }
 
     @Transactional

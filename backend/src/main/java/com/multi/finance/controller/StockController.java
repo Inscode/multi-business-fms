@@ -37,7 +37,7 @@ public class StockController {
     @GetMapping("/products")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<ReturnProduct>> getRaincoProducts() {
-        return ResponseEntity.ok(returnProductRepository.findByBusiness(BusinessType.RAINCO));
+        return ResponseEntity.ok(returnProductRepository.findByBusinessAndActiveTrue(BusinessType.RAINCO));
     }
 
     // ── Bill lists for dropdowns ──────────────────────────────────
@@ -93,6 +93,24 @@ public class StockController {
             @RequestBody EnterReferenceItemsRequest request) {
         stockService.enterReferenceItemsForSystemBill(billId, request.getItems());
         return ResponseEntity.noContent().build();
+    }
+
+    // ── Admin: edit / delete entered stock items ─────────────────
+
+    @DeleteMapping("/items/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteStockItem(@PathVariable Long id) {
+        stockService.deleteStockItem(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/items/{id}/quantity")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillStockItemResponse> updateStockItemQuantity(
+            @PathVariable Long id,
+            @RequestBody Map<String, Long> body) {
+        Long qty = body.get("quantity");
+        return ResponseEntity.ok(stockService.updateStockItemQuantity(id, qty));
     }
 
     // ── Stock reduction status tracking ──────────────────────────

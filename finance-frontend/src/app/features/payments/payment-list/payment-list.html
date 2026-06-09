@@ -10,39 +10,62 @@
   </div>
 
   <div class="filters">
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-label>Search</mat-label>
-      <input
-        matInput
-        [(ngModel)]="searchQuery"
-        (ngModelChange)="onSearchChange()"
-        placeholder="Bill number or customer name"
-      />
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
+    <div class="filters-row">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Search</mat-label>
+        <input
+          matInput
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Bill number or customer name"
+        />
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="filter-field">
-      <mat-label>Status</mat-label>
-      <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
-        <mat-option value="">All</mat-option>
-        <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Status</mat-label>
+        <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="filter-field">
-      <mat-label>Area</mat-label>
-      <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
-        <mat-option value="">All</mat-option>
-        <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Area</mat-label>
+        <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-    <button mat-stroked-button class="toggle-all-btn" [class.active]="showAll"
-            (click)="toggleShowAll()"
-            [matTooltip]="showAll ? 'Showing all payments — click to show pending only' : 'Showing pending confirmation only — click to show all'">
-      <mat-icon>{{ showAll ? 'visibility_off' : 'visibility' }}</mat-icon>
-      {{ showAll ? 'Pending only' : 'Show all' }}
-    </button>
+      <button mat-stroked-button class="toggle-all-btn" [class.active]="showAll"
+              (click)="toggleShowAll()"
+              [matTooltip]="showAll ? 'Showing all payments — click to show pending only' : 'Showing pending confirmation only — click to show all'">
+        <mat-icon>{{ showAll ? 'visibility_off' : 'visibility' }}</mat-icon>
+        {{ showAll ? 'Pending only' : 'Show all' }}
+      </button>
+    </div>
+
+    <div class="date-row">
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>From</mat-label>
+        <input matInput [matDatepicker]="fromPicker" [value]="filterFromDate"
+               (dateChange)="onFromDateChange($event)" [max]="filterToDate" />
+        <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+        <mat-datepicker #fromPicker></mat-datepicker>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>To</mat-label>
+        <input matInput [matDatepicker]="toPicker" [value]="filterToDate"
+               (dateChange)="onToDateChange($event)" [min]="filterFromDate" [max]="todayDate" />
+        <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+        <mat-datepicker #toPicker></mat-datepicker>
+      </mat-form-field>
+      <button mat-icon-button (click)="filterFrom = daysAgo(30); filterTo = today; onDateChange()"
+              matTooltip="Reset to last 30 days">
+        <mat-icon>restart_alt</mat-icon>
+      </button>
+    </div>
   </div>
 
   <ng-container *ngIf="!error; else errorBlock">
@@ -127,7 +150,7 @@
 
       <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
         <mat-icon>payments</mat-icon>
-        <p>{{ showAll ? 'No payments found' : 'No pending payments' }}</p>
+        <p>{{ showAll ? 'No payments in this date range' : 'No pending payments in this date range' }}</p>
       </div>
 
       <div class="loading-state" *ngIf="loading">

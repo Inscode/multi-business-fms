@@ -9,9 +9,12 @@ import com.multi.finance.enums.PaymentStatus;
 import com.multi.finance.service.impl.PaymentServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 import java.util.List;
 
@@ -36,8 +39,10 @@ public class PaymentController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT','MAIN_ACCOUNTANT')")
     public ResponseEntity<List<PaymentResponse>> getAllPayments(
-            @RequestParam(required = false) PaymentStatus status) {
-        return ResponseEntity.ok(paymentService.getAllPayments(status));
+            @RequestParam(required = false) PaymentStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(paymentService.getAllPayments(status, from, to));
     }
 
     @PutMapping("/{id}")

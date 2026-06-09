@@ -19,9 +19,14 @@
         Spent: Rs {{ balance.totalSpent | number:'1.2-2' }}
       </div>
     </div>
-    <button mat-flat-button *ngIf="isOwnerOrAdmin" (click)="showAddFunds = !showAddFunds">
-      <mat-icon>add</mat-icon> Add Funds
-    </button>
+    <div class="balance-actions" *ngIf="isOwnerOrAdmin">
+      <button mat-flat-button (click)="showAddFunds = !showAddFunds">
+        <mat-icon>add</mat-icon> Add Funds
+      </button>
+      <button mat-stroked-button (click)="toggleFundHistory()">
+        <mat-icon>history</mat-icon> {{ showFundHistory ? 'Hide' : 'Fund History' }}
+      </button>
+    </div>
   </div>
 
   <div class="add-funds-form" *ngIf="showAddFunds && isOwnerOrAdmin">
@@ -44,6 +49,41 @@
         <span *ngIf="!addingFund">Save</span>
       </button>
       <button mat-icon-button (click)="showAddFunds = false"><mat-icon>close</mat-icon></button>
+    </div>
+  </div>
+
+  <!-- Fund History Panel -->
+  <div class="fund-history-panel" *ngIf="showFundHistory && isOwnerOrAdmin">
+    <div class="fund-history-header">
+      <mat-icon>savings</mat-icon>
+      <span>Fund Addition History</span>
+      <span class="fund-history-total" *ngIf="!fundHistoryLoading && fundHistory.length > 0">
+        {{ fundHistory.length }} record(s) · Total: Rs {{ balance?.totalFunded | number:'1.2-2' }}
+      </span>
+    </div>
+
+    <div class="fund-history-loading" *ngIf="fundHistoryLoading">
+      <mat-spinner diameter="24"></mat-spinner>
+    </div>
+
+    <div class="fund-history-empty" *ngIf="!fundHistoryLoading && fundHistory.length === 0">
+      No funds have been added yet.
+    </div>
+
+    <div class="fund-history-list" *ngIf="!fundHistoryLoading && fundHistory.length > 0">
+      <div class="fund-history-row" *ngFor="let f of fundHistory">
+        <div class="fh-date">
+          <mat-icon>calendar_today</mat-icon>
+          {{ f.date | date:'dd MMM yyyy' }}
+        </div>
+        <div class="fh-amount">Rs {{ f.amount | number:'1.2-2' }}</div>
+        <div class="fh-desc">{{ f.description || '—' }}</div>
+        <div class="fh-by">
+          <mat-icon>person</mat-icon>
+          {{ f.addedByName }}
+        </div>
+        <div class="fh-time">{{ f.createdAt | date:'hh:mm a' }}</div>
+      </div>
     </div>
   </div>
 

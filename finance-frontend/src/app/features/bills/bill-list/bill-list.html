@@ -2,11 +2,12 @@
 
   <!-- Pending owner collections banner (accountant/main accountant only) -->
   <div class="collections-banner" *ngIf="canSeePendingCollections && pendingCollections.length > 0">
-    <div class="banner-header">
+    <div class="banner-header" (click)="collectionsExpanded = !collectionsExpanded">
       <mat-icon>handshake</mat-icon>
       <span>{{ pendingCollections.length }} owner collection{{ pendingCollections.length > 1 ? 's' : '' }} need{{ pendingCollections.length === 1 ? 's' : '' }} formal entry</span>
+      <mat-icon class="expand-icon" [class.expanded]="collectionsExpanded">expand_more</mat-icon>
     </div>
-    <div class="collection-items">
+    <div class="collection-items" *ngIf="collectionsExpanded">
       <div class="collection-item" *ngFor="let n of pendingCollections">
         <div class="collection-item-info">
           <span class="c-bill">{{ n.billNumber }}</span>
@@ -49,49 +50,93 @@
   </div>
 
   <div class="filters">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
-      <mat-label>Search</mat-label>
-      <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
-        placeholder="Bill number or customer name" />
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
+    <!-- Row 1: search + business + status + area + toggles -->
+    <div class="filters-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+        <mat-label>Search</mat-label>
+        <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
+          placeholder="Bill number or customer name" />
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
 
-    <!-- Shop accountant sees shop credit bills + store bills currently at the shop -->
-    <div class="filter-scope-chip" *ngIf="isShopAccountant">
-      <mat-icon>storefront</mat-icon> Shop Bills &amp; Shop Received
+      <div class="filter-scope-chip" *ngIf="isShopAccountant">
+        <mat-icon>storefront</mat-icon> Shop Bills &amp; Shop Received
+      </div>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field" *ngIf="!isShopAccountant">
+        <mat-label>Business</mat-label>
+        <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let b of businesses.slice(1)" [value]="b">{{ b }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+        <mat-label>Status</mat-label>
+        <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()" [disabled]="overdueMode">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+        <mat-label>Area</mat-label>
+        <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
+          <mat-option value="">All</mat-option>
+          <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-stroked-button class="toggle-completed-btn"
+              [class.active]="!hideCompleted"
+              [disabled]="overdueMode"
+              (click)="toggleHideCompleted()"
+              [matTooltip]="overdueMode ? 'Not available in overdue mode' : (hideCompleted ? 'Active bills only — click to show completed too' : 'Showing all — click to hide completed')">
+        <mat-icon>{{ hideCompleted ? 'visibility_off' : 'visibility' }}</mat-icon>
+        {{ hideCompleted ? 'Completed hidden' : 'Show all' }}
+      </button>
+
+      <button mat-stroked-button class="overdue-btn"
+              [class.active]="overdueMode"
+              (click)="toggleOverdueMode()"
+              matTooltip="Bills older than 60 days still pending">
+        <mat-icon>schedule</mat-icon>
+        Overdue
+        <span class="overdue-badge" *ngIf="overdueCount > 0">{{ overdueCount }}</span>
+      </button>
     </div>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field" *ngIf="!isShopAccountant">
-      <mat-label>Business</mat-label>
-      <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
-        <mat-option value="">All</mat-option>
-        <mat-option *ngFor="let b of businesses.slice(1)" [value]="b">{{ b }}</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <!-- Row 2: date range (hidden in overdue mode) -->
+    <div class="date-row" *ngIf="!overdueMode">
+      <span class="date-label">Period:</span>
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>From</mat-label>
+        <input matInput [matDatepicker]="fromPicker" [value]="filterFromDate"
+               (dateChange)="onFromDateChange($event)" [max]="filterToDate" />
+        <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+        <mat-datepicker #fromPicker></mat-datepicker>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>To</mat-label>
+        <input matInput [matDatepicker]="toPicker" [value]="filterToDate"
+               (dateChange)="onToDateChange($event)" [min]="filterFromDate" [max]="todayDate" />
+        <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+        <mat-datepicker #toPicker></mat-datepicker>
+      </mat-form-field>
+      <button mat-icon-button matTooltip="Reset to last 60 days"
+              (click)="filterFrom = daysAgo(60); filterTo = today; onDateChange()">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-      <mat-label>Status</mat-label>
-      <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
-        <mat-option value="">All</mat-option>
-        <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-      <mat-label>Area</mat-label>
-      <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
-        <mat-option value="">All</mat-option>
-        <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <button mat-stroked-button class="toggle-completed-btn"
-            [class.active]="!hideCompleted"
-            (click)="toggleHideCompleted()"
-            [matTooltip]="hideCompleted ? 'Showing active bills only — click to include completed/cancelled' : 'Showing all bills — click to hide completed/cancelled'">
-      <mat-icon>{{ hideCompleted ? 'visibility_off' : 'visibility' }}</mat-icon>
-      {{ hideCompleted ? 'Completed hidden' : 'Show all' }}
-    </button>
+    <!-- Overdue mode banner -->
+    <div class="overdue-banner" *ngIf="overdueMode">
+      <mat-icon>schedule</mat-icon>
+      <span>Showing pending bills older than 60 days — no date filter applied</span>
+      <button mat-icon-button (click)="toggleOverdueMode()" matTooltip="Exit overdue mode">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
   </div>
 
   <!-- selection hint -->

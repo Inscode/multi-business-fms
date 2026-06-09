@@ -30,12 +30,55 @@
 
 .filters {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  gap: 0;
   margin-bottom: 20px;
+
+  .search-field { width: 260px; }
+  .filter-field { width: 180px; }
+}
+
+.filters-row {
+  display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e8ecef;
+}
 
-  .filter-field { width: 200px; }
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.date-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #90a4ae;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.date-field {
+  width: 130px;
+  font-size: 12px;
+
+  .mat-mdc-form-field-infix {
+    min-height: 34px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .mat-mdc-floating-label { font-size: 12px; }
+
+  input.mat-mdc-input-element { font-size: 12px; }
+
+  .mat-mdc-form-field-subscript-wrapper { display: none; }
 }
 
 .toggle-all-btn {

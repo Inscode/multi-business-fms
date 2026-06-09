@@ -109,6 +109,45 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     List<Bill> findByBusinessInAndStatusNotInOrderByCreatedAtDesc(List<BusinessType> businesses, List<BillStatus> statuses);
 
+    // ── Date-bounded queries (from + to both provided) ─────────────
+
+    List<Bill> findByBillDateBetweenAndStatusNotInOrderByCreatedAtDesc(LocalDate from, LocalDate to, List<BillStatus> statuses);
+    List<Bill> findByBillDateBetweenOrderByCreatedAtDesc(LocalDate from, LocalDate to);
+    List<Bill> findByStatusAndBillDateBetweenOrderByCreatedAtDesc(BillStatus status, LocalDate from, LocalDate to);
+
+    List<Bill> findByBusinessAndBillDateBetweenAndStatusNotInOrderByCreatedAtDesc(BusinessType business, LocalDate from, LocalDate to, List<BillStatus> statuses);
+    List<Bill> findByBusinessAndBillDateBetweenOrderByCreatedAtDesc(BusinessType business, LocalDate from, LocalDate to);
+    List<Bill> findByBusinessAndStatusAndBillDateBetweenOrderByCreatedAtDesc(BusinessType business, BillStatus status, LocalDate from, LocalDate to);
+
+    List<Bill> findByBusinessInAndBillDateBetweenAndStatusNotInOrderByCreatedAtDesc(List<BusinessType> businesses, LocalDate from, LocalDate to, List<BillStatus> statuses);
+    List<Bill> findByBusinessInAndBillDateBetweenOrderByCreatedAtDesc(List<BusinessType> businesses, LocalDate from, LocalDate to);
+    List<Bill> findByBusinessInAndStatusAndBillDateBetweenOrderByCreatedAtDesc(List<BusinessType> businesses, BillStatus status, LocalDate from, LocalDate to);
+
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND b.billDate BETWEEN :from AND :to ORDER BY b.createdAt DESC")
+    List<Bill> findShopAccountantActiveBillsInDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.billDate BETWEEN :from AND :to ORDER BY b.createdAt DESC")
+    List<Bill> findShopAccountantBillsInDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status = :status AND b.billDate BETWEEN :from AND :to ORDER BY b.createdAt DESC")
+    List<Bill> findShopAccountantBillsByStatusInDateRange(@Param("status") BillStatus status, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    // ── Overdue queries (before cutoff, pending only) ───────────────
+
+    List<Bill> findByBillDateBeforeAndStatusNotInOrderByBillDateAsc(LocalDate cutoff, List<BillStatus> statuses);
+    List<Bill> findByBusinessAndBillDateBeforeAndStatusNotInOrderByBillDateAsc(BusinessType business, LocalDate cutoff, List<BillStatus> statuses);
+    List<Bill> findByBusinessInAndBillDateBeforeAndStatusNotInOrderByBillDateAsc(List<BusinessType> businesses, LocalDate cutoff, List<BillStatus> statuses);
+
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND b.billDate < :cutoff ORDER BY b.billDate ASC")
+    List<Bill> findShopAccountantOverdueBills(@Param("cutoff") LocalDate cutoff);
+
+    // ── Overdue count (for badge) ───────────────────────────────────
+    long countByBillDateBeforeAndStatusNotIn(LocalDate cutoff, List<BillStatus> statuses);
+    long countByBusinessInAndBillDateBeforeAndStatusNotIn(List<BusinessType> businesses, LocalDate cutoff, List<BillStatus> statuses);
+
+    @Query("SELECT COUNT(b) FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND b.billDate < :cutoff")
+    long countShopAccountantOverdueBills(@Param("cutoff") LocalDate cutoff);
+
     @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' " +
            "OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) " +
            "AND b.status NOT IN ('COMPLETED', 'CANCELLED') " +

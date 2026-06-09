@@ -1,5 +1,5 @@
 ﻿import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -15,6 +15,8 @@ import { MatInput } from '@angular/material/input';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { RouterLink } from '@angular/router';
 import { SelectionModel } from '@angular/cdk/collections';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
@@ -26,6 +28,7 @@ import { CollectionNoteService, CollectionNoteResponse } from '../../../core/ser
 import { BillReminderResponse, BillReminderService } from '../../../core/services/bill-reminder';
 import { ReminderDialog } from '../reminder-dialog/reminder-dialog';
 import { Router } from '@angular/router';
+import { BillFilterState } from '../../../core/services/bill-filter-state';
 
 @Component({
   selector: 'app-bill-list',
@@ -45,6 +48,8 @@ import { Router } from '@angular/router';
     MatCheckboxModule,
     MatTooltipModule,
     MatPaginatorModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
     DecimalPipe,
     LowerCasePipe,
     MatInput,
@@ -53,7 +58,7 @@ import { Router } from '@angular/router';
   styleUrl: './bill-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BillList implements OnInit, AfterViewInit {
+export class BillList implements OnInit, AfterViewInit, OnDestroy {
   dataSource = new MatTableDataSource<BillResponse>([]);
   private allBills: BillResponse[] = [];
   workers: WorkerResponse[] = [];
@@ -67,6 +72,14 @@ export class BillList implements OnInit, AfterViewInit {
   selectedStatus = '';
   selectedArea = '';
   hideCompleted = true;
+
+  // ── Date filter ────────────────────────────────────────────────
+  filterFrom: string = this.daysAgo(60);
+  filterTo: string   = this.today;
+
+  // ── Overdue mode ───────────────────────────────────────────────
+  overdueMode = false;
+  overdueCount = 0;
 
   get businesses(): string[] {
     const role = this.auth.getRole();
@@ -110,6 +123,7 @@ export class BillList implements OnInit, AfterViewInit {
   isSelectable(b: any): boolean { return !b.fullyPaid && b.status !== 'CANCELLED'; }
 
   pendingCollections: CollectionNoteResponse[] = [];
+  collectionsExpanded = false;
 
   get canSeePendingCollections(): boolean {
     return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
@@ -125,10 +139,6 @@ export class BillList implements OnInit, AfterViewInit {
     return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
 
-  get today(): string {
-    return new Date().toISOString().split('T')[0];
-  }
-
   constructor(
     private billService: Bill,
     private workerService: Worker,
@@ -138,8 +148,8 @@ export class BillList implements OnInit, AfterViewInit {
     private collectionNoteService: CollectionNoteService,
     private reminderService: BillReminderService,
     private router: Router,
+    private filterState: BillFilterState,
   ) {
-    // Lock shop accountants to RETAIL_SHOP scope from the start
     if (this.auth.getRole() === 'SHOP_ACCOUNTANT') {
       this.selectedBusiness = 'RETAIL_SHOP';
     }
@@ -148,13 +158,72 @@ export class BillList implements OnInit, AfterViewInit {
       : ['billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];
   }
 
+  get today(): string { return new Date().toISOString().split('T')[0]; }
+
+  daysAgo(n: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().split('T')[0];
+  }
+
+  // Date objects for Material datepicker bindings
+  get filterFromDate(): Date | null { return this.filterFrom ? new Date(this.filterFrom + 'T00:00:00') : null; }
+  get filterToDate():   Date | null { return this.filterTo   ? new Date(this.filterTo   + 'T00:00:00') : null; }
+  get todayDate(): Date { return new Date(); }
+
+  onFromDateChange(e: { value: Date | null }): void {
+    this.filterFrom = e.value ? this.formatDate(e.value) : '';
+    this.overdueMode = false;
+    this.load();
+  }
+
+  onToDateChange(e: { value: Date | null }): void {
+    this.filterTo = e.value ? this.formatDate(e.value) : '';
+    this.overdueMode = false;
+    this.load();
+  }
+
+  private formatDate(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  ngOnDestroy(): void {
+    this.filterState.save({
+      filterFrom: this.filterFrom,
+      filterTo: this.filterTo,
+      selectedBusiness: this.selectedBusiness,
+      selectedStatus: this.selectedStatus,
+      selectedArea: this.selectedArea,
+      hideCompleted: this.hideCompleted,
+      overdueMode: this.overdueMode,
+      searchQuery: this.searchQuery,
+      pageIndex: this.paginator?.pageIndex ?? 0,
+    });
+  }
+
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
+    const saved = this.filterState.restore();
+    if (saved && this.paginator) {
+      this.paginator.pageIndex = saved.pageIndex;
+    }
   }
 
   ngOnInit(): void {
+    const saved = this.filterState.restore();
+    if (saved) {
+      this.filterFrom       = saved.filterFrom;
+      this.filterTo         = saved.filterTo;
+      this.selectedBusiness = saved.selectedBusiness;
+      this.selectedStatus   = saved.selectedStatus;
+      this.selectedArea     = saved.selectedArea;
+      this.hideCompleted    = saved.hideCompleted;
+      this.overdueMode      = saved.overdueMode;
+      this.searchQuery      = saved.searchQuery;
+    }
     this.load();
     this.loadWorkers();
+    this.loadOverdueCount();
     if (this.canSeePendingCollections) this.loadPendingCollections();
     if (this.canSetReminder) this.loadReminderMap();
   }
@@ -201,19 +270,53 @@ export class BillList implements OnInit, AfterViewInit {
   }
 
   toggleHideCompleted(): void {
+    this.overdueMode = false;
     this.hideCompleted = !this.hideCompleted;
     this.load();
+  }
+
+  toggleOverdueMode(): void {
+    this.overdueMode = !this.overdueMode;
+    if (this.overdueMode) {
+      this.hideCompleted = true;
+      this.selectedStatus = '';
+    }
+    this.load();
+  }
+
+  onDateChange(): void {
+    this.overdueMode = false;
+    this.load();
+  }
+
+  loadOverdueCount(): void {
+    this.billService.getOverdueCount().subscribe({
+      next: (r) => { this.overdueCount = r.count; this.cdr.detectChanges(); },
+      error: () => {},
+    });
   }
 
   load(): void {
     this.loading = true;
     this.error = false;
     this.selection.clear();
-    this.billService.getBills({
+
+    const filter: { business?: string; status?: string; excludeCompleted: boolean; from?: string; to?: string } = {
       business:         this.selectedBusiness || undefined,
-      status:           this.selectedStatus   || undefined,
       excludeCompleted: this.hideCompleted,
-    }).subscribe({
+    };
+
+    if (this.overdueMode) {
+      filter.to = this.daysAgo(60);
+      filter.status = undefined;
+      filter.excludeCompleted = true;
+    } else {
+      filter.status = this.selectedStatus || undefined;
+      filter.from = this.filterFrom || undefined;
+      filter.to   = this.filterTo   || undefined;
+    }
+
+    this.billService.getBills(filter).subscribe({
       next: (b) => {
         this.allBills = b;
         this.loading = false;

@@ -37,9 +37,6 @@ export class InventoryTabComponent implements OnInit {
 
   // ── Auth ───────────────────────────────────────────────────────
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
-  get isAccOrAdmin(): boolean {
-    return ['ADMIN','ACCOUNTANT','MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
-  }
 
   // ── Stock Balances (Tab 1) ─────────────────────────────────────
   balances: ProductStockBalance[] = [];
@@ -47,6 +44,11 @@ export class InventoryTabComponent implements OnInit {
   balanceSearch = '';
   loadingBalances = false;
   balanceColumns = ['productName','unitPrice','availableQty','damageQty','status'];
+
+  // ── Qty adjustment (admin) ─────────────────────────────────────
+  setQtyId: number | null = null;
+  setQtyValue: number | null = null;
+  togglingId: number | null = null;
 
   // ── Add Product form ───────────────────────────────────────────
   showProductForm = false;
@@ -133,9 +135,9 @@ export class InventoryTabComponent implements OnInit {
 
   applyBalanceFilter(): void {
     const s = this.balanceSearch.toLowerCase();
-    this.filteredBalances = s
-      ? this.balances.filter(b => b.productName.toLowerCase().includes(s))
-      : [...this.balances];
+    this.filteredBalances = this.balances
+      .filter(b => this.isAdmin || b.active)
+      .filter(b => !s || b.productName.toLowerCase().includes(s));
     this.cdr.detectChanges();
   }
 
@@ -191,6 +193,50 @@ export class InventoryTabComponent implements OnInit {
       error: err => {
         this.productMessage = err?.error?.message ?? 'Failed to save product.';
         this.savingProduct = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  // ── Admin: qty adjustment & active toggle ─────────────────────
+  startSetQty(p: ProductStockBalance): void {
+    this.setQtyId = p.productId;
+    this.setQtyValue = p.availableQty;
+    this.cdr.detectChanges();
+  }
+
+  cancelSetQty(): void {
+    this.setQtyId = null;
+    this.setQtyValue = null;
+    this.cdr.detectChanges();
+  }
+
+  saveSetQty(p: ProductStockBalance): void {
+    if (this.setQtyValue === null || this.setQtyValue < 0) return;
+    this.inventoryService.setProductQty(p.productId, this.setQtyValue).subscribe({
+      next: () => {
+        this.setQtyId = null;
+        this.setQtyValue = null;
+        this.loadBalances();
+      },
+      error: err => {
+        alert(err?.error?.message ?? 'Failed to update quantity.');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  toggleActive(p: ProductStockBalance): void {
+    if (this.togglingId !== null) return;
+    const action = p.active
+      ? this.inventoryService.deactivateProduct(p.productId)
+      : this.inventoryService.activateProduct(p.productId);
+    this.togglingId = p.productId;
+    action.subscribe({
+      next: () => { this.togglingId = null; this.loadBalances(); },
+      error: err => {
+        this.togglingId = null;
+        alert(err?.error?.message ?? 'Failed to update product status.');
         this.cdr.detectChanges();
       },
     });
