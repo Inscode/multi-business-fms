@@ -32,9 +32,8 @@ public class InventoryController {
 
     // ── Products ──────────────────────────────────────────────────
 
-    /** ACC / MAIN_ACC / ADMIN can create products */
     @PostMapping("/products")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ReturnProductResponse> createProduct(@Valid @RequestBody ReturnProductRequest req) {
         return ResponseEntity.ok(inventoryService.createProduct(req));
     }
@@ -47,10 +46,34 @@ public class InventoryController {
     }
 
     @PutMapping("/products/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ReturnProductResponse> updateProduct(
             @PathVariable Long id, @Valid @RequestBody ReturnProductRequest req) {
         return ResponseEntity.ok(inventoryService.updateProduct(id, req));
+    }
+
+    @PatchMapping("/products/{id}/set-qty")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> setProductQty(
+            @PathVariable Long id, @RequestBody Map<String, Long> body) {
+        Long qty = body.get("qty");
+        if (qty == null || qty < 0) throw new RuntimeException("qty must be >= 0");
+        inventoryService.setProductQty(id, qty);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/products/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deactivateProduct(@PathVariable Long id) {
+        inventoryService.setProductActive(id, false);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/products/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> activateProduct(@PathVariable Long id) {
+        inventoryService.setProductActive(id, true);
+        return ResponseEntity.noContent().build();
     }
 
     // ── Opening stock (ADMIN direct — no approval) ────────────────

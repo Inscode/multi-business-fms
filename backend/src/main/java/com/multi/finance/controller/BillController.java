@@ -11,9 +11,13 @@ import com.multi.finance.enums.BusinessType;
 import com.multi.finance.service.impl.BillServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.Map;
 
 import java.util.List;
 
@@ -35,8 +39,17 @@ public class BillController {
     public ResponseEntity<List<BillResponse>> getAllBills(
             @RequestParam(required = false) BusinessType business,
             @RequestParam(required = false) BillStatus status,
-            @RequestParam(required = false, defaultValue = "true") boolean excludeCompleted) {
-        return ResponseEntity.ok(billService.getAllBills(business, status, excludeCompleted));
+            @RequestParam(required = false, defaultValue = "true") boolean excludeCompleted,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(billService.getAllBills(business, status, excludeCompleted, from, to));
+    }
+
+    @GetMapping("/overdue-count")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
+    public ResponseEntity<Map<String, Long>> getOverdueCount() {
+        LocalDate cutoff = LocalDate.now().minusDays(60);
+        return ResponseEntity.ok(Map.of("count", billService.countOverduePending(cutoff)));
     }
 
 

@@ -66,6 +66,18 @@ export class InventoryService {
     return this.http.delete<void>(`${this.api}/products/${id}`);
   }
 
+  setProductQty(id: number, qty: number): Observable<void> {
+    return this.http.patch<void>(`${this.api}/products/${id}/set-qty`, { qty });
+  }
+
+  deactivateProduct(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.api}/products/${id}/deactivate`, {});
+  }
+
+  activateProduct(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.api}/products/${id}/activate`, {});
+  }
+
   addOpeningStock(req: SubmitStockInRequest): Observable<void> {
     return this.http.post<void>(`${this.api}/opening-stock`, req);
   }

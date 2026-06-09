@@ -518,6 +518,64 @@ public class StockServiceImpl {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Admin: delete an entered stock item.
+     * Also cancels the corresponding BILL_OUT shadow movement (if any).
+     * Reference items on SYSTEM linking bills have no shadow movements — safe to delete directly.
+     */
+    @Transactional
+    public void deleteStockItem(Long itemId) {
+        BillStockItem item = billStockItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Stock item not found: " + itemId));
+
+        shadowStockMovementRepository
+                .findByBillIdAndProductIdAndCancelledFalse(item.getBill().getId(), item.getProduct().getId())
+                .forEach(m -> {
+                    m.setCancelled(true);
+                    m.setUpdatedAt(LocalDateTime.now());
+                    shadowStockMovementRepository.save(m);
+                });
+
+        billStockItemRepository.delete(item);
+    }
+
+    /**
+     * Admin: update the quantity of an entered stock item.
+     * Also adjusts the corresponding BILL_OUT shadow movement quantity.
+     */
+    @Transactional
+    public BillStockItemResponse updateStockItemQuantity(Long itemId, Long newQuantity) {
+        if (newQuantity == null || newQuantity <= 0) {
+            throw new RuntimeException("Quantity must be greater than zero");
+        }
+        BillStockItem item = billStockItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Stock item not found: " + itemId));
+
+        item.setQuantity(newQuantity);
+        item.setLineTotal(item.getUnitPrice().multiply(BigDecimal.valueOf(newQuantity)));
+        item.setUpdatedAt(LocalDateTime.now());
+        billStockItemRepository.save(item);
+
+        shadowStockMovementRepository
+                .findByBillIdAndProductIdAndCancelledFalse(item.getBill().getId(), item.getProduct().getId())
+                .stream().findFirst()
+                .ifPresent(m -> {
+                    m.setQuantity(newQuantity);
+                    m.setUpdatedAt(LocalDateTime.now());
+                    shadowStockMovementRepository.save(m);
+                });
+
+        return BillStockItemResponse.builder()
+                .id(item.getId())
+                .billId(item.getBill().getId())
+                .productId(item.getProduct().getId())
+                .productName(item.getProduct().getName())
+                .quantity(item.getQuantity())
+                .unitPrice(item.getUnitPrice())
+                .lineTotal(item.getLineTotal())
+                .build();
+    }
+
     private String computeReductionStatus(Bill bill) {
         List<ShadowStockMovement> movements = shadowStockMovementRepository.findByBillId(bill.getId());
         if (movements.stream().anyMatch(m -> !m.getCancelled())) {

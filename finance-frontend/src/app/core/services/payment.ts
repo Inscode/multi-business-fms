@@ -95,9 +95,11 @@ export class Payment {
 
   constructor(private http: HttpClient) {}
 
-  getAllPayments(status?: string): Observable<PaymentResponse[]> {
+  getAllPayments(status?: string, from?: string, to?: string): Observable<PaymentResponse[]> {
     let params = new HttpParams();
     if (status) params = params.set('status', status);
+    if (from)   params = params.set('from', from);
+    if (to)     params = params.set('to', to);
     return this.http.get<PaymentResponse[]>(this.apiUrl, { params });
   }
 

@@ -22,6 +22,8 @@ public interface ShadowStockMovementRepository extends JpaRepository<ShadowStock
 
     List<ShadowStockMovement> findByBillIdAndCancelledFalse(Long billId);
 
+    List<ShadowStockMovement> findByBillIdAndProductIdAndCancelledFalse(Long billId, Long productId);
+
     @Query("SELECT ssm FROM ShadowStockMovement ssm WHERE ssm.product = :product AND ssm.cancelled = false")
     List<ShadowStockMovement> findActiveMovementsByProduct(@Param("product") ReturnProduct product);
 

@@ -11,7 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { Auth } from '../../../core/services/auth';
-import { CashBalanceResponse, CashFundService } from '../../../core/services/cash-fund';
+import { type CashFundResponse, CashBalanceResponse, CashFundService } from '../../../core/services/cash-fund';
 import { ExpenseResponse, ExpenseService } from '../../../core/services/expense';
 
 @Component({
@@ -44,6 +44,9 @@ export class ExpenseList implements OnInit {
 
   balance: CashBalanceResponse | null = null;
   showAddFunds = false;
+  showFundHistory = false;
+  fundHistory: CashFundResponse[] = [];
+  fundHistoryLoading = false;
   newFundAmount = 0;
   newFundDate = new Date().toISOString().split('T')[0];
   newFundDescription = '';
@@ -110,6 +113,22 @@ export class ExpenseList implements OnInit {
     });
   }
 
+  toggleFundHistory(): void {
+    this.showFundHistory = !this.showFundHistory;
+    if (this.showFundHistory && this.fundHistory.length === 0) {
+      this.loadFundHistory();
+    }
+  }
+
+  loadFundHistory(): void {
+    this.fundHistoryLoading = true;
+    this.cdr.detectChanges();
+    this.cashFundService.getHistory().subscribe({
+      next: (h) => { this.fundHistory = h; this.fundHistoryLoading = false; this.cdr.detectChanges(); },
+      error: () => { this.fundHistoryLoading = false; this.cdr.detectChanges(); },
+    });
+  }
+
   saveAddFunds(): void {
     if (!this.newFundAmount || this.newFundAmount <= 0) return;
     this.addingFund = true;
@@ -124,6 +143,7 @@ export class ExpenseList implements OnInit {
         this.newFundAmount = 0;
         this.newFundDescription = '';
         this.loadBalance();
+        if (this.showFundHistory) this.loadFundHistory();
         this.cdr.detectChanges();
       },
       error: () => { this.addingFund = false; this.cdr.detectChanges(); },

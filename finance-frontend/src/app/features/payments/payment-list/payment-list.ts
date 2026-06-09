@@ -17,6 +17,8 @@ import { Auth } from '../../../core/services/auth';
 import { Router, RouterLink } from '@angular/router';
 import { ReturnChequeDialog } from '../return-cheque-dialog/return-cheque-dialog';
 import { MatInputModule } from '@angular/material/input';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 
 @Component({
   selector: 'app-payment-list',
@@ -39,7 +41,9 @@ import { MatInputModule } from '@angular/material/input';
     LowerCasePipe,
     DatePipe,
     RouterLink,
-    MatInputModule
+    MatInputModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
   ],
   templateUrl: './payment-list.html',
   styleUrl: './payment-list.scss',
@@ -54,6 +58,9 @@ export class PaymentList implements OnInit, AfterViewInit {
   selectedArea = '';
   selectedStatus = 'ENTERED';   // default: pending only
   showAll = false;
+
+  filterFrom = '';
+  filterTo   = '';
 
   private allPayments: PaymentResponse[] = [];
 
@@ -84,7 +91,36 @@ export class PaymentList implements OnInit, AfterViewInit {
     private router: Router,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog
-  ) {}
+  ) {
+    this.filterFrom = this.daysAgo(30);
+    this.filterTo   = this.today;
+  }
+
+  get today(): string { return new Date().toISOString().split('T')[0]; }
+
+  daysAgo(n: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().split('T')[0];
+  }
+
+  get filterFromDate(): Date | null { return this.filterFrom ? new Date(this.filterFrom + 'T00:00:00') : null; }
+  get filterToDate():   Date | null { return this.filterTo   ? new Date(this.filterTo   + 'T00:00:00') : null; }
+  get todayDate(): Date { return new Date(); }
+
+  onFromDateChange(e: { value: Date | null }): void {
+    this.filterFrom = e.value ? this.formatDate(e.value) : '';
+    this.load();
+  }
+
+  onToDateChange(e: { value: Date | null }): void {
+    this.filterTo = e.value ? this.formatDate(e.value) : '';
+    this.load();
+  }
+
+  private formatDate(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
 
   ngOnInit(): void { this.load(); }
 
@@ -98,13 +134,17 @@ export class PaymentList implements OnInit, AfterViewInit {
     this.load();
   }
 
+  onDateChange(): void { this.load(); }
+
   load(): void {
     this.loading = true;
     this.error = false;
     this.cdr.detectChanges();
 
     this.paymentService.getAllPayments(
-      this.selectedStatus || undefined
+      this.selectedStatus || undefined,
+      this.filterFrom || undefined,
+      this.filterTo   || undefined,
     ).subscribe({
       next: (p) => {
         this.allPayments = p;

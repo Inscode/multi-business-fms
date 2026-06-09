@@ -230,6 +230,21 @@ export class StockService {
     return this.http.get<StockReductionStatus[]>(`${this.apiUrl}/reduction-status`);
   }
 
+  // Get items entered for a specific bill
+  getBillStockItems(billId: number): Observable<BillStockItem[]> {
+    return this.http.get<BillStockItem[]>(`${this.apiUrl}/bills/${billId}/items`);
+  }
+
+  // Admin: delete an entered stock item (cancels shadow movement)
+  deleteStockItem(itemId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/items/${itemId}`);
+  }
+
+  // Admin: update quantity of an entered stock item
+  updateStockItemQuantity(itemId: number, quantity: number): Observable<BillStockItem> {
+    return this.http.patch<BillStockItem>(`${this.apiUrl}/items/${itemId}/quantity`, { quantity });
+  }
+
   // Reduce stock individually for a specific existing bill
   reduceStockForBill(request: IndividualStockReductionRequest): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/bills/reduce`, request);

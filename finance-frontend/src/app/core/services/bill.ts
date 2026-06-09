@@ -8,6 +8,8 @@ export interface BillFilter {
   business?: string;
   status?: string;
   excludeCompleted?: boolean;
+  from?: string;
+  to?: string;
 }
 
 export interface BillResponse {
@@ -46,10 +48,14 @@ export class Bill {
     let params = new HttpParams();
     if (filter?.business) params = params.set('business', filter.business);
     if (filter?.status)   params = params.set('status', filter.status);
-    if (filter?.excludeCompleted !== undefined) {
-      params = params.set('excludeCompleted', String(filter.excludeCompleted));
-    }
+    if (filter?.excludeCompleted !== undefined) params = params.set('excludeCompleted', String(filter.excludeCompleted));
+    if (filter?.from) params = params.set('from', filter.from);
+    if (filter?.to)   params = params.set('to', filter.to);
     return this.http.get<BillResponse[]>(this.apiUrl, { params });
+  }
+
+  getOverdueCount(): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${this.apiUrl}/overdue-count`);
   }
 
   getBillById(id: number): Observable<BillResponse> {
