@@ -3,6 +3,10 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  jackson:
+    deserialization:
+      accept-empty-string-as-null-object: true
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -10,7 +14,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    target: 5
 
 app:
   admin:

@@ -15,6 +15,7 @@ public class StockReductionStatusResponse {
     private String billSource;     // SYSTEM, DRAFT, MANUAL
     private String customerName;
     private BigDecimal amount;
+    private BigDecimal balanceRemaining;
     private LocalDate billDate;
     private String reductionStatus;
     private Long summaryLoadBillId;
