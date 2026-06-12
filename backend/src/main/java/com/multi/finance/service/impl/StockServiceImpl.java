@@ -260,6 +260,7 @@ public class StockServiceImpl {
                     .billSource(bill.getBillSource().name())
                     .customerName(bill.getCustomerName())
                     .amount(bill.getTotalAmount())
+                    .balanceRemaining(bill.getBalanceRemaining())
                     .billDate(bill.getBillDate())
                     .reductionStatus(status)
                     .summaryLoadBillId(summaryId)
