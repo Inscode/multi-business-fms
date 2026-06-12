@@ -50,6 +50,18 @@
         </div>
         <div class="stat-sub">Active (created / assigned / received)</div>
       </mat-card>
+      <mat-card class="stat-card accent-orange" *ngIf="!loading && (data?.cashPending ?? 0) > 0">
+        <div class="stat-label">Cash Pending</div>
+        <div class="stat-value">Rs {{ data?.cashPending | number:'1.0-0' }}</div>
+        <div class="stat-sub" [class.stat-sub-warn]="(data?.cashSerious ?? 0) > 0">
+          <ng-container *ngIf="(data?.cashSerious ?? 0) > 0">
+            ⚠ Rs {{ data?.cashSerious | number:'1.0-0' }} past 15 days
+          </ng-container>
+          <ng-container *ngIf="(data?.cashSerious ?? 0) === 0">
+            All within 15 days
+          </ng-container>
+        </div>
+      </mat-card>
     </div>
 
     <!-- Today's activity — bills and payments by business -->

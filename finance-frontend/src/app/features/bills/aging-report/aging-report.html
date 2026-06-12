@@ -1,0 +1,335 @@
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Aging Report</h1>
+      <p class="page-sub">Outstanding balances — overdue threshold: 45 days</p>
+    </div>
+    <div class="header-actions">
+      <mat-form-field appearance="outline" class="biz-select">
+        <mat-label>Business</mat-label>
+        <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="load()">
+          <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button mat-icon-button (click)="load()" matTooltip="Refresh" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+    <span>Loading aging data…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-state" *ngIf="error && !loading">
+    <mat-icon>error_outline</mat-icon>
+    <p>Failed to load aging report.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="report && !loading && !error">
+
+    <!-- Summary pills -->
+    <div class="summary-bar">
+      <div class="summary-pill red">
+        <span class="pill-label">Total Outstanding</span>
+        <span class="pill-value">Rs {{ report.grandTotalOutstanding | number:'1.0-0' }}</span>
+      </div>
+      <div class="summary-pill orange" *ngIf="report.grandOverdue > 0">
+        <span class="pill-label">Credit Overdue (45+ days)</span>
+        <span class="pill-value">Rs {{ report.grandOverdue | number:'1.0-0' }}</span>
+      </div>
+      <div class="summary-pill cash-pill" *ngIf="report.grandCashPending > 0">
+        <span class="pill-label">Cash Pending</span>
+        <span class="pill-value">Rs {{ report.grandCashPending | number:'1.0-0' }}</span>
+        <span class="pill-sub" *ngIf="report.grandCashSerious > 0">
+          ⚠ Rs {{ report.grandCashSerious | number:'1.0-0' }} past 15 days
+        </span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-label">Customers</span>
+        <span class="pill-value">{{ report.totalCustomers }}</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-label">Open Bills</span>
+        <span class="pill-value">{{ report.totalBills }}</span>
+      </div>
+    </div>
+
+    <mat-tab-group class="report-tabs">
+
+      <!-- ══ TAB 1: Top 20 Customers ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">leaderboard</mat-icon>
+          Top 20 Customers
+        </ng-template>
+
+        <div class="tab-body">
+          <div class="aging-legend">
+            <span class="legend-item age-ok">0–30 days</span>
+            <span class="legend-item age-caution">31–60 days</span>
+            <span class="legend-item age-warn">61–90 days</span>
+            <span class="legend-item age-critical">91+ days</span>
+          </div>
+
+          <div class="customer-table">
+            <div class="tbl-header">
+              <span class="col-rank">#</span>
+              <span class="col-name">Customer</span>
+              <span class="col-area">Area</span>
+              <span class="col-num right">Outstanding</span>
+              <span class="col-num right">0–30</span>
+              <span class="col-num right">31–60</span>
+              <span class="col-num right">61–90</span>
+              <span class="col-num right">91+</span>
+              <span class="col-bills center">Bills</span>
+              <span class="col-oldest">Oldest</span>
+              <span class="col-pmt">Last Payment</span>
+            </div>
+
+            <div class="tbl-row" *ngFor="let c of report.topCustomers; let i = index; trackBy: trackByName"
+                 [class.row-top3]="i < 3">
+              <span class="col-rank rank-badge" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2">
+                {{ i + 1 }}
+              </span>
+              <span class="col-name cust-name">{{ c.customerName }}</span>
+              <span class="col-area area-tag">{{ c.area || '—' }}</span>
+              <span class="col-num right total-col">Rs {{ c.totalOutstanding | number:'1.0-0' }}</span>
+              <span class="col-num right" [class.has-amount]="c.current > 0">
+                {{ c.current > 0 ? ('Rs ' + (c.current | number:'1.0-0')) : '—' }}
+              </span>
+              <span class="col-num right" [class.has-amount]="c.days31to60 > 0" [class.age-caution-text]="c.days31to60 > 0">
+                {{ c.days31to60 > 0 ? ('Rs ' + (c.days31to60 | number:'1.0-0')) : '—' }}
+              </span>
+              <span class="col-num right" [class.has-amount]="c.days61to90 > 0" [class.age-warn-text]="c.days61to90 > 0">
+                {{ c.days61to90 > 0 ? ('Rs ' + (c.days61to90 | number:'1.0-0')) : '—' }}
+              </span>
+              <span class="col-num right" [class.has-amount]="c.days91plus > 0" [class.age-critical-text]="c.days91plus > 0">
+                {{ c.days91plus > 0 ? ('Rs ' + (c.days91plus | number:'1.0-0')) : '—' }}
+              </span>
+              <span class="col-bills center">{{ c.billCount }}</span>
+              <span class="col-oldest">{{ c.oldestBillDate }}</span>
+              <span class="col-pmt last-pmt" [ngClass]="lastPaymentClass(c.lastPaymentDate)">
+                {{ lastPaymentLabel(c.lastPaymentDate) }}
+              </span>
+            </div>
+
+            <div class="empty-state" *ngIf="report.topCustomers.length === 0">
+              <mat-icon>check_circle</mat-icon>
+              <p>No outstanding balances for {{ selectedBusiness }}</p>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- ══ TAB 2: Collection Priority ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">priority_high</mat-icon>
+          Collection Priority
+        </ng-template>
+
+        <div class="tab-body">
+          <p class="priority-note">
+            Customers sorted by urgency — worst aging bucket first, highest amount within each bucket.
+          </p>
+
+          <div class="priority-section" *ngFor="let bucket of priorityBuckets; trackBy: trackByLabel">
+            <div class="priority-header" [ngClass]="bucket.cssClass">
+              <span class="bucket-label">{{ bucket.label }}</span>
+              <span class="bucket-count">{{ bucket.customers.length }} customer{{ bucket.customers.length !== 1 ? 's' : '' }}</span>
+              <span class="bucket-total">Rs {{ bucket.bucketTotal | number:'1.0-0' }}</span>
+            </div>
+
+            <div class="priority-table">
+              <div class="ptbl-header">
+                <span class="p-rank">#</span>
+                <span class="p-name">Customer</span>
+                <span class="p-area">Area</span>
+                <span class="p-bucket right">{{ bucket.label }} Amount</span>
+                <span class="p-total right">Total Outstanding</span>
+                <span class="p-bills center">Bills</span>
+                <span class="p-pmt">Last Payment</span>
+              </div>
+
+              <div class="ptbl-row" *ngFor="let c of bucket.customers; let i = index; trackBy: trackByName">
+                <span class="p-rank rank-num">{{ i + 1 }}</span>
+                <span class="p-name cust-name">{{ c.customerName }}</span>
+                <span class="p-area area-tag">{{ c.area || '—' }}</span>
+                <span class="p-bucket right bucket-amount" [ngClass]="bucket.cssClass + '-text'">
+                  Rs {{ (bucket.cssClass === 'bucket-critical' ? c.days91plus :
+                         bucket.cssClass === 'bucket-warn'     ? c.days61to90 :
+                         bucket.cssClass === 'bucket-caution'  ? c.days31to60 : c.current) | number:'1.0-0' }}
+                </span>
+                <span class="p-total right total-col">Rs {{ c.totalOutstanding | number:'1.0-0' }}</span>
+                <span class="p-bills center">{{ c.billCount }}</span>
+                <span class="p-pmt last-pmt" [ngClass]="lastPaymentClass(c.lastPaymentDate)">
+                  {{ lastPaymentLabel(c.lastPaymentDate) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="priorityBuckets.length === 0 && cashPriorityBuckets.length === 0">
+            <mat-icon>check_circle</mat-icon>
+            <p>No outstanding balances for {{ selectedBusiness }}</p>
+          </div>
+
+          <!-- Cash priority section -->
+          <ng-container *ngIf="cashPriorityBuckets.length > 0">
+            <div class="cash-section-divider">
+              <mat-icon>payments</mat-icon>
+              <span>Cash Bills Priority</span>
+              <span class="cash-divider-note">Different urgency — cash should clear same/next day</span>
+            </div>
+
+            <div class="priority-section" *ngFor="let bucket of cashPriorityBuckets; trackBy: trackByLabel">
+              <div class="priority-header" [ngClass]="bucket.cssClass">
+                <span class="bucket-label">{{ bucket.label }}</span>
+                <span class="bucket-count">{{ bucket.customers.length }} customer{{ bucket.customers.length !== 1 ? 's' : '' }}</span>
+                <span class="bucket-total">Rs {{ bucket.bucketTotal | number:'1.0-0' }}</span>
+              </div>
+              <div class="priority-table">
+                <div class="ptbl-header">
+                  <span class="p-rank">#</span>
+                  <span class="p-name">Customer</span>
+                  <span class="p-area">Area</span>
+                  <span class="p-bucket right">Cash Amount</span>
+                  <span class="p-total right">Total Outstanding</span>
+                  <span class="p-bills center">Bills</span>
+                  <span class="p-pmt">Last Payment</span>
+                </div>
+                <div class="ptbl-row" *ngFor="let c of bucket.customers; let i = index; trackBy: trackByName">
+                  <span class="p-rank rank-num">{{ i + 1 }}</span>
+                  <span class="p-name cust-name">{{ c.customerName }}</span>
+                  <span class="p-area area-tag">{{ c.area || '—' }}</span>
+                  <span class="p-bucket right bucket-amount" [ngClass]="bucket.cssClass + '-text'">
+                    Rs {{ (bucket.cssClass === 'bucket-critical' ? c.cashSerious :
+                           bucket.cssClass === 'bucket-warn'     ? c.cashUrgent : c.cashFollowUp) | number:'1.0-0' }}
+                  </span>
+                  <span class="p-total right total-col">Rs {{ c.totalOutstanding | number:'1.0-0' }}</span>
+                  <span class="p-bills center">{{ c.billCount }}</span>
+                  <span class="p-pmt last-pmt" [ngClass]="lastPaymentClass(c.lastPaymentDate)">
+                    {{ lastPaymentLabel(c.lastPaymentDate) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+
+        </div>
+      </mat-tab>
+
+      <!-- ══ TAB 3: By Area ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">map</mat-icon>
+          By Area ({{ report.byArea.length }})
+        </ng-template>
+
+        <div class="tab-body">
+          <div class="area-controls">
+            <button mat-stroked-button (click)="expandAll()">
+              <mat-icon>unfold_more</mat-icon> Expand All
+            </button>
+            <button mat-stroked-button (click)="collapseAll()">
+              <mat-icon>unfold_less</mat-icon> Collapse All
+            </button>
+          </div>
+
+          <div class="area-list">
+            <div class="area-card" *ngFor="let a of report.byArea; trackBy: trackByArea">
+
+              <!-- Area header -->
+              <div class="area-header" (click)="toggleArea(a.area)">
+                <div class="area-left">
+                  <mat-icon class="expand-icon" [class.expanded]="isExpanded(a.area)">expand_more</mat-icon>
+                  <div class="area-info">
+                    <span class="area-name">{{ a.area }}</span>
+                    <span class="area-meta">{{ a.customerCount }} customer{{ a.customerCount !== 1 ? 's' : '' }} &bull; {{ a.billCount }} bill{{ a.billCount !== 1 ? 's' : '' }}</span>
+                  </div>
+                </div>
+                <div class="area-stats-block">
+                  <div class="area-stat-row">
+                    <span class="stat-label">Outstanding</span>
+                    <span class="stat-val outstanding">Rs {{ a.totalOutstanding | number:'1.0-0' }}</span>
+                  </div>
+                  <div class="area-stat-row" *ngIf="a.overdue > 0">
+                    <span class="stat-label">Credit Overdue (45+ days)</span>
+                    <span class="stat-val overdue">Rs {{ a.overdue | number:'1.0-0' }}</span>
+                  </div>
+                  <div class="area-stat-row" *ngIf="a.cashPending > 0">
+                    <span class="stat-label">Cash Pending</span>
+                    <span class="stat-val cash-stat">Rs {{ a.cashPending | number:'1.0-0' }}</span>
+                    <span class="cash-serious-tag" *ngIf="a.cashSerious > 0">⚠ 15+ days</span>
+                  </div>
+                  <div class="area-aging-bar" *ngIf="a.totalOutstanding > 0">
+                    <span class="bar-seg age-ok-bg"
+                          [style.width.%]="(a.current / a.totalOutstanding) * 100"
+                          [matTooltip]="'0–30 days: Rs ' + (a.current | number:'1.0-0')"></span>
+                    <span class="bar-seg age-caution-bg"
+                          [style.width.%]="(a.days31to60 / a.totalOutstanding) * 100"
+                          [matTooltip]="'31–60 days: Rs ' + (a.days31to60 | number:'1.0-0')"></span>
+                    <span class="bar-seg age-warn-bg"
+                          [style.width.%]="(a.days61to90 / a.totalOutstanding) * 100"
+                          [matTooltip]="'61–90 days: Rs ' + (a.days61to90 | number:'1.0-0')"></span>
+                    <span class="bar-seg age-critical-bg"
+                          [style.width.%]="(a.days91plus / a.totalOutstanding) * 100"
+                          [matTooltip]="'91+ days: Rs ' + (a.days91plus | number:'1.0-0')"></span>
+                  </div>
+                </div>
+                <button mat-stroked-button class="collect-btn"
+                        (click)="$event.stopPropagation(); goCollectArea(a)"
+                        matTooltip="Open bill list filtered to this area">
+                  <mat-icon>directions</mat-icon>
+                  Collect
+                </button>
+              </div>
+
+              <!-- Expanded customer list -->
+              <div class="area-customers" *ngIf="isExpanded(a.area)">
+                <div class="cust-row-header">
+                  <span class="cust-rank"></span>
+                  <span class="cust-name">Customer</span>
+                  <span class="cust-bills">Bills</span>
+                  <span class="cust-oldest">Oldest</span>
+                  <span class="cust-pmt">Last Payment</span>
+                  <span class="cust-age">Aging</span>
+                  <span class="cust-total">Amount</span>
+                </div>
+                <div class="cust-row" *ngFor="let c of a.customers; let i = index; trackBy: trackByName">
+                  <span class="cust-rank">{{ i + 1 }}</span>
+                  <span class="cust-name">{{ c.customerName }}</span>
+                  <span class="cust-bills muted">{{ c.billCount }}</span>
+                  <span class="cust-oldest muted">{{ c.oldestBillDate }}</span>
+                  <span class="cust-pmt last-pmt" [ngClass]="lastPaymentClass(c.lastPaymentDate)">
+                    {{ lastPaymentLabel(c.lastPaymentDate) }}
+                  </span>
+                  <span class="cust-age">
+                    <span class="age-badge" *ngIf="hasCreditBills(c)" [ngClass]="agingClass(c)">{{ agingBucket(c) }}d</span>
+                    <span class="age-badge cash-age-badge" *ngIf="hasCashBills(c)" [ngClass]="cashAgingClass(c)">Cash·{{ cashAgingBucket(c) }}</span>
+                  </span>
+                  <span class="cust-total">Rs {{ c.totalOutstanding | number:'1.0-0' }}</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="empty-state" *ngIf="report.byArea.length === 0">
+              <mat-icon>check_circle</mat-icon>
+              <p>No outstanding balances for {{ selectedBusiness }}</p>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+  </ng-container>
+
+</div>

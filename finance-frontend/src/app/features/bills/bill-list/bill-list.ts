@@ -21,7 +21,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { RouterLink } from '@angular/router';
 import { SelectionModel } from '@angular/cdk/collections';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
-import { Bill, BillResponse } from '../../../core/services/bill';
+import { Bill, BillResponse, BillSequenceGap } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
@@ -128,6 +128,29 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
 
   get canSeePendingCollections(): boolean {
     return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
+
+  // ── Sequence gap check ─────────────────────────────────────────
+  gapCheckOpen = false;
+  gapCheckLoading = false;
+  gaps: BillSequenceGap[] = [];
+
+  get canCheckGaps(): boolean {
+    return this.auth.getRole() === 'ADMIN';
+  }
+
+  toggleGapCheck(): void {
+    if (this.gapCheckOpen) { this.gapCheckOpen = false; return; }
+    this.gapCheckOpen = true;
+    this.loadGaps();
+  }
+
+  loadGaps(): void {
+    this.gapCheckLoading = true;
+    this.billService.findSequenceGaps('RAINCO').subscribe({
+      next: (g) => { this.gaps = g; this.gapCheckLoading = false; this.cdr.detectChanges(); },
+      error: () => { this.gapCheckLoading = false; this.cdr.detectChanges(); },
+    });
   }
 
   reminderMap = new Map<number, BillReminderResponse>();

@@ -171,11 +171,14 @@
     margin-top: 4px;
   }
 
-  &.accent-blue  { border-top-color: #1976d2 !important; .stat-value { color: #1976d2; } }
-  &.accent-amber { border-top-color: #e65100 !important; .stat-value { color: #e65100; } }
-  &.accent-green { border-top-color: #2e7d32 !important; .stat-value { color: #2e7d32; } }
-  &.accent-purple{ border-top-color: #6a1b9a !important; .stat-value { color: #6a1b9a; } }
-  &.accent-red   { border-top-color: #c62828 !important; .stat-value { color: #c62828; } }
+  &.accent-blue   { border-top-color: #1976d2 !important; .stat-value { color: #1976d2; } }
+  &.accent-amber  { border-top-color: #e65100 !important; .stat-value { color: #e65100; } }
+  &.accent-green  { border-top-color: #2e7d32 !important; .stat-value { color: #2e7d32; } }
+  &.accent-purple { border-top-color: #6a1b9a !important; .stat-value { color: #6a1b9a; } }
+  &.accent-red    { border-top-color: #c62828 !important; .stat-value { color: #c62828; } }
+  &.accent-orange { border-top-color: #f57c00 !important; .stat-value { color: #e65100; } }
+
+  .stat-sub-warn { color: #c62828 !important; font-weight: 600; }
 
   @media (max-width: 768px) {
     padding: 12px 12px !important;

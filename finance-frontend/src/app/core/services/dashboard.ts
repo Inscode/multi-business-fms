@@ -22,6 +22,8 @@ export interface OwnerDashboardData {
   awaitingConfirmation: number;
   pendingBills: number;
   totalOutstanding: number;
+  cashPending: number;
+  cashSerious: number;
 
   raincoTodayBills: number;
   stationeryTodayBills: number;
