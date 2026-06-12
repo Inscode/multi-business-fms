@@ -31,5 +31,29 @@ body {
 
 /* Ensure datepicker calendar panel renders above Material dialogs */
 .cdk-overlay-container {
-  z-index: 9999;
+  z-index: 9998; /* lightbox is 9999, snackbar needs to be above both */
+}
+
+/* ── Task-board snackbar themes ──────────────────────────────────────────── */
+.snack-warn .mdc-snackbar__surface {
+  background: #f97316 !important;
+  color: #fff !important;
+}
+.snack-info .mdc-snackbar__surface {
+  background: #3b82f6 !important;
+  color: #fff !important;
+}
+.snack-success .mdc-snackbar__surface {
+  background: #16a34a !important;
+  color: #fff !important;
+}
+.snack-error .mdc-snackbar__surface {
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+.snack-warn .mat-mdc-snack-bar-action,
+.snack-info .mat-mdc-snack-bar-action,
+.snack-success .mat-mdc-snack-bar-action,
+.snack-error .mat-mdc-snack-bar-action {
+  color: rgba(255,255,255,0.85) !important;
 }

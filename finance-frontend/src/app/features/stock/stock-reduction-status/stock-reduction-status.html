@@ -153,7 +153,11 @@
 
         <ng-container matColumnDef="amount">
           <th mat-header-cell *matHeaderCellDef>Amount</th>
-          <td mat-cell *matCellDef="let r">Rs. {{ r.amount | number:'1.2-2' }}</td>
+          <td mat-cell *matCellDef="let r">
+            Rs. {{ r.amount | number:'1.2-2' }}
+            <span *ngIf="r.balanceRemaining === 0" class="paid-badge">PAID</span>
+            <span *ngIf="r.balanceRemaining > 0" class="balance-note">Bal: Rs.{{ r.balanceRemaining | number:'1.0-0' }}</span>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="billDate">
@@ -194,7 +198,7 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let r">
-            <button *ngIf="isAdmin && r.reductionStatus === 'INDIVIDUALLY_REDUCED'"
+            <button *ngIf="canViewItems && r.reductionStatus === 'INDIVIDUALLY_REDUCED'"
                     mat-icon-button [matTooltip]="expandedBillId === r.billId ? 'Hide items' : 'View / edit items'"
                     (click)="$event.stopPropagation(); toggleExpand(r)">
               <mat-icon>{{ expandedBillId === r.billId ? 'expand_less' : 'expand_more' }}</mat-icon>
@@ -263,10 +267,10 @@
                   </button>
                 </ng-container>
                 <ng-container *ngIf="editingItemId !== item.id">
-                  <button mat-icon-button matTooltip="Edit quantity" (click)="startEdit(item)">
+                  <button mat-icon-button matTooltip="Edit quantity" (click)="startEdit(item)" *ngIf="isAdmin">
                     <mat-icon>edit</mat-icon>
                   </button>
-                  <button mat-icon-button color="warn" matTooltip="Delete item" (click)="deleteItem(item)">
+                  <button mat-icon-button color="warn" matTooltip="Delete item" (click)="deleteItem(item)" *ngIf="isAdmin">
                     <mat-icon>delete</mat-icon>
                   </button>
                 </ng-container>

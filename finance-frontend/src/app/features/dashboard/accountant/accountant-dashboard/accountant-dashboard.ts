@@ -1,5 +1,6 @@
 import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { localDateStr } from '../../../../core/utils/date-utils';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -44,12 +45,12 @@ export class AccountantDashboard implements OnInit {
   }
 
   get overdueReminders(): BillReminderResponse[] {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     return this.reminders.filter(r => r.reminderDate < today);
   }
 
   get todayReminders(): BillReminderResponse[] {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     return this.reminders.filter(r => r.reminderDate === today);
   }
 

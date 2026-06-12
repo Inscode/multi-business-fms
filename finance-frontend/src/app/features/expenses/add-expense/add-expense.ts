@@ -96,7 +96,7 @@ export class AddExpense implements OnInit {
       business:    v.business,
       category:    v.category,
       amount:      v.amount,
-      date:        date.toISOString().split('T')[0],
+      date:        `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`,
       description: v.description || undefined,
       workerId:    v.workerId || undefined,
     }).subscribe({

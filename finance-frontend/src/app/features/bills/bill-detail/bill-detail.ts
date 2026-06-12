@@ -77,6 +77,12 @@ export class BillDetail implements OnInit {
   reconcilingStock = false;
   reconcileError = '';
 
+  get approvedDamageTotal(): number {
+    return this.returns
+      .filter(r => r.returnType === 'DAMAGE' && r.status === 'APPROVED')
+      .reduce((sum, r) => sum + (r.approvedAmount ?? r.calculatedReturnAmount), 0);
+  }
+
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
   get isMainAccountant(): boolean { return this.auth.getRole() === 'MAIN_ACCOUNTANT'; }

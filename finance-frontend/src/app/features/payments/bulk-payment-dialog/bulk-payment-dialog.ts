@@ -1,5 +1,6 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { Component, Inject } from '@angular/core';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -114,7 +115,7 @@ export class BulkPaymentDialog {
   private toDateString(value: Date | string | null): string | undefined {
     if (!value) return undefined;
     if (typeof value === 'string') return value;
-    return value.toISOString().split('T')[0];
+    return localDateStr(value);
   }
 
   submit(): void {

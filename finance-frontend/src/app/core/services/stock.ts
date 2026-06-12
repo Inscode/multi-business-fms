@@ -74,6 +74,7 @@ export interface StockReductionStatus {
   billSource: 'SYSTEM' | 'DRAFT' | 'MANUAL';
   customerName: string;
   amount: number;
+  balanceRemaining?: number;
   billDate: string;
   reductionStatus: 'NOT_REDUCED' | 'SUMMARY_PENDING' | 'SUMMARY_APPROVED' | 'INDIVIDUALLY_REDUCED' | 'LINKED' | 'WILL_LINK' | 'RECONCILED';
   totalQty?: number;

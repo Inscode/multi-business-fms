@@ -48,7 +48,7 @@ export class ExpenseList implements OnInit {
   fundHistory: CashFundResponse[] = [];
   fundHistoryLoading = false;
   newFundAmount = 0;
-  newFundDate = new Date().toISOString().split('T')[0];
+  newFundDate = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
   newFundDescription = '';
   addingFund = false;
 
@@ -91,7 +91,12 @@ export class ExpenseList implements OnInit {
   }
 
   private toIsoDate(d: Date | null): string | undefined {
-    return d ? d.toISOString().split('T')[0] : undefined;
+    if (!d) return undefined;
+    // Use LOCAL date parts — toISOString() converts to UTC and shifts the date in non-UTC timezones
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   constructor(
@@ -191,7 +196,20 @@ export class ExpenseList implements OnInit {
   review(expense: ExpenseResponse): void {
     if (!confirm(`Mark expense of Rs ${expense.amount} (${expense.category}) as reviewed?`)) return;
     this.expenseService.review(expense.id).subscribe({
-      next: () => this.load(),
+      next: (updated) => {
+        // Remove from pending banner
+        this.pendingReviewExpenses = this.pendingReviewExpenses.filter(e => e.id !== expense.id);
+        // Update in-place if already visible, otherwise insert at top so it's not lost due to date filter
+        const idx = this.expenses.findIndex(e => e.id === expense.id);
+        if (idx >= 0) {
+          const copy = [...this.expenses];
+          copy[idx] = updated;
+          this.expenses = copy;
+        } else {
+          this.expenses = [updated, ...this.expenses];
+        }
+        this.cdr.detectChanges();
+      },
       error: () => alert('Failed to mark as reviewed.'),
     });
   }

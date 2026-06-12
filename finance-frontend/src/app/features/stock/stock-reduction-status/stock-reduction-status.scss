@@ -181,6 +181,25 @@
 
 .no-items { color: #aaa; text-align: center; padding: 12px; }
 
+.paid-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.balance-note {
+  display: block;
+  font-size: 11px;
+  color: #e65100;
+  margin-top: 2px;
+}
+
 .loading-center { display: flex; justify-content: center; padding: 40px; }
 
 .empty-state {
