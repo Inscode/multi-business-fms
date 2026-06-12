@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, AfterViewInit, HostListener, ViewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, HostListener, ViewChild } from '@angular/core';
 import { MatRippleModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -28,10 +28,11 @@ import { WorkerFinanceService } from '../../core/services/worker-finance';
     NavbarComponent,
   ]
 })
-export class MainLayoutComponent implements OnInit, AfterViewInit {
+export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   collapsed = false;
   isMobile  = false;
+  private resizeTimer: ReturnType<typeof setTimeout> | null = null;
   pendingEditRequests = 0;
   pendingReturns = 0;
   pendingExpenses = 0;
@@ -59,7 +60,16 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {}
 
+  ngOnDestroy(): void {
+    if (this.resizeTimer) clearTimeout(this.resizeTimer);
+  }
+
   @HostListener('window:resize')
+  onResize(): void {
+    if (this.resizeTimer) clearTimeout(this.resizeTimer);
+    this.resizeTimer = setTimeout(() => this.checkScreen(), 150);
+  }
+
   checkScreen(): void {
     this.isMobile = window.innerWidth < 768;
   }
@@ -133,6 +143,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   get showBillChecklist(): boolean       { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
   get showWorkerFinance(): boolean       { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
   get showWorkerFinanceReview(): boolean { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
+  get showAgingReport(): boolean         { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showCustomers(): boolean           { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showWorkerCollections(): boolean   { return ['ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showTasks(): boolean               { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT', 'DELIVERY'].includes(this.currentRole); }

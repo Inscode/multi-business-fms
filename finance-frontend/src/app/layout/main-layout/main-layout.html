@@ -1,4 +1,4 @@
-<mat-sidenav-container class="app-shell" autosize>
+<mat-sidenav-container class="app-shell">
   <mat-sidenav
     #sidenav
     class="app-sidenav"
@@ -75,6 +75,10 @@
         <span *ngIf="!collapsed">Workers Finance</span>
         <span class="nav-badge" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && !collapsed">{{ pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin }}</span>
         <span class="nav-badge-dot" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && collapsed"></span>
+      </a>
+      <a class="nav-item" routerLink="/bills/aging" routerLinkActive="active" matRipple *ngIf="showAgingReport" (click)="isMobile && sidenav.close()">
+        <mat-icon>trending_up</mat-icon>
+        <span *ngIf="!collapsed">Aging Report</span>
       </a>
       <a class="nav-item" routerLink="/customers" routerLinkActive="active" matRipple *ngIf="showCustomers" (click)="isMobile && sidenav.close()">
         <mat-icon>people</mat-icon>

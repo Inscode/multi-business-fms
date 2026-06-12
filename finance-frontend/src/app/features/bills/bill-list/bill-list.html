@@ -137,6 +137,54 @@
         <mat-icon>close</mat-icon>
       </button>
     </div>
+
+    <!-- Sequence gap check button -->
+    <div class="gap-check-row" *ngIf="canCheckGaps">
+      <button mat-stroked-button class="gap-check-btn" [class.active]="gapCheckOpen" (click)="toggleGapCheck()">
+        <mat-icon>manage_search</mat-icon>
+        Sequence Check (RAINCO)
+        <mat-icon class="expand-icon" [class.expanded]="gapCheckOpen">expand_more</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Gap check panel -->
+  <div class="gap-panel" *ngIf="gapCheckOpen && canCheckGaps">
+    <div class="gap-panel-header">
+      <mat-icon>manage_search</mat-icon>
+      <span>RAINCO Bill Sequence Gaps</span>
+      <button mat-icon-button class="gap-refresh-btn" (click)="loadGaps()" matTooltip="Refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+
+    <div class="gap-loading" *ngIf="gapCheckLoading">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>Checking sequences…</span>
+    </div>
+
+    <div class="gap-sources" *ngIf="!gapCheckLoading">
+      <div class="gap-source-block" *ngFor="let g of gaps">
+        <div class="gap-source-header">
+          <span class="source-label">{{ g.billSource }}</span>
+          <span class="source-range">#{{ g.firstNumber }} → #{{ g.lastNumber }}</span>
+          <span class="source-total">{{ g.totalBills }} bills</span>
+          <span class="source-missing" [class.none]="g.missingCount === 0">
+            <mat-icon *ngIf="g.missingCount > 0">warning</mat-icon>
+            <mat-icon *ngIf="g.missingCount === 0">check_circle</mat-icon>
+            {{ g.missingCount === 0 ? 'No gaps' : g.missingCount + ' missing' }}
+          </span>
+        </div>
+        <div class="gap-chips" *ngIf="g.missingNumbers.length > 0">
+          <span class="gap-chip" *ngFor="let num of g.missingNumbers">{{ num }}</span>
+        </div>
+      </div>
+
+      <div class="gap-empty" *ngIf="gaps.length === 0">
+        <mat-icon>check_circle</mat-icon>
+        <span>No RAINCO bills found or no gaps detected.</span>
+      </div>
+    </div>
   </div>
 
   <!-- selection hint -->

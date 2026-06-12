@@ -4,6 +4,61 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 
+export interface AgingCustomerEntry {
+  customerName: string;
+  customerId: number | null;
+  area: string | null;
+  totalOutstanding: number;
+  overdue: number;
+  current: number;
+  days31to60: number;
+  days61to90: number;
+  days91plus: number;
+  billCount: number;
+  oldestBillDate: string;
+  lastPaymentDate: string | null;
+  cashPending: number;
+  cashFollowUp: number;
+  cashUrgent: number;
+  cashSerious: number;
+}
+
+export interface AgingAreaSummary {
+  area: string;
+  totalOutstanding: number;
+  overdue: number;
+  current: number;
+  days31to60: number;
+  days61to90: number;
+  days91plus: number;
+  cashPending: number;
+  cashSerious: number;
+  customerCount: number;
+  billCount: number;
+  customers: AgingCustomerEntry[];
+}
+
+export interface AgingReportResponse {
+  grandTotalOutstanding: number;
+  grandOverdue: number;
+  grandCashPending: number;
+  grandCashSerious: number;
+  totalCustomers: number;
+  totalBills: number;
+  topCustomers: AgingCustomerEntry[];
+  allCustomers: AgingCustomerEntry[];
+  byArea: AgingAreaSummary[];
+}
+
+export interface BillSequenceGap {
+  billSource: string;
+  totalBills: number;
+  firstNumber: number;
+  lastNumber: number;
+  missingCount: number;
+  missingNumbers: string[];
+}
+
 export interface BillFilter {
   business?: string;
   status?: string;
@@ -92,5 +147,17 @@ export class Bill {
 
   deleteBill(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  getAgingReport(business: string = 'RAINCO'): Observable<AgingReportResponse> {
+    return this.http.get<AgingReportResponse>(`${this.apiUrl}/aging-report`, {
+      params: { business },
+    });
+  }
+
+  findSequenceGaps(business: string = 'RAINCO'): Observable<BillSequenceGap[]> {
+    return this.http.get<BillSequenceGap[]>(`${this.apiUrl}/sequence-gaps`, {
+      params: { business },
+    });
   }
 }
