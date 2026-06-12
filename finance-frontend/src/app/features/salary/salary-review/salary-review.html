@@ -89,6 +89,7 @@
             <span class="col-right">Remaining After</span>
             <span>Status</span>
             <span>Entered By</span>
+            <span>Submitted At</span>
             <span></span>
           </div>
 
@@ -114,6 +115,9 @@
             <span class="remaining-cell col-right" *ngIf="p.remainingAfter === null || p.remainingAfter === undefined">—</span>
             <span class="status-chip status-{{ p.status | lowercase }}">{{ statusLabel(p.status) }}</span>
             <span class="entered-by">{{ p.enteredByName }}</span>
+            <span class="submitted-at" [title]="p.createdAt | date:'dd MMM yyyy, h:mm:ss a'">
+              {{ p.createdAt | date:'dd MMM yy, h:mm a' }}
+            </span>
             <div class="row-actions">
               <ng-container *ngIf="p.status === 'PENDING_APPROVAL'">
                 <button mat-icon-button color="primary" title="Approve" (click)="approve(p)">

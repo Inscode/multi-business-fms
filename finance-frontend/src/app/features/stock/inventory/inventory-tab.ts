@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatTabsModule } from '@angular/material/tabs';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -96,7 +97,7 @@ export class InventoryTabComponent implements OnInit {
     });
     this.stockInForm = this.fb.group({
       referenceNumber: [''],
-      stockDate: [new Date().toISOString().split('T')[0], Validators.required],
+      stockDate: [localDateStr(), Validators.required],
       notes: [''],
     });
   }
@@ -278,7 +279,7 @@ export class InventoryTabComponent implements OnInit {
         this.stockInMessage = 'Stock-in request submitted. Awaiting admin approval.';
         this.savingStockIn = false;
         this.stockInItems = [];
-        this.stockInForm.reset({ stockDate: new Date().toISOString().split('T')[0] });
+        this.stockInForm.reset({ stockDate: localDateStr() });
         this.loadStockInHistory();
         this.cdr.detectChanges();
       },
@@ -307,7 +308,7 @@ export class InventoryTabComponent implements OnInit {
         this.stockInMessage = 'Opening stock added successfully.';
         this.savingStockIn = false;
         this.stockInItems = [];
-        this.stockInForm.reset({ stockDate: new Date().toISOString().split('T')[0] });
+        this.stockInForm.reset({ stockDate: localDateStr() });
         this.loadBalances();
         this.cdr.detectChanges();
       },

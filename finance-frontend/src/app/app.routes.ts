@@ -124,6 +124,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/worker-collections/worker-collections-page')
           .then(m => m.WorkerCollectionsPage)
       },
+      {
+        path: 'tasks',
+        loadComponent: () => import('./features/tasks/task-board/task-board')
+          .then(m => m.TaskBoard)
+      },
     ]
   },
   {

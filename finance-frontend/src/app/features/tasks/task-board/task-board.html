@@ -1,0 +1,757 @@
+<!-- ── Lightbox overlay ──────────────────────────────────────────────────── -->
+<div class="lightbox-overlay" *ngIf="lightboxUrl" (click)="closeLightbox()">
+  <button class="lightbox-close" (click)="closeLightbox()">
+    <mat-icon>close</mat-icon>
+  </button>
+  <img [src]="lightboxUrl" class="lightbox-img" (click)="$event.stopPropagation()" alt="full image" />
+</div>
+
+<div class="page">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Daily operations</h1>
+      <p class="page-sub">{{ allTabDateObj2 | date:'EEEE, d MMMM y' }}</p>
+    </div>
+  </div>
+
+  <!-- Tab group -->
+  <mat-tab-group animationDuration="150ms" class="task-tabs">
+
+    <!-- ── Tab 1: Today's work ───────────────────────────────────────────── -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        Today's work
+        <span class="tab-badge" *ngIf="pendingTodayCount > 0">{{ pendingTodayCount }}</span>
+      </ng-template>
+
+      <div class="tab-content">
+        <ng-container *ngIf="todayInstances.length === 0">
+          <div class="empty-state">
+            <mat-icon>check_circle_outline</mat-icon>
+            <p>No tasks assigned for today</p>
+          </div>
+        </ng-container>
+
+        <!-- Section A: Daily tasks -->
+        <ng-container *ngIf="dailyInstances.length > 0">
+          <p class="section-label">Daily tasks</p>
+          <ng-container *ngFor="let inst of dailyInstances; trackBy: trackById">
+            <ng-container *ngTemplateOutlet="taskCard; context: { inst: inst }"></ng-container>
+          </ng-container>
+        </ng-container>
+
+        <!-- Section B: On-demand tasks -->
+        <ng-container *ngIf="onDemandInstances.length > 0">
+          <p class="section-label" [style.margin-top]="dailyInstances.length ? '24px' : '0'">On-demand tasks</p>
+          <ng-container *ngFor="let inst of onDemandInstances; trackBy: trackById">
+            <ng-container *ngTemplateOutlet="taskCard; context: { inst: inst }"></ng-container>
+          </ng-container>
+        </ng-container>
+
+        <!-- Section C: One-time tasks -->
+        <ng-container *ngIf="oneTimeInstances.length > 0">
+          <div class="section-label-row" [style.margin-top]="(dailyInstances.length || onDemandInstances.length) ? '24px' : '0'">
+            <p class="section-label" style="margin:0">Today only</p>
+            <span class="onetime-badge">one-time</span>
+          </div>
+          <ng-container *ngFor="let inst of oneTimeInstances; trackBy: trackById">
+            <ng-container *ngTemplateOutlet="taskCard; context: { inst: inst }"></ng-container>
+          </ng-container>
+        </ng-container>
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 2: Moved tasks ────────────────────────────────────────────── -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        Moved tasks
+        <span class="tab-badge warn" *ngIf="movedCount > 0">{{ movedCount }}</span>
+      </ng-template>
+
+      <div class="tab-content">
+        <ng-container *ngIf="movedInstances.length === 0">
+          <div class="empty-state">
+            <mat-icon>event_available</mat-icon>
+            <p>No moved tasks</p>
+          </div>
+        </ng-container>
+
+        <ng-container *ngFor="let group of movedGrouped">
+          <p class="section-label">Rescheduled to {{ formatDateDisplay(group.date) }}</p>
+          <mat-card class="task-card"
+                    *ngFor="let inst of group.instances; trackBy: trackById"
+                    [class]="'urgency-' + inst.template.urgencyLevel.toLowerCase()">
+            <div class="card-header">
+              <div class="task-icon" [style.background]="typeBg(inst.template.taskType)">
+                <mat-icon>{{ typeIcon(inst.template.taskType) }}</mat-icon>
+              </div>
+              <div class="task-info">
+                <div class="title-row">
+                  <span class="task-title">{{ inst.template.title }}</span>
+                  <span class="role-badge role-{{ inst.template.assignedRole.toLowerCase() }}">
+                    {{ roleLabel(inst.template.assignedRole) }}
+                  </span>
+                </div>
+                <p class="task-description">{{ inst.template.description }}</p>
+                <div class="moved-reason-row">
+                  <mat-icon class="moved-icon">info_outline</mat-icon>
+                  <span>{{ inst.movedReason }}</span>
+                </div>
+                <div class="task-meta">
+                  <span class="meta-item"><mat-icon>calendar_today</mat-icon>Original date: {{ formatDateDisplay(inst.date) }}</span>
+                </div>
+              </div>
+              <div class="status-col">
+                <span class="status-chip status-moved">Moved</span>
+                <span class="priority-badge priority-{{ inst.template.urgencyLevel.toLowerCase() }}">
+                  {{ inst.template.urgencyLevel.toLowerCase() }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Reassign section -->
+            <div class="card-actions" *ngIf="isAdminOrOwner">
+              <ng-container *ngIf="reassigningId !== inst.id">
+                <button mat-stroked-button class="action-btn" (click)="startReassign(inst)">
+                  <mat-icon>edit_calendar</mat-icon> Reassign date
+                </button>
+                <button mat-stroked-button class="action-btn undo-action" (click)="undoStatus(inst)">
+                  <mat-icon>undo</mat-icon> Restore to pending
+                </button>
+              </ng-container>
+              <ng-container *ngIf="reassigningId === inst.id">
+                <mat-form-field appearance="outline" class="reassign-field">
+                  <mat-label>New date</mat-label>
+                  <input matInput [matDatepicker]="reassignPicker"
+                         [value]="reassignDate"
+                         (dateChange)="onReassignDateChange($event)" />
+                  <mat-datepicker-toggle matSuffix [for]="reassignPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #reassignPicker></mat-datepicker>
+                </mat-form-field>
+                <button mat-flat-button color="primary" (click)="submitReassign(inst)"
+                        [disabled]="!reassignDate">Save</button>
+                <button mat-button (click)="cancelReassign()">Cancel</button>
+              </ng-container>
+            </div>
+          </mat-card>
+        </ng-container>
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 3: Clarifications ─────────────────────────────────────────── -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        Clarifications
+        <span class="tab-badge warn" *ngIf="clarificationCount > 0">{{ clarificationCount }}</span>
+      </ng-template>
+
+      <div class="tab-content">
+        <ng-container *ngIf="clarificationInstances.length === 0">
+          <div class="empty-state">
+            <mat-icon>forum</mat-icon>
+            <p>No open clarifications</p>
+          </div>
+        </ng-container>
+
+        <mat-card class="task-card clar-card"
+                  *ngFor="let inst of clarificationInstances; trackBy: trackById"
+                  [class]="'urgency-' + inst.template.urgencyLevel.toLowerCase()">
+          <div class="card-header">
+            <div class="task-icon" [style.background]="typeBg(inst.template.taskType)">
+              <mat-icon>{{ typeIcon(inst.template.taskType) }}</mat-icon>
+            </div>
+            <div class="task-info">
+              <div class="title-row">
+                <span class="task-title">{{ inst.template.title }}</span>
+                <span class="role-badge role-{{ inst.template.assignedRole.toLowerCase() }}">
+                  {{ roleLabel(inst.template.assignedRole) }}
+                </span>
+              </div>
+              <p class="task-description">{{ inst.template.description }}</p>
+            </div>
+            <span class="status-chip status-awaiting_clarification">Waiting for reply</span>
+          </div>
+
+          <!-- Thread -->
+          <div class="thread">
+            <div *ngFor="let c of getClarifications(inst.id)"
+                 class="thread-msg"
+                 [class.is-question]="c.type === 'QUESTION'"
+                 [class.is-reply]="c.type === 'REPLY'">
+              <div class="msg-header">
+                <span class="msg-author">{{ c.authorRole | titlecase }}</span>
+                <span class="msg-time">{{ c.createdAt | date:'d MMM, h:mm a' }}</span>
+              </div>
+              <div class="msg-text">{{ c.message }}</div>
+              <div class="msg-images" *ngIf="c.imageUrls?.length">
+                <img *ngFor="let url of c.imageUrls" [src]="url" class="msg-image msg-image-click"
+                     (click)="openLightbox(url)" matTooltip="Click to view full size" alt="attachment" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Reply input -->
+          <ng-container *ngIf="canReply">
+            <ng-container *ngTemplateOutlet="replyBlock; context: { inst: inst, inPanel: false }"></ng-container>
+          </ng-container>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 4: All tasks view (admin / owner only) ──────────────────── -->
+    <mat-tab *ngIf="isAdminOrOwner">
+      <ng-template mat-tab-label>All tasks</ng-template>
+
+      <div class="tab-content">
+
+        <!-- Toolbar: date picker + export -->
+        <div class="all-view-toolbar">
+          <div class="all-view-date">
+            <mat-form-field appearance="outline" class="date-field" subscriptSizing="dynamic">
+              <mat-label>Date</mat-label>
+              <input matInput [matDatepicker]="viewPicker"
+                     [value]="allTabDateObj2"
+                     (dateChange)="onAllTabDateChange($event)" />
+              <mat-datepicker-toggle matSuffix [for]="viewPicker"></mat-datepicker-toggle>
+              <mat-datepicker #viewPicker></mat-datepicker>
+            </mat-form-field>
+            <span class="all-view-date-label">{{ allTabDateObj2 | date:'EEEE, d MMMM y' }}</span>
+          </div>
+          <button mat-stroked-button (click)="exportCsv()" matTooltip="Export as CSV">
+            <mat-icon>download</mat-icon> Export CSV
+          </button>
+        </div>
+
+        <!-- Loading -->
+        <div class="all-tab-spinner" *ngIf="allTabLoading">
+          <mat-spinner diameter="36"></mat-spinner>
+          <span>Loading tasks…</span>
+        </div>
+
+        <!-- Empty -->
+        <ng-container *ngIf="!allTabLoading && allTabInstances.length === 0">
+          <div class="empty-state">
+            <mat-icon>event_note</mat-icon>
+            <p>No tasks for this date</p>
+          </div>
+        </ng-container>
+
+        <!-- Daily -->
+        <ng-container *ngIf="!allTabLoading && allTabDaily.length > 0">
+          <p class="section-label">Daily tasks</p>
+          <ng-container *ngFor="let inst of allTabDaily; trackBy: trackById">
+            <ng-container *ngTemplateOutlet="taskCard; context: { inst: inst }"></ng-container>
+          </ng-container>
+        </ng-container>
+
+        <!-- On demand -->
+        <ng-container *ngIf="!allTabLoading && allTabOnDemand.length > 0">
+          <p class="section-label" [style.margin-top]="allTabDaily.length ? '24px' : '0'">On-demand tasks</p>
+          <ng-container *ngFor="let inst of allTabOnDemand; trackBy: trackById">
+            <ng-container *ngTemplateOutlet="taskCard; context: { inst: inst }"></ng-container>
+          </ng-container>
+        </ng-container>
+
+        <!-- One-time -->
+        <ng-container *ngIf="!allTabLoading && allTabOneTime.length > 0">
+          <div class="section-label-row"
+               [style.margin-top]="(allTabDaily.length || allTabOnDemand.length) ? '24px' : '0'">
+            <p class="section-label" style="margin:0">Today only</p>
+            <span class="onetime-badge">one-time</span>
+          </div>
+          <ng-container *ngFor="let inst of allTabOneTime; trackBy: trackById">
+            <ng-container *ngTemplateOutlet="taskCard; context: { inst: inst }"></ng-container>
+          </ng-container>
+        </ng-container>
+
+      </div>
+    </mat-tab>
+
+    <!-- ── Tab 5: Manage (admin / owner only) ───────────────────────────── -->
+    <mat-tab *ngIf="isAdminOrOwner">
+      <ng-template mat-tab-label>Manage</ng-template>
+
+      <div class="tab-content">
+
+        <!-- ── Section 1: Date log ──────────────────────────────────────── -->
+        <div class="manage-section-header">
+          <div class="manage-section-title">
+            <mat-icon>event_note</mat-icon>
+            <span>Task log by date</span>
+          </div>
+          <div class="manage-section-actions">
+            <mat-form-field appearance="outline" class="date-field" subscriptSizing="dynamic">
+              <mat-label>Date</mat-label>
+              <input matInput [matDatepicker]="allPicker"
+                     [value]="allTabDateObj2"
+                     (dateChange)="onAllTabDateChange($event)" />
+              <mat-datepicker-toggle matSuffix [for]="allPicker"></mat-datepicker-toggle>
+              <mat-datepicker #allPicker></mat-datepicker>
+            </mat-form-field>
+            <button mat-stroked-button (click)="exportCsv()" matTooltip="Export as CSV">
+              <mat-icon>download</mat-icon> Export CSV
+            </button>
+          </div>
+        </div>
+
+        <ng-container *ngIf="allTabInstances.length === 0">
+          <div class="empty-state" style="padding:24px">
+            <mat-icon>event_note</mat-icon>
+            <p>No tasks for this date</p>
+          </div>
+        </ng-container>
+
+        <mat-card class="table-card" *ngIf="allTabInstances.length > 0">
+          <table mat-table [dataSource]="allTabInstances" class="all-table">
+            <ng-container matColumnDef="title">
+              <th mat-header-cell *matHeaderCellDef>Task</th>
+              <td mat-cell *matCellDef="let inst">
+                <div class="all-task-cell">
+                  <div class="task-icon sm" [style.background]="typeBg(inst.template.taskType)">
+                    <mat-icon>{{ typeIcon(inst.template.taskType) }}</mat-icon>
+                  </div>
+                  <div>
+                    <div>{{ inst.template.title }}</div>
+                    <span class="freq-pill freq-{{ inst.template.frequency.toLowerCase() }}">
+                      {{ freqLabel(inst.template.frequency) }}
+                    </span>
+                  </div>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="assignedTo">
+              <th mat-header-cell *matHeaderCellDef>Assigned to</th>
+              <td mat-cell *matCellDef="let inst">
+                <span class="role-badge role-{{ inst.template.assignedRole.toLowerCase() }}">
+                  {{ roleLabel(inst.template.assignedRole) }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let inst">
+                <span class="status-chip status-{{ inst.status.toLowerCase() }}">
+                  {{ inst.status === 'AWAITING_CLARIFICATION' ? 'Waiting' : (inst.status | titlecase) }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="completedAt">
+              <th mat-header-cell *matHeaderCellDef>Completed at</th>
+              <td mat-cell *matCellDef="let inst">
+                {{ inst.completedAt ? (inst.completedAt | date:'h:mm a') : '—' }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="movedReason">
+              <th mat-header-cell *matHeaderCellDef>Moved reason</th>
+              <td mat-cell *matCellDef="let inst" class="moved-reason-cell">
+                {{ inst.movedReason ?? '—' }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let inst">
+                <button mat-icon-button [matMenuTriggerFor]="rowMenu" matTooltip="Actions">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #rowMenu="matMenu">
+                  <button mat-menu-item (click)="openEditTemplateDialog(inst.template)">
+                    <mat-icon>edit</mat-icon><span>Edit template</span>
+                  </button>
+                  <button mat-menu-item *ngIf="inst.status !== 'PENDING'" (click)="undoStatus(inst)">
+                    <mat-icon>undo</mat-icon><span>Restore to pending</span>
+                  </button>
+                </mat-menu>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="allColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: allColumns;"></tr>
+          </table>
+        </mat-card>
+
+        <!-- ── Section 2: DAILY templates ──────────────────────────────── -->
+        <div class="manage-section-header" style="margin-top:32px">
+          <div class="manage-section-title">
+            <mat-icon>repeat</mat-icon>
+            <span>Daily templates</span>
+            <span class="section-meta">Run every Mon–Sat automatically</span>
+          </div>
+          <button mat-flat-button color="primary" (click)="openCreateTemplateDialog()">
+            <mat-icon>add</mat-icon> New template
+          </button>
+        </div>
+
+        <ng-container *ngIf="dailyTemplates.length === 0">
+          <p class="tpl-empty">No daily templates yet.</p>
+        </ng-container>
+
+        <div class="tpl-list">
+          <div class="tpl-row" *ngFor="let tpl of dailyTemplates; trackBy: trackByTplId">
+            <div class="task-icon sm" [style.background]="typeBg(tpl.taskType)">
+              <mat-icon>{{ typeIcon(tpl.taskType) }}</mat-icon>
+            </div>
+            <div class="tpl-info">
+              <span class="tpl-title">{{ tpl.title }}</span>
+              <span class="tpl-sub">
+                {{ roleLabel(tpl.assignedRole) }}
+                <ng-container *ngIf="tpl.businessUnit"> · {{ tpl.businessUnit }}</ng-container>
+                <ng-container *ngIf="tpl.dueTime"> · {{ tpl.dueTime }}</ng-container>
+              </span>
+            </div>
+            <div class="tpl-badges">
+              <span class="priority-badge priority-{{ tpl.urgencyLevel.toLowerCase() }}">
+                {{ tpl.urgencyLevel.toLowerCase() }}
+              </span>
+              <span class="tpl-status-badge" [class.active]="tpl.active" [class.paused]="!tpl.active">
+                {{ tpl.active ? 'Active' : 'Paused' }}
+              </span>
+            </div>
+            <div class="tpl-actions">
+              <button mat-stroked-button class="tpl-btn"
+                      [class.pause-btn]="tpl.active"
+                      [class.resume-btn]="!tpl.active"
+                      (click)="toggleDailyTemplate(tpl)"
+                      [matTooltip]="tpl.active ? 'Pause — stop creating daily instances' : 'Resume — create instances again'">
+                <mat-icon>{{ tpl.active ? 'pause_circle' : 'play_circle' }}</mat-icon>
+                {{ tpl.active ? 'Pause' : 'Resume' }}
+              </button>
+              <button mat-icon-button (click)="openEditTemplateDialog(tpl)" matTooltip="Edit">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Section 3: ON_DEMAND templates ─────────────────────────── -->
+        <div class="manage-section-header" style="margin-top:32px">
+          <div class="manage-section-title">
+            <mat-icon>bolt</mat-icon>
+            <span>On-demand templates</span>
+            <span class="section-meta">Activate only when needed</span>
+          </div>
+        </div>
+
+        <ng-container *ngIf="onDemandTemplates.length === 0">
+          <p class="tpl-empty">No on-demand templates yet.</p>
+        </ng-container>
+
+        <div class="tpl-list">
+          <div class="tpl-row" *ngFor="let tpl of onDemandTemplates; trackBy: trackByTplId">
+            <div class="task-icon sm" [style.background]="typeBg(tpl.taskType)">
+              <mat-icon>{{ typeIcon(tpl.taskType) }}</mat-icon>
+            </div>
+            <div class="tpl-info">
+              <span class="tpl-title">{{ tpl.title }}</span>
+              <span class="tpl-sub">
+                {{ roleLabel(tpl.assignedRole) }}
+                <ng-container *ngIf="tpl.businessUnit"> · {{ tpl.businessUnit }}</ng-container>
+              </span>
+            </div>
+            <div class="tpl-badges">
+              <span class="priority-badge priority-{{ tpl.urgencyLevel.toLowerCase() }}">
+                {{ tpl.urgencyLevel.toLowerCase() }}
+              </span>
+              <span class="tpl-status-badge" [class.active]="tpl.active" [class.paused]="!tpl.active">
+                {{ tpl.active ? 'Active today' : 'Inactive' }}
+              </span>
+            </div>
+            <div class="tpl-actions">
+              <button mat-stroked-button class="tpl-btn"
+                      [class.activate-btn]="!tpl.active"
+                      [class.deactivate-btn]="tpl.active"
+                      (click)="toggleOnDemandTemplate(tpl)"
+                      [matTooltip]="tpl.active ? 'Deactivate — remove from today' : 'Activate — add to today\'s tasks'">
+                <mat-icon>{{ tpl.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+                {{ tpl.active ? 'Deactivate' : 'Activate for today' }}
+              </button>
+              <button mat-icon-button (click)="openEditTemplateDialog(tpl)" matTooltip="Edit">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
+
+<!-- ── Shared task card template ─────────────────────────────────────────── -->
+<ng-template #taskCard let-inst="inst">
+  <mat-card class="task-card"
+            [class]="'urgency-' + inst.template.urgencyLevel.toLowerCase()">
+    <div class="card-header">
+      <!-- Icon -->
+      <div class="task-icon" [style.background]="typeBg(inst.template.taskType)">
+        <mat-icon>{{ typeIcon(inst.template.taskType) }}</mat-icon>
+      </div>
+
+      <!-- Info -->
+      <div class="task-info">
+        <div class="title-row">
+          <span class="task-title">{{ inst.template.title }}</span>
+          <span class="role-badge role-{{ inst.template.assignedRole.toLowerCase() }}">
+            {{ roleLabel(inst.template.assignedRole) }}
+          </span>
+        </div>
+        <p class="task-description">{{ inst.template.description }}</p>
+        <div class="task-tags">
+          <span class="tag"
+                [class.tag-freq]="inst.template.frequency !== 'ONE_TIME'"
+                [class.tag-onetime]="inst.template.frequency === 'ONE_TIME'">
+            {{ inst.template.frequency === 'DAILY' ? 'Daily task' : inst.template.frequency === 'ONE_TIME' ? 'Today only' : 'On demand' }}
+          </span>
+          <span class="tag tag-type">{{ typeLabel(inst.template.taskType) }}</span>
+          <span class="tag tag-time" *ngIf="inst.template.dueTime">
+            <mat-icon>schedule</mat-icon>{{ inst.template.dueTime }}
+          </span>
+          <span class="tag tag-biz" *ngIf="inst.template.businessUnit">
+            {{ inst.template.businessUnit }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Status + priority -->
+      <div class="status-col">
+        <span class="status-chip status-{{ inst.status.toLowerCase() }}">
+          {{ statusLabel(inst) }}
+        </span>
+        <span class="priority-badge priority-{{ inst.template.urgencyLevel.toLowerCase() }}">
+          {{ inst.template.urgencyLevel.toLowerCase() }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Completed bar -->
+    <div class="info-bar completed-bar" *ngIf="inst.status === 'COMPLETED'">
+      <mat-icon>check_circle</mat-icon>
+      <span>Completed at {{ inst.completedAt | date:'h:mm a' }}</span>
+      <button mat-button class="bar-undo" (click)="undoStatus(inst)">Undo</button>
+    </div>
+
+    <!-- Moved bar -->
+    <div class="info-bar moved-bar" *ngIf="inst.status === 'MOVED'">
+      <mat-icon>schedule</mat-icon>
+      <span>Moved to {{ formatDateDisplay(inst.movedToDate) }} — {{ inst.movedReason }}</span>
+      <button mat-button class="bar-undo" (click)="undoStatus(inst)">Undo</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="card-actions"
+         *ngIf="inst.status === 'PENDING' || inst.status === 'AWAITING_CLARIFICATION' || isAdminOrOwner">
+
+      <!-- Mark done / Cannot complete — PENDING only -->
+      <button mat-stroked-button class="action-btn done-btn"
+              *ngIf="inst.status === 'PENDING'"
+              (click)="markDone(inst)">
+        <mat-icon>check_circle</mat-icon> Mark done
+      </button>
+      <button mat-stroked-button class="action-btn cannot-btn"
+              *ngIf="inst.status === 'PENDING'"
+              [class.active-panel]="getPanel(inst.id) === 'cannot'"
+              (click)="openCannotPanel(inst)">
+        <mat-icon>cancel</mat-icon> Cannot complete
+      </button>
+
+      <!-- Thread — all statuses for admin; PENDING/AWAITING for others -->
+      <button mat-stroked-button class="action-btn question-btn"
+              *ngIf="inst.status === 'PENDING' || inst.status === 'AWAITING_CLARIFICATION' || isAdminOrOwner"
+              [class.active-panel]="showClarPanel(inst)"
+              (click)="toggleQuestionPanel(inst)">
+        <mat-icon>{{ inst.status === 'AWAITING_CLARIFICATION' ? 'forum' : 'chat_bubble_outline' }}</mat-icon>
+        {{ inst.status === 'AWAITING_CLARIFICATION' ? 'View thread'
+           : (inst.status === 'COMPLETED' || inst.status === 'MOVED') ? 'View thread'
+           : 'Ask question' }}
+      </button>
+
+      <!-- Images — all statuses for admin; PENDING/AWAITING for others -->
+      <button mat-stroked-button class="action-btn image-btn"
+              *ngIf="inst.status === 'PENDING' || inst.status === 'AWAITING_CLARIFICATION' || isAdminOrOwner"
+              [class.active-panel]="getPanel(inst.id) === 'image'"
+              (click)="toggleImagePanel(inst)">
+        <mat-icon>{{ inst.attachmentUrls?.length ? 'photo_library' : 'add_photo_alternate' }}</mat-icon>
+        {{ inst.attachmentUrls?.length ? 'Images (' + inst.attachmentUrls.length + ')' : 'Add image' }}
+      </button>
+    </div>
+
+    <!-- ── Cannot complete panel ──────────────────────────────────────────── -->
+    <div class="inline-panel cannot-panel" *ngIf="getPanel(inst.id) === 'cannot'">
+      <p class="panel-label">
+        <mat-icon>info_outline</mat-icon>
+        Why can't you complete this task?
+      </p>
+      <mat-form-field appearance="outline" class="panel-field">
+        <mat-label>Reason</mat-label>
+        <textarea matInput rows="2"
+                  [value]="getCannotReason(inst.id)"
+                  (input)="setCannotReason(inst.id, $any($event.target).value)"></textarea>
+      </mat-form-field>
+      <div class="panel-actions">
+        <button mat-flat-button color="warn" (click)="submitCannot(inst)"
+                [disabled]="!getCannotReason(inst.id).trim()">
+          <mat-icon>schedule_send</mat-icon> Move to tomorrow
+        </button>
+        <button mat-button (click)="closePanel(inst.id)">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ── Clarification / thread panel ──────────────────────────────────── -->
+    <div class="inline-panel thread-panel" *ngIf="showClarPanel(inst)">
+      <div class="thread" *ngIf="getClarifications(inst.id).length > 0; else noMessages">
+        <div *ngFor="let c of getClarifications(inst.id)"
+             class="thread-msg"
+             [class.is-question]="c.type === 'QUESTION'"
+             [class.is-reply]="c.type === 'REPLY'">
+          <div class="msg-header">
+            <span class="msg-author">{{ c.authorRole | titlecase }}</span>
+            <span class="msg-time">{{ c.createdAt | date:'d MMM, h:mm a' }}</span>
+          </div>
+          <div class="msg-text">{{ c.message }}</div>
+          <div class="msg-images" *ngIf="c.imageUrls?.length">
+            <img *ngFor="let url of c.imageUrls" [src]="url" class="msg-image msg-image-click"
+                 (click)="openLightbox(url)" matTooltip="Click to view full size" alt="attachment" />
+          </div>
+        </div>
+      </div>
+      <ng-template #noMessages>
+        <p class="no-messages">No messages yet — type your question below.</p>
+      </ng-template>
+
+      <!-- Reply input (admin/owner/main_acc replying to a question) -->
+      <ng-container *ngIf="canReply && inst.status === 'AWAITING_CLARIFICATION'">
+        <ng-container *ngTemplateOutlet="replyBlock; context: { inst: inst, inPanel: true }"></ng-container>
+      </ng-container>
+
+      <!-- Question input (worker asking a new question) -->
+      <div class="question-area" *ngIf="inst.status === 'PENDING'">
+        <mat-form-field appearance="outline" class="panel-field">
+          <mat-label>Your question</mat-label>
+          <textarea matInput rows="2"
+                    [value]="getQuestionText(inst.id)"
+                    (input)="setQuestionText(inst.id, $any($event.target).value)"
+                    placeholder="Ask for clarification…"></textarea>
+        </mat-form-field>
+        <!-- Optional image on question -->
+        <div class="question-image-row" *ngIf="hasQuestionImage(inst.id)">
+          <img [src]="getQuestionPreview(inst.id)" class="question-img-preview" />
+          <button mat-icon-button color="warn" (click)="questionFiles.delete(inst.id); questionPreviews.delete(inst.id); cdr.markForCheck()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="panel-actions">
+          <button mat-flat-button color="primary" (click)="submitQuestion(inst)"
+                  [disabled]="!getQuestionText(inst.id).trim()">Send question</button>
+          <label class="attach-label" matTooltip="Attach image">
+            <mat-icon>attach_file</mat-icon>
+            <input type="file" accept="image/*" style="display:none"
+                   (change)="onQuestionImageSelected($event, inst)" />
+          </label>
+          <button mat-button (click)="closePanel(inst.id)">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Image paste / upload panel ────────────────────────────────────── -->
+    <div class="inline-panel image-panel" *ngIf="getPanel(inst.id) === 'image'">
+      <div class="paste-zone"
+           [class.has-image]="hasPasteFile(inst.id)"
+           (dragover)="$event.preventDefault()"
+           (drop)="onFileDrop($event, inst)"
+           (click)="imgFileInput.click()">
+        <ng-container *ngIf="!hasPasteFile(inst.id)">
+          <mat-icon class="paste-icon">cloud_upload</mat-icon>
+          <p class="paste-hint">Paste (Ctrl+V), drag & drop, or click to browse</p>
+        </ng-container>
+        <img *ngIf="hasPasteFile(inst.id)"
+             [src]="getPastePreview(inst.id)" class="paste-preview-img" alt="preview" />
+      </div>
+      <input #imgFileInput type="file" accept="image/*" style="display:none"
+             (change)="onFileSelected($event, inst)" />
+
+      <!-- Uploaded attachments -->
+      <div class="attachment-list" *ngIf="inst.attachmentUrls.length > 0">
+        <span class="att-label">Uploaded ({{ inst.attachmentUrls.length }})</span>
+        <div class="att-thumb-grid">
+          <div *ngFor="let url of inst.attachmentUrls; let i = index"
+               class="att-thumb"
+               (click)="openLightbox(url)"
+               matTooltip="Click to view full size">
+            <img [src]="url" alt="Attachment {{i+1}}" />
+            <div class="att-thumb-hover"><mat-icon>zoom_in</mat-icon></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button mat-flat-button color="primary" *ngIf="hasPasteFile(inst.id)"
+                (click)="uploadAttachment(inst)">
+          <mat-icon>cloud_upload</mat-icon> Upload image
+        </button>
+        <button mat-button *ngIf="hasPasteFile(inst.id)"
+                (click)="clearPasteFile(inst.id)">Clear</button>
+        <button mat-button (click)="closePanel(inst.id)">Close</button>
+      </div>
+    </div>
+
+  </mat-card>
+</ng-template>
+
+<!-- ── Shared reply block ─────────────────────────────────────────────────── -->
+<ng-template #replyBlock let-inst="inst" let-inPanel="inPanel">
+  <div class="reply-composer"
+       (mouseenter)="setActiveReply(inst.id)"
+       (mouseleave)="setActiveReply(null)">
+
+    <!-- Text area -->
+    <mat-form-field appearance="outline" class="panel-field">
+      <mat-label>Your reply</mat-label>
+      <textarea matInput rows="2"
+                [value]="getReplyText(inst.id)"
+                (input)="setReplyText(inst.id, $any($event.target).value)"
+                (focus)="setActiveReply(inst.id)"
+                (blur)="setActiveReply(null)"
+                placeholder="Type your reply…"></textarea>
+    </mat-form-field>
+
+    <!-- Image paste zone -->
+    <div class="reply-img-zone"
+         [class.has-images]="hasReplyImage(inst.id)"
+         (dragover)="$event.preventDefault()"
+         (drop)="onReplyFileDrop($event, inst)"
+         (click)="replyImgInput.click()">
+      <ng-container *ngIf="!hasReplyImage(inst.id)">
+        <mat-icon class="rz-icon">add_photo_alternate</mat-icon>
+        <span class="rz-hint">Click, drag & drop or <kbd>Ctrl+V</kbd> to attach images</span>
+      </ng-container>
+      <div class="reply-thumb-grid" *ngIf="hasReplyImage(inst.id)" (click)="$event.stopPropagation()">
+        <div class="reply-thumb" *ngFor="let url of getReplyPreviews(inst.id); let i = index">
+          <img [src]="url" alt="img {{i+1}}" />
+          <button class="remove-thumb" (click)="removeReplyImage(inst.id, i)" matTooltip="Remove">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="reply-thumb-add" (click)="replyImgInput.click()" matTooltip="Add more">
+          <mat-icon>add</mat-icon>
+        </div>
+      </div>
+    </div>
+    <input #replyImgInput type="file" accept="image/*" multiple style="display:none"
+           (change)="onReplyImageSelected($event, inst)" />
+
+    <!-- Actions -->
+    <div class="panel-actions">
+      <button mat-flat-button color="primary" (click)="submitReply(inst)"
+              [disabled]="!getReplyText(inst.id).trim() && !hasReplyImage(inst.id)">
+        <mat-icon>send</mat-icon> Send reply
+      </button>
+      <button mat-button *ngIf="inPanel" (click)="closePanel(inst.id)">Close</button>
+    </div>
+  </div>
+</ng-template>

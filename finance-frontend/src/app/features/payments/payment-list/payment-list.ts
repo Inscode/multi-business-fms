@@ -1,5 +1,6 @@
 ﻿import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -96,12 +97,12 @@ export class PaymentList implements OnInit, AfterViewInit {
     this.filterTo   = this.today;
   }
 
-  get today(): string { return new Date().toISOString().split('T')[0]; }
+  get today(): string { return localDateStr(); }
 
   daysAgo(n: number): string {
     const d = new Date();
     d.setDate(d.getDate() - n);
-    return d.toISOString().split('T')[0];
+    return localDateStr(d);
   }
 
   get filterFromDate(): Date | null { return this.filterFrom ? new Date(this.filterFrom + 'T00:00:00') : null; }

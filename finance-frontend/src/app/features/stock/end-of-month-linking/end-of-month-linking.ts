@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { MatTableModule } from '@angular/material/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonModule } from '@angular/material/button';
@@ -137,7 +138,7 @@ export class EndOfMonthLinkingComponent implements OnInit {
       billNumber:   ['', Validators.required],
       customerName: ['', Validators.required],
       amount:       [null, [Validators.required, Validators.min(0.01)]],
-      billDate:     [new Date().toISOString().split('T')[0], Validators.required],
+      billDate:     [localDateStr(), Validators.required],
       notes:        [''],
     });
   }
@@ -216,7 +217,7 @@ export class EndOfMonthLinkingComponent implements OnInit {
     this.showRegisterForm = true;
     this.registerMessage = '';
     this.selectedCustomerId = null;
-    this.registerForm.reset({ billDate: new Date().toISOString().split('T')[0] });
+    this.registerForm.reset({ billDate: localDateStr() });
     this.filteredCustomers = this.allCustomers.slice(0, 50);
     this.cdr.detectChanges();
   }

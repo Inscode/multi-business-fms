@@ -1,5 +1,6 @@
 import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -80,7 +81,7 @@ export class OwnerDashboard implements OnInit {
 
   loadChecklist(): void {
     this.checklistLoading = true;
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     this.checklistService.getVerifyView(today).subscribe({
       next: (rows) => {
         this.checklistRows = rows;

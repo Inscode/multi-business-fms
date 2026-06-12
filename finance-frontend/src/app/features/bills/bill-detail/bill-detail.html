@@ -124,8 +124,16 @@
         <mat-divider></mat-divider>
         <div class="info-rows">
           <div class="info-row">
-            <span class="label">Total Amount</span>
+            <span class="label">Bill Amount (Gross)</span>
             <span class="value">Rs {{ bill.totalAmount | number }}</span>
+          </div>
+          <div class="info-row damage-row" *ngIf="approvedDamageTotal > 0">
+            <span class="label">Damage Deduction</span>
+            <span class="value damage-amount">− Rs {{ approvedDamageTotal | number }}</span>
+          </div>
+          <div class="info-row" *ngIf="approvedDamageTotal > 0">
+            <span class="label">Net Bill Amount</span>
+            <span class="value">Rs {{ (bill.totalAmount - approvedDamageTotal) | number }}</span>
           </div>
           <div class="info-row">
             <span class="label">Amount Paid</span>
@@ -235,21 +243,7 @@
             <tr mat-row *matRowDef="let row; columns: ['productName','quantity']"></tr>
           </table>
 
-          <!-- Other system bills in this summary -->
-          <ng-container *ngIf="stockStatus.summaryRelatedBills?.length">
-            <div class="stock-sub-label">Other Bills in This Summary Load</div>
-            <div class="related-bills-list">
-              <div class="related-bill-row" *ngFor="let b of stockStatus.summaryRelatedBills">
-                <span class="related-bill-num">{{ b.billNumber }}</span>
-                <span class="related-bill-customer">{{ b.customerName }}</span>
-                <span class="related-bill-amount">Rs {{ b.amount | number }}</span>
-                <span class="related-bill-qty">Qty: {{ b.totalQty }}</span>
-                <a mat-icon-button [routerLink]="['/bills', b.billId]" matTooltip="View bill">
-                  <mat-icon>open_in_new</mat-icon>
-                </a>
-              </div>
-            </div>
-          </ng-container>
+          <!-- Related bills are visible on the Stock Status page under this summary load -->
         </ng-container>
 
         <!-- SYSTEM bill with linked DRAFT/MANUAL children -->

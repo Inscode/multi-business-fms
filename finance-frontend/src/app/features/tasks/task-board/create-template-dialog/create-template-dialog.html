@@ -1,0 +1,95 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Edit task template' : 'New task template' }}</h2>
+
+<mat-dialog-content [formGroup]="form">
+
+  <div class="form-row">
+    <mat-form-field appearance="outline" class="field-full">
+      <mat-label>Title</mat-label>
+      <input matInput formControlName="title" placeholder="e.g. Enter delivery bills" />
+      <mat-error>Required</mat-error>
+    </mat-form-field>
+  </div>
+
+  <div class="form-row">
+    <mat-form-field appearance="outline" class="field-full">
+      <mat-label>Description</mat-label>
+      <textarea matInput formControlName="description" rows="3"
+                placeholder="What should the staff member do?"></textarea>
+      <mat-error>Required</mat-error>
+    </mat-form-field>
+  </div>
+
+  <p class="section-label">Assignment</p>
+
+  <div class="form-row">
+    <mat-form-field appearance="outline" class="field">
+      <mat-label>Assigned role</mat-label>
+      <mat-select formControlName="assignedRole">
+        <mat-option value="MAIN_ACCOUNTANT">Main accountant</mat-option>
+        <mat-option value="ACCOUNTANT">Accountant</mat-option>
+        <mat-option value="DELIVERY">Delivery</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="field">
+      <mat-label>Task type</mat-label>
+      <mat-select formControlName="taskType">
+        <mat-option *ngFor="let t of taskTypes" [value]="t.value">{{ t.label }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="form-row">
+    <mat-form-field appearance="outline" class="field">
+      <mat-label>Frequency</mat-label>
+      <mat-select formControlName="frequency">
+        <mat-option value="DAILY">Daily (Mon–Sat)</mat-option>
+        <mat-option value="ON_DEMAND">On demand</mat-option>
+        <mat-option value="ONE_TIME">One-time (today only)</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="field">
+      <mat-label>Urgency</mat-label>
+      <mat-select formControlName="urgencyLevel">
+        <mat-option value="HIGH">High</mat-option>
+        <mat-option value="MEDIUM">Medium</mat-option>
+        <mat-option value="LOW">Low</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <p class="section-label">Optional details</p>
+
+  <div class="form-row">
+    <mat-form-field appearance="outline" class="field">
+      <mat-label>Business unit</mat-label>
+      <mat-select formControlName="businessUnit">
+        <mat-option [value]="null">All businesses (general)</mat-option>
+        <mat-option value="RAINCO">Rainco</mat-option>
+        <mat-option value="RETAIL_SHOP">Retail shop</mat-option>
+        <mat-option value="PLASTIC">Plastic</mat-option>
+        <mat-option value="HARDWARE">Hardware</mat-option>
+        <mat-option value="STATIONERY">Stationery</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="field">
+      <mat-label>Due time</mat-label>
+      <input matInput type="time" formControlName="dueTime" />
+      <mat-icon matSuffix>schedule</mat-icon>
+    </mat-form-field>
+  </div>
+
+  <div class="toggle-row" *ngIf="form.get('frequency')?.value !== 'ONE_TIME'">
+    <mat-slide-toggle formControlName="active" color="primary">Active</mat-slide-toggle>
+  </div>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button color="primary" (click)="submit()">
+    {{ isEdit ? 'Save changes' : 'Create template' }}
+  </button>
+</mat-dialog-actions>

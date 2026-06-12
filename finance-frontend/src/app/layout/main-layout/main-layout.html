@@ -84,6 +84,10 @@
         <mat-icon>directions_bike</mat-icon>
         <span *ngIf="!collapsed">Worker Collections</span>
       </a>
+      <a class="nav-item" routerLink="/tasks" routerLinkActive="active" matRipple *ngIf="showTasks" (click)="isMobile && sidenav.close()">
+        <mat-icon>task_alt</mat-icon>
+        <span *ngIf="!collapsed">Daily Operations</span>
+      </a>
     </nav>
 
     <div class="nav-footer" *ngIf="!collapsed">

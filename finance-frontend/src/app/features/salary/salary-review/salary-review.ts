@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -38,8 +39,8 @@ export class SalaryReview implements OnInit {
   error = false;
 
   // Default: current month from first day to today
-  fromDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-  toDate = new Date().toISOString().split('T')[0];
+  fromDate = localDateStr(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  toDate = localDateStr();
   filterStatus = '';
 
   get displayedPayments(): SalaryPaymentResponse[] {

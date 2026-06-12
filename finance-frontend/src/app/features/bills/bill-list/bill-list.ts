@@ -1,5 +1,6 @@
 ﻿import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -158,12 +159,12 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
       : ['billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];
   }
 
-  get today(): string { return new Date().toISOString().split('T')[0]; }
+  get today(): string { return localDateStr(); }
 
   daysAgo(n: number): string {
     const d = new Date();
     d.setDate(d.getDate() - n);
-    return d.toISOString().split('T')[0];
+    return localDateStr(d);
   }
 
   // Date objects for Material datepicker bindings

@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators } from '@angular/forms';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { MatTableModule } from '@angular/material/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonModule } from '@angular/material/button';
@@ -123,7 +124,7 @@ export class SummaryLoadBillComponent implements OnInit {
 
   constructor(private fb: FormBuilder, private cdr: ChangeDetectorRef, private stockService: StockService, private auth: Auth) {
     this.loadForm = this.fb.group({
-      loadDate: [new Date().toISOString().split('T')[0], Validators.required],
+      loadDate: [localDateStr(), Validators.required],
       notes: [''],
     });
   }
@@ -281,7 +282,7 @@ export class SummaryLoadBillComponent implements OnInit {
         this.successMessage = `Summary Load Bill created with ${this.selection.selected.length} bills and ${this.lineItems.length} items`;
         this.saving = false;
         this.clearSelection();
-        this.loadForm.reset({ loadDate: new Date().toISOString().split('T')[0] });
+        this.loadForm.reset({ loadDate: localDateStr() });
         this.loadUnassignedBills();
         this.loadHistory();
         this.cdr.detectChanges();

@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -36,7 +37,7 @@ export class EnterSalary implements OnInit {
   recipientId: number | null = null;
   month = new Date().toISOString().substring(0, 7);
   amount = 0;
-  paymentDate = new Date().toISOString().split('T')[0];
+  paymentDate = localDateStr();
   notes = '';
 
   submitting = false;

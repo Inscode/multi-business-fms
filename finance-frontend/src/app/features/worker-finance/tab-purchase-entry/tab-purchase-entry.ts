@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { localDateStr } from '../../../core/utils/date-utils';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -42,7 +43,7 @@ export class TabPurchaseEntry implements OnInit {
 
   // Bill header
   recipientId: number | null = null;
-  billDate = new Date().toISOString().split('T')[0];
+  billDate = localDateStr();
   notes = '';
 
   // Line items
@@ -136,7 +137,7 @@ export class TabPurchaseEntry implements OnInit {
 
   resetForm(): void {
     this.recipientId = null;
-    this.billDate = new Date().toISOString().split('T')[0];
+    this.billDate = localDateStr();
     this.notes = '';
     this.draftItems = [{ description: '', quantity: null, unitPrice: null }];
     this.errorMsg = '';

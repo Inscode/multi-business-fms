@@ -50,6 +50,10 @@ export class StockReductionStatusComponent implements OnInit {
   summary = { total: 0, notReduced: 0, summaryPending: 0, summaryApproved: 0, individual: 0 };
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
+  get canViewItems(): boolean {
+    const r = this.auth.getRole();
+    return r === 'ADMIN' || r === 'OWNER' || r === 'MAIN_ACCOUNTANT';
+  }
   get expandedRecord(): StockReductionStatus | null {
     return this.allRecords.find(r => r.billId === this.expandedBillId) ?? null;
   }
