@@ -49,6 +49,24 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
             "AND b.status NOT IN ('CANCELLED', 'COMPLETED')")
     BigDecimal sumOutstandingByBusiness(@Param("business") BusinessType business);
 
+    @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
+            "WHERE b.business = :business " +
+            "AND b.status NOT IN ('CANCELLED', 'COMPLETED') " +
+            "AND (b.willBeLinked IS NULL OR b.willBeLinked = false)")
+    BigDecimal sumOutstandingByBusinessExcludingLinking(@Param("business") BusinessType business);
+
+    @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
+            "WHERE b.business = :business AND b.billType = 'CASH' " +
+            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED')")
+    BigDecimal sumCashPendingByBusiness(@Param("business") BusinessType business);
+
+    @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
+            "WHERE b.business = :business AND b.billType = 'CASH' " +
+            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED') " +
+            "AND b.billDate <= :cutoff")
+    BigDecimal sumCashSeriousByBusiness(@Param("business") BusinessType business,
+                                        @Param("cutoff") LocalDate cutoff);
+
     long countByBusinessAndStatus(BusinessType business, BillStatus status);
 
     long countByBusinessAndStatusIn(BusinessType business, List<BillStatus> statuses);
@@ -153,6 +171,9 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
            "AND b.status NOT IN ('COMPLETED', 'CANCELLED') " +
            "ORDER BY b.createdAt DESC")
     List<Bill> findShopAccountantActiveBills();
+
+    // All SYSTEM bills flagged as willBeLinked=true (linking bills tab)
+    List<Bill> findByWillBeLinkedTrueOrderByBillDateDesc();
 
     // SYSTEM bills that ARE linked (have child bills)
     @Query("SELECT DISTINCT l.systemBill FROM BillStockLink l")

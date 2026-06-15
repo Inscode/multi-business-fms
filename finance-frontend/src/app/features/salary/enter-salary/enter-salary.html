@@ -100,6 +100,7 @@
       <div class="payment-left">
         <span class="recip-name">{{ p.recipientName }}</span>
         <span class="payment-month">{{ p.month }}</span>
+        <span class="payment-notes" *ngIf="p.notes">{{ p.notes }}</span>
       </div>
       <div class="payment-right">
         <span class="payment-amount">Rs {{ p.amount | number:'1.2-2' }}</span>

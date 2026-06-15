@@ -17,8 +17,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { SelectionModel } from '@angular/cdk/collections';
-import { of, Observable } from 'rxjs';
-import { StockService, SummaryLoadBill } from '../../../core/services/stock';
+import { StockService, SummaryLoadBill, IndividualReductionPending } from '../../../core/services/stock';
 import { Auth } from '../../../core/services/auth';
 
 interface SystemBill {
@@ -84,8 +83,16 @@ export class SummaryLoadBillComponent implements OnInit {
 
   // History
   loadBillHistory: SummaryLoadBill[] = [];
-  historyColumns: string[] = ['id', 'loadDate', 'numberOfBills', 'status', 'createdByName', 'createdAt', 'actions'];
+  historyColumns: string[] = ['id', 'loadDate', 'numberOfBills', 'status', 'createdByName', 'createdAt', 'actions', 'expand'];
   approvingId: number | null = null;
+  expandedLoadId: number | null = null;
+
+  // Individual reduction pending approvals (admin only)
+  pendingReductions: IndividualReductionPending[] = [];
+  pendingReductionsLoading = false;
+  expandedReductionId: number | null = null;
+  reductionColumns: string[] = ['billNumber', 'customerName', 'submittedByName', 'submittedAt', 'notes', 'actions'];
+  rejectingId: number | null = null;
 
   // FormControls for product row
   productSearchControl = new FormControl<ReturnProduct | string | null>(null);
@@ -133,6 +140,7 @@ export class SummaryLoadBillComponent implements OnInit {
     this.loadProducts();
     this.loadUnassignedBills();
     this.loadHistory();
+    if (this.isAdmin) { this.loadPendingReductions(); }
 
     this.productSearchControl.valueChanges.subscribe(val => {
       if (typeof val === 'string') {
@@ -215,6 +223,63 @@ export class SummaryLoadBillComponent implements OnInit {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  toggleLoadDetail(id: number): void {
+    this.expandedLoadId = this.expandedLoadId === id ? null : id;
+    this.cdr.detectChanges();
+  }
+
+  loadPendingReductions(): void {
+    this.pendingReductionsLoading = true;
+    this.stockService.getPendingIndividualReductions().subscribe({
+      next: list => {
+        this.pendingReductions = list;
+        this.pendingReductionsLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.pendingReductionsLoading = false; this.cdr.detectChanges(); },
+    });
+  }
+
+  toggleReductionDetail(id: number): void {
+    this.expandedReductionId = this.expandedReductionId === id ? null : id;
+    this.cdr.detectChanges();
+  }
+
+  approveReduction(id: number): void {
+    this.approvingId = id;
+    this.stockService.approveIndividualReduction(id).subscribe({
+      next: () => {
+        this.approvingId = null;
+        this.loadPendingReductions();
+      },
+      error: () => { this.approvingId = null; this.cdr.detectChanges(); },
+    });
+  }
+
+  rejectReduction(id: number): void {
+    const reason = prompt('Rejection reason (optional):') ?? '';
+    this.rejectingId = id;
+    this.stockService.rejectIndividualReduction(id, reason || undefined).subscribe({
+      next: () => {
+        this.rejectingId = null;
+        this.loadPendingReductions();
+      },
+      error: () => { this.rejectingId = null; this.cdr.detectChanges(); },
+    });
+  }
+
+  reductionItemsFor(r: IndividualReductionPending): IndividualReductionPending['items'] {
+    return r.items ?? [];
+  }
+
+  reductionTotal(r: IndividualReductionPending): number {
+    return (r.items ?? []).reduce((s, i) => s + i.lineTotal, 0);
+  }
+
+  loadItemsFor(load: SummaryLoadBill): any[] {
+    return load.items ?? [];
   }
 
   reject(id: number): void {

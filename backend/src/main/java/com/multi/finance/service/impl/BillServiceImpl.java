@@ -21,10 +21,20 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.multi.finance.enums.BillType;
+import com.multi.finance.dto.response.AgingAreaSummary;
+import com.multi.finance.dto.response.AgingCustomerEntry;
+import com.multi.finance.dto.response.AgingReportResponse;
+import com.multi.finance.dto.response.BillSequenceGapResponse;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -377,6 +387,245 @@ public class BillServiceImpl {
     }
 
     @Transactional(readOnly = true)
+    public List<BillResponse> getLinkingBills() {
+        return billRepository.findByWillBeLinkedTrueOrderByBillDateDesc()
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    private static final int OVERDUE_DAYS = 45;
+
+    @Transactional(readOnly = true)
+    public AgingReportResponse getAgingReport(BusinessType business) {
+        LocalDate today = LocalDate.now();
+        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.CANCELLED);
+
+        List<Bill> bills = billRepository.findByBusinessAndStatusNotInOrderByCreatedAtDesc(business, excluded)
+                .stream()
+                .filter(b -> b.getBalanceRemaining() != null
+                        && b.getBalanceRemaining().compareTo(BigDecimal.ZERO) > 0
+                        && !Boolean.TRUE.equals(b.getWillBeLinked()))
+                .collect(Collectors.toList());
+
+        // Bulk-fetch last confirmed payment dates — single query, no N+1
+        List<Long> billIds = bills.stream().map(Bill::getId).collect(Collectors.toList());
+        Map<Long, LocalDate> lastPaymentByBillId = new java.util.HashMap<>();
+        if (!billIds.isEmpty()) {
+            paymentRepository.findLastConfirmedDatesByBillIds(billIds).forEach(row -> {
+                Long   bid  = (Long)      row[0];
+                LocalDate dt = (LocalDate) row[1];
+                lastPaymentByBillId.put(bid, dt);
+            });
+        }
+
+        record CKey(String name, Long cid, String area) {}
+
+        Map<CKey, List<Bill>> byCustomer = bills.stream().collect(
+                Collectors.groupingBy(b -> new CKey(
+                        b.getCustomerName(),
+                        b.getCustomer() != null ? b.getCustomer().getId() : null,
+                        b.getArea() != null ? b.getArea() : "")));
+
+        List<AgingCustomerEntry> entries = new ArrayList<>();
+        for (Map.Entry<CKey, List<Bill>> e : byCustomer.entrySet()) {
+            CKey key = e.getKey();
+            List<Bill> cb = e.getValue();
+
+            BigDecimal total      = BigDecimal.ZERO;
+            BigDecimal overdue    = BigDecimal.ZERO;
+            BigDecimal cur        = BigDecimal.ZERO;
+            BigDecimal d3160      = BigDecimal.ZERO;
+            BigDecimal d6190      = BigDecimal.ZERO;
+            BigDecimal d91        = BigDecimal.ZERO;
+            // cash buckets
+            BigDecimal cashPending  = BigDecimal.ZERO;
+            BigDecimal cashFollowUp = BigDecimal.ZERO;   // 1–7 days
+            BigDecimal cashUrgent   = BigDecimal.ZERO;   // 8–14 days
+            BigDecimal cashSerious  = BigDecimal.ZERO;   // 15+ days
+            LocalDate  oldest  = today;
+            LocalDate  lastPmt = null;
+
+            for (Bill b : cb) {
+                BigDecimal bal = b.getBalanceRemaining();
+                LocalDate  d   = b.getBillDate() != null ? b.getBillDate()
+                        : b.getCreatedAt().toLocalDate();
+                long age = ChronoUnit.DAYS.between(d, today);
+
+                total = total.add(bal);
+                if (d.isBefore(oldest)) oldest = d;
+
+                LocalDate pmtDate = lastPaymentByBillId.get(b.getId());
+                if (pmtDate != null && (lastPmt == null || pmtDate.isAfter(lastPmt))) lastPmt = pmtDate;
+
+                if (b.getBillType() == BillType.CASH) {
+                    cashPending = cashPending.add(bal);
+                    if      (age == 0)       { /* today — normal, no bucket */ }
+                    else if (age <= 7)       cashFollowUp = cashFollowUp.add(bal);
+                    else if (age <= 14)      cashUrgent   = cashUrgent.add(bal);
+                    else                     cashSerious  = cashSerious.add(bal);
+                } else {
+                    // CREDIT bill — standard aging
+                    if (age >= OVERDUE_DAYS) overdue = overdue.add(bal);
+                    if      (age <= 30) cur   = cur.add(bal);
+                    else if (age <= 60) d3160 = d3160.add(bal);
+                    else if (age <= 90) d6190 = d6190.add(bal);
+                    else                d91   = d91.add(bal);
+                }
+            }
+
+            entries.add(AgingCustomerEntry.builder()
+                    .customerName(key.name())
+                    .customerId(key.cid())
+                    .area(key.area().isBlank() ? null : key.area())
+                    .totalOutstanding(total)
+                    .overdue(overdue)
+                    .current(cur)
+                    .days31to60(d3160)
+                    .days61to90(d6190)
+                    .days91plus(d91)
+                    .cashPending(cashPending)
+                    .cashFollowUp(cashFollowUp)
+                    .cashUrgent(cashUrgent)
+                    .cashSerious(cashSerious)
+                    .billCount(cb.size())
+                    .oldestBillDate(oldest)
+                    .lastPaymentDate(lastPmt)
+                    .build());
+        }
+
+        entries.sort(Comparator.comparing(AgingCustomerEntry::getTotalOutstanding).reversed());
+        List<AgingCustomerEntry> top20 = entries.stream().limit(20).collect(Collectors.toList());
+
+        // Area summaries — aggregate from customer entries
+        Map<String, List<AgingCustomerEntry>> byArea = entries.stream()
+                .collect(Collectors.groupingBy(e -> e.getArea() != null ? e.getArea() : "Unknown"));
+
+        List<AgingAreaSummary> areaSummaries = byArea.entrySet().stream().map(ae -> {
+            List<AgingCustomerEntry> customers = ae.getValue().stream()
+                    .sorted(Comparator.comparing(AgingCustomerEntry::getTotalOutstanding).reversed())
+                    .collect(Collectors.toList());
+            BigDecimal areaTotal      = sum(customers, AgingCustomerEntry::getTotalOutstanding);
+            BigDecimal areaOverdue    = sum(customers, AgingCustomerEntry::getOverdue);
+            BigDecimal areaCur        = sum(customers, AgingCustomerEntry::getCurrent);
+            BigDecimal area3160       = sum(customers, AgingCustomerEntry::getDays31to60);
+            BigDecimal area6190       = sum(customers, AgingCustomerEntry::getDays61to90);
+            BigDecimal area91         = sum(customers, AgingCustomerEntry::getDays91plus);
+            BigDecimal areaCashPending  = sum(customers, AgingCustomerEntry::getCashPending);
+            BigDecimal areaCashSerious  = sum(customers, AgingCustomerEntry::getCashSerious);
+            return AgingAreaSummary.builder()
+                    .area(ae.getKey())
+                    .totalOutstanding(areaTotal)
+                    .overdue(areaOverdue)
+                    .current(areaCur)
+                    .days31to60(area3160)
+                    .days61to90(area6190)
+                    .days91plus(area91)
+                    .cashPending(areaCashPending)
+                    .cashSerious(areaCashSerious)
+                    .customerCount(customers.size())
+                    .billCount(customers.stream().mapToInt(AgingCustomerEntry::getBillCount).sum())
+                    .customers(customers)
+                    .build();
+        }).sorted(Comparator.comparing(AgingAreaSummary::getTotalOutstanding).reversed())
+                .collect(Collectors.toList());
+
+        BigDecimal grandTotal       = sum(entries, AgingCustomerEntry::getTotalOutstanding);
+        BigDecimal grandOverdue     = sum(entries, AgingCustomerEntry::getOverdue);
+        BigDecimal grandCashPending = sum(entries, AgingCustomerEntry::getCashPending);
+        BigDecimal grandCashSerious = sum(entries, AgingCustomerEntry::getCashSerious);
+
+        return AgingReportResponse.builder()
+                .grandTotalOutstanding(grandTotal)
+                .grandOverdue(grandOverdue)
+                .grandCashPending(grandCashPending)
+                .grandCashSerious(grandCashSerious)
+                .totalCustomers(entries.size())
+                .totalBills(bills.size())
+                .topCustomers(top20)
+                .allCustomers(entries)
+                .byArea(areaSummaries)
+                .build();
+    }
+
+    private static BigDecimal sum(List<AgingCustomerEntry> list,
+                                  java.util.function.Function<AgingCustomerEntry, BigDecimal> fn) {
+        return list.stream().map(fn).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private int gapScanStart(BillSource source) {
+        return switch (source) {
+            case SYSTEM -> 13200;
+            case MANUAL -> 300;
+            default     -> 1;
+        };
+    }
+
+    @Transactional(readOnly = true)
+    public List<BillSequenceGapResponse> findSequenceGaps(BusinessType business) {
+        List<Bill> bills = billRepository.findByBusinessOrderByCreatedAtDesc(business)
+                .stream()
+                .filter(b -> b.getStatus() != BillStatus.CANCELLED && b.getBillNumber() != null)
+                .collect(Collectors.toList());
+
+        Map<BillSource, List<Bill>> bySource = bills.stream()
+                .collect(Collectors.groupingBy(Bill::getBillSource));
+
+        List<BillSequenceGapResponse> result = new ArrayList<>();
+
+        for (Map.Entry<BillSource, List<Bill>> entry : bySource.entrySet()) {
+            BillSource source = entry.getKey();
+            List<Bill> sourceBills = entry.getValue();
+            int minStart = gapScanStart(source);
+
+            String prefix = "";
+            int maxPadding = 0;
+            List<Integer> nums = new ArrayList<>();
+
+            for (Bill bill : sourceBills) {
+                String num = bill.getBillNumber();
+                int lastDash = num.lastIndexOf('-');
+                if (lastDash < 0) continue;
+                String pref   = num.substring(0, lastDash + 1);
+                String suffix = num.substring(lastDash + 1);
+                if (!suffix.matches("\\d+")) continue;
+                int val = Integer.parseInt(suffix);
+                if (val < minStart) continue;           // skip bills before scan window
+                if (prefix.isEmpty()) prefix = pref;
+                maxPadding = Math.max(maxPadding, suffix.length());
+                if (!nums.contains(val)) nums.add(val);
+            }
+
+            if (nums.isEmpty()) continue;
+            nums.sort(Comparator.naturalOrder());
+
+            int first = nums.get(0);
+            int last  = nums.get(nums.size() - 1);
+            final String finalPrefix  = prefix;
+            final int    finalPadding = maxPadding;
+
+            List<String> missing = new ArrayList<>();
+            for (int i = 0; i < nums.size() - 1; i++) {
+                int curr = nums.get(i);
+                int next = nums.get(i + 1);
+                for (int m = curr + 1; m < next; m++) {
+                    missing.add(finalPrefix + String.format("%0" + finalPadding + "d", m));
+                }
+            }
+
+            result.add(BillSequenceGapResponse.builder()
+                    .billSource(source.name())
+                    .totalBills(nums.size())
+                    .firstNumber(first)
+                    .lastNumber(last)
+                    .missingCount(missing.size())
+                    .missingNumbers(missing)
+                    .build());
+        }
+
+        result.sort(Comparator.comparing(BillSequenceGapResponse::getBillSource));
+        return result;
+    }
+
+    @Transactional(readOnly = true)
     private Bill findBillById(Long id) {
         return billRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Bill not found"));
@@ -422,6 +671,7 @@ public class BillServiceImpl {
                 .billDate(bill.getBillDate())
                 .notes(bill.getNotes())
                 .createdAt(bill.getCreatedAt())
+                .willBeLinked(bill.getWillBeLinked())
                 .build();
     }
 }

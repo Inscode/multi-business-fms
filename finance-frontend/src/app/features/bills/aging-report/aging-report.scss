@@ -73,10 +73,13 @@
 // ── Shared aging colours ───────────────────────────────────────
 .aging-legend {
   display: flex;
+  align-items: center;
   gap: 10px;
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
+.legend-group-label { font-size: 11px; font-weight: 700; color: #546e7a; text-transform: uppercase; letter-spacing: .4px; }
+.legend-divider { color: #ccc; font-size: 16px; }
 .legend-item {
   font-size: 12px;
   font-weight: 600;
@@ -120,9 +123,17 @@
   overflow-x: auto;
 }
 
-.tbl-header {
+// 10 cols: rank | customer+area | outstanding | 0-30 | 31-60 | 61-90 | 91+ | cash | bills | last-pmt
+$tbl-cols: 26px 180px 1fr 1fr 1fr 1fr 1fr 150px 46px 82px;
+
+.tbl-header, .tbl-row {
   display: grid;
-  grid-template-columns: 38px 1fr 110px 110px 85px 85px 85px 85px 46px 78px 90px;
+  grid-template-columns: $tbl-cols;
+  gap: 4px;
+  min-width: 900px;
+}
+
+.tbl-header {
   padding: 10px 14px;
   background: #37474f;
   color: #fff;
@@ -130,24 +141,29 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .4px;
-  gap: 4px;
   align-items: center;
-  min-width: 900px;
 
   .right  { text-align: right; }
   .center { text-align: center; }
+
+  .cr-hdr   { color: #b2dfdb; }
+  .cash-hdr {
+    color: #ffe082;
+    border-left: 2px solid rgba(255,224,130,.35);
+    padding-left: 8px;
+    margin-left: 4px;
+  }
 }
 
+.tbl-header .col-sep { border-left: 1px solid rgba(255,255,255,.2); padding-left: 6px; }
+.tbl-row    .col-sep { border-left: 1px solid #e8ecee; padding-left: 6px; }
+
 .tbl-row {
-  display: grid;
-  grid-template-columns: 38px 1fr 110px 110px 85px 85px 85px 85px 46px 78px 90px;
   padding: 10px 14px;
   border-bottom: 1px solid #f0f0f0;
   font-size: 13px;
   align-items: center;
-  gap: 4px;
   transition: background .15s;
-  min-width: 900px;
 
   &:hover { background: #fafafa; }
   &:last-child { border-bottom: none; }
@@ -155,13 +171,46 @@
 
   .right  { text-align: right; }
   .center { text-align: center; }
+
+  .col-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+    min-width: 0;
+  }
+}
+
+// Cash column in top-20 table
+.col-cash {
+  display: flex; flex-direction: column; gap: 2px;
+  border-left: 2px solid rgba(255,193,7,.2);
+  padding-left: 8px;
+  margin-left: 4px;
+  .cash-amount { font-size: 12px; font-weight: 600; color: #e65100; }
+  .cash-badge  {
+    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px;
+    display: inline-block; width: fit-content;
+    &.age-ok       { background: #e8f5e9; color: #2e7d32; }
+    &.age-caution  { background: #fff8e1; color: #f57f17; }
+    &.age-warn     { background: #fff3e0; color: #e65100; }
+    &.age-critical { background: #ffebee; color: #c62828; }
+  }
+}
+
+.col-cash-sub { font-size: 10px; }
+.cash-none {
+  color: #ccc; font-size: 12px;
+  border-left: 2px solid rgba(255,193,7,.2);
+  padding-left: 8px;
+  margin-left: 4px;
 }
 
 .rank-badge {
-  width: 26px; height: 26px;
+  width: 24px; height: 24px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 12px;
+  font-weight: 700; font-size: 11px;
   background: #eceff1; color: #546e7a;
 
   &.gold   { background: #ffd54f; color: #5d4037; }
@@ -169,8 +218,9 @@
   &.bronze { background: #ffcc80; color: #4e342e; }
 }
 
-.cust-name  { font-weight: 600; color: #212121; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.area-tag   { font-size: 11px; color: #555; background: #e3f2fd; padding: 2px 7px; border-radius: 10px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cust-name   { font-weight: 600; color: #212121; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.area-tag    { font-size: 11px; color: #555; background: #e3f2fd; padding: 2px 7px; border-radius: 10px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-tag-sm { font-size: 10px; color: #777; background: #e3f2fd; padding: 1px 6px; border-radius: 8px; display: inline-block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .total-col  { font-weight: 700; color: #b71c1c; }
 .has-amount { font-weight: 500; }
 .col-oldest { font-size: 12px; color: #888; }
@@ -200,6 +250,10 @@
 }
 
 // ── Collection Priority tab ────────────────────────────────────
+.priority-inner-tabs { margin-top: 8px; }
+.inner-tab-body { padding: 16px 0 0; }
+.tab-icon-sm { font-size: 16px; width: 16px; height: 16px; vertical-align: middle; }
+
 .priority-note {
   font-size: 13px; color: #666; margin: 0 0 16px;
 }

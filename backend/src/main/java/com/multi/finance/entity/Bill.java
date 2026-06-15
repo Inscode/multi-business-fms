@@ -105,6 +105,15 @@ public class Bill {
     @Builder.Default
     private Boolean stockReconciled = false;
 
+    /** Set by admin once the savings amount (children total − system amount) has been collected. */
+    @Column(name = "savings_collected", nullable = false)
+    @Builder.Default
+    private Boolean savingsCollected = false;
+
+    @Column(name = "stock_cleared", nullable = false)
+    @Builder.Default
+    private Boolean stockCleared = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

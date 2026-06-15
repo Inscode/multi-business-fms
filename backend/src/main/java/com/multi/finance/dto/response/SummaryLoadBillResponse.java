@@ -3,6 +3,7 @@ package com.multi.finance.dto.response;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,4 +23,13 @@ public class SummaryLoadBillResponse {
     private LocalDateTime createdAt;
     private String approvedByName;
     private LocalDateTime approvedAt;
+    private List<ItemDto> items;
+
+    @Data
+    @Builder
+    public static class ItemDto {
+        private String productName;
+        private Long quantity;
+        private BigDecimal unitPrice;
+    }
 }

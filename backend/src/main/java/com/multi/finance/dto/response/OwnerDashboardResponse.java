@@ -26,6 +26,9 @@ public class OwnerDashboardResponse {
     private long stationeryTodayPayments;
     private long plasticTodayPayments;
 
+    private BigDecimal cashPending;        // total outstanding cash bill balance
+    private BigDecimal cashSerious;        // cash bills 15+ days outstanding (serious issue)
+
     private List<PaymentSummaryResponse> pendingPayments;
     private List<BillSummaryResponse> assignedBillList;  // bills out to collection
 }

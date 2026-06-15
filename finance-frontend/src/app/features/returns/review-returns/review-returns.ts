@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -28,6 +28,8 @@ interface ReceivedQty { [itemId: number]: number; }
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReviewReturns implements OnInit {
+  @Input() readonly = false;
+
   returns: BillReturnResponse[] = [];
   loading = true;
   error = false;

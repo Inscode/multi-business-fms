@@ -1,0 +1,161 @@
+<div class="tab-content">
+  <div class="tab-header">
+    <div>
+      <h2 class="tab-title">Linking Bills</h2>
+      <p class="tab-sub">SYSTEM bills used as references for stock linking</p>
+    </div>
+    <button mat-stroked-button (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <mat-icon>error_outline</mat-icon>
+    <p>Failed to load linking bills</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <div class="empty-state" *ngIf="!loading && !error && bills.length === 0">
+    <mat-icon>link_off</mat-icon>
+    <p>No linking bills found</p>
+  </div>
+
+  <div class="bill-list" *ngIf="!loading && !error && bills.length > 0">
+    <div class="bill-row" *ngFor="let b of bills" [class.expanded]="expandedBillId === b.id">
+      <!-- Bill header -->
+      <div class="bill-header" (click)="expand(b)">
+        <div class="bill-header-left">
+          <span class="bill-num">{{ b.billNumber }}</span>
+          <span class="customer">{{ b.customerName }}</span>
+          <span class="biz-chip">{{ b.business }}</span>
+          <span class="date-label">{{ b.billDate | date:'dd MMM yyyy' }}</span>
+        </div>
+        <div class="bill-header-right">
+          <span class="amount">Rs {{ b.totalAmount | number:'1.2-2' }}</span>
+          <mat-icon class="expand-icon" [class.open]="expandedBillId === b.id">expand_more</mat-icon>
+        </div>
+      </div>
+
+      <!-- Expanded detail -->
+      <div class="bill-detail" *ngIf="expandedBillId === b.id">
+        <div class="detail-loading" *ngIf="expandedLoading">
+          <mat-spinner diameter="24"></mat-spinner>
+          <span>Loading stock details…</span>
+        </div>
+
+        <ng-container *ngIf="!expandedLoading && expandedStatus">
+          <!-- Stock match indicator -->
+          <div class="stock-match-row">
+            <div class="match-chip" [class.match]="quantitiesMatch" [class.mismatch]="!quantitiesMatch">
+              <mat-icon>{{ quantitiesMatch ? 'check_circle' : 'warning' }}</mat-icon>
+              {{ quantitiesMatch ? 'Stock quantities match' : 'Stock quantities mismatch' }}
+            </div>
+            <div class="reconcile-chip" *ngIf="isReconciled">
+              <mat-icon>verified</mat-icon> Reconciled
+            </div>
+            <button mat-flat-button color="primary" class="reconcile-btn"
+                    *ngIf="isAdmin && !isReconciled"
+                    [disabled]="reconciling"
+                    (click)="reconcile()">
+              <mat-icon>task_alt</mat-icon>
+              {{ reconciling ? 'Reconciling…' : 'Mark Reconciled' }}
+            </button>
+          </div>
+
+          <!-- Savings summary -->
+          <div class="savings-row" *ngIf="expandedStatus.linkedChildren && expandedStatus.linkedChildren.length > 0">
+            <div class="savings-pill">
+              <span class="pill-label">System Bill Amount</span>
+              <span class="pill-value">Rs {{ b.totalAmount | number:'1.2-2' }}</span>
+            </div>
+            <div class="savings-pill">
+              <span class="pill-label">Children Total</span>
+              <span class="pill-value">Rs {{ childrenTotal | number:'1.2-2' }}</span>
+            </div>
+            <div class="savings-pill" [class.positive]="savings > 0" [class.negative]="savings < 0">
+              <span class="pill-label">Savings</span>
+              <span class="pill-value">Rs {{ savings | number:'1.2-2' }}</span>
+            </div>
+            <div class="collected-badge collected" *ngIf="isSavingsCollected">
+              <mat-icon>check_circle</mat-icon> Savings Collected
+            </div>
+            <button mat-stroked-button class="collect-btn"
+                    *ngIf="isAdmin && !isSavingsCollected"
+                    [disabled]="savingsToggling"
+                    (click)="toggleCollected()">
+              <mat-icon>payments</mat-icon>
+              {{ savingsToggling ? '…' : 'Mark Savings Collected' }}
+            </button>
+            <button mat-icon-button class="uncollect-btn"
+                    *ngIf="isAdmin && isSavingsCollected"
+                    matTooltip="Unmark savings collected"
+                    [disabled]="savingsToggling"
+                    (click)="toggleCollected()">
+              <mat-icon>undo</mat-icon>
+            </button>
+          </div>
+
+          <!-- Per-product stock comparison -->
+          <div class="comparison-section" *ngIf="expandedStatus.childrenAggregateComparison && expandedStatus.childrenAggregateComparison.length > 0">
+            <div class="section-label">Stock Comparison (System vs Children)</div>
+            <div class="comparison-table">
+              <div class="comp-header">
+                <span>Product</span>
+                <span class="col-right">System</span>
+                <span class="col-right">Children</span>
+                <span class="col-right">Diff</span>
+              </div>
+              <div class="comp-row" *ngFor="let row of expandedStatus.childrenAggregateComparison"
+                   [class.mismatch-row]="row.diff !== 0">
+                <span class="prod-name">{{ row.productName }}</span>
+                <span class="col-right">{{ row.systemQty }}</span>
+                <span class="col-right">{{ row.childQty }}</span>
+                <span class="col-right diff" [class.zero]="row.diff === 0" [class.nonzero]="row.diff !== 0">
+                  {{ row.diff > 0 ? '+' : '' }}{{ row.diff }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linked child bills -->
+          <div class="children-section" *ngIf="expandedStatus.linkedChildren && expandedStatus.linkedChildren.length > 0">
+            <div class="section-label">Linked Bills</div>
+            <div class="child-card" *ngFor="let child of expandedStatus.linkedChildren">
+              <div class="child-header">
+                <div class="child-info">
+                  <span class="child-num">{{ child.billNumber }}</span>
+                  <span class="child-customer">{{ child.customerName }}</span>
+                  <span class="child-source">{{ child.billSource }}</span>
+                </div>
+                <div class="child-right">
+                  <span class="child-amount">Rs {{ child.amount | number:'1.2-2' }}</span>
+                </div>
+              </div>
+              <div class="child-meta">
+                <mat-icon>person</mat-icon>
+                Linked by {{ child.linkedByName }} · {{ child.linkedAt | date:'dd MMM yyyy' }}
+                <span *ngIf="child.notes"> · {{ child.notes }}</span>
+              </div>
+              <!-- Child items -->
+              <div class="child-items" *ngIf="child.items && child.items.length > 0">
+                <div class="item-row" *ngFor="let item of child.items">
+                  <span class="item-name">{{ item.productName }}</span>
+                  <span class="item-qty">× {{ item.quantity }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="no-children" *ngIf="!expandedStatus.linkedChildren || expandedStatus.linkedChildren.length === 0">
+            <mat-icon>link_off</mat-icon>
+            <span>No bills linked yet</span>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</div>

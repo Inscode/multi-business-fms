@@ -66,4 +66,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     /** Sum of ENTERED (not-yet-confirmed) payments for a bill — used to prevent double-entry overpayment */
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.bill.id = :billId AND p.status = 'ENTERED'")
     BigDecimal sumEnteredForBill(@Param("billId") Long billId);
+
+    /** Returns [billId, maxPaymentDate] pairs — single bulk query, avoids N+1 in aging report */
+    @Query("SELECT p.bill.id, MAX(p.paymentDate) FROM Payment p WHERE p.bill.id IN :billIds AND p.status = 'CONFIRMED' GROUP BY p.bill.id")
+    List<Object[]> findLastConfirmedDatesByBillIds(@Param("billIds") List<Long> billIds);
 }

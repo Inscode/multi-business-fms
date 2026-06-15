@@ -77,7 +77,7 @@ export class AgingReport implements OnInit {
       .sort((a, b) => b.days61to90 - a.days61to90);
     const bucket31 = all.filter(c => c.days91plus === 0 && c.days61to90 === 0 && c.days31to60 > 0)
       .sort((a, b) => b.days31to60 - a.days31to60);
-    const bucket0  = all.filter(c => c.days91plus === 0 && c.days61to90 === 0 && c.days31to60 === 0)
+    const bucket0  = all.filter(c => c.days91plus === 0 && c.days61to90 === 0 && c.days31to60 === 0 && c.current > 0)
       .sort((a, b) => b.current - a.current);
 
     return [

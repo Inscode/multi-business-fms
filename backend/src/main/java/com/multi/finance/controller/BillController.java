@@ -3,7 +3,9 @@ package com.multi.finance.controller;
 
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
+import com.multi.finance.dto.response.AgingReportResponse;
 import com.multi.finance.dto.response.BillResponse;
+import com.multi.finance.dto.response.BillSequenceGapResponse;
 import com.multi.finance.dto.response.DashboardResponse;
 import com.multi.finance.dto.response.DashboardStatsResponse;
 import com.multi.finance.enums.BillStatus;
@@ -52,6 +54,12 @@ public class BillController {
         return ResponseEntity.ok(Map.of("count", billService.countOverduePending(cutoff)));
     }
 
+
+    @GetMapping("/linking")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<BillResponse>> getLinkingBills() {
+        return ResponseEntity.ok(billService.getLinkingBills());
+    }
 
     @GetMapping("/today/{business}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
@@ -105,6 +113,20 @@ public class BillController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BillResponse> cancelBill(@PathVariable Long id) {
         return ResponseEntity.ok(billService.cancelBill(id));
+    }
+
+    @GetMapping("/aging-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<AgingReportResponse> getAgingReport(
+            @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
+        return ResponseEntity.ok(billService.getAgingReport(business));
+    }
+
+    @GetMapping("/sequence-gaps")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BillSequenceGapResponse>> getSequenceGaps(
+            @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
+        return ResponseEntity.ok(billService.findSequenceGaps(business));
     }
 
     @GetMapping("/{id}")

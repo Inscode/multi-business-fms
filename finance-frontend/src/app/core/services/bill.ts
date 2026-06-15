@@ -89,6 +89,7 @@ export interface BillResponse {
   billDate: string;
   notes: string | null;
   createdAt: string;
+  willBeLinked?: boolean;
 }
 
 @Injectable({
@@ -107,6 +108,10 @@ export class Bill {
     if (filter?.from) params = params.set('from', filter.from);
     if (filter?.to)   params = params.set('to', filter.to);
     return this.http.get<BillResponse[]>(this.apiUrl, { params });
+  }
+
+  getLinkingBills(): Observable<BillResponse[]> {
+    return this.http.get<BillResponse[]>(`${this.apiUrl}/linking`);
   }
 
   getOverdueCount(): Observable<{ count: number }> {

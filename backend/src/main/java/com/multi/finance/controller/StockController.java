@@ -9,6 +9,7 @@ import com.multi.finance.dto.request.LinkBillsRequest;
 import com.multi.finance.dto.response.BillStockItemResponse;
 import com.multi.finance.dto.response.BillStockStatusResponse;
 import com.multi.finance.dto.response.StockBillResponse;
+import com.multi.finance.dto.response.StockReductionPendingResponse;
 import com.multi.finance.dto.response.StockReductionStatusResponse;
 import com.multi.finance.dto.response.SummaryLoadBillResponse;
 import com.multi.finance.entity.ReturnProduct;
@@ -135,6 +136,43 @@ public class StockController {
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<Void> reduceStockForBill(@Valid @RequestBody IndividualStockReductionRequest request) {
         stockService.reduceStockForBill(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ── Individual reduction pending requests ─────────────────────
+
+    @GetMapping("/reductions/pending")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<StockReductionPendingResponse>> getPendingIndividualReductions() {
+        return ResponseEntity.ok(stockService.getPendingIndividualReductions());
+    }
+
+    @PatchMapping("/reductions/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> approveIndividualReduction(@PathVariable Long id) {
+        stockService.approveIndividualReduction(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/reductions/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> rejectIndividualReduction(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        stockService.rejectIndividualReduction(id, reason);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ── Savings collected mark ────────────────────────────────────
+
+    @PatchMapping("/bills/{billId}/savings-collected")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> markSavingsCollected(
+            @PathVariable Long billId,
+            @RequestBody Map<String, Boolean> body) {
+        boolean collected = Boolean.TRUE.equals(body.get("collected"));
+        stockService.markSavingsCollected(billId, collected);
         return ResponseEntity.noContent().build();
     }
 
