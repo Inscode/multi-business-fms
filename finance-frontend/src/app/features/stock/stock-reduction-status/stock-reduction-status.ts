@@ -11,7 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-import { StockService, StockReductionStatus, BillStockItem } from '../../../core/services/stock';
+import { StockService, StockReductionStatus, BillStockItem, SummaryItemInfo } from '../../../core/services/stock';
 import { Auth } from '../../../core/services/auth';
 
 @Component({
@@ -43,6 +43,7 @@ export class StockReductionStatusComponent implements OnInit {
   // Expand / item edit state
   expandedBillId: number | null = null;
   billItemsMap = new Map<number, BillStockItem[]>();
+  summaryItemsMap = new Map<number, SummaryItemInfo[]>();
   loadingItems = false;
   editingItemId: number | null = null;
   editingQty: number | null = null;
@@ -120,6 +121,7 @@ export class StockReductionStatusComponent implements OnInit {
   statusLabel(s: string): string {
     return ({
       NOT_REDUCED: 'Not Reduced',
+      REDUCTION_PENDING: 'Pending Approval',
       SUMMARY_PENDING: 'Summary Pending',
       SUMMARY_APPROVED: 'Summary Approved',
       INDIVIDUALLY_REDUCED: 'Individual',
@@ -129,6 +131,10 @@ export class StockReductionStatusComponent implements OnInit {
     } as any)[s] ?? s;
   }
 
+  isSummaryBill(row: StockReductionStatus): boolean {
+    return row.reductionStatus === 'SUMMARY_PENDING' || row.reductionStatus === 'SUMMARY_APPROVED';
+  }
+
   toggleExpand(row: StockReductionStatus): void {
     if (this.expandedBillId === row.billId) {
       this.expandedBillId = null;
@@ -136,16 +142,31 @@ export class StockReductionStatusComponent implements OnInit {
     }
     this.expandedBillId = row.billId;
     this.editingItemId = null;
-    if (!this.billItemsMap.has(row.billId)) {
-      this.loadingItems = true;
-      this.stockService.getBillStockItems(row.billId).subscribe({
-        next: items => {
-          this.billItemsMap.set(row.billId, items);
-          this.loadingItems = false;
-          this.cdr.detectChanges();
-        },
-        error: () => { this.loadingItems = false; this.cdr.detectChanges(); },
-      });
+
+    if (this.isSummaryBill(row)) {
+      if (!this.summaryItemsMap.has(row.billId)) {
+        this.loadingItems = true;
+        this.stockService.getBillStockStatus(row.billId).subscribe({
+          next: status => {
+            this.summaryItemsMap.set(row.billId, status.summaryItems ?? []);
+            this.loadingItems = false;
+            this.cdr.detectChanges();
+          },
+          error: () => { this.loadingItems = false; this.cdr.detectChanges(); },
+        });
+      }
+    } else {
+      if (!this.billItemsMap.has(row.billId)) {
+        this.loadingItems = true;
+        this.stockService.getBillStockItems(row.billId).subscribe({
+          next: items => {
+            this.billItemsMap.set(row.billId, items);
+            this.loadingItems = false;
+            this.cdr.detectChanges();
+          },
+          error: () => { this.loadingItems = false; this.cdr.detectChanges(); },
+        });
+      }
     }
     this.cdr.detectChanges();
   }
@@ -153,6 +174,11 @@ export class StockReductionStatusComponent implements OnInit {
   itemsFor(billId: number | null): BillStockItem[] {
     if (billId === null) return [];
     return this.billItemsMap.get(billId) ?? [];
+  }
+
+  summaryItemsFor(billId: number | null): SummaryItemInfo[] {
+    if (billId === null) return [];
+    return this.summaryItemsMap.get(billId) ?? [];
   }
 
   startEdit(item: BillStockItem): void {

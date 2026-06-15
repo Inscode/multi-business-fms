@@ -1,0 +1,2 @@
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS savings_collected BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE bill_stock_links DROP COLUMN IF EXISTS savings_collected;

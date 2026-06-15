@@ -49,387 +49,413 @@
     </div>
   </div>
 
-  <div class="filters">
-    <!-- Row 1: search + business + status + area + toggles -->
-    <div class="filters-row">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
-        <mat-label>Search</mat-label>
-        <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
-          placeholder="Bill number or customer name" />
-        <mat-icon matSuffix>search</mat-icon>
-      </mat-form-field>
-
-      <div class="filter-scope-chip" *ngIf="isShopAccountant">
-        <mat-icon>storefront</mat-icon> Shop Bills &amp; Shop Received
+  <!-- Admin: tabs with Linking Bills -->
+  <mat-tab-group animationDuration="150ms" class="bills-tabs" *ngIf="isAdmin">
+    <mat-tab>
+      <ng-template mat-tab-label><mat-icon>receipt_long</mat-icon>&nbsp;Bills</ng-template>
+      <div class="tab-body">
+        <ng-container *ngTemplateOutlet="billsContent"></ng-container>
       </div>
-
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field" *ngIf="!isShopAccountant">
-        <mat-label>Business</mat-label>
-        <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
-          <mat-option value="">All</mat-option>
-          <mat-option *ngFor="let b of businesses.slice(1)" [value]="b">{{ b }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-        <mat-label>Status</mat-label>
-        <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()" [disabled]="overdueMode">
-          <mat-option value="">All</mat-option>
-          <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-        <mat-label>Area</mat-label>
-        <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
-          <mat-option value="">All</mat-option>
-          <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <button mat-stroked-button class="toggle-completed-btn"
-              [class.active]="!hideCompleted"
-              [disabled]="overdueMode"
-              (click)="toggleHideCompleted()"
-              [matTooltip]="overdueMode ? 'Not available in overdue mode' : (hideCompleted ? 'Active bills only — click to show completed too' : 'Showing all — click to hide completed')">
-        <mat-icon>{{ hideCompleted ? 'visibility_off' : 'visibility' }}</mat-icon>
-        {{ hideCompleted ? 'Completed hidden' : 'Show all' }}
-      </button>
-
-      <button mat-stroked-button class="overdue-btn"
-              [class.active]="overdueMode"
-              (click)="toggleOverdueMode()"
-              matTooltip="Bills older than 60 days still pending">
-        <mat-icon>schedule</mat-icon>
-        Overdue
-        <span class="overdue-badge" *ngIf="overdueCount > 0">{{ overdueCount }}</span>
-      </button>
-    </div>
-
-    <!-- Row 2: date range (hidden in overdue mode) -->
-    <div class="date-row" *ngIf="!overdueMode">
-      <span class="date-label">Period:</span>
-      <mat-form-field appearance="outline" class="date-field">
-        <mat-label>From</mat-label>
-        <input matInput [matDatepicker]="fromPicker" [value]="filterFromDate"
-               (dateChange)="onFromDateChange($event)" [max]="filterToDate" />
-        <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
-        <mat-datepicker #fromPicker></mat-datepicker>
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="date-field">
-        <mat-label>To</mat-label>
-        <input matInput [matDatepicker]="toPicker" [value]="filterToDate"
-               (dateChange)="onToDateChange($event)" [min]="filterFromDate" [max]="todayDate" />
-        <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
-        <mat-datepicker #toPicker></mat-datepicker>
-      </mat-form-field>
-      <button mat-icon-button matTooltip="Reset to last 60 days"
-              (click)="filterFrom = daysAgo(60); filterTo = today; onDateChange()">
-        <mat-icon>refresh</mat-icon>
-      </button>
-    </div>
-
-    <!-- Overdue mode banner -->
-    <div class="overdue-banner" *ngIf="overdueMode">
-      <mat-icon>schedule</mat-icon>
-      <span>Showing pending bills older than 60 days — no date filter applied</span>
-      <button mat-icon-button (click)="toggleOverdueMode()" matTooltip="Exit overdue mode">
-        <mat-icon>close</mat-icon>
-      </button>
-    </div>
-
-    <!-- Sequence gap check button -->
-    <div class="gap-check-row" *ngIf="canCheckGaps">
-      <button mat-stroked-button class="gap-check-btn" [class.active]="gapCheckOpen" (click)="toggleGapCheck()">
-        <mat-icon>manage_search</mat-icon>
-        Sequence Check (RAINCO)
-        <mat-icon class="expand-icon" [class.expanded]="gapCheckOpen">expand_more</mat-icon>
-      </button>
-    </div>
-  </div>
-
-  <!-- Gap check panel -->
-  <div class="gap-panel" *ngIf="gapCheckOpen && canCheckGaps">
-    <div class="gap-panel-header">
-      <mat-icon>manage_search</mat-icon>
-      <span>RAINCO Bill Sequence Gaps</span>
-      <button mat-icon-button class="gap-refresh-btn" (click)="loadGaps()" matTooltip="Refresh">
-        <mat-icon>refresh</mat-icon>
-      </button>
-    </div>
-
-    <div class="gap-loading" *ngIf="gapCheckLoading">
-      <mat-spinner diameter="24"></mat-spinner>
-      <span>Checking sequences…</span>
-    </div>
-
-    <div class="gap-sources" *ngIf="!gapCheckLoading">
-      <div class="gap-source-block" *ngFor="let g of gaps">
-        <div class="gap-source-header">
-          <span class="source-label">{{ g.billSource }}</span>
-          <span class="source-range">#{{ g.firstNumber }} → #{{ g.lastNumber }}</span>
-          <span class="source-total">{{ g.totalBills }} bills</span>
-          <span class="source-missing" [class.none]="g.missingCount === 0">
-            <mat-icon *ngIf="g.missingCount > 0">warning</mat-icon>
-            <mat-icon *ngIf="g.missingCount === 0">check_circle</mat-icon>
-            {{ g.missingCount === 0 ? 'No gaps' : g.missingCount + ' missing' }}
-          </span>
-        </div>
-        <div class="gap-chips" *ngIf="g.missingNumbers.length > 0">
-          <span class="gap-chip" *ngFor="let num of g.missingNumbers">{{ num }}</span>
-        </div>
+    </mat-tab>
+    <mat-tab>
+      <ng-template mat-tab-label><mat-icon>link</mat-icon>&nbsp;Linking Bills</ng-template>
+      <div class="tab-body">
+        <app-linking-bills-tab [isAdmin]="true" />
       </div>
+    </mat-tab>
+  </mat-tab-group>
 
-      <div class="gap-empty" *ngIf="gaps.length === 0">
-        <mat-icon>check_circle</mat-icon>
-        <span>No RAINCO bills found or no gaps detected.</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- selection hint -->
-  <div class="selection-hint" *ngIf="canEnterPayment && selection.selected.length > 0 && !hasBulkSelection">
-    <mat-icon>info_outline</mat-icon>
-    <span>Select one more bill to enable combined payment</span>
-  </div>
-
-  <ng-container *ngIf="!error; else errorBlock">
-
-    <!-- mobile cards -->
-    <div class="mobile-list">
-      <div
-        class="bill-card"
-        *ngFor="let b of dataSource.data"
-        [class.selected]="selection.isSelected(b)"
-        [routerLink]="selection.selected.length === 0 ? ['/bills', b.id] : null"
-      >
-        <div class="bill-card-row">
-          <div class="card-left-group">
-            <mat-checkbox
-              *ngIf="canEnterPayment && isSelectable(b)"
-              [checked]="selection.isSelected(b)"
-              (change)="toggleSelection(b)"
-              (click)="$event.stopPropagation()"
-              color="primary"
-            ></mat-checkbox>
-            <span class="bill-number">{{ b.billNumber }}</span>
-          </div>
-          <div class="card-right-group">
-            <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
-            <ng-container *ngIf="getReminderForBill(b.id) as reminder">
-              <mat-icon class="bell-icon"
-                [class.bell-overdue]="reminder.reminderDate < today"
-                [title]="reminder.reminderDate + ' · ' + reminder.period">
-                notifications
-              </mat-icon>
-            </ng-container>
-          </div>
-        </div>
-        <div class="bill-card-row">
-          <span class="customer">{{ b.customerName }}</span>
-          <span class="amount">Rs {{ b.totalAmount | number }}</span>
-        </div>
-        <div class="bill-card-row">
-          <span class="meta">{{ b.area ?? '—' }} · {{ b.business }}</span>
-          <span class="balance" [class.zero-balance]="b.balanceRemaining === 0">
-            Rs {{ b.balanceRemaining | number }}
-          </span>
-        </div>
-        <div class="bill-card-row">
-          <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
-            {{ b.billType === 'CASH' && !b.fullyPaid && b.status !== 'COMPLETED' && b.status !== 'CANCELLED' ? '⚡ CASH — Collect immediately' : b.billType }}
-          </span>
-        </div>
-        <div class="bill-card-row" *ngIf="b.workerName">
-          <span class="meta">Assigned: {{ b.workerName }}</span>
-        </div>
-        <div class="bill-card-actions" *ngIf="hasActions(b)" (click)="$event.stopPropagation()">
-          <button mat-stroked-button [matMenuTriggerFor]="mobileMenu" class="action-btn">
-            <mat-icon>more_horiz</mat-icon> Actions
-          </button>
-          <mat-menu #mobileMenu="matMenu">
-            <button mat-menu-item *ngIf="canAssign(b)" [matMenuTriggerFor]="mobileAssignMenu">
-              <mat-icon>person_add</mat-icon>
-              <span>{{ b.status === 'ASSIGNED' ? 'Reassign' : 'Assign' }}</span>
-            </button>
-            <button mat-menu-item *ngIf="canMarkStoreReceived(b)" (click)="markReceived(b.id)">
-              <mat-icon>check_circle</mat-icon>
-              <span>Mark Store Received</span>
-            </button>
-            <button mat-menu-item *ngIf="canMarkShopReceived(b)" (click)="markShopReceived(b.id)">
-              <mat-icon>store</mat-icon>
-              <span>Mark Shop Received</span>
-            </button>
-            <button mat-menu-item *ngIf="canSetReminder" (click)="openReminderDialog(b)">
-              <mat-icon>notifications</mat-icon>
-              <span>Set Reminder</span>
-            </button>
-            <button mat-menu-item *ngIf="canMarkCompleted(b)" (click)="markCompleted(b)"
-              style="color:#2e7d32">
-              <mat-icon style="color:#2e7d32">task_alt</mat-icon>
-              <span>Mark Completed</span>
-            </button>
-          </mat-menu>
-          <mat-menu #mobileAssignMenu="matMenu">
-            <button mat-menu-item *ngFor="let w of workers" (click)="assignBill(b.id, w.id)">
-              {{ w.fullName }} · {{ w.workerType }}
-            </button>
-          </mat-menu>
-        </div>
-      </div>
-      <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
-        <mat-icon>receipt_long</mat-icon>
-        <p>No bills found</p>
-      </div>
-      <div class="loading-state" *ngIf="loading">
-        <mat-spinner diameter="32"></mat-spinner>
-      </div>
-    </div>
-
-    <!-- desktop table -->
-    <mat-card class="table-card">
-      <table mat-table [dataSource]="dataSource">
-
-        <!-- checkbox column -->
-        <ng-container matColumnDef="select">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let b" (click)="$event.stopPropagation()">
-            <mat-checkbox
-              *ngIf="isSelectable(b)"
-              [checked]="selection.isSelected(b)"
-              (change)="toggleSelection(b)"
-              color="primary"
-            ></mat-checkbox>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="billNumber">
-          <th mat-header-cell *matHeaderCellDef>Bill No.</th>
-          <td mat-cell *matCellDef="let b">{{ b.billNumber }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="customerName">
-          <th mat-header-cell *matHeaderCellDef>Customer</th>
-          <td mat-cell *matCellDef="let b">{{ b.customerName }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="business">
-          <th mat-header-cell *matHeaderCellDef>Business</th>
-          <td mat-cell *matCellDef="let b">{{ b.business }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="area">
-          <th mat-header-cell *matHeaderCellDef>Area</th>
-          <td mat-cell *matCellDef="let b">{{ b.area ?? '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="billType">
-          <th mat-header-cell *matHeaderCellDef>Type</th>
-          <td mat-cell *matCellDef="let b">
-            <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
-              {{ b.billType === 'CASH' ? '⚡ CASH' : 'CREDIT' }}
-            </span>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="totalAmount">
-          <th mat-header-cell *matHeaderCellDef>Amount</th>
-          <td mat-cell *matCellDef="let b">Rs {{ b.totalAmount | number }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="balanceRemaining">
-          <th mat-header-cell *matHeaderCellDef>Balance</th>
-          <td mat-cell *matCellDef="let b">
-            <span [class.zero-balance]="b.balanceRemaining === 0">
-              Rs {{ b.balanceRemaining | number }}
-            </span>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="workerName">
-          <th mat-header-cell *matHeaderCellDef>Assigned To</th>
-          <td mat-cell *matCellDef="let b">{{ b.workerName ?? '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>Status</th>
-          <td mat-cell *matCellDef="let b">
-            <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
-            <ng-container *ngIf="getReminderForBill(b.id) as reminder">
-              <mat-icon class="bell-icon"
-                [class.bell-overdue]="reminder.reminderDate < today"
-                [title]="reminder.reminderDate + ' · ' + reminder.period + (reminder.note ? ' · ' + reminder.note : '')">
-                notifications
-              </mat-icon>
-            </ng-container>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let b" (click)="$event.stopPropagation()">
-            <ng-container *ngIf="hasActions(b)">
-              <button mat-icon-button [matMenuTriggerFor]="menu">
-                <mat-icon>more_vert</mat-icon>
-              </button>
-              <mat-menu #menu="matMenu">
-                <button mat-menu-item *ngIf="canAssign(b)" [matMenuTriggerFor]="assignMenu">
-                  <mat-icon>person_add</mat-icon>
-                  <span>{{ b.status === 'ASSIGNED' ? 'Reassign' : 'Assign' }}</span>
-                </button>
-                <button mat-menu-item *ngIf="canMarkStoreReceived(b)" (click)="markReceived(b.id)">
-                  <mat-icon>check_circle</mat-icon>
-                  <span>Mark Store Received</span>
-                </button>
-                <button mat-menu-item *ngIf="canMarkShopReceived(b)" (click)="markShopReceived(b.id)">
-                  <mat-icon>store</mat-icon>
-                  <span>Mark Shop Received</span>
-                </button>
-                <button mat-menu-item *ngIf="canSetReminder" (click)="openReminderDialog(b)">
-                  <mat-icon>notifications</mat-icon>
-                  <span>Set Reminder</span>
-                </button>
-                <button mat-menu-item *ngIf="canMarkCompleted(b)" (click)="markCompleted(b)"
-                  style="color:#2e7d32">
-                  <mat-icon style="color:#2e7d32">task_alt</mat-icon>
-                  <span>Mark Completed</span>
-                </button>
-              </mat-menu>
-              <mat-menu #assignMenu="matMenu">
-                <button mat-menu-item *ngFor="let w of workers" (click)="assignBill(b.id, w.id)">
-                  {{ w.fullName }} · {{ w.workerType }}
-                </button>
-              </mat-menu>
-            </ng-container>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr
-          mat-row
-          *matRowDef="let row; columns: displayedColumns"
-          class="clickable-row"
-          [class.selected-row]="selection.isSelected(row)"
-          [routerLink]="selection.selected.length === 0 ? ['/bills', row.id] : null"
-        ></tr>
-      </table>
-
-      <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
-        <mat-icon>receipt_long</mat-icon>
-        <p>No bills found</p>
-      </div>
-      <div class="loading-state" *ngIf="loading">
-        <mat-spinner diameter="32"></mat-spinner>
-      </div>
-      <mat-paginator [pageSizeOptions]="[20, 50, 100]" pageSize="20" showFirstLastButtons></mat-paginator>
-    </mat-card>
-
+  <!-- Non-admin: bills content directly, no tab chrome -->
+  <ng-container *ngIf="!isAdmin">
+    <ng-container *ngTemplateOutlet="billsContent"></ng-container>
   </ng-container>
 
-  <ng-template #errorBlock>
-    <div class="error-state">
-      <p>Failed to load bills.</p>
-      <button mat-stroked-button (click)="load()">Retry</button>
-    </div>
+  <!-- Bills content template (shared) -->
+  <ng-template #billsContent>
+      <div class="tab-body">
+        <div class="filters">
+          <!-- Row 1: search + business + status + area + toggles -->
+          <div class="filters-row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+              <mat-label>Search</mat-label>
+              <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
+                placeholder="Bill number or customer name" />
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+
+            <div class="filter-scope-chip" *ngIf="isShopAccountant">
+              <mat-icon>storefront</mat-icon> Shop Bills &amp; Shop Received
+            </div>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field" *ngIf="!isShopAccountant">
+              <mat-label>Business</mat-label>
+              <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
+                <mat-option value="">All</mat-option>
+                <mat-option *ngFor="let b of businesses.slice(1)" [value]="b">{{ b }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+              <mat-label>Status</mat-label>
+              <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()" [disabled]="overdueMode">
+                <mat-option value="">All</mat-option>
+                <mat-option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+              <mat-label>Area</mat-label>
+              <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onAreaChange()">
+                <mat-option value="">All</mat-option>
+                <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <button mat-stroked-button class="toggle-completed-btn"
+                    [class.active]="!hideCompleted"
+                    [disabled]="overdueMode"
+                    (click)="toggleHideCompleted()"
+                    [matTooltip]="overdueMode ? 'Not available in overdue mode' : (hideCompleted ? 'Active bills only — click to show completed too' : 'Showing all — click to hide completed')">
+              <mat-icon>{{ hideCompleted ? 'visibility_off' : 'visibility' }}</mat-icon>
+              {{ hideCompleted ? 'Completed hidden' : 'Show all' }}
+            </button>
+
+            <button mat-stroked-button class="overdue-btn"
+                    [class.active]="overdueMode"
+                    (click)="toggleOverdueMode()"
+                    matTooltip="Bills older than 60 days still pending">
+              <mat-icon>schedule</mat-icon>
+              Overdue
+              <span class="overdue-badge" *ngIf="overdueCount > 0">{{ overdueCount }}</span>
+            </button>
+          </div>
+
+          <!-- Row 2: date range (hidden in overdue mode) -->
+          <div class="date-row" *ngIf="!overdueMode">
+            <span class="date-label">Period:</span>
+            <mat-form-field appearance="outline" class="date-field">
+              <mat-label>From</mat-label>
+              <input matInput [matDatepicker]="fromPicker" [value]="filterFromDate"
+                     (dateChange)="onFromDateChange($event)" [max]="filterToDate" />
+              <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+              <mat-datepicker #fromPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="date-field">
+              <mat-label>To</mat-label>
+              <input matInput [matDatepicker]="toPicker" [value]="filterToDate"
+                     (dateChange)="onToDateChange($event)" [min]="filterFromDate" [max]="todayDate" />
+              <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+              <mat-datepicker #toPicker></mat-datepicker>
+            </mat-form-field>
+            <button mat-icon-button matTooltip="Reset to last 60 days"
+                    (click)="filterFrom = daysAgo(60); filterTo = today; onDateChange()">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          </div>
+
+          <!-- Overdue mode banner -->
+          <div class="overdue-banner" *ngIf="overdueMode">
+            <mat-icon>schedule</mat-icon>
+            <span>Showing pending bills older than 60 days — no date filter applied</span>
+            <button mat-icon-button (click)="toggleOverdueMode()" matTooltip="Exit overdue mode">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+
+          <!-- Sequence gap check button -->
+          <div class="gap-check-row" *ngIf="canCheckGaps">
+            <button mat-stroked-button class="gap-check-btn" [class.active]="gapCheckOpen" (click)="toggleGapCheck()">
+              <mat-icon>manage_search</mat-icon>
+              Sequence Check (RAINCO)
+              <mat-icon class="expand-icon" [class.expanded]="gapCheckOpen">expand_more</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Gap check panel -->
+        <div class="gap-panel" *ngIf="gapCheckOpen && canCheckGaps">
+          <div class="gap-panel-header">
+            <mat-icon>manage_search</mat-icon>
+            <span>RAINCO Bill Sequence Gaps</span>
+            <button mat-icon-button class="gap-refresh-btn" (click)="loadGaps()" matTooltip="Refresh">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          </div>
+
+          <div class="gap-loading" *ngIf="gapCheckLoading">
+            <mat-spinner diameter="24"></mat-spinner>
+            <span>Checking sequences…</span>
+          </div>
+
+          <div class="gap-sources" *ngIf="!gapCheckLoading">
+            <div class="gap-source-block" *ngFor="let g of gaps">
+              <div class="gap-source-header">
+                <span class="source-label">{{ g.billSource }}</span>
+                <span class="source-range">#{{ g.firstNumber }} → #{{ g.lastNumber }}</span>
+                <span class="source-total">{{ g.totalBills }} bills</span>
+                <span class="source-missing" [class.none]="g.missingCount === 0">
+                  <mat-icon *ngIf="g.missingCount > 0">warning</mat-icon>
+                  <mat-icon *ngIf="g.missingCount === 0">check_circle</mat-icon>
+                  {{ g.missingCount === 0 ? 'No gaps' : g.missingCount + ' missing' }}
+                </span>
+              </div>
+              <div class="gap-chips" *ngIf="g.missingNumbers.length > 0">
+                <span class="gap-chip" *ngFor="let num of g.missingNumbers">{{ num }}</span>
+              </div>
+            </div>
+
+            <div class="gap-empty" *ngIf="gaps.length === 0">
+              <mat-icon>check_circle</mat-icon>
+              <span>No RAINCO bills found or no gaps detected.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- selection hint -->
+        <div class="selection-hint" *ngIf="canEnterPayment && selection.selected.length > 0 && !hasBulkSelection">
+          <mat-icon>info_outline</mat-icon>
+          <span>Select one more bill to enable combined payment</span>
+        </div>
+
+        <ng-container *ngIf="!error; else errorBlock">
+
+          <!-- mobile cards -->
+          <div class="mobile-list">
+            <div
+              class="bill-card"
+              *ngFor="let b of dataSource.data"
+              [class.selected]="selection.isSelected(b)"
+              [routerLink]="selection.selected.length === 0 ? ['/bills', b.id] : null"
+            >
+              <div class="bill-card-row">
+                <div class="card-left-group">
+                  <mat-checkbox
+                    *ngIf="canEnterPayment && isSelectable(b)"
+                    [checked]="selection.isSelected(b)"
+                    (change)="toggleSelection(b)"
+                    (click)="$event.stopPropagation()"
+                    color="primary"
+                  ></mat-checkbox>
+                  <span class="bill-number">{{ b.billNumber }}</span>
+                </div>
+                <div class="card-right-group">
+                  <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
+                  <ng-container *ngIf="getReminderForBill(b.id) as reminder">
+                    <mat-icon class="bell-icon"
+                      [class.bell-overdue]="reminder.reminderDate < today"
+                      [title]="reminder.reminderDate + ' · ' + reminder.period">
+                      notifications
+                    </mat-icon>
+                  </ng-container>
+                </div>
+              </div>
+              <div class="bill-card-row">
+                <span class="customer">{{ b.customerName }}</span>
+                <span class="amount">Rs {{ b.totalAmount | number }}</span>
+              </div>
+              <div class="bill-card-row">
+                <span class="meta">{{ b.area ?? '—' }} · {{ b.business }}</span>
+                <span class="balance" [class.zero-balance]="b.balanceRemaining === 0">
+                  Rs {{ b.balanceRemaining | number }}
+                </span>
+              </div>
+              <div class="bill-card-row">
+                <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
+                  {{ b.billType === 'CASH' && !b.fullyPaid && b.status !== 'COMPLETED' && b.status !== 'CANCELLED' ? '⚡ CASH — Collect immediately' : b.billType }}
+                </span>
+              </div>
+              <div class="bill-card-row" *ngIf="b.workerName">
+                <span class="meta">Assigned: {{ b.workerName }}</span>
+              </div>
+              <div class="bill-card-actions" *ngIf="hasActions(b)" (click)="$event.stopPropagation()">
+                <button mat-stroked-button [matMenuTriggerFor]="mobileMenu" class="action-btn">
+                  <mat-icon>more_horiz</mat-icon> Actions
+                </button>
+                <mat-menu #mobileMenu="matMenu">
+                  <button mat-menu-item *ngIf="canAssign(b)" [matMenuTriggerFor]="mobileAssignMenu">
+                    <mat-icon>person_add</mat-icon>
+                    <span>{{ b.status === 'ASSIGNED' ? 'Reassign' : 'Assign' }}</span>
+                  </button>
+                  <button mat-menu-item *ngIf="canMarkStoreReceived(b)" (click)="markReceived(b.id)">
+                    <mat-icon>check_circle</mat-icon>
+                    <span>Mark Store Received</span>
+                  </button>
+                  <button mat-menu-item *ngIf="canMarkShopReceived(b)" (click)="markShopReceived(b.id)">
+                    <mat-icon>store</mat-icon>
+                    <span>Mark Shop Received</span>
+                  </button>
+                  <button mat-menu-item *ngIf="canSetReminder" (click)="openReminderDialog(b)">
+                    <mat-icon>notifications</mat-icon>
+                    <span>Set Reminder</span>
+                  </button>
+                  <button mat-menu-item *ngIf="canMarkCompleted(b)" (click)="markCompleted(b)"
+                    style="color:#2e7d32">
+                    <mat-icon style="color:#2e7d32">task_alt</mat-icon>
+                    <span>Mark Completed</span>
+                  </button>
+                </mat-menu>
+                <mat-menu #mobileAssignMenu="matMenu">
+                  <button mat-menu-item *ngFor="let w of workers" (click)="assignBill(b.id, w.id)">
+                    {{ w.fullName }} · {{ w.workerType }}
+                  </button>
+                </mat-menu>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
+              <mat-icon>receipt_long</mat-icon>
+              <p>No bills found</p>
+            </div>
+            <div class="loading-state" *ngIf="loading">
+              <mat-spinner diameter="32"></mat-spinner>
+            </div>
+          </div>
+
+          <!-- desktop table -->
+          <mat-card class="table-card">
+            <table mat-table [dataSource]="dataSource">
+
+              <!-- checkbox column -->
+              <ng-container matColumnDef="select">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let b" (click)="$event.stopPropagation()">
+                  <mat-checkbox
+                    *ngIf="isSelectable(b)"
+                    [checked]="selection.isSelected(b)"
+                    (change)="toggleSelection(b)"
+                    color="primary"
+                  ></mat-checkbox>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="billNumber">
+                <th mat-header-cell *matHeaderCellDef>Bill No.</th>
+                <td mat-cell *matCellDef="let b">{{ b.billNumber }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="customerName">
+                <th mat-header-cell *matHeaderCellDef>Customer</th>
+                <td mat-cell *matCellDef="let b">{{ b.customerName }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="business">
+                <th mat-header-cell *matHeaderCellDef>Business</th>
+                <td mat-cell *matCellDef="let b">{{ b.business }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="area">
+                <th mat-header-cell *matHeaderCellDef>Area</th>
+                <td mat-cell *matCellDef="let b">{{ b.area ?? '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="billType">
+                <th mat-header-cell *matHeaderCellDef>Type</th>
+                <td mat-cell *matCellDef="let b">
+                  <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
+                    {{ b.billType === 'CASH' ? '⚡ CASH' : 'CREDIT' }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="totalAmount">
+                <th mat-header-cell *matHeaderCellDef>Amount</th>
+                <td mat-cell *matCellDef="let b">Rs {{ b.totalAmount | number }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="balanceRemaining">
+                <th mat-header-cell *matHeaderCellDef>Balance</th>
+                <td mat-cell *matCellDef="let b">
+                  <span [class.zero-balance]="b.balanceRemaining === 0">
+                    Rs {{ b.balanceRemaining | number }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="workerName">
+                <th mat-header-cell *matHeaderCellDef>Assigned To</th>
+                <td mat-cell *matCellDef="let b">{{ b.workerName ?? '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let b">
+                  <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
+                  <ng-container *ngIf="getReminderForBill(b.id) as reminder">
+                    <mat-icon class="bell-icon"
+                      [class.bell-overdue]="reminder.reminderDate < today"
+                      [title]="reminder.reminderDate + ' · ' + reminder.period + (reminder.note ? ' · ' + reminder.note : '')">
+                      notifications
+                    </mat-icon>
+                  </ng-container>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let b" (click)="$event.stopPropagation()">
+                  <ng-container *ngIf="hasActions(b)">
+                    <button mat-icon-button [matMenuTriggerFor]="menu">
+                      <mat-icon>more_vert</mat-icon>
+                    </button>
+                    <mat-menu #menu="matMenu">
+                      <button mat-menu-item *ngIf="canAssign(b)" [matMenuTriggerFor]="assignMenu">
+                        <mat-icon>person_add</mat-icon>
+                        <span>{{ b.status === 'ASSIGNED' ? 'Reassign' : 'Assign' }}</span>
+                      </button>
+                      <button mat-menu-item *ngIf="canMarkStoreReceived(b)" (click)="markReceived(b.id)">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>Mark Store Received</span>
+                      </button>
+                      <button mat-menu-item *ngIf="canMarkShopReceived(b)" (click)="markShopReceived(b.id)">
+                        <mat-icon>store</mat-icon>
+                        <span>Mark Shop Received</span>
+                      </button>
+                      <button mat-menu-item *ngIf="canSetReminder" (click)="openReminderDialog(b)">
+                        <mat-icon>notifications</mat-icon>
+                        <span>Set Reminder</span>
+                      </button>
+                      <button mat-menu-item *ngIf="canMarkCompleted(b)" (click)="markCompleted(b)"
+                        style="color:#2e7d32">
+                        <mat-icon style="color:#2e7d32">task_alt</mat-icon>
+                        <span>Mark Completed</span>
+                      </button>
+                    </mat-menu>
+                    <mat-menu #assignMenu="matMenu">
+                      <button mat-menu-item *ngFor="let w of workers" (click)="assignBill(b.id, w.id)">
+                        {{ w.fullName }} · {{ w.workerType }}
+                      </button>
+                    </mat-menu>
+                  </ng-container>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr
+                mat-row
+                *matRowDef="let row; columns: displayedColumns"
+                class="clickable-row"
+                [class.selected-row]="selection.isSelected(row)"
+                [routerLink]="selection.selected.length === 0 ? ['/bills', row.id] : null"
+              ></tr>
+            </table>
+
+            <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
+              <mat-icon>receipt_long</mat-icon>
+              <p>No bills found</p>
+            </div>
+            <div class="loading-state" *ngIf="loading">
+              <mat-spinner diameter="32"></mat-spinner>
+            </div>
+            <mat-paginator [pageSizeOptions]="[20, 50, 100]" pageSize="20" showFirstLastButtons></mat-paginator>
+          </mat-card>
+
+        </ng-container>
+
+        <ng-template #errorBlock>
+          <div class="error-state">
+            <p>Failed to load bills.</p>
+            <button mat-stroked-button (click)="load()">Retry</button>
+          </div>
+        </ng-template>
+      </div>
   </ng-template>
 </div>

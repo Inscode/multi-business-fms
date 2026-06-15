@@ -22,7 +22,7 @@
         <mat-icon>dashboard</mat-icon>
         <span *ngIf="!collapsed">Dashboard</span>
       </a>
-      <a class="nav-item" routerLink="/bills" routerLinkActive="active" matRipple *ngIf="showBills" (click)="isMobile && sidenav.close()">
+      <a class="nav-item" routerLink="/bills" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" matRipple *ngIf="showBills" (click)="isMobile && sidenav.close()">
         <mat-icon>receipt_long</mat-icon>
         <span *ngIf="!collapsed">Bills</span>
       </a>

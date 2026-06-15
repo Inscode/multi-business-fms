@@ -47,6 +47,7 @@
 .payment-right { display: flex; align-items: center; gap: 10px; }
 .recip-name { font-size: 14px; font-weight: 600; color: #1a1a2e; }
 .payment-month { font-size: 12px; color: #607d8b; }
+.payment-notes { font-size: 11px; color: #888; font-style: italic; }
 .payment-amount { font-size: 14px; font-weight: 700; color: #1a1a2e; }
 .status-chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
   &.status-recorded           { background: #e8f5e9; color: #2e7d32; }

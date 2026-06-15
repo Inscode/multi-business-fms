@@ -9,10 +9,12 @@ import com.multi.finance.dto.request.StockItemRequest;
 import com.multi.finance.dto.response.BillStockItemResponse;
 import com.multi.finance.dto.response.BillStockStatusResponse;
 import com.multi.finance.dto.response.StockBillResponse;
+import com.multi.finance.dto.response.StockReductionPendingResponse;
 import com.multi.finance.dto.response.StockReductionStatusResponse;
 import com.multi.finance.dto.response.SummaryLoadBillResponse;
 import com.multi.finance.entity.*;
 import com.multi.finance.enums.BillSource;
+import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class StockServiceImpl {
     private final SummaryLoadBillRepository summaryLoadBillRepository;
     private final SummaryLoadBillItemRepository summaryLoadBillItemRepository;
     private final UserRepository userRepository;
+    private final StockReductionPendingRepository stockReductionPendingRepository;
 
     // ─────────────────────────────────────────────────────────────
     // SUMMARY LOAD BILL
@@ -139,9 +142,9 @@ public class StockServiceImpl {
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * Reduce stock for a specific existing bill individually.
-     * For SYSTEM linking bills: saves BillStockItems as reference only (no shadow movement).
-     * For all other bills: saves BillStockItems + BILL_OUT shadow movements.
+     * Submit an individual stock reduction request for admin approval.
+     * For SYSTEM linking bills: saves BillStockItems as reference only (no approval needed).
+     * For all other bills: creates a PENDING request that admin must approve.
      */
     @Transactional
     public void reduceStockForBill(IndividualStockReductionRequest request) {
@@ -150,8 +153,7 @@ public class StockServiceImpl {
         Bill bill = billRepository.findById(request.getBillId())
                 .orElseThrow(() -> new RuntimeException("Bill not found: " + request.getBillId()));
 
-        // SYSTEM linking bills (willBeLinked=true OR already has linked children):
-        // save reference items only — stock already reduced by linked DRAFT/MANUAL bills
+        // SYSTEM linking bills: save reference items only — no approval needed
         boolean isLinkingBill = Boolean.TRUE.equals(bill.getWillBeLinked())
                 || !billStockLinkRepository.findBySystemBillId(bill.getId()).isEmpty();
         if (isLinkingBill) {
@@ -160,37 +162,137 @@ public class StockServiceImpl {
         }
 
         // Guard: already individually reduced?
-        List<ShadowStockMovement> existing = shadowStockMovementRepository
-                .findByBillId(bill.getId());
+        List<ShadowStockMovement> existing = shadowStockMovementRepository.findByBillId(bill.getId());
         if (!existing.isEmpty()) {
             throw new RuntimeException("Stock has already been reduced for this bill");
         }
+
+        // Guard: already has a pending or approved reduction request?
+        if (stockReductionPendingRepository.existsByBillIdAndStatus(bill.getId(), StockReductionPending.ApprovalStatus.PENDING)) {
+            throw new RuntimeException("A pending reduction request already exists for this bill");
+        }
+
+        // Build pending request with items
+        StockReductionPending pending = StockReductionPending.builder()
+                .bill(bill)
+                .submittedBy(currentUser)
+                .submittedAt(LocalDateTime.now())
+                .notes(request.getNotes())
+                .build();
 
         for (StockItemRequest item : request.getItems()) {
             ReturnProduct product = returnProductRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
 
-            // Save bill-product link (for audit trail)
-            BillStockItem billItem = BillStockItem.builder()
-                    .bill(bill)
+            BigDecimal lineTotal = BigDecimal.valueOf(item.getQuantity()).multiply(product.getUnitPrice());
+            StockReductionPendingItem pendingItem = StockReductionPendingItem.builder()
+                    .reduction(pending)
                     .product(product)
                     .quantity(item.getQuantity())
                     .unitPrice(product.getUnitPrice())
-                    .lineTotal(BigDecimal.valueOf(item.getQuantity()).multiply(product.getUnitPrice()))
+                    .lineTotal(lineTotal)
                     .createdAt(LocalDateTime.now())
                     .build();
-            billStockItemRepository.save(billItem);
-
-            // Create stock deduction movement
-            createShadowStockMovement(
-                    product,
-                    item.getQuantity(),
-                    ShadowStockMovement.MovementType.BILL_OUT,
-                    bill,
-                    null,
-                    currentUser
-            );
+            pending.getItems().add(pendingItem);
         }
+
+        stockReductionPendingRepository.save(pending);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockReductionPendingResponse> getPendingIndividualReductions() {
+        return stockReductionPendingRepository.findAllByOrderBySubmittedAtDesc().stream()
+                .map(this::toReductionPendingResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void approveIndividualReduction(Long id) {
+        User currentUser = getCurrentUser();
+
+        StockReductionPending pending = stockReductionPendingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Reduction request not found: " + id));
+
+        if (pending.getStatus() != StockReductionPending.ApprovalStatus.PENDING) {
+            throw new RuntimeException("Request is not in PENDING status");
+        }
+
+        Bill bill = pending.getBill();
+
+        for (StockReductionPendingItem pendingItem : pending.getItems()) {
+            ReturnProduct product = pendingItem.getProduct();
+
+            billStockItemRepository.save(BillStockItem.builder()
+                    .bill(bill)
+                    .product(product)
+                    .quantity(pendingItem.getQuantity())
+                    .unitPrice(pendingItem.getUnitPrice())
+                    .lineTotal(pendingItem.getLineTotal())
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            createShadowStockMovement(product, pendingItem.getQuantity(),
+                    ShadowStockMovement.MovementType.BILL_OUT, bill, null, currentUser);
+        }
+
+        pending.setStatus(StockReductionPending.ApprovalStatus.APPROVED);
+        pending.setReviewedBy(currentUser);
+        pending.setReviewedAt(LocalDateTime.now());
+        stockReductionPendingRepository.save(pending);
+    }
+
+    @Transactional
+    public void rejectIndividualReduction(Long id, String rejectionReason) {
+        User currentUser = getCurrentUser();
+
+        StockReductionPending pending = stockReductionPendingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Reduction request not found: " + id));
+
+        if (pending.getStatus() != StockReductionPending.ApprovalStatus.PENDING) {
+            throw new RuntimeException("Request is not in PENDING status");
+        }
+
+        pending.setStatus(StockReductionPending.ApprovalStatus.REJECTED);
+        pending.setReviewedBy(currentUser);
+        pending.setReviewedAt(LocalDateTime.now());
+        pending.setRejectionReason(rejectionReason);
+        stockReductionPendingRepository.save(pending);
+    }
+
+    @Transactional
+    public void markSavingsCollected(Long billId, boolean collected) {
+        Bill bill = billRepository.findById(billId)
+                .orElseThrow(() -> new RuntimeException("Bill not found: " + billId));
+        bill.setSavingsCollected(collected);
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
+    }
+
+    private StockReductionPendingResponse toReductionPendingResponse(StockReductionPending r) {
+        List<StockReductionPendingResponse.ItemDto> items = r.getItems().stream()
+                .map(i -> StockReductionPendingResponse.ItemDto.builder()
+                        .productName(i.getProduct().getName())
+                        .quantity(i.getQuantity())
+                        .unitPrice(i.getUnitPrice())
+                        .lineTotal(i.getLineTotal())
+                        .build())
+                .collect(Collectors.toList());
+
+        Bill bill = r.getBill();
+        return StockReductionPendingResponse.builder()
+                .id(r.getId())
+                .billId(bill.getId())
+                .billNumber(bill.getBillNumber())
+                .customerName(bill.getCustomerName())
+                .status(r.getStatus().name())
+                .submittedByName(r.getSubmittedBy() != null ? r.getSubmittedBy().getFullName() : null)
+                .reviewedByName(r.getReviewedBy() != null ? r.getReviewedBy().getFullName() : null)
+                .submittedAt(r.getSubmittedAt())
+                .reviewedAt(r.getReviewedAt())
+                .notes(r.getNotes())
+                .rejectionReason(r.getRejectionReason())
+                .items(items)
+                .build();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -199,7 +301,10 @@ public class StockServiceImpl {
 
     @Transactional(readOnly = true)
     public List<StockReductionStatusResponse> getStockReductionStatus() {
-        List<Bill> allBills = billRepository.findByBusinessOrderByCreatedAtDesc(BusinessType.RAINCO);
+        List<Bill> allBills = billRepository.findByBusinessOrderByCreatedAtDesc(BusinessType.RAINCO)
+                .stream()
+                .filter(b -> b.getStatus() != BillStatus.CANCELLED)
+                .collect(Collectors.toList());
 
         Map<Long, SummaryLoadBill> billToSummary = new HashMap<>();
         summaryLoadBillRepository.findAllByOrderByCreatedAtDesc().forEach(slb ->
@@ -207,6 +312,7 @@ public class StockServiceImpl {
         );
 
         Set<Long> individuallyReduced = shadowStockMovementRepository.findBillIdsWithActiveMovements();
+        Set<Long> pendingReductionBillIds = stockReductionPendingRepository.findBillIdsWithPendingReduction();
 
         // Batch-load all links to compute savings without N+1
         List<BillStockLink> allLinks = billStockLinkRepository.findAllWithBills();
@@ -235,12 +341,14 @@ public class StockServiceImpl {
             if (linkedSystemBillIds.contains(bill.getId())) {
                 status = Boolean.TRUE.equals(bill.getStockReconciled()) ? "RECONCILED" : "LINKED";
                 childrenTotal = childrenTotals.getOrDefault(bill.getId(), BigDecimal.ZERO);
-                savings = bill.getTotalAmount().subtract(childrenTotal);
+                savings = childrenTotal.subtract(bill.getTotalAmount());
             } else if (linkedChildBillIds.contains(bill.getId())) {
                 status = "LINKED";
             } else if (Boolean.TRUE.equals(bill.getWillBeLinked())) {
                 status = "WILL_LINK";
-            } else if (individuallyReduced.contains(bill.getId())) {
+            } else if (pendingReductionBillIds.contains(bill.getId())) {
+                status = "REDUCTION_PENDING";
+            } else if (individuallyReduced.contains(bill.getId()) || Boolean.TRUE.equals(bill.getStockCleared())) {
                 status = "INDIVIDUALLY_REDUCED";
             } else if (billToSummary.containsKey(bill.getId())) {
                 SummaryLoadBill slb = billToSummary.get(bill.getId());
@@ -352,7 +460,8 @@ public class StockServiceImpl {
                     .map(BillStockStatusResponse.LinkedChildInfo::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             builder.childrenTotalAmount(childrenTotal);
-            builder.savingsAmount(bill.getTotalAmount().subtract(childrenTotal));
+            builder.savingsAmount(childrenTotal.subtract(bill.getTotalAmount()));
+            builder.savingsCollected(Boolean.TRUE.equals(bill.getSavingsCollected()));
 
             // Aggregate comparison: system bill reference items vs sum of all children items
             Map<Long, String> nameMap = new HashMap<>();
@@ -592,6 +701,9 @@ public class StockServiceImpl {
         }
         if (billStockLinkRepository.existsByChildBillId(bill.getId())) return "LINKED";
         if (!billStockLinkRepository.findBySystemBillId(bill.getId()).isEmpty()) return "LINKED";
+        if (stockReductionPendingRepository.existsByBillIdAndStatus(bill.getId(), StockReductionPending.ApprovalStatus.PENDING)) {
+            return "REDUCTION_PENDING";
+        }
         return "NOT_REDUCED";
     }
 
@@ -944,10 +1056,21 @@ public class StockServiceImpl {
                 .map(Bill::getId)
                 .collect(Collectors.toList());
 
+        List<SummaryLoadBillResponse.ItemDto> itemDtos = slb.getItems().stream()
+                .map(i -> SummaryLoadBillResponse.ItemDto.builder()
+                        .productName(i.getProduct().getName())
+                        .quantity(i.getQuantity())
+                        .unitPrice(i.getProduct().getUnitPrice())
+                        .build())
+                .collect(Collectors.toList());
+
+        long totalQty = slb.getItems().stream().mapToLong(i -> i.getQuantity()).sum();
+
         return SummaryLoadBillResponse.builder()
                 .id(slb.getId())
                 .systemBillIds(billIds)
                 .numberOfBills(slb.getSystemBills().size())
+                .totalQuantity(totalQty)
                 .loadDate(slb.getLoadDate())
                 .notes(slb.getNotes())
                 .status(slb.getStatus().toString())
@@ -955,6 +1078,7 @@ public class StockServiceImpl {
                 .createdAt(slb.getCreatedAt())
                 .approvedByName(slb.getApprovedBy() != null ? slb.getApprovedBy().getFullName() : null)
                 .approvedAt(slb.getApprovedAt())
+                .items(itemDtos)
                 .build();
     }
 }

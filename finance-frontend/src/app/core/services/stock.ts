@@ -54,6 +54,12 @@ export interface StockBillListItem {
   isLinkingBill?: boolean;
 }
 
+export interface SummaryLoadBillItem {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface SummaryLoadBill {
   id: number;
   systemBillIds: number[];
@@ -66,6 +72,7 @@ export interface SummaryLoadBill {
   createdAt: string;
   approvedByName?: string;
   approvedAt?: string;
+  items?: SummaryLoadBillItem[];
 }
 
 export interface StockReductionStatus {
@@ -76,13 +83,35 @@ export interface StockReductionStatus {
   amount: number;
   balanceRemaining?: number;
   billDate: string;
-  reductionStatus: 'NOT_REDUCED' | 'SUMMARY_PENDING' | 'SUMMARY_APPROVED' | 'INDIVIDUALLY_REDUCED' | 'LINKED' | 'WILL_LINK' | 'RECONCILED';
+  reductionStatus: 'NOT_REDUCED' | 'SUMMARY_PENDING' | 'SUMMARY_APPROVED' | 'INDIVIDUALLY_REDUCED' | 'LINKED' | 'WILL_LINK' | 'RECONCILED' | 'REDUCTION_PENDING';
   totalQty?: number;
   summaryLoadBillId?: number;
   enteredByName: string;
   stockReconciled?: boolean;
   childrenTotalAmount?: number;
   savingsAmount?: number;
+}
+
+export interface IndividualReductionPendingItem {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface IndividualReductionPending {
+  id: number;
+  billId: number;
+  billNumber: string;
+  customerName: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  submittedByName: string;
+  reviewedByName?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  notes?: string;
+  rejectionReason?: string;
+  items: IndividualReductionPendingItem[];
 }
 
 export interface IndividualStockReductionRequest {
@@ -164,6 +193,7 @@ export interface BillStockStatus {
   quantitiesMatch?: boolean;
   childrenTotalAmount?: number;
   savingsAmount?: number;
+  savingsCollected?: boolean;
   // summary context
   summaryLoadId?: number;
   summaryStatus?: string;
@@ -325,5 +355,23 @@ export class StockService {
   // Admin marks a SYSTEM linking bill as stock-reconciled
   reconcileBill(billId: number): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/bills/${billId}/reconcile`, {});
+  }
+
+  // Admin marks/unmarks savings as collected for a system linking bill
+  markSavingsCollected(billId: number, collected: boolean): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/bills/${billId}/savings-collected`, { collected });
+  }
+
+  // Individual reduction pending requests (admin only)
+  getPendingIndividualReductions(): Observable<IndividualReductionPending[]> {
+    return this.http.get<IndividualReductionPending[]>(`${this.apiUrl}/reductions/pending`);
+  }
+
+  approveIndividualReduction(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/reductions/${id}/approve`, {});
+  }
+
+  rejectIndividualReduction(id: number, reason?: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/reductions/${id}/reject`, { reason });
   }
 }

@@ -134,11 +134,11 @@
 
     <!-- Step 3: Save -->
     <div class="section" *ngIf="selectedBill && lineItems.length > 0">
-      <h3>Step 3: {{ isLinkingBill ? 'Save Reference Items' : 'Confirm Stock Reduction' }}</h3>
+      <h3>Step 3: {{ isLinkingBill ? 'Save Reference Items' : 'Submit for Approval' }}</h3>
 
       <p class="confirm-note" *ngIf="!isLinkingBill">
         <mat-icon>info</mat-icon>
-        This will immediately reduce stock for the selected products. This action cannot be undone.
+        This will submit a stock reduction request for admin approval. Stock will be deducted once approved.
       </p>
       <p class="confirm-note ref-confirm" *ngIf="isLinkingBill">
         <mat-icon>receipt_long</mat-icon>
@@ -150,7 +150,7 @@
         <button mat-raised-button [color]="isLinkingBill ? 'accent' : 'primary'" (click)="save()" [disabled]="saving">
           <mat-icon *ngIf="!saving">{{ isLinkingBill ? 'receipt_long' : 'remove_circle' }}</mat-icon>
           <mat-progress-spinner *ngIf="saving" diameter="20" mode="indeterminate"></mat-progress-spinner>
-          {{ isLinkingBill ? 'Save Reference Items' : 'Reduce Stock for This Bill' }}
+          {{ isLinkingBill ? 'Save Reference Items' : 'Submit for Approval' }}
         </button>
         <button mat-stroked-button (click)="reset()">Reset</button>
       </div>

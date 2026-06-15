@@ -101,6 +101,7 @@
             <div class="recip-cell">
               <span class="recip-name">{{ p.recipientName }}</span>
               <span class="desig-badge">{{ p.designation | titlecase }}</span>
+              <span class="payment-notes" *ngIf="p.notes">{{ p.notes }}</span>
             </div>
             <span class="month-cell">{{ p.month }}</span>
             <span class="amount-cell col-right">Rs {{ p.amount | number:'1.2-2' }}</span>

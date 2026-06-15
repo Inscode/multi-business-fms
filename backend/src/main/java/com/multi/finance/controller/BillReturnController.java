@@ -29,7 +29,7 @@ public class BillReturnController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<BillReturnResponse>> getAll(
             @RequestParam(required = false) ReturnStatus status) {
         return ResponseEntity.ok(billReturnService.getAll(status));

@@ -87,7 +87,7 @@ public class DashboardServiceImpl {
                 .pendingBills(billRepository
                         .countByBusinessAndStatusIn(business, PENDING_STATUSES))
                 .totalOutstanding(billRepository
-                        .sumOutstandingByBusiness(business))
+                        .sumOutstandingByBusinessExcludingLinking(business))
                 // Today's bills by business
                 .raincoTodayBills(billRepository
                         .countByBusinessAndBillDateAndStatusNot(BusinessType.RAINCO, today, BillStatus.CANCELLED))
@@ -102,6 +102,8 @@ public class DashboardServiceImpl {
                         .countByPaymentDateAndBillBusiness(today, BusinessType.STATIONERY))
                 .plasticTodayPayments(paymentRepository
                         .countByPaymentDateAndBillBusiness(today, BusinessType.PLASTIC))
+                .cashPending(billRepository.sumCashPendingByBusiness(business))
+                .cashSerious(billRepository.sumCashSeriousByBusiness(business, today.minusDays(15)))
                 .pendingPayments(paymentRepository
                         .findByStatusOrderByCreatedAtDesc(PaymentStatus.ENTERED)
                         .stream().map(this::toPaymentSummary).toList())

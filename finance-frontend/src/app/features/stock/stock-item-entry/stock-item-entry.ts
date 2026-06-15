@@ -214,7 +214,7 @@ export class StockItemEntryComponent implements OnInit {
       next: () => {
         this.successMessage = this.isLinkingBill
           ? `Reference items saved for ${this.selectedBill!.billNumber} — ${this.lineItems.length} product(s). No stock movement created.`
-          : `Stock reduced for bill ${this.selectedBill!.billNumber} — ${this.lineItems.length} product(s)`;
+          : `Reduction request submitted for ${this.selectedBill!.billNumber} — awaiting admin approval.`;
         this.saving = false;
         this.clearBill();
         this.loadBills(); // refresh list

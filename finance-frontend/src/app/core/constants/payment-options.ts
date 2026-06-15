@@ -14,9 +14,9 @@
 ];
 
 export const AREAS = [
-  'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
-  'Bogakumbura', 'Boralanda', 'Diyatalawa', 'Ella',
-  'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
-  'Kandaketiya', 'Kumbalwela', 'Lunugala', 'Mahiyanganaya',
-  'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada',
+  'BADALKUMBURA', 'BADULLA', 'BANDARAWELA', 'BERAGALA',
+  'BOGAKUMBURA', 'BORALANDA', 'DIYATALAWA', 'ELLA',
+  'ETAMPITIYA', 'HALDUMMULLA', 'HALI-ELA', 'HASALAKA', 'HAPUTALE',
+  'KANDAKETIYA', 'KUMBALWELA', 'LUNUGALA', 'MAHIYANGANAYA',
+  'MEEGAHAKIVULA', 'PASSARA', 'UVA-PARANAGAMA', 'WELIMADA',
 ];

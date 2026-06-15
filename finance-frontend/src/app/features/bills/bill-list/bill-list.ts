@@ -18,11 +18,13 @@ import { MatTableDataSource } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 import { SelectionModel } from '@angular/cdk/collections';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Bill, BillResponse, BillSequenceGap } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
+import { LinkingBillsTab } from '../linking-bills-tab/linking-bills-tab';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { CollectionNoteService, CollectionNoteResponse } from '../../../core/services/collection-note';
@@ -54,6 +56,8 @@ import { BillFilterState } from '../../../core/services/bill-filter-state';
     DecimalPipe,
     LowerCasePipe,
     MatInput,
+    MatTabsModule,
+    LinkingBillsTab,
   ],
   templateUrl: './bill-list.html',
   styleUrl: './bill-list.scss',
@@ -365,6 +369,7 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   applyFilters(): void {
     const query = this.searchQuery.toLowerCase().trim();
     const filtered = this.allBills.filter(b => {
+      if (b.willBeLinked) return false; // linking bills shown in separate tab
       const matchesSearch = !query ||
         b.customerName.toLowerCase().includes(query) ||
         (b.billNumber ?? '').toLowerCase().includes(query);

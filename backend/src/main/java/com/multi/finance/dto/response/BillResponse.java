@@ -39,4 +39,5 @@ public class BillResponse {
     private LocalDate billDate;
     private String notes;
     private LocalDateTime createdAt;
+    private Boolean willBeLinked;
 }
