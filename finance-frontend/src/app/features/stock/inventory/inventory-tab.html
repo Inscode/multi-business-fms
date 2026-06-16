@@ -29,6 +29,12 @@
           </button>
         </div>
 
+        <div class="toolbar-row-secondary" *ngIf="canFilterActiveOnly">
+          <mat-slide-toggle [(ngModel)]="activeOnly" (change)="applyBalanceFilter()" class="active-only-toggle">
+            Show active only
+          </mat-slide-toggle>
+        </div>
+
         <!-- Add/Edit Product form -->
         <div *ngIf="showProductForm" class="product-form-card">
           <h4>{{ editingProductId ? 'Edit Product' : 'New Product' }}</h4>

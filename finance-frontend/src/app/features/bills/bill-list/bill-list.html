@@ -34,14 +34,43 @@
     </div>
     <div class="header-actions">
       <button
-        mat-flat-button
-        color="accent"
+        mat-stroked-button
         *ngIf="hasBulkSelection"
         (click)="openBulkPayment()"
-        class="bulk-btn"
+        class="bulk-btn bulk-payment-btn"
       >
         <mat-icon>account_balance_wallet</mat-icon>
         Combined Payment ({{ selection.selected.length }})
+      </button>
+      <button
+        mat-stroked-button
+        *ngIf="canBulkAssign"
+        (click)="openBulkAssign()"
+        class="bulk-btn bulk-status-btn"
+        matTooltip="Assign all selected bills to one worker"
+      >
+        <mat-icon>group_add</mat-icon>
+        Bulk Assign ({{ selection.selected.length }})
+      </button>
+      <button
+        mat-stroked-button
+        *ngIf="canBulkMarkReceived"
+        (click)="bulkMarkReceived()"
+        class="bulk-btn bulk-status-btn"
+        matTooltip="Mark all selected bills as Store Received"
+      >
+        <mat-icon>inventory</mat-icon>
+        Mark Received ({{ selection.selected.length }})
+      </button>
+      <button
+        mat-stroked-button
+        *ngIf="canBulkMarkShopReceived"
+        (click)="bulkMarkShopReceived()"
+        class="bulk-btn bulk-status-btn"
+        matTooltip="Mark all selected bills as Shop Received"
+      >
+        <mat-icon>storefront</mat-icon>
+        Mark Shop Received ({{ selection.selected.length }})
       </button>
       <a mat-flat-button color="primary" routerLink="/bills/create" *ngIf="!isOwner">
         <mat-icon>add</mat-icon> New Bill

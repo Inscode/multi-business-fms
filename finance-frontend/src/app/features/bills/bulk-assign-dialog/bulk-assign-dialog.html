@@ -1,0 +1,60 @@
+<div class="dialog-shell">
+
+  <!-- sticky header -->
+  <div class="dialog-header">
+    <div>
+      <h2 class="dialog-title">Bulk Assign</h2>
+      <p class="dialog-sub">{{ data.bills.length }} bill{{ data.bills.length !== 1 ? 's' : '' }} selected</p>
+    </div>
+    <button mat-icon-button (click)="close()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- scrollable body -->
+  <div class="dialog-body">
+
+    <div class="bills-section">
+      <p class="section-label">Bills to assign</p>
+      <div class="bill-row" *ngFor="let b of data.bills">
+        <div class="bill-info">
+          <span class="bill-num">{{ b.billNumber }}</span>
+          <span class="bill-customer">{{ b.customerName }}</span>
+        </div>
+        <span class="bill-amount">Rs {{ b.balanceRemaining | number }}</span>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <div class="assign-section">
+      <p class="section-label">Assign to worker</p>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-field">
+        <mat-label>Worker</mat-label>
+        <mat-select [formControl]="workerCtrl">
+          <mat-option *ngFor="let w of data.workers" [value]="w.id">{{ w.fullName }}</mat-option>
+        </mat-select>
+        <mat-error *ngIf="workerCtrl.hasError('required')">Required</mat-error>
+      </mat-form-field>
+
+      <div class="error-msg" *ngIf="errorMsg">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ errorMsg }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- sticky footer -->
+  <mat-divider></mat-divider>
+  <div class="dialog-footer">
+    <button mat-stroked-button type="button" (click)="close()">Cancel</button>
+    <button mat-flat-button color="primary" type="button" (click)="submit()" [disabled]="submitting">
+      <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
+      <span *ngIf="!submitting">Assign All</span>
+    </button>
+  </div>
+
+</div>

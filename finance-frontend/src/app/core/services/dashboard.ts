@@ -83,6 +83,60 @@ export interface ShopBill {
   notes: string;
 }
 
+export interface DsoTrendEntry {
+  month: string;              // "YYYY-MM"
+  avgCollectionDays: number;
+  settledBillCount: number;
+}
+
+export interface CollectorPerformanceEntry {
+  workerId: number;
+  workerName: string;
+  totalCollected: number;
+  paymentCount: number;
+  avgDaysToCollect: number;
+  partialRate: number;        // 0..1
+}
+
+export interface UpcomingChequeEntry {
+  chequeDate: string;
+  totalAmount: number;
+  count: number;
+}
+
+export interface StaleChequeEntry {
+  chequeDate: string;
+  amount: number;
+  customerName: string;
+  billNumber: string;
+}
+
+export interface CustomerRiskEntry {
+  customerName: string;
+  area: string | null;
+  partialCount: number;
+  returnedCount: number;
+  currentOutstanding: number;
+  riskScore: number;
+}
+
+export interface PaymentMixEntry {
+  date: string;
+  cash: number;
+  cheque: number;
+  bankTransfer: number;
+  total: number;
+}
+
+export interface CollectionHealthData {
+  dsoTrend?: DsoTrendEntry[];
+  collectorLeaderboard?: CollectorPerformanceEntry[];
+  upcomingCheques?: UpcomingChequeEntry[];
+  staleCheques?: StaleChequeEntry[];
+  riskyCustomers?: CustomerRiskEntry[];
+  paymentMix?: PaymentMixEntry[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -102,6 +156,16 @@ export class Dashboard {
 
   getShopDashboard(): Observable<ShopDashboardData> {
     return this.http.get<ShopDashboardData>(`${this.apiUrl}/shop`);
+  }
+
+  getCollectionHealth(business: string = 'RAINCO'): Observable<CollectionHealthData> {
+    const params = new HttpParams().set('business', business);
+    return this.http.get<CollectionHealthData>(`${this.apiUrl}/collection-health`, { params });
+  }
+
+  getUpcomingCheques(business: string, from: string, to: string): Observable<UpcomingChequeEntry[]> {
+    const params = new HttpParams().set('business', business).set('from', from).set('to', to);
+    return this.http.get<UpcomingChequeEntry[]>(`${this.apiUrl}/upcoming-cheques`, { params });
   }
 
 }
