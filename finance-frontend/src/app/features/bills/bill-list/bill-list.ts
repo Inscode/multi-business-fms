@@ -26,6 +26,7 @@ import { Bill, BillResponse, BillSequenceGap } from '../../../core/services/bill
 import { Auth } from '../../../core/services/auth';
 import { LinkingBillsTab } from '../linking-bills-tab/linking-bills-tab';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
+import { BulkAssignDialog } from '../bulk-assign-dialog/bulk-assign-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { CollectionNoteService, CollectionNoteResponse } from '../../../core/services/collection-note';
 import { BillReminderResponse, BillReminderService } from '../../../core/services/bill-reminder';
@@ -126,6 +127,21 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   get hasBulkSelection(): boolean { return this.selection.selected.length >= 2; }
 
   isSelectable(b: any): boolean { return !b.fullyPaid && b.status !== 'CANCELLED'; }
+
+  get canBulkAssign(): boolean {
+    return this.hasBulkSelection &&
+      this.selection.selected.every((b: BillResponse) => this.canAssign(b));
+  }
+
+  get canBulkMarkReceived(): boolean {
+    return this.hasBulkSelection &&
+      this.selection.selected.every((b: BillResponse) => this.canMarkStoreReceived(b));
+  }
+
+  get canBulkMarkShopReceived(): boolean {
+    return this.hasBulkSelection &&
+      this.selection.selected.every((b: BillResponse) => this.canMarkShopReceived(b));
+  }
 
   pendingCollections: CollectionNoteResponse[] = [];
   collectionsExpanded = false;
@@ -403,6 +419,62 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
         this.selection.clear();
         this.load();
       }
+    });
+  }
+
+  openBulkAssign(): void {
+    const ref = this.dialog.open(BulkAssignDialog, {
+      data: { bills: this.selection.selected, workers: this.workers },
+      width: '520px',
+      maxWidth: '100vw',
+      maxHeight: '95vh',
+      panelClass: 'bulk-assign-panel',
+    });
+    ref.afterClosed().subscribe(success => {
+      if (success) {
+        this.selection.clear();
+        this.load();
+      }
+    });
+  }
+
+  bulkMarkReceived(): void {
+    const count = this.selection.selected.length;
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Mark as Store Received',
+        message: `Mark ${count} selected bill${count !== 1 ? 's' : ''} as Store Received?`,
+        confirmText: 'Mark Received',
+        confirmColor: 'primary',
+      },
+      width: '400px',
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      const billIds = this.selection.selected.map((b: BillResponse) => b.id);
+      this.billService.bulkMarkReceived(billIds).subscribe({
+        next: () => { this.selection.clear(); this.load(); },
+        error: (err) => this.showError(err?.error?.message ?? 'Failed to mark bills as received.'),
+      });
+    });
+  }
+
+  bulkMarkShopReceived(): void {
+    const count = this.selection.selected.length;
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Mark as Shop Received',
+        message: `Mark ${count} selected bill${count !== 1 ? 's' : ''} as Shop Received?`,
+        confirmText: 'Mark Received',
+        confirmColor: 'primary',
+      },
+      width: '400px',
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      const billIds = this.selection.selected.map((b: BillResponse) => b.id);
+      this.billService.bulkMarkShopReceived(billIds).subscribe({
+        next: () => { this.selection.clear(); this.load(); },
+        error: (err) => this.showError(err?.error?.message ?? 'Failed to mark bills as shop received.'),
+      });
     });
   }
 

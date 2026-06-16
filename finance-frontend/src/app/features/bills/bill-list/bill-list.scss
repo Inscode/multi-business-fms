@@ -339,12 +339,34 @@
     flex-wrap: wrap;
   }
 
+  // Secondary bulk-action buttons — lighter/outlined so they sit below
+  // "New Bill" in visual weight, color-coded by action type so users can
+  // pattern-match (blue = money/payment, gray-blue = status/assignment)
+  // without reading every label.
   .bulk-btn {
-    background: #0d2137;
-    color: #fff;
     display: flex;
     align-items: center;
     gap: 4px;
+    font-weight: 600;
+    border-radius: 8px;
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  }
+
+  .bulk-payment-btn {
+    border-color: #90caf9 !important;
+    color: #1565c0 !important;
+    background: #e3f2fd;
+
+    &:hover { background: #bbdefb; }
+  }
+
+  .bulk-status-btn {
+    border-color: #b0bec5 !important;
+    color: #37474f !important;
+    background: #eceff1;
+
+    &:hover { background: #cfd8dc; }
   }
 
   .page-title {

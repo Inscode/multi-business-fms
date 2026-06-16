@@ -1,8 +1,18 @@
 .card-container { margin: 20px 0; }
 
 .toolbar-row {
-  display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 16px;
+  display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px;
   .search-field { flex: 1; min-width: 200px; }
+}
+
+.toolbar-row-secondary {
+  display: flex; align-items: center; margin: -2px 0 14px 2px;
+
+  .active-only-toggle {
+    font-size: 13px;
+    transform: scale(0.9);
+    transform-origin: left center;
+  }
 }
 
 .product-form-card {

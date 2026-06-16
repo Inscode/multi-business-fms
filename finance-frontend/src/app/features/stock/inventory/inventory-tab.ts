@@ -15,6 +15,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { InventoryService, ProductStockBalance, StockInRequest } from '../../../core/services/inventory';
 import { Auth } from '../../../core/services/auth';
 
@@ -28,7 +29,7 @@ interface LineItem { productId: number; productName: string; quantity: number; }
     MatTabsModule, MatTableModule, MatButtonModule, MatCardModule,
     MatFormFieldModule, MatInputModule, MatIconModule,
     MatProgressSpinnerModule, MatAutocompleteModule, MatDialogModule,
-    MatTooltipModule, MatDividerModule, MatExpansionModule,
+    MatTooltipModule, MatDividerModule, MatExpansionModule, MatSlideToggleModule,
   ],
   templateUrl: './inventory-tab.html',
   styleUrl: './inventory-tab.scss',
@@ -38,12 +39,15 @@ export class InventoryTabComponent implements OnInit {
 
   // ── Auth ───────────────────────────────────────────────────────
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
+  get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
+  get canFilterActiveOnly(): boolean { return this.isAdmin || this.isOwner; }
 
   // ── Stock Balances (Tab 1) ─────────────────────────────────────
   balances: ProductStockBalance[] = [];
   filteredBalances: ProductStockBalance[] = [];
   balanceSearch = '';
   loadingBalances = false;
+  activeOnly = true;
   balanceColumns = ['productName','unitPrice','availableQty','damageQty','status'];
 
   // ── Qty adjustment (admin) ─────────────────────────────────────
@@ -138,6 +142,7 @@ export class InventoryTabComponent implements OnInit {
     const s = this.balanceSearch.toLowerCase();
     this.filteredBalances = this.balances
       .filter(b => this.isAdmin || b.active)
+      .filter(b => !(this.canFilterActiveOnly && this.activeOnly) || b.active)
       .filter(b => !s || b.productName.toLowerCase().includes(s));
     this.cdr.detectChanges();
   }

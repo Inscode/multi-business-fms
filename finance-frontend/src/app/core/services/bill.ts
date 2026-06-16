@@ -130,6 +130,18 @@ export class Bill {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/assign`, { workerId });
   }
 
+  bulkAssignBills(billIds: number[], workerId: number): Observable<BillResponse[]> {
+    return this.http.patch<BillResponse[]>(`${this.apiUrl}/bulk-assign`, { billIds, workerId });
+  }
+
+  bulkMarkReceived(billIds: number[]): Observable<BillResponse[]> {
+    return this.http.patch<BillResponse[]>(`${this.apiUrl}/bulk-receive`, { billIds });
+  }
+
+  bulkMarkShopReceived(billIds: number[]): Observable<BillResponse[]> {
+    return this.http.patch<BillResponse[]>(`${this.apiUrl}/bulk-shop-receive`, { billIds });
+  }
+
   markReceived(id: number): Observable<BillResponse> {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/receive`, {});
   }

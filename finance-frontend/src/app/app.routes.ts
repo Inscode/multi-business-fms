@@ -58,6 +58,11 @@ export const routes: Routes = [
           .then(m => m.AgingReport)
       },
       {
+        path: 'dashboard/collection-health',
+        loadComponent: () => import('./features/dashboard/collection-health/collection-health')
+          .then(m => m.CollectionHealth)
+      },
+      {
         path: 'bills/:id',
         loadComponent: () => import('./features/bills/bill-detail/bill-detail')
           .then(m => m.BillDetail)

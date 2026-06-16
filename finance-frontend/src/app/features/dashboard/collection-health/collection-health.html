@@ -1,0 +1,297 @@
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Collection Health</h1>
+      <p class="page-sub">Trend, collector performance, cash flow &amp; risk — built from your payments data</p>
+    </div>
+    <div class="header-actions">
+      <mat-form-field appearance="outline" class="biz-select">
+        <mat-label>Business</mat-label>
+        <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="load()">
+          <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button mat-icon-button (click)="load()" matTooltip="Refresh" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="36"></mat-spinner>
+    <span>Loading collection health…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-state" *ngIf="error && !loading">
+    <mat-icon>error_outline</mat-icon>
+    <p>Failed to load collection health.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="data && !loading && !error">
+
+    <mat-tab-group class="report-tabs">
+
+      <!-- ══ TAB 1: Collection Trend ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">trending_up</mat-icon>
+          Collection Trend
+        </ng-template>
+
+        <div class="tab-body">
+          <p class="priority-note">
+            Average days from bill date to final payment, for credit bills that are now fully settled —
+            grouped by the month they were issued. No historical AR snapshots exist, so this is a proxy for DSO,
+            but it trends the same direction.
+          </p>
+
+          <div class="dso-chart" *ngIf="(data.dsoTrend?.length ?? 0) > 0">
+            <div class="dso-bar-col" *ngFor="let e of data.dsoTrend ?? []; trackBy: trackByMonth">
+              <span class="dso-value" [ngClass]="trendClass(e.avgCollectionDays)">{{ e.avgCollectionDays | number:'1.0-0' }}d</span>
+              <div class="dso-bar-track">
+                <div class="dso-bar" [ngClass]="trendClass(e.avgCollectionDays)" [style.height.%]="barHeightPct(e.avgCollectionDays)"></div>
+              </div>
+              <span class="dso-month">{{ monthLabel(e.month) }}</span>
+              <span class="dso-count">{{ e.settledBillCount }} bill{{ e.settledBillCount !== 1 ? 's' : '' }}</span>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="(data.dsoTrend?.length ?? 0) === 0">
+            <mat-icon>check_circle</mat-icon>
+            <p>No settled credit bills in the last 6 months for {{ selectedBusiness }}</p>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- ══ TAB 2: Collector Leaderboard ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">leaderboard</mat-icon>
+          Collector Leaderboard
+        </ng-template>
+
+        <div class="tab-body">
+          <p class="priority-note">Confirmed collections in the last 30 days, ranked by total amount collected.</p>
+
+          <div class="priority-table" *ngIf="(data.collectorLeaderboard?.length ?? 0) > 0">
+            <div class="ptbl-header collector-cols">
+              <span class="p-rank">#</span>
+              <span class="p-name">Collector</span>
+              <span class="p-bucket right">Total Collected</span>
+              <span class="p-bills center">Payments</span>
+              <span class="p-bucket right">Avg Days</span>
+              <span class="p-bills center">Partial Rate</span>
+            </div>
+            <div class="ptbl-row collector-cols" *ngFor="let c of data.collectorLeaderboard ?? []; let i = index; trackBy: trackByWorker">
+              <span class="p-rank rank-num">{{ i + 1 }}</span>
+              <span class="p-name cust-name">{{ c.workerName }}</span>
+              <span class="p-bucket right total-col">Rs {{ c.totalCollected | number:'1.0-0' }}</span>
+              <span class="p-bills center">{{ c.paymentCount }}</span>
+              <span class="p-bucket right">{{ c.avgDaysToCollect | number:'1.0-1' }}</span>
+              <span class="p-bills center">
+                <span class="partial-badge" [ngClass]="partialRateClass(c.partialRate)">
+                  {{ c.partialRate * 100 | number:'1.0-0' }}%
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="(data.collectorLeaderboard?.length ?? 0) === 0">
+            <mat-icon>check_circle</mat-icon>
+            <p>No confirmed collections in the last 30 days for {{ selectedBusiness }}</p>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- ══ TAB 3: Cash Flow ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">payments</mat-icon>
+          Cash Flow
+        </ng-template>
+
+        <div class="tab-body">
+          <div class="tomorrow-callout" [class.tomorrow-empty]="!tomorrowCheques">
+            <mat-icon>{{ tomorrowCheques ? 'event_available' : 'event_busy' }}</mat-icon>
+            <div class="tomorrow-text" *ngIf="tomorrowCheques">
+              <span class="tomorrow-title">Deposit Tomorrow</span>
+              <span class="tomorrow-sub">{{ tomorrowCheques.count }} cheque{{ tomorrowCheques.count !== 1 ? 's' : '' }} — Rs {{ tomorrowCheques.totalAmount | number:'1.0-0' }}</span>
+            </div>
+            <div class="tomorrow-text" *ngIf="!tomorrowCheques">
+              <span class="tomorrow-title">Deposit Tomorrow</span>
+              <span class="tomorrow-sub">No cheques due tomorrow for {{ selectedBusiness }}</span>
+            </div>
+          </div>
+
+          <p class="priority-note">Cheques expected to clear, by date. Defaults to the next 30 days — pick a custom range to look further ahead.</p>
+
+          <div class="cheque-range-bar">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="range-field">
+              <mat-label>From</mat-label>
+              <input matInput [matDatepicker]="fromPicker" [value]="chequeFromDate" (dateChange)="onChequeFromDateChange($event)" />
+              <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+              <mat-datepicker #fromPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="range-field">
+              <mat-label>To</mat-label>
+              <input matInput [matDatepicker]="toPicker" [value]="chequeToDate" (dateChange)="onChequeToDateChange($event)" />
+              <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+              <mat-datepicker #toPicker></mat-datepicker>
+            </mat-form-field>
+            <button mat-flat-button color="primary" (click)="loadChequeRange()" [disabled]="loadingCheques">
+              <mat-icon>search</mat-icon> View Range
+            </button>
+            <button mat-stroked-button (click)="resetChequeRange()" *ngIf="!isDefaultChequeRange" [disabled]="loadingCheques">
+              Reset to 30 Days
+            </button>
+          </div>
+          <p class="range-error" *ngIf="chequeRangeError">{{ chequeRangeError }}</p>
+
+          <div class="loading-state-sm" *ngIf="loadingCheques">
+            <mat-spinner diameter="24"></mat-spinner>
+            <span>Loading cheques…</span>
+          </div>
+
+          <div class="priority-table" *ngIf="!loadingCheques && displayedCheques.length > 0">
+            <div class="ptbl-header cheque-cols">
+              <span class="p-name">Cheque Date</span>
+              <span class="p-bucket right">Total Amount</span>
+              <span class="p-bills center">Cheques</span>
+            </div>
+            <div class="ptbl-row cheque-cols" *ngFor="let c of displayedCheques; trackBy: trackByDate">
+              <span class="p-name cust-name">{{ c.chequeDate | date:'mediumDate' }}</span>
+              <span class="p-bucket right total-col">Rs {{ c.totalAmount | number:'1.0-0' }}</span>
+              <span class="p-bills center">{{ c.count }}</span>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="!loadingCheques && displayedCheques.length === 0">
+            <mat-icon>check_circle</mat-icon>
+            <p>No cheques due in this range for {{ selectedBusiness }}</p>
+          </div>
+
+          <div class="cash-section-divider" *ngIf="(data.staleCheques?.length ?? 0) > 0">
+            <mat-icon>warning</mat-icon>
+            <span>Needs Follow-up — Cheques Past Due, Still Unconfirmed</span>
+            <span class="cash-divider-note">{{ data.staleCheques?.length ?? 0 }} cheque{{ (data.staleCheques?.length ?? 0) !== 1 ? 's' : '' }}</span>
+          </div>
+
+          <div class="stale-list" *ngIf="(data.staleCheques?.length ?? 0) > 0">
+            <div class="stale-card" *ngFor="let s of data.staleCheques ?? []">
+              <div class="stale-main">
+                <span class="cust-name">{{ s.customerName }}</span>
+                <span class="area-tag">{{ s.billNumber }}</span>
+              </div>
+              <div class="stale-meta">
+                <span class="last-pmt pmt-old">{{ s.chequeDate | date:'mediumDate' }}</span>
+                <span class="total-col">Rs {{ s.amount | number:'1.0-0' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- ══ TAB 4: Payment Mix ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">pie_chart</mat-icon>
+          Payment Mix
+        </ng-template>
+
+        <div class="tab-body">
+          <p class="priority-note">Confirmed collections over the last 30 days, split by payment method, per day.</p>
+
+          <div class="summary-bar" *ngIf="(data.paymentMix?.length ?? 0) > 0">
+            <div class="summary-pill cash-mix">
+              <span class="pill-label">Cash</span>
+              <span class="pill-value">Rs {{ totalCash | number:'1.0-0' }}</span>
+            </div>
+            <div class="summary-pill cheque-mix">
+              <span class="pill-label">Cheque</span>
+              <span class="pill-value">Rs {{ totalCheque | number:'1.0-0' }}</span>
+            </div>
+            <div class="summary-pill bank-mix">
+              <span class="pill-label">Bank Transfer</span>
+              <span class="pill-value">Rs {{ totalBankTransfer | number:'1.0-0' }}</span>
+            </div>
+          </div>
+
+          <div class="priority-table" *ngIf="(data.paymentMix?.length ?? 0) > 0">
+            <div class="ptbl-header mix-cols">
+              <span class="p-name">Date</span>
+              <span class="p-bucket right">Cash</span>
+              <span class="p-bucket right">Cheque</span>
+              <span class="p-bucket right">Bank Transfer</span>
+              <span class="p-bucket right">Total</span>
+              <span class="p-name">Composition</span>
+            </div>
+            <div class="ptbl-row mix-cols" *ngFor="let e of data.paymentMix ?? []; trackBy: trackByMixDate">
+              <span class="p-name cust-name">{{ e.date | date:'mediumDate' }}</span>
+              <span class="p-bucket right">Rs {{ e.cash | number:'1.0-0' }}</span>
+              <span class="p-bucket right">Rs {{ e.cheque | number:'1.0-0' }}</span>
+              <span class="p-bucket right">Rs {{ e.bankTransfer | number:'1.0-0' }}</span>
+              <span class="p-bucket right total-col">Rs {{ e.total | number:'1.0-0' }}</span>
+              <span class="mix-bar">
+                <span class="mix-seg mix-cash"  [style.width.%]="mixSegPct(e.cash, e.total)"></span>
+                <span class="mix-seg mix-cheque" [style.width.%]="mixSegPct(e.cheque, e.total)"></span>
+                <span class="mix-seg mix-bank"  [style.width.%]="mixSegPct(e.bankTransfer, e.total)"></span>
+              </span>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="(data.paymentMix?.length ?? 0) === 0">
+            <mat-icon>check_circle</mat-icon>
+            <p>No confirmed collections in the last 30 days for {{ selectedBusiness }}</p>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- ══ TAB 5: Risky Customers ══ -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">report_problem</mat-icon>
+          Risky Customers
+        </ng-template>
+
+        <div class="tab-body">
+          <p class="priority-note">Customers with repeat partial payments or returned/bounced cheques, ranked by risk score.</p>
+
+          <div class="priority-table" *ngIf="(data.riskyCustomers?.length ?? 0) > 0">
+            <div class="ptbl-header risk-cols">
+              <span class="p-rank">#</span>
+              <span class="p-name">Customer</span>
+              <span class="p-area">Area</span>
+              <span class="p-bucket center">Partials</span>
+              <span class="p-bucket center">Returned</span>
+              <span class="p-bucket right">Outstanding</span>
+              <span class="p-bills center">Risk</span>
+            </div>
+            <div class="ptbl-row risk-cols" *ngFor="let r of data.riskyCustomers ?? []; let i = index; trackBy: trackByCustomer">
+              <span class="p-rank rank-num">{{ i + 1 }}</span>
+              <span class="p-name cust-name">{{ r.customerName }}</span>
+              <span class="p-area area-tag">{{ r.area || '—' }}</span>
+              <span class="p-bucket center">{{ r.partialCount }}</span>
+              <span class="p-bucket center">{{ r.returnedCount }}</span>
+              <span class="p-bucket right total-col">Rs {{ r.currentOutstanding | number:'1.0-0' }}</span>
+              <span class="p-bills center">
+                <span class="partial-badge" [ngClass]="riskClass(r.riskScore)">{{ r.riskScore }}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="(data.riskyCustomers?.length ?? 0) === 0">
+            <mat-icon>check_circle</mat-icon>
+            <p>No repeat partial-payers or returned cheques for {{ selectedBusiness }}</p>
+          </div>
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+  </ng-container>
+
+</div>
