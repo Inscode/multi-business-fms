@@ -10,9 +10,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDialog } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
 import { StockService, StockReductionStatus, BillStockItem, SummaryItemInfo } from '../../../core/services/stock';
+import { Bill } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
+import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-stock-reduction-status',
@@ -21,7 +25,8 @@ import { Auth } from '../../../core/services/auth';
     CommonModule, FormsModule, DecimalPipe,
     MatTableModule, MatButtonModule, MatCardModule,
     MatIconModule, MatInputModule, MatFormFieldModule,
-    MatSelectModule, MatTooltipModule, MatProgressSpinnerModule, RouterLink,
+    MatSelectModule, MatTooltipModule, MatProgressSpinnerModule,
+    MatDialogModule, RouterLink,
   ],
   templateUrl: './stock-reduction-status.html',
   styleUrl: './stock-reduction-status.scss',
@@ -31,14 +36,31 @@ export class StockReductionStatusComponent implements OnInit {
   allRecords: StockReductionStatus[] = [];
   filtered: StockReductionStatus[] = [];
   loading = false;
+  showAll = false;
 
   filterSource = 'ALL';
   filterStatus = 'ALL';
   searchText = '';
   showLinkingSummary = false;
 
+  readonly SUMMARY_STATUSES = ['SUMMARY_PENDING', 'SUMMARY_APPROVED'];
+  readonly SUMMARY_LIMIT = 5;
+  readonly INDIVIDUAL_LIMIT = 10;
+
   columns = ['billNumber', 'billSource', 'customerName', 'amount', 'billDate', 'reductionStatus', 'summaryId', 'enteredByName', 'actions'];
   linkingColumns = ['billNumber', 'customerName', 'amount', 'childrenTotal', 'savings', 'reductionStatus'];
+
+  get displayed(): StockReductionStatus[] {
+    if (this.showAll) return this.filtered;
+    const summaryRecs = this.filtered.filter(r => this.SUMMARY_STATUSES.includes(r.reductionStatus)).slice(0, this.SUMMARY_LIMIT);
+    const individualRecs = this.filtered.filter(r => !this.SUMMARY_STATUSES.includes(r.reductionStatus)).slice(0, this.INDIVIDUAL_LIMIT);
+    const ids = new Set([...summaryRecs.map(r => r.billId), ...individualRecs.map(r => r.billId)]);
+    return this.filtered.filter(r => ids.has(r.billId));
+  }
+
+  get hiddenCount(): number {
+    return this.showAll ? 0 : Math.max(0, this.filtered.length - this.displayed.length);
+  }
 
   // Expand / item edit state
   expandedBillId: number | null = null;
@@ -62,7 +84,9 @@ export class StockReductionStatusComponent implements OnInit {
 
   constructor(
     private stockService: StockService,
-    private cdr: ChangeDetectorRef,
+    private billService: Bill,
+    private dialog: MatDialog,
+    public cdr: ChangeDetectorRef,
     public auth: Auth,
   ) {}
 
@@ -206,6 +230,56 @@ export class StockReductionStatusComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: () => this.cdr.detectChanges(),
+    });
+  }
+
+  markStockCleared(row: StockReductionStatus): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Mark Stock as Already Reduced',
+        message:
+          `Bill: ${row.billNumber}\nCustomer: ${row.customerName}\n\n` +
+          `Use this only for old bills where stock was physically given out before being entered into the system. ` +
+          `The bill will appear as "Individually Reduced" and will no longer show as pending.\n\nThis cannot be undone.`,
+        confirmText: 'Mark Stock Reduced',
+        confirmColor: 'warn',
+      },
+      width: '460px',
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.billService.markStockCleared(row.billId).subscribe({
+        next: () => this.load(),
+        error: (err) => alert(err?.error?.message ?? 'Failed to mark stock as reduced.'),
+      });
+    });
+  }
+
+  regularItemsFor(billId: number): BillStockItem[] {
+    return (this.billItemsMap.get(billId) ?? []).filter(i => !i.backorder);
+  }
+
+  backorderItemsFor(billId: number): BillStockItem[] {
+    return (this.billItemsMap.get(billId) ?? []).filter(i => i.backorder);
+  }
+
+  issueBackorderItem(item: BillStockItem): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Issue Backorder Item',
+        message: `Issue ${item.quantity}x ${item.productName} to ${this.expandedRecord?.customerName}?\n\nThis will deduct from current stock and add Rs ${item.lineTotal?.toLocaleString()} to the bill total.`,
+        confirmText: 'Issue Stock',
+        confirmColor: 'primary',
+      },
+      width: '420px',
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.stockService.issueBackorderItem(item.id).subscribe({
+        next: () => {
+          this.billItemsMap.delete(this.expandedBillId!);
+          this.load();
+        },
+        error: (err) => alert(err?.error?.message ?? 'Failed to issue backorder item.'),
+      });
     });
   }
 

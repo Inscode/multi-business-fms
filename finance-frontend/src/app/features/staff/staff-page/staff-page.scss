@@ -69,6 +69,13 @@
   min-height: 200px;
 }
 
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  table { min-width: 640px; }
+}
+
 .staff-name {
   display: flex;
   align-items: center;

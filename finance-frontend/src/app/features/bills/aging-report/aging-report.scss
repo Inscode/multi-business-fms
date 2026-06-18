@@ -411,7 +411,12 @@ $tbl-cols: 26px 180px 1fr 1fr 1fr 1fr 1fr 150px 46px 82px;
   &:hover { background: #e3f2fd; }
 }
 
-.area-customers { border-top: 1px solid #f0f0f0; background: #fafafa; }
+.area-customers {
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 .cust-row-header {
   display: grid;
@@ -425,6 +430,7 @@ $tbl-cols: 26px 180px 1fr 1fr 1fr 1fr 1fr 150px 46px 82px;
   border-bottom: 1px solid #eeeeee;
   gap: 8px;
   align-items: center;
+  min-width: 520px;
 }
 
 .cust-row {
@@ -435,6 +441,7 @@ $tbl-cols: 26px 180px 1fr 1fr 1fr 1fr 1fr 150px 46px 82px;
   padding: 9px 20px;
   border-bottom: 1px solid #f0f0f0;
   font-size: 13px;
+  min-width: 520px;
 
   &:last-child { border-bottom: none; }
   &:hover { background: #f5f5f5; }

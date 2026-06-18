@@ -48,6 +48,16 @@ public interface ShadowStockMovementRepository extends JpaRepository<ShadowStock
     Set<Long> findBillIdsWithActiveMovements();
 
     /**
+     * Bulk balance query for a list of product IDs — avoids N+1 in stock checks.
+     * Returns [productId, availableQty] rows.
+     */
+    @Query("SELECT m.product.id, " +
+           "COALESCE(SUM(CASE WHEN m.cancelled = false AND m.type IN ('STOCK_IN','SALABLE_RETURN') THEN m.quantity " +
+           "               WHEN m.cancelled = false AND m.type = 'BILL_OUT' THEN -m.quantity ELSE 0 END), 0) " +
+           "FROM ShadowStockMovement m WHERE m.product.id IN :productIds GROUP BY m.product.id")
+    List<Object[]> getAvailableBalancesForProducts(@Param("productIds") List<Long> productIds);
+
+    /**
      * Single aggregate query returning [productId, availableQty, damageQty] for ALL RAINCO products.
      * Replaces N+1 calls to getAvailableBalance + getDamageBalance per product.
      */

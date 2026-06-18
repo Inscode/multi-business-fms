@@ -57,3 +57,21 @@ body {
 .snack-error .mat-mdc-snack-bar-action {
   color: rgba(255,255,255,0.85) !important;
 }
+
+/* ── Mobile: swipe to scroll tab headers (Admin, Stock, Aging, Tasks, etc.) ── */
+@media (max-width: 767px) {
+  .mat-mdc-tab-header {
+    .mat-mdc-tab-header-pagination {
+      display: none !important;
+    }
+    .mat-mdc-tab-label-container {
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      &::-webkit-scrollbar { display: none; }
+    }
+    .mat-mdc-tab-list {
+      transform: none !important;
+    }
+  }
+}

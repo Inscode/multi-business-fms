@@ -12,4 +12,6 @@ public interface BillStockItemRepository extends JpaRepository<BillStockItem, Lo
     List<BillStockItem> findByBillId(Long billId);
 
     List<BillStockItem> findByProductId(Long productId);
+
+    List<BillStockItem> findByBackorderTrue();
 }

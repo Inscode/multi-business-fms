@@ -11,7 +11,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Dashboard, CollectionHealthData, UpcomingChequeEntry } from '../../../core/services/dashboard';
+import { Dashboard, CollectionHealthData, UpcomingChequeEntry, ChequeDetailEntry } from '../../../core/services/dashboard';
 
 @Component({
   selector: 'app-collection-health',
@@ -162,6 +162,36 @@ export class CollectionHealth implements OnInit {
     if (score <= 1) return 'age-caution';
     if (score <= 3) return 'age-warn';
     return 'age-critical';
+  }
+
+  // ── Cheque detail drill-down ────────────────────────────────────
+  selectedChequeDate: string | null = null;
+  chequeDetails: ChequeDetailEntry[] = [];
+  loadingChequeDetails = false;
+
+  onChequeRowClick(date: string): void {
+    if (this.selectedChequeDate === date) {
+      this.selectedChequeDate = null;
+      this.chequeDetails = [];
+      this.cdr.detectChanges();
+      return;
+    }
+    this.selectedChequeDate = date;
+    this.loadingChequeDetails = true;
+    this.chequeDetails = [];
+    this.cdr.detectChanges();
+    this.dashboardService.getChequeDetails(this.selectedBusiness, date).subscribe({
+      next: (details) => { this.chequeDetails = details; this.loadingChequeDetails = false; this.cdr.detectChanges(); },
+      error: () => { this.loadingChequeDetails = false; this.cdr.detectChanges(); },
+    });
+  }
+
+  chequeStatusLabel(status: string): string {
+    switch (status) {
+      case 'ENTERED': return 'Pending';
+      case 'CONFIRMED': return 'Confirmed';
+      default: return status;
+    }
   }
 
   // ── Cash flow: tomorrow's deposit callout ───────────────────────

@@ -162,12 +162,63 @@
               <span class="p-name">Cheque Date</span>
               <span class="p-bucket right">Total Amount</span>
               <span class="p-bills center">Cheques</span>
+              <span class="p-bills center"></span>
             </div>
-            <div class="ptbl-row cheque-cols" *ngFor="let c of displayedCheques; trackBy: trackByDate">
-              <span class="p-name cust-name">{{ c.chequeDate | date:'mediumDate' }}</span>
-              <span class="p-bucket right total-col">Rs {{ c.totalAmount | number:'1.0-0' }}</span>
-              <span class="p-bills center">{{ c.count }}</span>
-            </div>
+            <ng-container *ngFor="let c of displayedCheques; trackBy: trackByDate">
+              <div class="ptbl-row cheque-cols cheque-row-clickable"
+                   [class.cheque-row-active]="selectedChequeDate === c.chequeDate"
+                   (click)="onChequeRowClick(c.chequeDate)">
+                <span class="p-name cust-name">{{ c.chequeDate | date:'mediumDate' }}</span>
+                <span class="p-bucket right total-col">Rs {{ c.totalAmount | number:'1.0-0' }}</span>
+                <span class="p-bills center">{{ c.count }}</span>
+                <span class="p-bills center">
+                  <mat-icon class="expand-icon">{{ selectedChequeDate === c.chequeDate ? 'expand_less' : 'expand_more' }}</mat-icon>
+                </span>
+              </div>
+
+              <!-- Inline detail panel -->
+              <div class="cheque-detail-panel" *ngIf="selectedChequeDate === c.chequeDate">
+                <div *ngIf="loadingChequeDetails" class="cheque-detail-loading">
+                  <mat-spinner diameter="20"></mat-spinner>
+                  <span>Loading cheques…</span>
+                </div>
+                <ng-container *ngIf="!loadingChequeDetails">
+                  <div class="cheque-detail-header">
+                    <mat-icon>payments</mat-icon>
+                    <span>Cheques for {{ c.chequeDate | date:'mediumDate' }}</span>
+                  </div>
+                  <table class="cheque-detail-table">
+                    <thead>
+                      <tr>
+                        <th>Customer</th>
+                        <th>Bill #</th>
+                        <th>Bank</th>
+                        <th>Cheque #</th>
+                        <th class="right">Amount</th>
+                        <th class="center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let d of chequeDetails">
+                        <td>{{ d.customerName }}</td>
+                        <td class="mono">{{ d.billNumber }}</td>
+                        <td>{{ d.bankName || '—' }}</td>
+                        <td class="mono">{{ d.chequeNumber || '—' }}</td>
+                        <td class="right total-col">Rs {{ d.amount | number:'1.0-0' }}</td>
+                        <td class="center">
+                          <span class="status-badge"
+                            [class.badge-confirmed]="d.status === 'CONFIRMED'"
+                            [class.badge-pending]="d.status === 'ENTERED'">
+                            {{ chequeStatusLabel(d.status) }}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div *ngIf="chequeDetails.length === 0" class="cheque-detail-empty">No cheque records found for this date.</div>
+                </ng-container>
+              </div>
+            </ng-container>
           </div>
 
           <div class="empty-state" *ngIf="!loadingCheques && displayedCheques.length === 0">

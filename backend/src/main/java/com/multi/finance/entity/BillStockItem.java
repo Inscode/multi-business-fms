@@ -35,6 +35,10 @@ public class BillStockItem {
     @Column(name = "line_total", nullable = false)
     private BigDecimal lineTotal; // quantity * unitPrice
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean backorder = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

@@ -1,0 +1,27 @@
+.card-container { max-width: 900px; }
+.section { margin-bottom: 24px; h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: #374151; } }
+.full-width { width: 100%; }
+.form-row { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.flex-grow { flex: 1; min-width: 200px; }
+.quantity-field { width: 100px; }
+.amount-field { width: 130px; }
+.empty-state { text-align: center; padding: 24px; color: #9ca3af; mat-icon { font-size: 36px; width: 36px; height: 36px; } }
+.bill-option { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bill-number { font-weight: 600; }
+.bill-customer { color: #6b7280; }
+.bill-amount { margin-left: auto; font-weight: 500; }
+.bill-date { color: #9ca3af; font-size: 12px; }
+.bill-status { font-size: 11px; background: #e5e7eb; padding: 2px 6px; border-radius: 4px; }
+.selected-bill-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-top: 8px; }
+.selected-bill-row { display: flex; justify-content: space-between; align-items: center; }
+.selected-bill-info { display: flex; gap: 8px; align-items: center; }
+.selected-bill-details { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: #6b7280; span { display: flex; gap: 4px; align-items: center; mat-icon { font-size: 16px; width: 16px; height: 16px; } } }
+.line-items-table { margin-top: 12px; }
+.items-table { width: 100%; }
+.total-row { display: flex; justify-content: flex-end; gap: 16px; padding: 8px 16px; font-size: 14px; border-top: 1px solid #e5e7eb; }
+.amount-to-add { color: #059669; font-weight: 600; }
+.no-add { color: #9ca3af; }
+.confirm-note { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #6b7280; background: #f0f9ff; padding: 10px 12px; border-radius: 6px; mat-icon { font-size: 18px; width: 18px; height: 18px; color: #0284c7; flex-shrink: 0; } }
+.form-actions { display: flex; gap: 12px; margin-top: 16px; }
+.success-message { display: flex; gap: 8px; align-items: center; color: #059669; background: #ecfdf5; padding: 10px 14px; border-radius: 6px; margin-top: 12px; mat-icon { color: #059669; } }
+.error-message { display: flex; gap: 8px; align-items: center; color: #dc2626; background: #fef2f2; padding: 10px 14px; border-radius: 6px; margin-top: 12px; mat-icon { color: #dc2626; } }

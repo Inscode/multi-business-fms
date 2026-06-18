@@ -115,6 +115,11 @@ export const routes: Routes = [
           .then(m => m.StockTab)
       },
       {
+        path: 'backorders',
+        loadComponent: () => import('./features/backorders/backorders-main/backorders-main')
+          .then(m => m.BackordersMain),
+      },
+      {
         path: 'workers/finance',
         loadComponent: () => import('./features/worker-finance/worker-finance-main/worker-finance-main')
           .then(m => m.WorkerFinanceMain)

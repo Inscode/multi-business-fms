@@ -209,7 +209,10 @@ export class StockItemEntryComponent implements OnInit {
 
     this.stockService.reduceStockForBill({
       billId: this.selectedBill.id,
-      items: this.lineItems.map(i => ({ productId: i.productId, quantity: i.quantity })),
+      items: this.lineItems.map(i => ({
+        productId: i.productId,
+        quantity: i.quantity,
+      })),
     }).subscribe({
       next: () => {
         this.successMessage = this.isLinkingBill

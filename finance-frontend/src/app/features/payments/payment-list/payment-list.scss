@@ -106,6 +106,15 @@
   position: relative;
 }
 
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  table {
+    min-width: 720px;
+  }
+}
+
 .partial-tag {
   display: inline-block;
   font-size: 9px;

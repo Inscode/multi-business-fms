@@ -1,5 +1,6 @@
 package com.multi.finance.controller;
 
+import com.multi.finance.dto.response.BackorderItemResponse;
 import com.multi.finance.dto.request.CreateLinkingSystemBillRequest;
 import com.multi.finance.dto.request.CreateStockBillRequest;
 import com.multi.finance.dto.request.CreateSummaryLoadBillRequest;
@@ -239,6 +240,21 @@ public class StockController {
     public ResponseEntity<Void> markStockReconciled(@PathVariable Long billId) {
         stockService.markStockReconciled(billId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ── Backorder items ───────────────────────────────────────────
+
+    @GetMapping("/backorder-items")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BackorderItemResponse>> getBackorderItems() {
+        return ResponseEntity.ok(stockService.getPendingBackorderItems());
+    }
+
+    @PostMapping("/backorder-items/{id}/issue")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> issueBackorderItem(@PathVariable Long id) {
+        stockService.issueBackorderItem(id);
+        return ResponseEntity.ok().build();
     }
 
     // ── Stock balances ────────────────────────────────────────────

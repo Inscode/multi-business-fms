@@ -50,6 +50,7 @@
       </div>
 
       <mat-card class="table-card">
+        <div class="table-scroll-wrap">
         <table mat-table [dataSource]="filteredStaff">
 
           <ng-container matColumnDef="fullName">
@@ -113,6 +114,7 @@
           <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
 
         </table>
+        </div>
 
         <div class="empty-state"
              *ngIf="!loading && filteredStaff.length === 0">

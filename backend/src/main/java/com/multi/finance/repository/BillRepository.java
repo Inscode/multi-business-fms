@@ -193,4 +193,8 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT DISTINCT l.childBill FROM BillStockLink l WHERE l.childBill.billSource IN ('DRAFT', 'MANUAL')")
     List<Bill> findLinkedChildBills();
 
+    // Active RAINCO bills eligible for backorder submission (any uncompleted, non-cancelled, non-linking bill)
+    @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND (b.willBeLinked IS NULL OR b.willBeLinked = false) ORDER BY b.billDate DESC")
+    List<Bill> findActiveRaincoBillsForBackorder();
+
 }
