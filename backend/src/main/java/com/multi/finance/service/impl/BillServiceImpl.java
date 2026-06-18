@@ -2,6 +2,8 @@ package com.multi.finance.service.impl;
 
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
+import com.multi.finance.dto.request.BulkAssignBillRequest;
+import com.multi.finance.dto.request.BulkBillIdsRequest;
 import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.Customer;
@@ -221,11 +223,31 @@ public class BillServiceImpl {
     public BillResponse assignBill(Long id, AssignBillRequest request) {
         Bill bill = findBillById(id);
         User caller = getCurrentUser();
+        Worker worker = workerRepository.findById(request.getWorkerId())
+                .orElseThrow(() -> new RuntimeException("Worker not found"));
+        return toResponse(assignBillInternal(bill, worker, caller));
+    }
 
+    /** Assigns the same worker to a batch of bills in one transaction — if any bill fails validation, the whole batch rolls back. */
+    @Transactional
+    public List<BillResponse> bulkAssignBills(BulkAssignBillRequest request) {
+        User caller = getCurrentUser();
+        Worker worker = workerRepository.findById(request.getWorkerId())
+                .orElseThrow(() -> new RuntimeException("Worker not found"));
+
+        List<Bill> assigned = new ArrayList<>();
+        for (Long billId : request.getBillIds()) {
+            Bill bill = findBillById(billId);
+            assigned.add(assignBillInternal(bill, worker, caller));
+        }
+        return assigned.stream().map(this::toResponse).toList();
+    }
+
+    private Bill assignBillInternal(Bill bill, Worker worker, User caller) {
         if (bill.getStatus() == BillStatus.COMPLETED ||
                 bill.getStatus() == BillStatus.CANCELLED) {
             throw new RuntimeException(
-                    "Cannot assign a completed or cancelled bill");
+                    "Cannot assign bill " + bill.getBillNumber() + " — it is completed or cancelled");
         }
 
         if (caller.getRole() == UserRole.SHOP_ACCOUNTANT) {
@@ -236,12 +258,10 @@ public class BillServiceImpl {
             );
             if (!allowed.contains(bill.getStatus())) {
                 throw new RuntimeException(
-                        "Shop accountant can only assign bills with status: ASSIGNED, SHOP_RECEIVED or SHOP_WORKER_ASSIGNED");
+                        "Shop accountant can only assign bills with status: ASSIGNED, SHOP_RECEIVED or SHOP_WORKER_ASSIGNED " +
+                        "(bill " + bill.getBillNumber() + ")");
             }
         }
-
-        Worker worker = workerRepository.findById(request.getWorkerId())
-                .orElseThrow(() -> new RuntimeException("Worker not found"));
 
         BillStatus newStatus = (caller.getRole() == UserRole.SHOP_ACCOUNTANT)
                 ? BillStatus.SHOP_WORKER_ASSIGNED
@@ -250,17 +270,32 @@ public class BillServiceImpl {
         bill.setCurrentHolder(worker);
         bill.setStatus(newStatus);
         bill.setUpdatedAt(LocalDateTime.now());
-        return toResponse(billRepository.save(bill));
+        return billRepository.save(bill);
     }
 
     @Transactional
     public BillResponse markShopReceived(Long id) {
         Bill bill = findBillById(id);
         User caller = getCurrentUser();
+        return toResponse(markShopReceivedInternal(bill, caller));
+    }
 
+    /** Marks a batch of bills as shop received in one transaction — any failure rolls back the whole batch. */
+    @Transactional
+    public List<BillResponse> bulkMarkShopReceived(BulkBillIdsRequest request) {
+        User caller = getCurrentUser();
+        List<Bill> updated = new ArrayList<>();
+        for (Long billId : request.getBillIds()) {
+            Bill bill = findBillById(billId);
+            updated.add(markShopReceivedInternal(bill, caller));
+        }
+        return updated.stream().map(this::toResponse).toList();
+    }
+
+    private Bill markShopReceivedInternal(Bill bill, User caller) {
         if (bill.getStatus() == BillStatus.COMPLETED ||
                 bill.getStatus() == BillStatus.CANCELLED) {
-            throw new RuntimeException("Cannot change status of a completed or cancelled bill");
+            throw new RuntimeException("Cannot change status of bill " + bill.getBillNumber() + " — it is completed or cancelled");
         }
 
         switch (caller.getRole()) {
@@ -268,7 +303,8 @@ public class BillServiceImpl {
                 if (bill.getStatus() != BillStatus.ASSIGNED &&
                         bill.getStatus() != BillStatus.SHOP_WORKER_ASSIGNED) {
                     throw new RuntimeException(
-                            "Shop accountant can only mark ASSIGNED or SHOP_WORKER_ASSIGNED bills as shop received");
+                            "Shop accountant can only mark ASSIGNED or SHOP_WORKER_ASSIGNED bills as shop received " +
+                            "(bill " + bill.getBillNumber() + ")");
                 }
             }
             case ACCOUNTANT, MAIN_ACCOUNTANT, ADMIN -> {
@@ -279,24 +315,38 @@ public class BillServiceImpl {
 
         bill.setStatus(BillStatus.SHOP_RECEIVED);
         bill.setUpdatedAt(LocalDateTime.now());
-        return toResponse(billRepository.save(bill));
+        return billRepository.save(bill);
     }
 
     @Transactional
     public BillResponse markReceived(Long id) {
         Bill bill = findBillById(id);
+        return toResponse(markReceivedInternal(bill));
+    }
 
+    /** Marks a batch of bills as store received in one transaction — any failure rolls back the whole batch. */
+    @Transactional
+    public List<BillResponse> bulkMarkReceived(BulkBillIdsRequest request) {
+        List<Bill> updated = new ArrayList<>();
+        for (Long billId : request.getBillIds()) {
+            Bill bill = findBillById(billId);
+            updated.add(markReceivedInternal(bill));
+        }
+        return updated.stream().map(this::toResponse).toList();
+    }
+
+    private Bill markReceivedInternal(Bill bill) {
         if (bill.getStatus() != BillStatus.ASSIGNED &&
                 bill.getStatus() != BillStatus.SHOP_RECEIVED) {
             throw new RuntimeException(
-                    "Bill must be ASSIGNED or SHOP_RECEIVED to mark as store received");
+                    "Bill " + bill.getBillNumber() + " must be ASSIGNED or SHOP_RECEIVED to mark as store received");
         }
 
         bill.setStatus(BillStatus.STORE_RECEIVED);
         bill.setReceivedBy(getCurrentUser());
         bill.setReceivedAt(LocalDateTime.now());
         bill.setUpdatedAt(LocalDateTime.now());
-        return toResponse(billRepository.save(bill));
+        return billRepository.save(bill);
     }
 
     @Transactional
