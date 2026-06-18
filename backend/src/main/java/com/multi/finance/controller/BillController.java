@@ -3,6 +3,8 @@ package com.multi.finance.controller;
 
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
+import com.multi.finance.dto.request.BulkAssignBillRequest;
+import com.multi.finance.dto.request.BulkBillIdsRequest;
 import com.multi.finance.dto.response.AgingReportResponse;
 import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.dto.response.BillSequenceGapResponse;
@@ -91,16 +93,37 @@ public class BillController {
         return ResponseEntity.ok(billService.assignBill(id, request));
     }
 
+    @PatchMapping("/bulk-assign")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
+    public ResponseEntity<List<BillResponse>> bulkAssignBills(
+            @Valid @RequestBody BulkAssignBillRequest request) {
+        return ResponseEntity.ok(billService.bulkAssignBills(request));
+    }
+
     @PatchMapping("/{id}/shop-receive")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<BillResponse> markShopReceived(@PathVariable Long id) {
         return ResponseEntity.ok(billService.markShopReceived(id));
     }
 
+    @PatchMapping("/bulk-shop-receive")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
+    public ResponseEntity<List<BillResponse>> bulkMarkShopReceived(
+            @Valid @RequestBody BulkBillIdsRequest request) {
+        return ResponseEntity.ok(billService.bulkMarkShopReceived(request));
+    }
+
     @PatchMapping("/{id}/receive")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<BillResponse> markReceived(@PathVariable Long id) {
         return ResponseEntity.ok(billService.markReceived(id));
+    }
+
+    @PatchMapping("/bulk-receive")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<BillResponse>> bulkMarkReceived(
+            @Valid @RequestBody BulkBillIdsRequest request) {
+        return ResponseEntity.ok(billService.bulkMarkReceived(request));
     }
 
     @PatchMapping("/{id}/complete")

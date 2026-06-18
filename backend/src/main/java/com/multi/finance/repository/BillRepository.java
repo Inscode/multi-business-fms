@@ -175,6 +175,16 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     // All SYSTEM bills flagged as willBeLinked=true (linking bills tab)
     List<Bill> findByWillBeLinkedTrueOrderByBillDateDesc();
 
+    // Settled CREDIT bills since cutoff — feeds the DSO-proxy trend on the Collection Health dashboard
+    @Query("SELECT b FROM Bill b WHERE b.business = :business AND b.billType = 'CREDIT' " +
+           "AND b.balanceRemaining = 0 AND b.billDate >= :cutoff AND b.status <> 'CANCELLED'")
+    List<Bill> findSettledCreditBillsSince(@Param("business") BusinessType business, @Param("cutoff") LocalDate cutoff);
+
+    // Current outstanding grouped by customer name — used to enrich the risky-customers list
+    @Query("SELECT b.customerName, COALESCE(SUM(b.balanceRemaining),0) FROM Bill b " +
+           "WHERE b.business = :business AND b.status NOT IN ('CANCELLED','COMPLETED') GROUP BY b.customerName")
+    List<Object[]> sumOutstandingGroupedByCustomerName(@Param("business") BusinessType business);
+
     // SYSTEM bills that ARE linked (have child bills)
     @Query("SELECT DISTINCT l.systemBill FROM BillStockLink l")
     List<Bill> findLinkedSystemBills();

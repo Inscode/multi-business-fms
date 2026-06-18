@@ -70,4 +70,58 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     /** Returns [billId, maxPaymentDate] pairs — single bulk query, avoids N+1 in aging report */
     @Query("SELECT p.bill.id, MAX(p.paymentDate) FROM Payment p WHERE p.bill.id IN :billIds AND p.status = 'CONFIRMED' GROUP BY p.bill.id")
     List<Object[]> findLastConfirmedDatesByBillIds(@Param("billIds") List<Long> billIds);
+
+    // ── Collection Health dashboard ──────────────────────────────────
+
+    /** [workerId, workerName, totalCollected, paymentCount, avgDaysToCollect, partialCount] per collector in range */
+    @Query(value = "SELECT w.id, w.full_name, COALESCE(SUM(p.amount),0), COUNT(p.id), " +
+           "COALESCE(AVG(p.payment_date - b.bill_date),0), " +
+           "COALESCE(SUM(CASE WHEN p.is_partial THEN 1 ELSE 0 END),0) " +
+           "FROM payments p JOIN workers w ON w.id = p.collected_by_worker_id " +
+           "JOIN bills b ON b.id = p.bill_id " +
+           "WHERE p.status = 'CONFIRMED' AND b.business = :business " +
+           "AND p.payment_date BETWEEN :from AND :to " +
+           "GROUP BY w.id, w.full_name ORDER BY 3 DESC", nativeQuery = true)
+    List<Object[]> findCollectorPerformance(@Param("business") String business,
+                                             @Param("from") LocalDate from,
+                                             @Param("to") LocalDate to);
+
+    /** [chequeDate, totalAmount, count] grouped by cheque date, for cheques expected in the given range */
+    @Query(value = "SELECT p.cheque_date, COALESCE(SUM(p.amount),0), COUNT(p.id) " +
+           "FROM payments p JOIN bills b ON b.id = p.bill_id " +
+           "WHERE p.payment_type = 'CHEQUE' AND b.business = :business " +
+           "AND p.cheque_date BETWEEN :from AND :to AND p.status <> 'REJECTED' AND p.status <> 'RETURNED' " +
+           "GROUP BY p.cheque_date ORDER BY p.cheque_date ASC", nativeQuery = true)
+    List<Object[]> findUpcomingChequeTotals(@Param("business") String business,
+                                             @Param("from") LocalDate from,
+                                             @Param("to") LocalDate to);
+
+    /** [chequeDate, amount, customerName, billNumber] — cheques past their date, still unconfirmed */
+    @Query(value = "SELECT p.cheque_date, p.amount, b.customer_name, b.bill_number " +
+           "FROM payments p JOIN bills b ON b.id = p.bill_id " +
+           "WHERE p.payment_type = 'CHEQUE' AND b.business = :business " +
+           "AND p.cheque_date < :today AND p.status = 'ENTERED' ORDER BY p.cheque_date ASC", nativeQuery = true)
+    List<Object[]> findStaleCheques(@Param("business") String business, @Param("today") LocalDate today);
+
+    /** [customerName, area, partialCount, returnedCount] for customers with at least one partial or returned payment */
+    @Query(value = "SELECT b.customer_name, b.area, " +
+           "SUM(CASE WHEN p.is_partial THEN 1 ELSE 0 END), SUM(CASE WHEN p.status='RETURNED' THEN 1 ELSE 0 END) " +
+           "FROM payments p JOIN bills b ON b.id = p.bill_id " +
+           "WHERE b.business = :business GROUP BY b.customer_name, b.area " +
+           "HAVING SUM(CASE WHEN p.is_partial THEN 1 ELSE 0 END) > 0 OR SUM(CASE WHEN p.status='RETURNED' THEN 1 ELSE 0 END) > 0",
+           nativeQuery = true)
+    List<Object[]> findCustomerRiskRaw(@Param("business") String business);
+
+    /** [paymentDate, cash, cheque, bankTransfer] — confirmed collections per day, split by method */
+    @Query(value = "SELECT p.payment_date, " +
+           "COALESCE(SUM(CASE WHEN p.payment_type='CASH' THEN p.amount ELSE 0 END),0), " +
+           "COALESCE(SUM(CASE WHEN p.payment_type='CHEQUE' THEN p.amount ELSE 0 END),0), " +
+           "COALESCE(SUM(CASE WHEN p.payment_type='BANK_TRANSFER' THEN p.amount ELSE 0 END),0) " +
+           "FROM payments p JOIN bills b ON b.id = p.bill_id " +
+           "WHERE p.status = 'CONFIRMED' AND b.business = :business " +
+           "AND p.payment_date BETWEEN :from AND :to " +
+           "GROUP BY p.payment_date ORDER BY p.payment_date ASC", nativeQuery = true)
+    List<Object[]> findPaymentMixByDate(@Param("business") String business,
+                                         @Param("from") LocalDate from,
+                                         @Param("to") LocalDate to);
 }
