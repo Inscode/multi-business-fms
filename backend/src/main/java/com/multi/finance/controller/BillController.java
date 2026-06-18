@@ -126,6 +126,12 @@ public class BillController {
         return ResponseEntity.ok(billService.bulkMarkReceived(request));
     }
 
+    @PatchMapping("/{id}/mark-stock-cleared")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> markStockCleared(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.markStockCleared(id));
+    }
+
     @PatchMapping("/{id}/complete")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BillResponse> markCompleted(@PathVariable Long id) {

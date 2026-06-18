@@ -40,4 +40,5 @@ public class BillResponse {
     private String notes;
     private LocalDateTime createdAt;
     private Boolean willBeLinked;
+    private Boolean stockCleared;
 }

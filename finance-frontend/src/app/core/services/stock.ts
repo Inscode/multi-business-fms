@@ -30,6 +30,8 @@ export interface ShadowStockMovement {
 export interface StockItemRequest {
   productId: number;
   quantity: number;
+  backorder?: boolean;
+  predictedUnitPrice?: number | null;
 }
 
 export interface BillStockItem {
@@ -40,6 +42,21 @@ export interface BillStockItem {
   quantity: number;
   unitPrice: number;
   lineTotal?: number;
+  backorder?: boolean;
+  predictedUnitPrice?: number;
+}
+
+export interface BackorderItem {
+  id: number;
+  billId: number;
+  billNumber: string;
+  customerName: string;
+  productId: number;
+  productName: string;
+  quantity: number;
+  predictedUnitPrice: number;
+  lineTotal: number;
+  createdAt: string;
 }
 
 export interface StockBillListItem {
@@ -373,5 +390,13 @@ export class StockService {
 
   rejectIndividualReduction(id: number, reason?: string): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/reductions/${id}/reject`, { reason });
+  }
+
+  getBackorderItems(): Observable<BackorderItem[]> {
+    return this.http.get<BackorderItem[]>(`${this.apiUrl}/backorder-items`);
+  }
+
+  issueBackorderItem(id: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/backorder-items/${id}/issue`, {});
   }
 }

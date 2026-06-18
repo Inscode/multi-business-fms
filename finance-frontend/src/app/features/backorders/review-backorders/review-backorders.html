@@ -1,0 +1,147 @@
+<div class="review-container">
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <mat-form-field appearance="fill" class="status-filter">
+      <mat-label>Filter by status</mat-label>
+      <mat-select [(ngModel)]="filterStatus" (ngModelChange)="applyFilter()">
+        <mat-option value="ALL">All</mat-option>
+        <mat-option value="PENDING">Pending</mat-option>
+        <mat-option value="APPROVED">Approved</mat-option>
+        <mat-option value="REJECTED">Rejected</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-stroked-button (click)="load()" matTooltip="Refresh">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="loading-state">
+    <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
+  </div>
+
+  <!-- Empty -->
+  <div *ngIf="!loading && filtered.length === 0" class="empty-state">
+    <mat-icon>pending_actions</mat-icon>
+    <p>No backorder requests found.</p>
+  </div>
+
+  <!-- Request Cards -->
+  <div *ngIf="!loading" class="request-list">
+    <mat-card *ngFor="let r of filtered" class="request-card">
+
+      <!-- Card Header Row -->
+      <div class="card-header" (click)="toggleExpand(r.id)">
+        <div class="header-left">
+          <span class="bill-number">{{ r.billNumber }}</span>
+          <span class="customer-name">{{ r.customerName }}</span>
+          <span [class]="'status-badge ' + statusClass(r.status)">{{ statusLabel(r.status) }}</span>
+          <span *ngIf="r.hasInsufficientStock && r.status === 'PENDING'" class="stock-warning-badge" matTooltip="Some items have insufficient stock">
+            <mat-icon>warning</mat-icon> Stock Short
+          </span>
+        </div>
+        <div class="header-right">
+          <span class="item-count">{{ r.items.length }} item(s)</span>
+          <span *ngIf="r.totalAmountToAdd > 0" class="total-add">+Rs. {{ r.totalAmountToAdd | number:'1.2-2' }}</span>
+          <span class="submitted-date">{{ r.submittedAt | date:'dd MMM yyyy' }}</span>
+          <mat-icon class="expand-icon">{{ expandedId === r.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </div>
+      </div>
+
+      <!-- Expanded Content -->
+      <div *ngIf="expandedId === r.id" class="card-body">
+
+        <!-- Meta -->
+        <div class="meta-row">
+          <span *ngIf="r.submittedByName"><mat-icon>person</mat-icon> Submitted by {{ r.submittedByName }}</span>
+          <span *ngIf="r.reviewedByName"><mat-icon>rate_review</mat-icon> Reviewed by {{ r.reviewedByName }}</span>
+          <span *ngIf="r.reviewedAt"><mat-icon>event</mat-icon> Reviewed {{ r.reviewedAt | date:'dd MMM yyyy' }}</span>
+          <span *ngIf="r.notes"><mat-icon>notes</mat-icon> {{ r.notes }}</span>
+        </div>
+
+        <div *ngIf="r.rejectionReason" class="rejection-reason">
+          <mat-icon>block</mat-icon> Rejection reason: {{ r.rejectionReason }}
+        </div>
+
+        <!-- Items Table -->
+        <table mat-table [dataSource]="r.items" class="items-table">
+          <ng-container matColumnDef="product">
+            <th mat-header-cell *matHeaderCellDef>Product</th>
+            <td mat-cell *matCellDef="let item">{{ item.productName }}</td>
+          </ng-container>
+          <ng-container matColumnDef="qty">
+            <th mat-header-cell *matHeaderCellDef>Qty</th>
+            <td mat-cell *matCellDef="let item">{{ item.quantity }}</td>
+          </ng-container>
+          <ng-container matColumnDef="unitPrice">
+            <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+            <td mat-cell *matCellDef="let item">Rs. {{ item.unitPrice | number:'1.2-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="lineTotal">
+            <th mat-header-cell *matHeaderCellDef>Line Total</th>
+            <td mat-cell *matCellDef="let item">Rs. {{ item.lineTotal | number:'1.2-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="amountToAdd">
+            <th mat-header-cell *matHeaderCellDef>Amt to Add</th>
+            <td mat-cell *matCellDef="let item">
+              <span *ngIf="item.amountToAdd > 0" class="amount-to-add">+Rs. {{ item.amountToAdd | number:'1.2-2' }}</span>
+              <span *ngIf="item.amountToAdd === 0" class="no-add">—</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="stock">
+            <th mat-header-cell *matHeaderCellDef>Stock</th>
+            <td mat-cell *matCellDef="let item">
+              <span *ngIf="item.availableQty >= item.quantity" class="badge-in-stock">
+                <mat-icon>check_circle</mat-icon> In Stock ({{ item.availableQty }})
+              </span>
+              <span *ngIf="item.availableQty < item.quantity" class="badge-short">
+                <mat-icon>warning</mat-icon> Short ({{ item.availableQty }}/{{ item.quantity }})
+              </span>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="itemColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: itemColumns"></tr>
+        </table>
+
+        <!-- Admin Actions -->
+        <div *ngIf="!readonly && r.status === 'PENDING'" class="action-row">
+
+          <!-- Approve -->
+          <button mat-raised-button color="primary"
+                  [disabled]="approving === r.id"
+                  (click)="approve(r)"
+                  matTooltip="Reduces stock and adds amount to bill">
+            <mat-progress-spinner *ngIf="approving === r.id" diameter="18" mode="indeterminate"></mat-progress-spinner>
+            <mat-icon *ngIf="approving !== r.id">check</mat-icon>
+            Approve
+          </button>
+
+          <!-- Reject -->
+          <button mat-stroked-button color="warn"
+                  [disabled]="!!rejectingId"
+                  (click)="openReject(r)">
+            <mat-icon>close</mat-icon> Reject
+          </button>
+
+          <!-- Inline reject form -->
+          <div *ngIf="rejectingId === r.id" class="reject-inline">
+            <mat-form-field appearance="fill" class="reject-reason-field">
+              <mat-label>Rejection reason (optional)</mat-label>
+              <input matInput [(ngModel)]="rejectReason" placeholder="Enter reason..." />
+            </mat-form-field>
+            <button mat-raised-button color="warn"
+                    [disabled]="rejecting === r.id"
+                    (click)="confirmReject()">
+              <mat-progress-spinner *ngIf="rejecting === r.id" diameter="18" mode="indeterminate"></mat-progress-spinner>
+              Confirm Reject
+            </button>
+            <button mat-stroked-button (click)="cancelReject()">Cancel</button>
+          </div>
+        </div>
+
+      </div>
+    </mat-card>
+  </div>
+</div>

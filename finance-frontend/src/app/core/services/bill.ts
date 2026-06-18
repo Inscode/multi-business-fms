@@ -90,6 +90,7 @@ export interface BillResponse {
   notes: string | null;
   createdAt: string;
   willBeLinked?: boolean;
+  stockCleared?: boolean;
 }
 
 @Injectable({
@@ -152,6 +153,10 @@ export class Bill {
 
   markShopReceived(id: number): Observable<BillResponse> {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/shop-receive`, {});
+  }
+
+  markStockCleared(id: number): Observable<BillResponse> {
+    return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/mark-stock-cleared`, {});
   }
 
   markCompleted(id: number): Observable<BillResponse> {

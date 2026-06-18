@@ -1,0 +1,57 @@
+.review-container { max-width: 1000px; }
+.filter-bar { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+.status-filter { width: 180px; }
+.loading-state { display: flex; justify-content: center; padding: 40px; }
+.empty-state { text-align: center; padding: 40px; color: #9ca3af; mat-icon { font-size: 40px; width: 40px; height: 40px; display: block; margin: 0 auto 8px; } }
+.request-list { display: flex; flex-direction: column; gap: 12px; }
+.request-card { padding: 0; overflow: hidden; }
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px; cursor: pointer; gap: 12px;
+  &:hover { background: #f8fafc; }
+}
+.header-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.header-right { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+.bill-number { font-weight: 700; font-size: 14px; }
+.customer-name { color: #6b7280; font-size: 13px; }
+.item-count { font-size: 12px; color: #9ca3af; }
+.total-add { color: #059669; font-weight: 600; font-size: 13px; }
+.submitted-date { font-size: 12px; color: #9ca3af; }
+.expand-icon { color: #9ca3af; font-size: 20px; width: 20px; height: 20px; }
+.status-badge {
+  font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600;
+  &.status-pending  { background: #fef3c7; color: #92400e; }
+  &.status-approved { background: #d1fae5; color: #065f46; }
+  &.status-rejected { background: #fee2e2; color: #991b1b; }
+}
+.stock-warning-badge {
+  display: flex; align-items: center; gap: 2px; font-size: 11px;
+  background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px;
+  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+}
+.card-body { padding: 0 16px 16px; border-top: 1px solid #f3f4f6; }
+.meta-row {
+  display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 0 12px; font-size: 12px; color: #6b7280;
+  span { display: flex; gap: 4px; align-items: center; mat-icon { font-size: 15px; width: 15px; height: 15px; } }
+}
+.rejection-reason {
+  display: flex; gap: 6px; align-items: center; font-size: 13px; color: #991b1b;
+  background: #fee2e2; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+.items-table { width: 100%; font-size: 13px; }
+.badge-in-stock {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
+  color: #065f46; background: #d1fae5; padding: 2px 8px; border-radius: 12px;
+  mat-icon { font-size: 13px; width: 13px; height: 13px; }
+}
+.badge-short {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
+  color: #92400e; background: #fef3c7; padding: 2px 8px; border-radius: 12px;
+  mat-icon { font-size: 13px; width: 13px; height: 13px; }
+}
+.amount-to-add { color: #059669; font-weight: 600; }
+.no-add { color: #9ca3af; }
+.action-row { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; flex-wrap: wrap; }
+.reject-inline { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.reject-reason-field { min-width: 260px; }

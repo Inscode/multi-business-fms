@@ -50,6 +50,22 @@
         <span class="nav-badge" *ngIf="pendingReturns > 0 && !collapsed">{{ pendingReturns }}</span>
         <span class="nav-badge-dot" *ngIf="pendingReturns > 0 && collapsed"></span>
       </a>
+      <a class="nav-item" routerLink="/stock" routerLinkActive="active" matRipple *ngIf="showStock" (click)="isMobile && sidenav.close()">
+        <mat-icon>inventory</mat-icon>
+        <span *ngIf="!collapsed">Stock</span>
+      </a>
+      <a class="nav-item" routerLink="/backorders" routerLinkActive="active" matRipple *ngIf="showBackorders" (click)="isMobile && sidenav.close()">
+        <mat-icon>pending_actions</mat-icon>
+        <span *ngIf="!collapsed">Backorders</span>
+      </a>
+      <a class="nav-item" routerLink="/bills/aging" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" matRipple *ngIf="showAgingReport" (click)="isMobile && sidenav.close()">
+        <mat-icon>trending_up</mat-icon>
+        <span *ngIf="!collapsed">Aging Report</span>
+      </a>
+      <a class="nav-item" routerLink="/tasks" routerLinkActive="active" matRipple *ngIf="showTasks" (click)="isMobile && sidenav.close()">
+        <mat-icon>task_alt</mat-icon>
+        <span *ngIf="!collapsed">Daily Operations</span>
+      </a>
       <a class="nav-item" routerLink="/expenses" routerLinkActive="active" matRipple *ngIf="showExpenses" (click)="isMobile && sidenav.close()">
         <mat-icon>account_balance_wallet</mat-icon>
         <span *ngIf="!collapsed">Expenses</span>
@@ -62,10 +78,6 @@
         <span class="nav-badge" *ngIf="pendingSalary > 0 && !collapsed">{{ pendingSalary }}</span>
         <span class="nav-badge-dot" *ngIf="pendingSalary > 0 && collapsed"></span>
       </a>
-      <a class="nav-item" routerLink="/stock" routerLinkActive="active" matRipple *ngIf="showStock" (click)="isMobile && sidenav.close()">
-        <mat-icon>inventory</mat-icon>
-        <span *ngIf="!collapsed">Stock</span>
-      </a>
       <a class="nav-item" routerLink="/bill-checklist" routerLinkActive="active" matRipple *ngIf="showBillChecklist" (click)="isMobile && sidenav.close()">
         <mat-icon>checklist</mat-icon>
         <span *ngIf="!collapsed">Bill Checklist</span>
@@ -75,10 +87,6 @@
         <span *ngIf="!collapsed">Workers Finance</span>
         <span class="nav-badge" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && !collapsed">{{ pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin }}</span>
         <span class="nav-badge-dot" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && collapsed"></span>
-      </a>
-      <a class="nav-item" routerLink="/bills/aging" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" matRipple *ngIf="showAgingReport" (click)="isMobile && sidenav.close()">
-        <mat-icon>trending_up</mat-icon>
-        <span *ngIf="!collapsed">Aging Report</span>
       </a>
       <a class="nav-item" routerLink="/dashboard/collection-health" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" matRipple *ngIf="showCollectionHealth" (click)="isMobile && sidenav.close()">
         <mat-icon>monitor_heart</mat-icon>
@@ -91,10 +99,6 @@
       <a class="nav-item" routerLink="/worker-collections" routerLinkActive="active" matRipple *ngIf="showWorkerCollections" (click)="isMobile && sidenav.close()">
         <mat-icon>directions_bike</mat-icon>
         <span *ngIf="!collapsed">Worker Collections</span>
-      </a>
-      <a class="nav-item" routerLink="/tasks" routerLinkActive="active" matRipple *ngIf="showTasks" (click)="isMobile && sidenav.close()">
-        <mat-icon>task_alt</mat-icon>
-        <span *ngIf="!collapsed">Daily Operations</span>
       </a>
     </nav>
 

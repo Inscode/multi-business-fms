@@ -6,6 +6,7 @@ import com.multi.finance.dto.request.CreateSummaryLoadBillRequest;
 import com.multi.finance.dto.request.IndividualStockReductionRequest;
 import com.multi.finance.dto.request.LinkBillsRequest;
 import com.multi.finance.dto.request.StockItemRequest;
+import com.multi.finance.dto.response.BackorderItemResponse;
 import com.multi.finance.dto.response.BillStockItemResponse;
 import com.multi.finance.dto.response.BillStockStatusResponse;
 import com.multi.finance.dto.response.StockBillResponse;
@@ -184,13 +185,18 @@ public class StockServiceImpl {
             ReturnProduct product = returnProductRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
 
-            BigDecimal lineTotal = BigDecimal.valueOf(item.getQuantity()).multiply(product.getUnitPrice());
+            BigDecimal unitPrice = (item.isBackorder() && item.getPredictedUnitPrice() != null)
+                    ? item.getPredictedUnitPrice()
+                    : product.getUnitPrice();
+            BigDecimal lineTotal = BigDecimal.valueOf(item.getQuantity()).multiply(unitPrice);
             StockReductionPendingItem pendingItem = StockReductionPendingItem.builder()
                     .reduction(pending)
                     .product(product)
                     .quantity(item.getQuantity())
-                    .unitPrice(product.getUnitPrice())
+                    .unitPrice(unitPrice)
                     .lineTotal(lineTotal)
+                    .backorder(item.isBackorder())
+                    .predictedUnitPrice(item.isBackorder() ? item.getPredictedUnitPrice() : null)
                     .createdAt(LocalDateTime.now())
                     .build();
             pending.getItems().add(pendingItem);
@@ -217,22 +223,85 @@ public class StockServiceImpl {
             throw new RuntimeException("Request is not in PENDING status");
         }
 
+        // Separate items into regular and backorder lists
+        List<StockReductionPendingItem> regularItems = pending.getItems().stream()
+                .filter(i -> !Boolean.TRUE.equals(i.getBackorder()))
+                .collect(Collectors.toList());
+        List<StockReductionPendingItem> backorderItems = pending.getItems().stream()
+                .filter(i -> Boolean.TRUE.equals(i.getBackorder()))
+                .collect(Collectors.toList());
+
+        // Stock check for non-backorder items (bulk, no N+1)
+        if (!regularItems.isEmpty()) {
+            List<Long> productIds = regularItems.stream()
+                    .map(i -> i.getProduct().getId())
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            // Aggregate required qty per product (in case same product appears multiple times)
+            Map<Long, Long> requiredQty = new HashMap<>();
+            for (StockReductionPendingItem item : regularItems) {
+                requiredQty.merge(item.getProduct().getId(), item.getQuantity(), Long::sum);
+            }
+
+            Map<Long, Long> availableBalances = new HashMap<>();
+            shadowStockMovementRepository.getAvailableBalancesForProducts(productIds).forEach(row -> {
+                Long productId = ((Number) row[0]).longValue();
+                Long balance = ((Number) row[1]).longValue();
+                availableBalances.put(productId, balance);
+            });
+
+            // Build name map for error messages
+            Map<Long, String> productNames = new HashMap<>();
+            for (StockReductionPendingItem item : regularItems) {
+                productNames.put(item.getProduct().getId(), item.getProduct().getName());
+            }
+
+            List<String> shortages = new ArrayList<>();
+            for (Map.Entry<Long, Long> entry : requiredQty.entrySet()) {
+                Long productId = entry.getKey();
+                Long required = entry.getValue();
+                Long available = availableBalances.getOrDefault(productId, 0L);
+                if (available < required) {
+                    shortages.add(productNames.get(productId) +
+                            " (available: " + available + ", required: " + required + ")");
+                }
+            }
+            if (!shortages.isEmpty()) {
+                throw new RuntimeException("Insufficient stock for: " + String.join(", ", shortages));
+            }
+        }
+
         Bill bill = pending.getBill();
 
-        for (StockReductionPendingItem pendingItem : pending.getItems()) {
+        // Process regular items: create BillStockItem + BILL_OUT movement
+        for (StockReductionPendingItem pendingItem : regularItems) {
             ReturnProduct product = pendingItem.getProduct();
-
             billStockItemRepository.save(BillStockItem.builder()
                     .bill(bill)
                     .product(product)
                     .quantity(pendingItem.getQuantity())
                     .unitPrice(pendingItem.getUnitPrice())
                     .lineTotal(pendingItem.getLineTotal())
+                    .backorder(false)
                     .createdAt(LocalDateTime.now())
                     .build());
-
             createShadowStockMovement(product, pendingItem.getQuantity(),
                     ShadowStockMovement.MovementType.BILL_OUT, bill, null, currentUser);
+        }
+
+        // Process backorder items: create BillStockItem with backorder=true, NO BILL_OUT
+        for (StockReductionPendingItem pendingItem : backorderItems) {
+            ReturnProduct product = pendingItem.getProduct();
+            billStockItemRepository.save(BillStockItem.builder()
+                    .bill(bill)
+                    .product(product)
+                    .quantity(pendingItem.getQuantity())
+                    .unitPrice(pendingItem.getUnitPrice())
+                    .lineTotal(pendingItem.getLineTotal())
+                    .backorder(true)
+                    .createdAt(LocalDateTime.now())
+                    .build());
         }
 
         pending.setStatus(StockReductionPending.ApprovalStatus.APPROVED);
@@ -963,6 +1032,59 @@ public class StockServiceImpl {
             balances.put(product.getId(), balance != null ? balance : 0L);
         }
         return balances;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // BACKORDER ITEMS
+    // ─────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<BackorderItemResponse> getPendingBackorderItems() {
+        return billStockItemRepository.findByBackorderTrue().stream()
+                .map(item -> BackorderItemResponse.builder()
+                        .id(item.getId())
+                        .billId(item.getBill().getId())
+                        .billNumber(item.getBill().getBillNumber())
+                        .customerName(item.getBill().getCustomerName())
+                        .productId(item.getProduct().getId())
+                        .productName(item.getProduct().getName())
+                        .quantity(item.getQuantity())
+                        .predictedUnitPrice(item.getUnitPrice())
+                        .lineTotal(item.getLineTotal())
+                        .createdAt(item.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    @Transactional
+    public void issueBackorderItem(Long id) {
+        User currentUser = getCurrentUser();
+        BillStockItem item = billStockItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Backorder item not found"));
+        if (!Boolean.TRUE.equals(item.getBackorder())) {
+            throw new RuntimeException("Item is not a backorder item");
+        }
+        // Check stock
+        List<Object[]> balances = shadowStockMovementRepository
+                .getAvailableBalancesForProducts(List.of(item.getProduct().getId()));
+        long available = balances.isEmpty() ? 0L : ((Number) balances.get(0)[1]).longValue();
+        if (available < item.getQuantity()) {
+            throw new RuntimeException("Insufficient stock for " + item.getProduct().getName() +
+                    ": available " + available + ", required " + item.getQuantity());
+        }
+        // Create BILL_OUT
+        createShadowStockMovement(item.getProduct(), item.getQuantity(),
+                ShadowStockMovement.MovementType.BILL_OUT, item.getBill(), null, currentUser);
+        // Add to bill total
+        Bill bill = item.getBill();
+        bill.setTotalAmount(bill.getTotalAmount().add(item.getLineTotal()));
+        bill.setBalanceRemaining(bill.getTotalAmount().subtract(bill.getAmountPaid()));
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
+        // Mark as issued (no longer backorder)
+        item.setBackorder(false);
+        item.setUpdatedAt(LocalDateTime.now());
+        billStockItemRepository.save(item);
     }
 
     // ─────────────────────────────────────────────────────────────

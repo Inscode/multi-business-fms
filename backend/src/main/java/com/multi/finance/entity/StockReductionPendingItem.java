@@ -35,6 +35,13 @@ public class StockReductionPendingItem {
     @Column(name = "line_total", nullable = false)
     private BigDecimal lineTotal;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean backorder = false;
+
+    @Column(name = "predicted_unit_price")
+    private BigDecimal predictedUnitPrice;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 }

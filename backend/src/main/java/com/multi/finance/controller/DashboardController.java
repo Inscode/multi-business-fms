@@ -1,6 +1,7 @@
 package com.multi.finance.controller;
 
 import com.multi.finance.dto.response.AccountantDashboardResponse;
+import com.multi.finance.dto.response.ChequeDetailEntry;
 import com.multi.finance.dto.response.CollectionHealthResponse;
 import com.multi.finance.dto.response.OwnerDashboardResponse;
 import com.multi.finance.dto.response.ShopDashboardResponse;
@@ -47,19 +48,26 @@ public class DashboardController {
     }
 
     @GetMapping("/collection-health")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CollectionHealthResponse> getCollectionHealth(
             @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
         return ResponseEntity.ok(dashboardService.getCollectionHealth(business));
     }
 
-    /** Upcoming cheques for a custom date range — lets the user look further ahead than the default 30-day window. */
     @GetMapping("/upcoming-cheques")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UpcomingChequeEntry>> getUpcomingCheques(
             @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(dashboardService.getUpcomingCheques(business, from, to));
+    }
+
+    @GetMapping("/cheque-details")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ChequeDetailEntry>> getChequeDetails(
+            @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(dashboardService.getChequeDetails(business, date));
     }
 }

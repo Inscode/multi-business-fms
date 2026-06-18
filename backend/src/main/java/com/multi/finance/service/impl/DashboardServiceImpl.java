@@ -4,6 +4,7 @@ import com.multi.finance.dto.response.AccountantDashboardResponse;
 import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.dto.response.BillReminderResponse;
 import com.multi.finance.dto.response.BillSummaryResponse;
+import com.multi.finance.dto.response.ChequeDetailEntry;
 import com.multi.finance.dto.response.CollectionHealthResponse;
 import com.multi.finance.dto.response.CollectorPerformanceEntry;
 import com.multi.finance.dto.response.CustomerRiskEntry;
@@ -237,6 +238,19 @@ public class DashboardServiceImpl {
                         .chequeDate(toLocalDate(r[0]))
                         .totalAmount(toBigDecimal(r[1]))
                         .count(toInt(r[2]))
+                        .build())
+                .toList();
+    }
+
+    public List<ChequeDetailEntry> getChequeDetails(BusinessType business, LocalDate date) {
+        return paymentRepository.findChequeDetailsByDate(business.name(), date).stream()
+                .map(r -> ChequeDetailEntry.builder()
+                        .customerName((String) r[0])
+                        .billNumber((String) r[1])
+                        .bankName((String) r[2])
+                        .chequeNumber((String) r[3])
+                        .amount(toBigDecimal(r[4]))
+                        .status((String) r[5])
                         .build())
                 .toList();
     }

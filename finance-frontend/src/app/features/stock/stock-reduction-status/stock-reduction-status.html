@@ -133,7 +133,7 @@
 
     <!-- Table -->
     <div *ngIf="!showLinkingSummary && !loading" class="table-container">
-      <table mat-table [dataSource]="filtered" class="status-table">
+      <table mat-table [dataSource]="displayed" multiTemplateDataRows class="status-table">
 
         <ng-container matColumnDef="billNumber">
           <th mat-header-cell *matHeaderCellDef>Bill #</th>
@@ -196,10 +196,95 @@
           <td mat-cell *matCellDef="let r">{{ r.enteredByName }}</td>
         </ng-container>
 
-        <!-- Actions column (reserved for future use) -->
+        <!-- Actions column -->
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let r"></td>
+          <td mat-cell *matCellDef="let r">
+            <button
+              *ngIf="isAdmin && r.reductionStatus === 'NOT_REDUCED'"
+              mat-stroked-button
+              class="mark-reduced-btn"
+              (click)="$event.stopPropagation(); markStockCleared(r)"
+              matTooltip="Mark as already reduced — for old bills where stock was given before system entry">
+              <mat-icon>inventory_2</mat-icon>
+              Mark Reduced
+            </button>
+          </td>
+        </ng-container>
+
+        <!-- Inline expanded detail row -->
+        <ng-container matColumnDef="expandedDetail">
+          <td mat-cell *matCellDef="let r" [attr.colspan]="columns.length" class="detail-cell">
+            <div class="expanded-panel" *ngIf="expandedBillId === r.billId">
+              <div class="expanded-panel-header">
+                <span class="ep-title">
+                  <mat-icon>inventory_2</mat-icon>
+                  <strong>{{ r.billNumber }}</strong>
+                  <span class="ep-customer">{{ r.customerName }}</span>
+                </span>
+                <button mat-icon-button (click)="$event.stopPropagation(); collapsePanel()">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+
+              <div *ngIf="loadingItems" class="detail-loading">
+                <mat-progress-spinner mode="indeterminate" diameter="24"></mat-progress-spinner>
+                <span style="margin-left:10px;font-size:13px;color:#666">Loading items…</span>
+              </div>
+
+              <ng-container *ngIf="!loadingItems">
+                <!-- Regular items -->
+                <div *ngIf="regularItemsFor(r.billId).length > 0" class="items-section">
+                  <div class="items-section-label">Stock Items</div>
+                  <table class="detail-table">
+                    <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th *ngIf="isAdmin"></th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let item of regularItemsFor(r.billId)">
+                        <td>{{ item.productName }}</td>
+                        <td>
+                          <span *ngIf="editingItemId !== item.id">{{ item.quantity }}</span>
+                          <input *ngIf="editingItemId === item.id" type="number" [(ngModel)]="editingQty" (click)="$event.stopPropagation()" style="width:60px" />
+                        </td>
+                        <td>Rs {{ item.unitPrice | number:'1.2-2' }}</td>
+                        <td>Rs {{ item.lineTotal | number:'1.0-0' }}</td>
+                        <td *ngIf="isAdmin">
+                          <ng-container *ngIf="editingItemId !== item.id">
+                            <button mat-icon-button (click)="$event.stopPropagation(); startEdit(item)" matTooltip="Edit qty"><mat-icon>edit</mat-icon></button>
+                            <button mat-icon-button color="warn" (click)="$event.stopPropagation(); deleteItem(item)" matTooltip="Delete"><mat-icon>delete</mat-icon></button>
+                          </ng-container>
+                          <ng-container *ngIf="editingItemId === item.id">
+                            <button mat-icon-button color="primary" (click)="$event.stopPropagation(); saveEdit(item)"><mat-icon>check</mat-icon></button>
+                            <button mat-icon-button (click)="$event.stopPropagation(); cancelEdit()"><mat-icon>close</mat-icon></button>
+                          </ng-container>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Backorder items -->
+                <div *ngIf="isAdmin && backorderItemsFor(r.billId).length > 0" class="backorder-section">
+                  <div class="backorder-header">
+                    <mat-icon>pending_actions</mat-icon>
+                    Backorder Items — Pending Issue
+                  </div>
+                  <div class="backorder-card" *ngFor="let item of backorderItemsFor(r.billId)">
+                    <span class="item-name">{{ item.productName }}</span>
+                    <span class="item-qty">Qty: {{ item.quantity }}</span>
+                    <span class="item-price">Rs {{ item.lineTotal | number:'1.0-0' }}</span>
+                    <button mat-stroked-button color="primary" (click)="$event.stopPropagation(); issueBackorderItem(item)" style="font-size:12px">
+                      <mat-icon>check_circle</mat-icon> Issue Now
+                    </button>
+                  </div>
+                </div>
+
+                <div *ngIf="regularItemsFor(r.billId).length === 0 && backorderItemsFor(r.billId).length === 0"
+                     style="padding:12px 16px;color:#999;font-size:13px">
+                  No stock items entered yet.
+                </div>
+              </ng-container>
+            </div>
+          </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
@@ -207,9 +292,26 @@
           [class.row-not-reduced]="row.reductionStatus === 'NOT_REDUCED'"
           [class.row-approved]="row.reductionStatus === 'SUMMARY_APPROVED'"
           [class.row-individual]="row.reductionStatus === 'INDIVIDUALLY_REDUCED'"
-          [class.row-expanded]="expandedBillId === row.billId">
+          [class.row-expanded]="expandedBillId === row.billId"
+          (click)="toggleExpand(row)" style="cursor:pointer">
         </tr>
+        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
       </table>
+
+      <!-- Load All button -->
+      <div *ngIf="hiddenCount > 0" class="load-all-bar">
+        <button mat-button (click)="showAll = true; cdr.detectChanges()">
+          <mat-icon>expand_more</mat-icon>
+          Show {{ hiddenCount }} more bill{{ hiddenCount === 1 ? '' : 's' }}
+        </button>
+        <span class="load-all-note">Showing last {{ SUMMARY_LIMIT }} summary load + {{ INDIVIDUAL_LIMIT }} individual bills</span>
+      </div>
+      <div *ngIf="showAll && filtered.length > (SUMMARY_LIMIT + INDIVIDUAL_LIMIT)" class="load-all-bar">
+        <button mat-button (click)="showAll = false; cdr.detectChanges()">
+          <mat-icon>expand_less</mat-icon>
+          Show fewer
+        </button>
+      </div>
 
       <div *ngIf="filtered.length === 0" class="empty-state">
         <mat-icon>search_off</mat-icon>

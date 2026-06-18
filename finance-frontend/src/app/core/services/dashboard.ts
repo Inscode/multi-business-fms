@@ -104,6 +104,15 @@ export interface UpcomingChequeEntry {
   count: number;
 }
 
+export interface ChequeDetailEntry {
+  customerName: string;
+  billNumber: string;
+  bankName: string | null;
+  chequeNumber: string | null;
+  amount: number;
+  status: string;
+}
+
 export interface StaleChequeEntry {
   chequeDate: string;
   amount: number;
@@ -166,6 +175,11 @@ export class Dashboard {
   getUpcomingCheques(business: string, from: string, to: string): Observable<UpcomingChequeEntry[]> {
     const params = new HttpParams().set('business', business).set('from', from).set('to', to);
     return this.http.get<UpcomingChequeEntry[]>(`${this.apiUrl}/upcoming-cheques`, { params });
+  }
+
+  getChequeDetails(business: string, date: string): Observable<ChequeDetailEntry[]> {
+    const params = new HttpParams().set('business', business).set('date', date);
+    return this.http.get<ChequeDetailEntry[]>(`${this.apiUrl}/cheque-details`, { params });
   }
 
 }

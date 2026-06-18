@@ -722,6 +722,18 @@ public class BillServiceImpl {
                 .notes(bill.getNotes())
                 .createdAt(bill.getCreatedAt())
                 .willBeLinked(bill.getWillBeLinked())
+                .stockCleared(bill.getStockCleared())
                 .build();
+    }
+
+    @Transactional
+    public BillResponse markStockCleared(Long id) {
+        Bill bill = findBillById(id);
+        if (Boolean.TRUE.equals(bill.getStockCleared())) {
+            throw new RuntimeException("Bill #" + bill.getBillNumber() + " is already marked as stock reduced");
+        }
+        bill.setStockCleared(true);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
     }
 }

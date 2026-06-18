@@ -124,4 +124,13 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Object[]> findPaymentMixByDate(@Param("business") String business,
                                          @Param("from") LocalDate from,
                                          @Param("to") LocalDate to);
+
+    /** [customerName, billNumber, bankName, chequeNumber, amount, status] — individual cheques for a given date */
+    @Query(value = "SELECT b.customer_name, b.bill_number, p.bank_name, p.cheque_number, p.amount, p.status " +
+           "FROM payments p JOIN bills b ON b.id = p.bill_id " +
+           "WHERE p.payment_type = 'CHEQUE' AND b.business = :business " +
+           "AND p.cheque_date = :date AND p.status <> 'REJECTED' AND p.status <> 'RETURNED' " +
+           "ORDER BY p.amount DESC", nativeQuery = true)
+    List<Object[]> findChequeDetailsByDate(@Param("business") String business,
+                                           @Param("date") LocalDate date);
 }
