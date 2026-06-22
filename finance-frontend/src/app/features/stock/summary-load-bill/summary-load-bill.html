@@ -7,6 +7,8 @@
   </mat-card-header>
 
   <mat-card-content>
+    <!-- Entry steps: admin only -->
+    <ng-container *ngIf="isAdmin">
     <!-- Step 1: Select System Bills -->
     <div class="section">
       <h3>Step 1: Select System Bills</h3>
@@ -216,6 +218,7 @@
     </div>
 
     <mat-divider class="section-divider"></mat-divider>
+    </ng-container><!-- /isAdmin entry steps -->
 
     <!-- History Section -->
     <div class="section">
@@ -416,8 +419,8 @@
 
       </div>
     </div>
-    <!-- Individual Reduction Approvals (Admin Only) -->
-    <div class="section" *ngIf="isAdmin">
+    <!-- Individual Reduction Requests -->
+    <div class="section" *ngIf="isAdmin || isAccountant">
       <h3>Individual Reduction Requests
         <span class="pending-count-badge" *ngIf="pendingReductions.length > 0">
           {{ pendingReductions.length }}
@@ -473,7 +476,7 @@
                   <mat-icon>{{ expandedReductionId === r.id ? 'expand_less' : 'expand_more' }}</mat-icon>
                   Items
                 </button>
-                <ng-container *ngIf="r.status === 'PENDING'">
+                <ng-container *ngIf="r.status === 'PENDING' && isAdmin">
                   <button mat-flat-button color="primary"
                     [disabled]="approvingId === r.id"
                     (click)="approveReduction(r.id)">

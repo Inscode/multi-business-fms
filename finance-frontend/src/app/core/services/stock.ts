@@ -355,6 +355,10 @@ export class StockService {
     return this.http.get<any>(`${this.apiUrl}/balance`);
   }
 
+  getDamageStockBalance(): Observable<Record<number, number>> {
+    return this.http.get<Record<number, number>>(`${this.apiUrl}/damage-balance`);
+  }
+
   // Get full stock status for a specific bill (for bill detail page)
   getBillStockStatus(billId: number): Observable<BillStockStatus> {
     return this.http.get<BillStockStatus>(`${this.apiUrl}/bills/${billId}/stock-status`);
