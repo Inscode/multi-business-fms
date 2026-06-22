@@ -82,6 +82,7 @@
 
   <!-- Table -->
   <div class="table-wrap" *ngIf="!loading">
+    <div class="table-scroll-wrap">
     <table mat-table [dataSource]="filtered" class="customers-table">
 
       <ng-container matColumnDef="name">
@@ -142,6 +143,7 @@
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.inactive-row]="!row.active"></tr>
     </table>
+    </div>
 
     <div class="empty-state" *ngIf="filtered.length === 0">
       <mat-icon>people_outline</mat-icon>

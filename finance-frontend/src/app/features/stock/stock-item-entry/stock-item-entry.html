@@ -76,9 +76,17 @@
             <mat-label>Product Name</mat-label>
             <input matInput [formControl]="productSearchControl" [matAutocomplete]="productAuto" />
             <mat-autocomplete #productAuto="matAutocomplete" [displayWith]="displayProduct">
-              <mat-option *ngFor="let product of filteredProducts" [value]="product">
-                <strong>{{ product.name }}</strong>
-                <small>&nbsp;(Rs. {{ product.unitPrice | number:'1.2-2' }})</small>
+              <mat-option *ngFor="let product of filteredProducts" [value]="product" [disabled]="stockQty(product.id) === 0">
+                <span style="display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%">
+                  <span>
+                    <strong>{{ product.name }}</strong>
+                    <small style="color:#888">&nbsp;Rs. {{ product.unitPrice | number:'1.2-2' }}</small>
+                  </span>
+                  <span [style.color]="stockQty(product.id) === 0 ? '#f44336' : stockQty(product.id) <= 5 ? '#f57c00' : '#2e7d32'"
+                        style="font-size:12px;font-weight:600;white-space:nowrap">
+                    {{ stockQty(product.id) === 0 ? 'Out of stock' : 'Stock: ' + stockQty(product.id) }}
+                  </span>
+                </span>
               </mat-option>
             </mat-autocomplete>
           </mat-form-field>

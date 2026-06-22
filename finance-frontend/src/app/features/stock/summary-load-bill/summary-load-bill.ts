@@ -16,6 +16,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatSelectModule } from '@angular/material/select';
 import { SelectionModel } from '@angular/cdk/collections';
 import { StockService, SummaryLoadBill, IndividualReductionPending } from '../../../core/services/stock';
 import { Auth } from '../../../core/services/auth';
@@ -65,6 +66,7 @@ interface LineItem {
     MatTooltipModule,
     MatChipsModule,
     MatDividerModule,
+    MatSelectModule,
     DecimalPipe,
   ],
   templateUrl: './summary-load-bill.html',
@@ -78,6 +80,7 @@ export class SummaryLoadBillComponent implements OnInit {
   lineItems: LineItem[] = [];
   allProducts: ReturnProduct[] = [];
   filteredProducts: ReturnProduct[] = [];
+  stockBalance: Record<number, number> = {};
   saving = false;
   successMessage = '';
 
@@ -86,6 +89,13 @@ export class SummaryLoadBillComponent implements OnInit {
   historyColumns: string[] = ['id', 'loadDate', 'numberOfBills', 'status', 'createdByName', 'createdAt', 'actions', 'expand'];
   approvingId: number | null = null;
   expandedLoadId: number | null = null;
+
+  // Admin: inline item edit on PENDING loads
+  editingLoadItemId: number | null = null;
+  editingLoadItemQty: number | null = null;
+  addingItemToLoadId: number | null = null;
+  newItemProductId: number | null = null;
+  newItemQty: number = 1;
 
   // Individual reduction pending approvals (admin only)
   pendingReductions: IndividualReductionPending[] = [];
@@ -167,6 +177,14 @@ export class SummaryLoadBillComponent implements OnInit {
         this.cdr.detectChanges();
       },
     });
+    this.stockService.getShadowStockBalance().subscribe({
+      next: (bal: Record<number, number>) => { this.stockBalance = bal; this.cdr.detectChanges(); },
+      error: () => {},
+    });
+  }
+
+  stockQty(productId: number): number {
+    return this.stockBalance[productId] ?? 0;
   }
 
   private loadUnassignedBills(): void {
@@ -294,6 +312,72 @@ export class SummaryLoadBillComponent implements OnInit {
         this.approvingId = null;
         this.cdr.detectChanges();
       },
+    });
+  }
+
+  // Admin: edit items on PENDING summary loads
+  startEditLoadItem(item: any): void {
+    this.editingLoadItemId = item.id;
+    this.editingLoadItemQty = item.quantity;
+    this.cdr.detectChanges();
+  }
+
+  cancelLoadItemEdit(): void {
+    this.editingLoadItemId = null;
+    this.editingLoadItemQty = null;
+    this.cdr.detectChanges();
+  }
+
+  saveLoadItemEdit(loadId: number, item: any): void {
+    if (!this.editingLoadItemQty || this.editingLoadItemQty <= 0 || !item.id) return;
+    this.stockService.updateSummaryLoadItemQty(loadId, item.id, this.editingLoadItemQty).subscribe({
+      next: (updated) => {
+        const idx = this.loadBillHistory.findIndex(l => l.id === loadId);
+        if (idx >= 0) this.loadBillHistory[idx] = updated;
+        this.editingLoadItemId = null;
+        this.editingLoadItemQty = null;
+        this.cdr.detectChanges();
+      },
+      error: () => this.cdr.detectChanges(),
+    });
+  }
+
+  deleteLoadItem(loadId: number, item: any): void {
+    if (!item.id || !confirm(`Delete ${item.productName} (qty ${item.quantity})?`)) return;
+    this.stockService.deleteSummaryLoadItem(loadId, item.id).subscribe({
+      next: () => {
+        const idx = this.loadBillHistory.findIndex(l => l.id === loadId);
+        if (idx >= 0 && this.loadBillHistory[idx].items) {
+          this.loadBillHistory[idx] = {
+            ...this.loadBillHistory[idx],
+            items: this.loadBillHistory[idx].items!.filter(i => i.id !== item.id),
+          };
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => this.cdr.detectChanges(),
+    });
+  }
+
+  toggleAddItem(loadId: number): void {
+    this.addingItemToLoadId = this.addingItemToLoadId === loadId ? null : loadId;
+    this.newItemProductId = null;
+    this.newItemQty = 1;
+    this.cdr.detectChanges();
+  }
+
+  submitAddItem(loadId: number): void {
+    if (!this.newItemProductId || this.newItemQty < 1) return;
+    this.stockService.addSummaryLoadItem(loadId, this.newItemProductId, this.newItemQty).subscribe({
+      next: (updated) => {
+        const idx = this.loadBillHistory.findIndex(l => l.id === loadId);
+        if (idx >= 0) this.loadBillHistory[idx] = updated;
+        this.addingItemToLoadId = null;
+        this.newItemProductId = null;
+        this.newItemQty = 1;
+        this.cdr.detectChanges();
+      },
+      error: () => this.cdr.detectChanges(),
     });
   }
 

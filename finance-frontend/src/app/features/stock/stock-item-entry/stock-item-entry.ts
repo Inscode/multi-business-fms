@@ -68,6 +68,7 @@ export class StockItemEntryComponent implements OnInit {
   allProducts: ReturnProduct[] = [];
   filteredProducts: ReturnProduct[] = [];
   lineItems: LineItem[] = [];
+  stockBalance: Record<number, number> = {};
   productSearchControl = new FormControl<ReturnProduct | string | null>(null);
   productQtyControl = new FormControl<number | null>(null);
 
@@ -148,6 +149,14 @@ export class StockItemEntryComponent implements OnInit {
       next: products => { this.allProducts = products; this.cdr.detectChanges(); },
       error: err => console.error('Failed to load products:', err),
     });
+    this.stockService.getShadowStockBalance().subscribe({
+      next: (bal: Record<number, number>) => { this.stockBalance = bal; this.cdr.detectChanges(); },
+      error: () => {},
+    });
+  }
+
+  stockQty(productId: number): number {
+    return this.stockBalance[productId] ?? 0;
   }
 
   displayBill = (bill: BillOption | null): string =>

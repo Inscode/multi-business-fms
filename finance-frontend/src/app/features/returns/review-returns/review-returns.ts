@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { ApproveReturnRequest, BillReturnResponse, BillReturnService, ReceivedItemDto } from '../../../core/services/bill-return';
 
@@ -21,7 +22,7 @@ interface ReceivedQty { [itemId: number]: number; }
     CommonModule, FormsModule, DatePipe, DecimalPipe,
     MatButtonModule, MatIconModule, MatProgressSpinnerModule,
     MatSelectModule, MatFormFieldModule, MatInputModule,
-    MatDialogModule, MatSnackBarModule,
+    MatDialogModule, MatSnackBarModule, MatTooltipModule,
   ],
   templateUrl: './review-returns.html',
   styleUrl: './review-returns.scss',
@@ -39,6 +40,9 @@ export class ReviewReturns implements OnInit {
   expandedId: number | null = null;
 
   receivedQtyMap: { [returnId: number]: ReceivedQty } = {};
+
+  fixingBillAmounts = false;
+  fixResult: string | null = null;
 
   get displayed(): BillReturnResponse[] {
     return this.returns.filter(r => {
@@ -190,6 +194,23 @@ export class ReviewReturns implements OnInit {
         },
         error: () => this.snackBar.open('Failed to reject.', 'OK', { duration: 4000 }),
       });
+    });
+  }
+
+  fixHistoricalBillAmounts(): void {
+    this.fixingBillAmounts = true;
+    this.fixResult = null;
+    this.billReturnService.fixHistoricalBillAmounts().subscribe({
+      next: (r) => {
+        this.fixResult = `Fixed ${r.fixed} return${r.fixed !== 1 ? 's' : ''}`;
+        this.fixingBillAmounts = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.fixResult = 'Fix failed — check console';
+        this.fixingBillAmounts = false;
+        this.cdr.detectChanges();
+      },
     });
   }
 }

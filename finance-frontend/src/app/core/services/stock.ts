@@ -72,6 +72,7 @@ export interface StockBillListItem {
 }
 
 export interface SummaryLoadBillItem {
+  id?: number;
   productName: string;
   quantity: number;
   unitPrice: number;
@@ -398,5 +399,23 @@ export class StockService {
 
   issueBackorderItem(id: number): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/backorder-items/${id}/issue`, {});
+  }
+
+  // Summary load item CRUD (admin only, PENDING loads)
+  addSummaryLoadItem(loadId: number, productId: number, quantity: number): Observable<SummaryLoadBill> {
+    return this.http.post<SummaryLoadBill>(`${this.apiUrl}/summary-load/${loadId}/items`, { productId, quantity });
+  }
+
+  updateSummaryLoadItemQty(loadId: number, itemId: number, quantity: number): Observable<SummaryLoadBill> {
+    return this.http.patch<SummaryLoadBill>(`${this.apiUrl}/summary-load/${loadId}/items/${itemId}/quantity`, { quantity });
+  }
+
+  deleteSummaryLoadItem(loadId: number, itemId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/summary-load/${loadId}/items/${itemId}`);
+  }
+
+  // Add item to an already-approved (INDIVIDUALLY_REDUCED) bill
+  addItemToApprovedBill(billId: number, productId: number, quantity: number): Observable<BillStockItem> {
+    return this.http.post<BillStockItem>(`${this.apiUrl}/bills/${billId}/items/add`, { productId, quantity });
   }
 }

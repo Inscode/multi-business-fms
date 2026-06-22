@@ -70,6 +70,12 @@ export class StockReductionStatusComponent implements OnInit {
   editingItemId: number | null = null;
   editingQty: number | null = null;
 
+  // Admin: add item to an approved (INDIVIDUALLY_REDUCED) bill
+  addingItemToBillId: number | null = null;
+  addItemProductId: number | null = null;
+  addItemQty: number = 1;
+  products: any[] = [];
+
   summary = { total: 0, notReduced: 0, summaryPending: 0, summaryApproved: 0, individual: 0 };
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
@@ -90,7 +96,15 @@ export class StockReductionStatusComponent implements OnInit {
     public auth: Auth,
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    if (this.isAdmin) {
+      this.stockService.getRaincoProducts().subscribe({
+        next: (p) => { this.products = p; this.cdr.detectChanges(); },
+        error: () => {},
+      });
+    }
+  }
 
   load(): void {
     this.loading = true;
@@ -280,6 +294,31 @@ export class StockReductionStatusComponent implements OnInit {
         },
         error: (err) => alert(err?.error?.message ?? 'Failed to issue backorder item.'),
       });
+    });
+  }
+
+  toggleAddItemPanel(billId: number): void {
+    this.addingItemToBillId = this.addingItemToBillId === billId ? null : billId;
+    this.addItemProductId = null;
+    this.addItemQty = 1;
+    this.cdr.detectChanges();
+  }
+
+  submitAddItem(billId: number): void {
+    if (!this.addItemProductId || this.addItemQty < 1) return;
+    this.stockService.addItemToApprovedBill(billId, this.addItemProductId, this.addItemQty).subscribe({
+      next: (newItem) => {
+        const items = this.billItemsMap.get(billId) ?? [];
+        this.billItemsMap.set(billId, [...items, newItem]);
+        this.addingItemToBillId = null;
+        this.addItemProductId = null;
+        this.addItemQty = 1;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        alert(err?.error?.message ?? 'Failed to add item.');
+        this.cdr.detectChanges();
+      },
     });
   }
 
