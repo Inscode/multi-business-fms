@@ -98,4 +98,8 @@ export class BillReturnService {
   reject(id: number, reason: string): Observable<BillReturnResponse> {
     return this.http.patch<BillReturnResponse>(`${this.apiUrl}/${id}/reject`, { reason });
   }
+
+  fixHistoricalBillAmounts(): Observable<{ fixed: number }> {
+    return this.http.post<{ fixed: number }>(`${this.apiUrl}/fix-bill-amounts`, {});
+  }
 }

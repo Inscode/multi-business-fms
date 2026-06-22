@@ -184,9 +184,9 @@ export class EnterPayment implements OnInit {
     this.form.patchValue({
       paymentType:         payment.paymentType,
       amount:              payment.paymentAmount,
-      paymentDate:         new Date(payment.paymentDate),
+      paymentDate:         this.parseLocalDate(payment.paymentDate),
       chequeNumber:        payment.chequeNumber,
-      chequeDate:          payment.chequeDate ? new Date(payment.chequeDate) : null,
+      chequeDate:          payment.chequeDate ? this.parseLocalDate(payment.chequeDate) : null,
       bankName:            payment.bankName,
       branchName:          payment.branchName,
       referenceNumber:     payment.referenceNumber,
@@ -194,6 +194,16 @@ export class EnterPayment implements OnInit {
       collectedByWorkerId: payment.collectedByWorkerId ?? null,
       collectorNote:       payment.collectorNote ?? '',
     });
+  }
+
+  // Parse a YYYY-MM-DD string in local time to avoid UTC midnight shift
+  private parseLocalDate(s: string): Date {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  private toLocalDateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   submit(): void {
@@ -210,8 +220,11 @@ export class EnterPayment implements OnInit {
     this.loading  = true;
     this.errorMsg = '';
 
+    const fv = this.form.value;
     const payload = {
-      ...this.form.value,
+      ...fv,
+      paymentDate: fv.paymentDate ? this.toLocalDateStr(fv.paymentDate) : null,
+      chequeDate:  fv.chequeDate  ? this.toLocalDateStr(fv.chequeDate)  : null,
       ...(this.collectionNoteId ? { collectionNoteId: this.collectionNoteId } : {}),
     };
 

@@ -88,9 +88,17 @@
               [matAutocomplete]="auto"
             />
             <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayProduct">
-              <mat-option *ngFor="let product of filteredProducts" [value]="product">
-                <strong>{{ product.name }}</strong>
-                <small>&nbsp;(Rs. {{ product.unitPrice | number:'1.2-2' }})</small>
+              <mat-option *ngFor="let product of filteredProducts" [value]="product" [disabled]="stockQty(product.id) === 0">
+                <span style="display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%">
+                  <span>
+                    <strong>{{ product.name }}</strong>
+                    <small style="color:#888">&nbsp;Rs. {{ product.unitPrice | number:'1.2-2' }}</small>
+                  </span>
+                  <span [style.color]="stockQty(product.id) === 0 ? '#f44336' : stockQty(product.id) <= 5 ? '#f57c00' : '#2e7d32'"
+                        style="font-size:12px;font-weight:600;white-space:nowrap">
+                    {{ stockQty(product.id) === 0 ? 'Out of stock' : 'Stock: ' + stockQty(product.id) }}
+                  </span>
+                </span>
               </mat-option>
             </mat-autocomplete>
           </mat-form-field>
@@ -331,20 +339,78 @@
                   <th class="qty-col">Qty</th>
                   <th class="price-col">Unit Price</th>
                   <th class="price-col">Total</th>
+                  <th *ngIf="isAdmin && load.status === 'PENDING'"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let item of loadItemsFor(load)">
                   <td>{{ item.productName }}</td>
-                  <td class="qty-col">{{ item.quantity }}</td>
+                  <td class="qty-col">
+                    <span *ngIf="editingLoadItemId !== item.id">{{ item.quantity }}</span>
+                    <input *ngIf="editingLoadItemId === item.id" type="number" min="1"
+                      [(ngModel)]="editingLoadItemQty"
+                      (click)="$event.stopPropagation()"
+                      style="width:60px" />
+                  </td>
                   <td class="price-col">Rs {{ item.unitPrice | number:'1.2-2' }}</td>
                   <td class="price-col">Rs {{ (item.quantity * item.unitPrice) | number:'1.2-2' }}</td>
+                  <td *ngIf="isAdmin && load.status === 'PENDING'">
+                    <ng-container *ngIf="editingLoadItemId !== item.id">
+                      <button mat-icon-button matTooltip="Edit qty"
+                        (click)="$event.stopPropagation(); startEditLoadItem(item)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button color="warn" matTooltip="Delete"
+                        (click)="$event.stopPropagation(); deleteLoadItem(load.id, item)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </ng-container>
+                    <ng-container *ngIf="editingLoadItemId === item.id">
+                      <button mat-icon-button color="primary"
+                        (click)="$event.stopPropagation(); saveLoadItemEdit(load.id, item)">
+                        <mat-icon>check</mat-icon>
+                      </button>
+                      <button mat-icon-button
+                        (click)="$event.stopPropagation(); cancelLoadItemEdit()">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </ng-container>
+                  </td>
                 </tr>
                 <tr *ngIf="loadItemsFor(load).length === 0">
-                  <td colspan="4" class="no-items">No items recorded.</td>
+                  <td colspan="5" class="no-items">No items recorded.</td>
                 </tr>
               </tbody>
             </table>
+            <!-- Admin: Add Item to PENDING load -->
+            <div *ngIf="isAdmin && load.status === 'PENDING'" style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <button mat-stroked-button color="primary"
+                (click)="$event.stopPropagation(); toggleAddItem(load.id)">
+                <mat-icon>add</mat-icon> Add Item
+              </button>
+              <ng-container *ngIf="addingItemToLoadId === load.id">
+                <mat-form-field appearance="outline" style="width:180px;margin-bottom:-1.25em">
+                  <mat-label>Product</mat-label>
+                  <mat-select [(ngModel)]="newItemProductId">
+                    <mat-option *ngFor="let p of allProducts" [value]="p.id">{{ p.name }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" style="width:80px;margin-bottom:-1.25em">
+                  <mat-label>Qty</mat-label>
+                  <input matInput type="number" min="1" [(ngModel)]="newItemQty"
+                    (click)="$event.stopPropagation()" />
+                </mat-form-field>
+                <button mat-flat-button color="primary"
+                  [disabled]="!newItemProductId || newItemQty < 1"
+                  (click)="$event.stopPropagation(); submitAddItem(load.id)">
+                  Add
+                </button>
+                <button mat-icon-button
+                  (click)="$event.stopPropagation(); addingItemToLoadId = null">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </ng-container>
+            </div>
           </div>
         </ng-container>
 

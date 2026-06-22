@@ -262,6 +262,34 @@
                   </table>
                 </div>
 
+                <!-- Admin: Add Item (INDIVIDUALLY_REDUCED bills only) -->
+                <div class="add-item-bar" *ngIf="isAdmin && r.reductionStatus === 'INDIVIDUALLY_REDUCED'">
+                  <button mat-stroked-button color="primary"
+                    (click)="$event.stopPropagation(); toggleAddItemPanel(r.billId)">
+                    <mat-icon>add</mat-icon> Add Item
+                  </button>
+                  <div *ngIf="addingItemToBillId === r.billId" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    <mat-form-field appearance="outline" style="width:180px;margin-bottom:-1.25em">
+                      <mat-label>Product</mat-label>
+                      <mat-select [(ngModel)]="addItemProductId">
+                        <mat-option *ngFor="let p of products" [value]="p.id">{{ p.name }}</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" style="width:80px;margin-bottom:-1.25em">
+                      <mat-label>Qty</mat-label>
+                      <input matInput type="number" min="1" [(ngModel)]="addItemQty"
+                        (click)="$event.stopPropagation()" />
+                    </mat-form-field>
+                    <button mat-flat-button color="primary"
+                      [disabled]="!addItemProductId || addItemQty < 1"
+                      (click)="$event.stopPropagation(); submitAddItem(r.billId)">Add</button>
+                    <button mat-icon-button
+                      (click)="$event.stopPropagation(); addingItemToBillId = null">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+
                 <!-- Backorder items -->
                 <div *ngIf="isAdmin && backorderItemsFor(r.billId).length > 0" class="backorder-section">
                   <div class="backorder-header">

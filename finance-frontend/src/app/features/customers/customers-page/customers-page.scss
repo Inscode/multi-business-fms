@@ -86,6 +86,13 @@
   overflow: hidden;
 }
 
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  table { min-width: 580px; }
+}
+
 .customers-table {
   width: 100%;
 

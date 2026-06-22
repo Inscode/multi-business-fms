@@ -22,6 +22,15 @@
           <mat-option value="SALABLE">Salable</mat-option>
         </mat-select>
       </mat-form-field>
+      <ng-container *ngIf="!readonly">
+        <button mat-stroked-button color="warn"
+          (click)="fixHistoricalBillAmounts()"
+          [disabled]="fixingBillAmounts"
+          matTooltip="One-time fix: apply approved return deductions to bill totals for historical records">
+          <mat-icon>build</mat-icon> Fix Bill Amounts
+        </button>
+        <span *ngIf="fixResult" style="font-size:13px;color:#666;align-self:center">{{ fixResult }}</span>
+      </ng-container>
     </div>
   </div>
 
