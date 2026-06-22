@@ -48,7 +48,11 @@ export class InventoryTabComponent implements OnInit {
   balanceSearch = '';
   loadingBalances = false;
   activeOnly = true;
-  balanceColumns = ['productName','unitPrice','availableQty','damageQty','status'];
+  get balanceColumns(): string[] {
+    return this.isAdmin
+      ? ['productName', 'unitPrice', 'availableQty', 'status']
+      : ['productName', 'unitPrice', 'availableQty'];
+  }
 
   // ── Qty adjustment (admin) ─────────────────────────────────────
   setQtyId: number | null = null;

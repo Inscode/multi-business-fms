@@ -1,19 +1,14 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ReturnProductResponse, ReturnProductService } from '../../../core/services/return-product';
-
-interface EditState {
-  name: string;
-  unitPrice: number;
-  business: string;
-}
+import { StockService } from '../../../core/services/stock';
 
 @Component({
   selector: 'app-return-products',
@@ -24,42 +19,55 @@ interface EditState {
     DecimalPipe,
     MatFormFieldModule,
     MatInputModule,
-    MatSelectModule,
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
   ],
   templateUrl: './return-products.html',
   styleUrl: './return-products.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReturnProductsPage implements OnInit {
+  @Input() readonly = false;
+
   products: ReturnProductResponse[] = [];
+  damageBalance: Record<number, number> = {};
   loading = true;
   error = false;
-
-  businesses = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
-  filterBusiness = '';
+  showInactive = false;
 
   showAddForm = false;
   adding = false;
-  newProduct: EditState = { name: '', unitPrice: 0, business: '' };
+  newName = '';
+  newPrice = 0;
 
   editingId: number | null = null;
-  editState: EditState = { name: '', unitPrice: 0, business: '' };
+  editName = '';
+  editPrice = 0;
+
+  editingQtyId: number | null = null;
+  editQtyValue = 0;
 
   get displayed(): ReturnProductResponse[] {
-    return this.filterBusiness
-      ? this.products.filter(p => p.business === this.filterBusiness)
-      : this.products;
+    return this.showInactive
+      ? this.products
+      : this.products.filter(p => p.isReturnProduct);
   }
 
   constructor(
     private returnProductService: ReturnProductService,
+    private stockService: StockService,
     private cdr: ChangeDetectorRef,
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.stockService.getDamageStockBalance().subscribe({
+      next: (bal) => { this.damageBalance = bal; this.cdr.detectChanges(); },
+      error: () => {},
+    });
+  }
 
   load(): void {
     this.loading = true;
@@ -78,9 +86,14 @@ export class ReturnProductsPage implements OnInit {
     });
   }
 
+  damageQty(id: number): number {
+    return this.damageBalance[id] ?? 0;
+  }
+
   startAdd(): void {
     this.showAddForm = true;
-    this.newProduct = { name: '', unitPrice: 0, business: '' };
+    this.newName = '';
+    this.newPrice = 0;
     this.cdr.detectChanges();
   }
 
@@ -90,9 +103,9 @@ export class ReturnProductsPage implements OnInit {
   }
 
   saveAdd(): void {
-    if (!this.newProduct.name || !this.newProduct.business || this.newProduct.unitPrice <= 0) return;
+    if (!this.newName || this.newPrice <= 0) return;
     this.adding = true;
-    this.returnProductService.create(this.newProduct).subscribe({
+    this.returnProductService.create({ business: 'RAINCO', name: this.newName, unitPrice: this.newPrice }).subscribe({
       next: () => {
         this.adding = false;
         this.showAddForm = false;
@@ -105,9 +118,10 @@ export class ReturnProductsPage implements OnInit {
     });
   }
 
-  startEdit(product: ReturnProductResponse): void {
-    this.editingId = product.id;
-    this.editState = { name: product.name, unitPrice: product.unitPrice, business: product.business };
+  startEdit(p: ReturnProductResponse): void {
+    this.editingId = p.id;
+    this.editName = p.name;
+    this.editPrice = p.unitPrice;
     this.cdr.detectChanges();
   }
 
@@ -117,8 +131,8 @@ export class ReturnProductsPage implements OnInit {
   }
 
   saveEdit(id: number): void {
-    if (!this.editState.name || this.editState.unitPrice <= 0) return;
-    this.returnProductService.update(id, this.editState).subscribe({
+    if (!this.editName || this.editPrice <= 0) return;
+    this.returnProductService.update(id, { business: 'RAINCO', name: this.editName, unitPrice: this.editPrice }).subscribe({
       next: () => {
         this.editingId = null;
         this.load();
@@ -127,13 +141,39 @@ export class ReturnProductsPage implements OnInit {
     });
   }
 
-  toggle(product: ReturnProductResponse): void {
-    const action = product.active
-      ? this.returnProductService.deactivate(product.id)
-      : this.returnProductService.activate(product.id);
+  startEditQty(p: ReturnProductResponse): void {
+    this.editingQtyId = p.id;
+    this.editQtyValue = this.damageQty(p.id);
+    this.cdr.detectChanges();
+  }
+
+  cancelEditQty(): void {
+    this.editingQtyId = null;
+    this.cdr.detectChanges();
+  }
+
+  saveEditQty(id: number): void {
+    if (this.editQtyValue < 0) return;
+    this.returnProductService.setDamageQty(id, this.editQtyValue).subscribe({
+      next: () => {
+        this.damageBalance[id] = this.editQtyValue;
+        this.editingQtyId = null;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        alert(err?.error?.message ?? 'Failed to update qty.');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  toggle(p: ReturnProductResponse): void {
+    const action = p.isReturnProduct
+      ? this.returnProductService.deactivate(p.id)
+      : this.returnProductService.activate(p.id);
     action.subscribe({
       next: () => this.load(),
-      error: () => alert('Failed to update status.'),
+      error: () => alert('Failed to update.'),
     });
   }
 }

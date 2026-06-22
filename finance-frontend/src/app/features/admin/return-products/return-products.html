@@ -2,45 +2,36 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Return Products</h1>
-      <p class="page-sub">Catalog of products used in return submissions</p>
+      <p class="page-sub">Products used in damage / salable returns</p>
     </div>
     <div class="header-actions">
-      <mat-form-field appearance="outline" style="width: 160px">
-        <mat-label>Filter Business</mat-label>
-        <mat-select [(ngModel)]="filterBusiness">
-          <mat-option value="">All</mat-option>
-          <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <button mat-flat-button color="primary" (click)="startAdd()" *ngIf="!showAddForm">
+      <button mat-stroked-button (click)="showInactive = !showInactive" [class.active-toggle]="showInactive">
+        <mat-icon>{{ showInactive ? 'visibility' : 'visibility_off' }}</mat-icon>
+        {{ showInactive ? 'All Products' : 'Active Only' }}
+      </button>
+      <button mat-flat-button color="primary" (click)="startAdd()" *ngIf="!showAddForm && !readonly">
         <mat-icon>add</mat-icon> Add Product
       </button>
     </div>
   </div>
 
-  <div class="add-form-card" *ngIf="showAddForm">
-    <div class="form-title">New Product</div>
+  <div class="add-form-card" *ngIf="showAddForm && !readonly">
+    <div class="form-title">New Return Product</div>
     <div class="add-form-row">
-      <mat-form-field appearance="outline">
-        <mat-label>Business</mat-label>
-        <mat-select [(ngModel)]="newProduct.business">
-          <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
-        </mat-select>
-      </mat-form-field>
       <mat-form-field appearance="outline" style="flex: 2">
         <mat-label>Product Name</mat-label>
-        <input matInput [(ngModel)]="newProduct.name" placeholder="e.g. Umbrella 3-fold">
+        <input matInput [(ngModel)]="newName" placeholder="e.g. Umbrella 3-fold">
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>Unit Price</mat-label>
-        <input matInput type="number" [(ngModel)]="newProduct.unitPrice" min="0" placeholder="0.00">
+        <input matInput type="number" [(ngModel)]="newPrice" min="0" placeholder="0.00">
         <span matPrefix>Rs&nbsp;</span>
       </mat-form-field>
     </div>
     <div class="add-form-actions">
       <button mat-stroked-button (click)="cancelAdd()">Cancel</button>
       <button mat-flat-button color="primary"
-              [disabled]="!newProduct.name || !newProduct.business || newProduct.unitPrice <= 0 || adding"
+              [disabled]="!newName || newPrice <= 0 || adding"
               (click)="saveAdd()">
         <mat-spinner diameter="16" *ngIf="adding"></mat-spinner>
         <span *ngIf="!adding">Save</span>
@@ -60,50 +51,71 @@
   <ng-container *ngIf="!loading && !error">
     <div class="empty-state" *ngIf="displayed.length === 0">
       <mat-icon>inventory_2</mat-icon>
-      <p>No products in catalog</p>
+      <p>No products found</p>
     </div>
 
     <div class="product-table" *ngIf="displayed.length > 0">
-      <div class="table-header">
-        <span>Business</span>
+      <div class="table-header" [class.readonly-header]="readonly">
         <span>Product Name</span>
         <span>Unit Price</span>
-        <span>Status</span>
-        <span></span>
+        <span>Damage Qty</span>
+        <span>Active</span>
+        <span *ngIf="!readonly"></span>
       </div>
 
       <ng-container *ngFor="let p of displayed">
-        <div class="table-row" [class.inactive]="!p.active" *ngIf="editingId !== p.id">
-          <span class="biz-chip">{{ p.business }}</span>
+        <div class="table-row" [class.inactive]="!p.isReturnProduct" [class.readonly-row]="readonly" *ngIf="!readonly ? editingId !== p.id : true">
           <span class="product-name">{{ p.name }}</span>
           <span class="price">Rs {{ p.unitPrice | number:'1.2-2' }}</span>
-          <span class="status-badge" [class.active]="p.active" [class.inactive]="!p.active">
-            {{ p.active ? 'Active' : 'Inactive' }}
-          </span>
-          <div class="row-actions">
-            <button mat-icon-button title="Edit" (click)="startEdit(p)">
-              <mat-icon>edit</mat-icon>
+          <span class="qty-cell" *ngIf="editingQtyId !== p.id">
+            <span [class.qty-has]="damageQty(p.id) > 0">{{ damageQty(p.id) }}</span>
+            <button *ngIf="!readonly" mat-icon-button style="width:24px;height:24px;line-height:24px" matTooltip="Edit quantity"
+                    (click)="startEditQty(p)">
+              <mat-icon style="font-size:14px;width:14px;height:14px">edit</mat-icon>
             </button>
-            <button mat-icon-button [title]="p.active ? 'Deactivate' : 'Activate'" (click)="toggle(p)">
-              <mat-icon>{{ p.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+          </span>
+          <span class="qty-edit-cell" *ngIf="!readonly && editingQtyId === p.id">
+            <input type="number" [(ngModel)]="editQtyValue" min="0" class="qty-input" />
+            <button mat-icon-button color="primary" style="width:28px;height:28px" matTooltip="Save"
+                    (click)="saveEditQty(p.id)">
+              <mat-icon style="font-size:16px;width:16px;height:16px">check</mat-icon>
+            </button>
+            <button mat-icon-button style="width:28px;height:28px" matTooltip="Cancel"
+                    (click)="cancelEditQty()">
+              <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
+            </button>
+          </span>
+          <span>
+            <ng-container *ngIf="!readonly">
+              <button mat-icon-button
+                      [color]="p.isReturnProduct ? 'primary' : ''"
+                      [matTooltip]="p.isReturnProduct ? 'Active — click to deactivate' : 'Inactive — click to activate'"
+                      (click)="toggle(p)">
+                <mat-icon>{{ p.isReturnProduct ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+              </button>
+            </ng-container>
+            <ng-container *ngIf="readonly">
+              <mat-icon [style.color]="p.isReturnProduct ? '#1976d2' : '#bdbdbd'"
+                        style="vertical-align:middle">
+                {{ p.isReturnProduct ? 'toggle_on' : 'toggle_off' }}
+              </mat-icon>
+            </ng-container>
+          </span>
+          <div class="row-actions" *ngIf="!readonly">
+            <button mat-icon-button matTooltip="Edit" (click)="startEdit(p)">
+              <mat-icon>edit</mat-icon>
             </button>
           </div>
         </div>
 
-        <div class="edit-row" *ngIf="editingId === p.id">
-          <mat-form-field appearance="outline" style="width: 160px">
-            <mat-label>Business</mat-label>
-            <mat-select [(ngModel)]="editState.business">
-              <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
-            </mat-select>
-          </mat-form-field>
+        <div class="edit-row" *ngIf="!readonly && editingId === p.id">
           <mat-form-field appearance="outline" style="flex: 2">
             <mat-label>Name</mat-label>
-            <input matInput [(ngModel)]="editState.name">
+            <input matInput [(ngModel)]="editName">
           </mat-form-field>
           <mat-form-field appearance="outline" style="width: 140px">
             <mat-label>Price</mat-label>
-            <input matInput type="number" [(ngModel)]="editState.unitPrice">
+            <input matInput type="number" [(ngModel)]="editPrice">
             <span matPrefix>Rs&nbsp;</span>
           </mat-form-field>
           <div class="edit-actions">

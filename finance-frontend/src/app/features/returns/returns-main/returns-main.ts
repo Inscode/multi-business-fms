@@ -28,7 +28,7 @@ import { Auth } from '../../../core/services/auth';
         </mat-tab>
         <mat-tab *ngIf="canManageProducts">
           <ng-template mat-tab-label><mat-icon>inventory_2</mat-icon>&nbsp;Return Products</ng-template>
-          <div class="tab-body"><app-return-products /></div>
+          <div class="tab-body"><app-return-products [readonly]="!isAdminProducts" /></div>
         </mat-tab>
       </mat-tab-group>
     </div>
@@ -46,5 +46,6 @@ export class ReturnsMain {
   get canSubmit():         boolean { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
   get canReview():         boolean { return ['ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
   get isReadOnlyReturns(): boolean { return !['ADMIN', 'OWNER'].includes(this.role); }
-  get canManageProducts(): boolean { return this.role === 'ADMIN'; }
+  get canManageProducts(): boolean { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
+  get isAdminProducts():   boolean { return this.role === 'ADMIN'; }
 }

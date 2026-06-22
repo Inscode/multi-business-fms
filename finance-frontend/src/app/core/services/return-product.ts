@@ -9,6 +9,8 @@ export interface ReturnProductResponse {
   name: string;
   unitPrice: number;
   active: boolean;
+  isStockProduct: boolean;
+  isReturnProduct: boolean;
   createdAt: string;
 }
 
@@ -16,6 +18,8 @@ export interface ReturnProductRequest {
   business: string;
   name: string;
   unitPrice: number;
+  isStockProduct?: boolean;
+  isReturnProduct?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -46,5 +50,9 @@ export class ReturnProductService {
 
   activate(id: number): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/${id}/activate`, {});
+  }
+
+  setDamageQty(id: number, qty: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/set-damage-qty`, { qty });
   }
 }

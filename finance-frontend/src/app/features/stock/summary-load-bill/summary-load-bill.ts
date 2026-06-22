@@ -135,6 +135,10 @@ export class SummaryLoadBillComponent implements OnInit {
     return this.auth.getRole() === 'ADMIN';
   }
 
+  get isAccountant(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
+
   get canAdd(): boolean {
     return !!this.selectedProduct && !!this.productQtyControl.value && (this.productQtyControl.value > 0);
   }
@@ -150,7 +154,7 @@ export class SummaryLoadBillComponent implements OnInit {
     this.loadProducts();
     this.loadUnassignedBills();
     this.loadHistory();
-    if (this.isAdmin) { this.loadPendingReductions(); }
+    if (this.isAdmin || this.isAccountant) { this.loadPendingReductions(); }
 
     this.productSearchControl.valueChanges.subscribe(val => {
       if (typeof val === 'string') {
