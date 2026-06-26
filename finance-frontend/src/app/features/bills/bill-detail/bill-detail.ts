@@ -83,6 +83,17 @@ export class BillDetail implements OnInit {
       .reduce((sum, r) => sum + (r.approvedAmount ?? r.calculatedReturnAmount), 0);
   }
 
+  get approvedSalableTotal(): number {
+    return this.returns
+      .filter(r => r.returnType === 'SALABLE' && r.status === 'APPROVED')
+      .reduce((sum, r) => sum + (r.approvedAmount ?? r.calculatedReturnAmount), 0);
+  }
+
+  get originalBillAmount(): number {
+    if (!this.bill) return 0;
+    return (this.bill.totalAmount as unknown as number) + this.approvedDamageTotal + this.approvedSalableTotal;
+  }
+
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
   get isMainAccountant(): boolean { return this.auth.getRole() === 'MAIN_ACCOUNTANT'; }

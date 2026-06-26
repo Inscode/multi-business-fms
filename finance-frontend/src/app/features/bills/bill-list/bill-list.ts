@@ -33,8 +33,8 @@ import { CollectionNoteService, CollectionNoteResponse } from '../../../core/ser
 import { BillReminderResponse, BillReminderService } from '../../../core/services/bill-reminder';
 import { ReminderDialog } from '../reminder-dialog/reminder-dialog';
 import { Router } from '@angular/router';
-import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { Subject, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
 import { BillFilterState } from '../../../core/services/bill-filter-state';
 
 @Component({
@@ -292,11 +292,17 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
           this.globalDropdownOpen = false;
           this.globalSearching = false;
           this.cdr.detectChanges();
-          return [];
+          return of([]);
         }
         this.globalSearching = true;
         this.cdr.detectChanges();
-        return this.billService.globalSearch(q);
+        return this.billService.globalSearch(q).pipe(
+          catchError(() => {
+            this.globalSearching = false;
+            this.cdr.detectChanges();
+            return of([]);
+          })
+        );
       }),
     ).subscribe({
       next: (results) => {
@@ -305,7 +311,6 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
         this.globalDropdownOpen = this.globalResults.length > 0 || this.searchQuery.length >= 2;
         this.cdr.detectChanges();
       },
-      error: () => { this.globalSearching = false; this.cdr.detectChanges(); },
     });
   }
 

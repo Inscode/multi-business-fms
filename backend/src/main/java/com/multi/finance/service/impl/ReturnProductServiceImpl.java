@@ -34,7 +34,7 @@ public class ReturnProductServiceImpl {
 
     @Transactional(readOnly = true)
     public List<ReturnProductResponse> getByBusiness(BusinessType business) {
-        return returnProductRepository.findByBusinessAndActiveTrueAndIsReturnProductTrue(business)
+        return returnProductRepository.findByBusinessAndIsReturnProductTrue(business)
                 .stream().map(this::toResponse).toList();
     }
 
