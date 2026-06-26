@@ -105,12 +105,38 @@
         <div class="filters">
           <!-- Row 1: search + business + status + area + toggles -->
           <div class="filters-row">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
-              <mat-label>Search</mat-label>
-              <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
-                placeholder="Bill number or customer name" />
-              <mat-icon matSuffix>search</mat-icon>
-            </mat-form-field>
+            <div class="search-wrap">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+                <mat-label>{{ globalSearchMode ? 'Search all bills' : 'Search' }}</mat-label>
+                <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
+                  (blur)="closeGlobalDropdown()"
+                  placeholder="Bill number or customer name" />
+                <mat-spinner *ngIf="globalSearching" matSuffix diameter="16" style="margin-right:4px"></mat-spinner>
+                <mat-icon *ngIf="!globalSearching" matSuffix>{{ globalSearchMode ? 'manage_search' : 'search' }}</mat-icon>
+              </mat-form-field>
+              <button mat-icon-button
+                      class="global-search-toggle"
+                      [class.active]="globalSearchMode"
+                      (click)="toggleGlobalSearch()"
+                      matTooltip="{{ globalSearchMode ? 'Search all bills ON — click to turn off' : 'Search all bills (all dates, all statuses)' }}">
+                <mat-icon>{{ globalSearchMode ? 'public' : 'public_off' }}</mat-icon>
+              </button>
+              <!-- Global search dropdown -->
+              <div class="global-dropdown" *ngIf="globalSearchMode && globalDropdownOpen">
+                <div *ngIf="globalResults.length === 0" class="global-no-results">
+                  No bills found for "{{ searchQuery }}"
+                </div>
+                <div *ngFor="let b of globalResults"
+                     class="global-result-row"
+                     (mousedown)="selectGlobalResult(b)">
+                  <span class="gr-number">{{ b.billNumber }}</span>
+                  <span class="gr-customer">{{ b.customerName }}</span>
+                  <span class="gr-area">{{ b.area }}</span>
+                  <span class="gr-amount">Rs {{ b.totalAmount | number:'1.0-0' }}</span>
+                  <span class="gr-status" [class]="'gs-' + (b.status | lowercase)">{{ b.status }}</span>
+                </div>
+              </div>
+            </div>
 
             <div class="filter-scope-chip" *ngIf="isShopAccountant">
               <mat-icon>storefront</mat-icon> Shop Bills &amp; Shop Received

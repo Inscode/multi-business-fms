@@ -92,7 +92,7 @@ public class BillServiceImpl {
                 .customerName(customerName)
                 .customer(customer)
                 .totalAmount(request.getTotalAmount())
-                .area(request.getArea())
+                .area(request.getArea() != null ? request.getArea().trim().toUpperCase() : null)
                 .amountPaid(BigDecimal.ZERO)
                 .balanceRemaining(request.getTotalAmount())
                 .fullyPaid(false)
@@ -109,6 +109,14 @@ public class BillServiceImpl {
                 .build();
 
         return toResponse(billRepository.save(bill));
+    }
+
+    @Transactional(readOnly = true)
+    public List<BillResponse> globalSearch(String q) {
+        if (q == null || q.isBlank() || q.length() < 2) return List.of();
+        return billRepository.globalSearch(q.trim(),
+                org.springframework.data.domain.PageRequest.of(0, 30))
+                .stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -390,7 +398,7 @@ public class BillServiceImpl {
             bill.setCustomerName(request.getCustomerName());
         }
         if (request.getArea() != null) {
-            bill.setArea(request.getArea());
+            bill.setArea(request.getArea().trim().toUpperCase());
         }
         if (request.getBillDate() != null) {
             bill.setBillDate(request.getBillDate());

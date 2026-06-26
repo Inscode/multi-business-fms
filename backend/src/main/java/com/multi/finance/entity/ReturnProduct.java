@@ -32,6 +32,14 @@ public class ReturnProduct {
     @Column(nullable = false)
     private Boolean active;
 
+    @Column(name = "is_stock_product", nullable = false)
+    @Builder.Default
+    private Boolean isStockProduct = true;
+
+    @Column(name = "is_return_product", nullable = false)
+    @Builder.Default
+    private Boolean isReturnProduct = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 }

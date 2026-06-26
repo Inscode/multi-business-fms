@@ -50,14 +50,14 @@ public class InventoryServiceImpl {
         }
 
         return productRepository.findByBusiness(BusinessType.RAINCO).stream()
-                .filter(p -> isAdmin || p.getActive())
+                .filter(p -> isAdmin || Boolean.TRUE.equals(p.getIsStockProduct()))
                 .map(p -> {
                     long[] bal = balanceMap.getOrDefault(p.getId(), new long[]{0L, 0L});
                     return ProductStockBalanceResponse.builder()
                             .productId(p.getId())
                             .productName(p.getName())
                             .unitPrice(p.getUnitPrice())
-                            .active(p.getActive())
+                            .active(p.getIsStockProduct())
                             .availableQty(bal[0])
                             .damageQty(bal[1])
                             .build();
@@ -72,6 +72,8 @@ public class InventoryServiceImpl {
                 .name(req.getName())
                 .unitPrice(req.getUnitPrice())
                 .active(true)
+                .isStockProduct(true)
+                .isReturnProduct(false)
                 .createdAt(LocalDateTime.now())
                 .build();
         ReturnProduct saved = productRepository.save(product);
@@ -82,7 +84,7 @@ public class InventoryServiceImpl {
     public void setProductActive(Long id, boolean active) {
         ReturnProduct p = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found: " + id));
-        p.setActive(active);
+        p.setIsStockProduct(active);
         productRepository.save(p);
     }
 
@@ -273,6 +275,8 @@ public class InventoryServiceImpl {
                 .name(p.getName())
                 .unitPrice(p.getUnitPrice())
                 .active(p.getActive())
+                .isStockProduct(p.getIsStockProduct())
+                .isReturnProduct(p.getIsReturnProduct())
                 .createdAt(p.getCreatedAt())
                 .build();
     }

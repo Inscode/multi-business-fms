@@ -10,4 +10,6 @@ public interface ReturnProductRepository extends JpaRepository<ReturnProduct, Lo
     List<ReturnProduct> findByBusinessAndActiveTrue(BusinessType business);
     List<ReturnProduct> findByBusiness(BusinessType business);
     List<ReturnProduct> findAllByOrderByBusinessAscNameAsc();
+    List<ReturnProduct> findByBusinessAndActiveTrueAndIsStockProductTrue(BusinessType business);
+    List<ReturnProduct> findByBusinessAndActiveTrueAndIsReturnProductTrue(BusinessType business);
 }

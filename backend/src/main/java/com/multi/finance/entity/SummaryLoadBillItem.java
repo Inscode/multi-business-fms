@@ -3,6 +3,7 @@ package com.multi.finance.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -27,6 +28,12 @@ public class SummaryLoadBillItem {
 
     @Column(nullable = false)
     private Long quantity;
+
+    @Column(name = "unit_price")
+    private BigDecimal unitPrice;
+
+    @Column(name = "line_total")
+    private BigDecimal lineTotal;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

@@ -63,4 +63,11 @@ public class BillReturnController {
         String reason = (body != null) ? body.getOrDefault("reason", "") : "";
         return ResponseEntity.ok(billReturnService.reject(id, reason));
     }
+
+    @PostMapping("/fix-bill-amounts")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Integer>> fixBillAmounts() {
+        int count = billReturnService.fixHistoricalBillAmounts();
+        return ResponseEntity.ok(Map.of("fixed", count));
+    }
 }

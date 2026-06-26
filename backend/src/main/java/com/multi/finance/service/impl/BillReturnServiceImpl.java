@@ -195,6 +195,7 @@ public class BillReturnServiceImpl {
         ret.setApprovedAmount(approvedAmount);
         ret.setReviewedBy(reviewer);
         ret.setReviewedAt(LocalDateTime.now());
+        ret.setBillAmountAdjusted(true);
         BillReturn saved = billReturnRepository.save(ret);
 
         // Create shadow stock movements for products that have a quantity returned
@@ -234,6 +235,30 @@ public class BillReturnServiceImpl {
         ret.setReviewedBy(getCurrentUser());
         ret.setReviewedAt(LocalDateTime.now());
         return toResponse(billReturnRepository.save(ret));
+    }
+
+    @Transactional
+    public int fixHistoricalBillAmounts() {
+        List<BillReturn> pending = billReturnRepository.findByStatusAndBillAmountAdjustedFalse(ReturnStatus.APPROVED);
+        int count = 0;
+        for (BillReturn ret : pending) {
+            BigDecimal approved = ret.getApprovedAmount();
+            if (approved == null || approved.compareTo(BigDecimal.ZERO) <= 0) continue;
+            Bill bill = ret.getBill();
+            BigDecimal newTotal = bill.getTotalAmount().subtract(approved);
+            if (newTotal.compareTo(BigDecimal.ZERO) < 0) newTotal = BigDecimal.ZERO;
+            BigDecimal newBalance = newTotal.subtract(bill.getAmountPaid());
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) newBalance = BigDecimal.ZERO;
+            bill.setTotalAmount(newTotal);
+            bill.setBalanceRemaining(newBalance);
+            bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
+            bill.setUpdatedAt(LocalDateTime.now());
+            billRepository.save(bill);
+            ret.setBillAmountAdjusted(true);
+            billReturnRepository.save(ret);
+            count++;
+        }
+        return count;
     }
 
     private BillReturn findById(Long id) {
