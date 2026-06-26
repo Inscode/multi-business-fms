@@ -40,7 +40,7 @@ public class StockController {
     @GetMapping("/products")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<ReturnProduct>> getRaincoProducts() {
-        return ResponseEntity.ok(returnProductRepository.findByBusinessAndActiveTrueAndIsStockProductTrue(BusinessType.RAINCO));
+        return ResponseEntity.ok(returnProductRepository.findByBusinessAndIsStockProductTrue(BusinessType.RAINCO));
     }
 
     // ── Bill lists for dropdowns ──────────────────────────────────

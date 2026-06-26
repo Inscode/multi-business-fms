@@ -50,7 +50,7 @@
     <div class="section-title">2. Return Type</div>
     <mat-form-field appearance="outline" style="width: 240px">
       <mat-label>Return Type</mat-label>
-      <mat-select [(ngModel)]="returnType">
+      <mat-select [(ngModel)]="returnType" (ngModelChange)="onReturnTypeChange()">
         <mat-option value="DAMAGE">Damage</mat-option>
         <mat-option value="SALABLE">Salable</mat-option>
       </mat-select>

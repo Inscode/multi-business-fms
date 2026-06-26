@@ -78,12 +78,17 @@ export class InventoryTabComponent implements OnInit {
   stockInHistory: StockInRequest[] = [];
   stockInColumns = ['id','referenceNumber','stockDate','status','submittedByName','createdAt'];
   lineItemColumns = ['productName','quantity'];
+  approvalItemColumns = ['productName','unitPrice','currentStock','quantity'];
   expandedRequest: number | null = null;
 
   // ── Approvals (Tab 3 — ADMIN only) ────────────────────────────
   pendingRequests: StockInRequest[] = [];
   approvingId: number | null = null;
   approvalMessage = '';
+
+  getProductBalance(productId: number): ProductStockBalance | undefined {
+    return this.balances.find(b => b.productId === productId);
+  }
 
   get selectedProduct(): ProductStockBalance | null {
     const v = this.productSearchCtrl.value;
@@ -118,9 +123,10 @@ export class InventoryTabComponent implements OnInit {
     this.productSearchCtrl.valueChanges.subscribe(v => {
       if (typeof v === 'string') {
         const s = v.toLowerCase();
+        const stockOnly = this.balances.filter(b => b.active);
         this.filteredProducts = s
-          ? this.balances.filter(b => b.productName.toLowerCase().includes(s))
-          : this.balances.slice(0, 15);
+          ? stockOnly.filter(b => b.productName.toLowerCase().includes(s))
+          : stockOnly.slice(0, 15);
       } else {
         this.filteredProducts = [];
       }

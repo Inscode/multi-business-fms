@@ -11,6 +11,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Bill, BillResponse } from '../../../core/services/bill';
 import { BillReturnService, BillReturnItemRequest } from '../../../core/services/bill-return';
 import { ReturnProductService, ReturnProductResponse } from '../../../core/services/return-product';
+import { StockService } from '../../../core/services/stock';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 
 interface LineItem {
@@ -104,6 +105,7 @@ export class SubmitReturn implements OnInit {
     private billService: Bill,
     private billReturnService: BillReturnService,
     private returnProductService: ReturnProductService,
+    private stockService: StockService,
     private workerService: Worker,
     private router: Router,
     private cdr: ChangeDetectorRef,
@@ -143,20 +145,35 @@ export class SubmitReturn implements OnInit {
     this.selectedBill = bill;
     this.items = [];
     this.products = [];
+    this.filteredProducts = [];
+    this.productSearch = '';
     this.returnType = '';
     this.discountPercentage = null;
     this.discountFixed = null;
     this.predictedValue = null;
     this.searchQuery = `${bill.billNumber} — ${bill.customerName}`;
     this.filteredBills = [];
+    this.cdr.detectChanges();
+  }
 
-    if (bill.business !== 'PLASTIC') {
-      this.returnProductService.getByBusiness(bill.business).subscribe({
+  onReturnTypeChange(): void {
+    this.products = [];
+    this.filteredProducts = [];
+    this.productSearch = '';
+    this.items = [];
+    if (!this.selectedBill || this.selectedBill.business === 'PLASTIC') return;
+
+    if (this.returnType === 'DAMAGE') {
+      this.returnProductService.getByBusiness(this.selectedBill.business).subscribe({
+        next: (p) => { this.products = p; this.cdr.detectChanges(); },
+        error: () => {},
+      });
+    } else if (this.returnType === 'SALABLE') {
+      this.stockService.getRaincoProducts().subscribe({
         next: (p) => { this.products = p; this.cdr.detectChanges(); },
         error: () => {},
       });
     }
-    this.cdr.detectChanges();
   }
 
   clearBill(): void {

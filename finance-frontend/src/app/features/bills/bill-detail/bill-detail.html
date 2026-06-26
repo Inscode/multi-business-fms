@@ -124,16 +124,16 @@
         <mat-divider></mat-divider>
         <div class="info-rows">
           <div class="info-row">
-            <span class="label">Bill Amount (Gross)</span>
-            <span class="value">Rs {{ bill.totalAmount | number }}</span>
+            <span class="label">Bill Amount</span>
+            <span class="value">Rs {{ originalBillAmount | number }}</span>
           </div>
           <div class="info-row damage-row" *ngIf="approvedDamageTotal > 0">
-            <span class="label">Damage Deduction</span>
+            <span class="label">Damage Return</span>
             <span class="value damage-amount">− Rs {{ approvedDamageTotal | number }}</span>
           </div>
-          <div class="info-row" *ngIf="approvedDamageTotal > 0">
-            <span class="label">Net Bill Amount</span>
-            <span class="value">Rs {{ (bill.totalAmount - approvedDamageTotal) | number }}</span>
+          <div class="info-row damage-row" *ngIf="approvedSalableTotal > 0">
+            <span class="label">Salable Return</span>
+            <span class="value damage-amount">− Rs {{ approvedSalableTotal | number }}</span>
           </div>
           <div class="info-row">
             <span class="label">Amount Paid</span>
