@@ -10,4 +10,6 @@ public class ReturnProductRequest {
     private BusinessType business;
     private String name;
     private BigDecimal unitPrice;
+    private Boolean isStockProduct;
+    private Boolean isReturnProduct;
 }

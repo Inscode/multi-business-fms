@@ -101,6 +101,10 @@ export class Bill {
 
   constructor(private http: HttpClient) {}
 
+  globalSearch(q: string): Observable<BillResponse[]> {
+    return this.http.get<BillResponse[]>(`${this.apiUrl}/search`, { params: { q } });
+  }
+
   getBills(filter?: BillFilter): Observable<BillResponse[]> {
     let params = new HttpParams();
     if (filter?.business) params = params.set('business', filter.business);

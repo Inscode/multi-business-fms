@@ -38,7 +38,7 @@ public class CustomerServiceImpl {
         Customer c = Customer.builder()
                 .name(name)
                 .phone(req.getPhone())
-                .area(req.getArea())
+                .area(req.getArea() != null ? req.getArea().trim().toUpperCase() : null)
                 .tier(req.getTier())
                 .shopType(req.getShopType())
                 .active(true)
@@ -57,7 +57,7 @@ public class CustomerServiceImpl {
         }
         c.setName(name);
         if (req.getPhone()    != null) c.setPhone(req.getPhone());
-        if (req.getArea()     != null) c.setArea(req.getArea());
+        if (req.getArea()     != null) c.setArea(req.getArea().trim().toUpperCase());
         if (req.getTier()     != null) c.setTier(req.getTier());
         if (req.getShopType() != null) c.setShopType(req.getShopType());
         return toResponse(customerRepository.save(c));

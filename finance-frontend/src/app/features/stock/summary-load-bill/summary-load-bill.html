@@ -7,8 +7,8 @@
   </mat-card-header>
 
   <mat-card-content>
-    <!-- Entry steps: admin only -->
-    <ng-container *ngIf="isAdmin">
+    <!-- Entry steps: admin + accountants -->
+    <ng-container *ngIf="isAdmin || isAccountant">
     <!-- Step 1: Select System Bills -->
     <div class="section">
       <h3>Step 1: Select System Bills</h3>

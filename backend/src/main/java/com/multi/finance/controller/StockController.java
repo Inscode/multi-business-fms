@@ -7,6 +7,7 @@ import com.multi.finance.dto.request.CreateSummaryLoadBillRequest;
 import com.multi.finance.dto.request.EnterReferenceItemsRequest;
 import com.multi.finance.dto.request.IndividualStockReductionRequest;
 import com.multi.finance.dto.request.LinkBillsRequest;
+import com.multi.finance.dto.request.StockItemRequest;
 import com.multi.finance.dto.response.BillStockItemResponse;
 import com.multi.finance.dto.response.BillStockStatusResponse;
 import com.multi.finance.dto.response.StockBillResponse;
@@ -39,7 +40,7 @@ public class StockController {
     @GetMapping("/products")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<ReturnProduct>> getRaincoProducts() {
-        return ResponseEntity.ok(returnProductRepository.findByBusinessAndActiveTrue(BusinessType.RAINCO));
+        return ResponseEntity.ok(returnProductRepository.findByBusinessAndActiveTrueAndIsStockProductTrue(BusinessType.RAINCO));
     }
 
     // ── Bill lists for dropdowns ──────────────────────────────────
@@ -204,6 +205,40 @@ public class StockController {
     public ResponseEntity<Void> rejectSummaryLoadBill(@PathVariable Long id) {
         stockService.rejectSummaryLoadBill(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/summary-load/{loadId}/items")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SummaryLoadBillResponse> addSummaryLoadItem(
+            @PathVariable Long loadId,
+            @RequestBody StockItemRequest req) {
+        return ResponseEntity.ok(stockService.addItemToSummaryLoad(loadId, req));
+    }
+
+    @PatchMapping("/summary-load/{loadId}/items/{itemId}/quantity")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SummaryLoadBillResponse> updateSummaryLoadItem(
+            @PathVariable Long loadId,
+            @PathVariable Long itemId,
+            @RequestBody Map<String, Long> body) {
+        return ResponseEntity.ok(stockService.updateSummaryLoadItem(loadId, itemId, body.get("quantity")));
+    }
+
+    @DeleteMapping("/summary-load/{loadId}/items/{itemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteSummaryLoadItem(
+            @PathVariable Long loadId,
+            @PathVariable Long itemId) {
+        stockService.deleteSummaryLoadItem(loadId, itemId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/bills/{billId}/items/add")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillStockItemResponse> addItemToApprovedBill(
+            @PathVariable Long billId,
+            @RequestBody StockItemRequest req) {
+        return ResponseEntity.ok(stockService.addItemToApprovedBill(billId, req));
     }
 
     // ── Linking system bill creation ──────────────────────────────

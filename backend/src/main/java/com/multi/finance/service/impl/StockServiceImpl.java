@@ -73,16 +73,64 @@ public class StockServiceImpl {
             ReturnProduct product = returnProductRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
 
+            BigDecimal itemUnitPrice = product.getUnitPrice();
+            BigDecimal itemLineTotal = BigDecimal.valueOf(item.getQuantity()).multiply(itemUnitPrice);
             SummaryLoadBillItem lineItem = SummaryLoadBillItem.builder()
                     .summaryLoadBill(saved)
                     .product(product)
                     .quantity(item.getQuantity())
+                    .unitPrice(itemUnitPrice)
+                    .lineTotal(itemLineTotal)
                     .createdAt(LocalDateTime.now())
                     .build();
             summaryLoadBillItemRepository.save(lineItem);
         }
 
         return toSummaryLoadBillResponse(saved);
+    }
+
+    @Transactional
+    public SummaryLoadBillResponse addItemToSummaryLoad(Long loadId, StockItemRequest req) {
+        SummaryLoadBill load = summaryLoadBillRepository.findById(loadId)
+            .orElseThrow(() -> new RuntimeException("Summary load not found"));
+        if (load.getStatus() != SummaryLoadBill.ApprovalStatus.PENDING)
+            throw new RuntimeException("Can only edit PENDING summary loads");
+        ReturnProduct product = returnProductRepository.findById(req.getProductId())
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+        BigDecimal lineTotal = BigDecimal.valueOf(req.getQuantity()).multiply(product.getUnitPrice());
+        SummaryLoadBillItem item = SummaryLoadBillItem.builder()
+            .summaryLoadBill(load)
+            .product(product)
+            .quantity(req.getQuantity())
+            .unitPrice(product.getUnitPrice())
+            .lineTotal(lineTotal)
+            .createdAt(LocalDateTime.now())
+            .build();
+        summaryLoadBillItemRepository.save(item);
+        return toSummaryLoadBillResponse(summaryLoadBillRepository.findById(loadId).get());
+    }
+
+    @Transactional
+    public SummaryLoadBillResponse updateSummaryLoadItem(Long loadId, Long itemId, Long quantity) {
+        SummaryLoadBillItem item = summaryLoadBillItemRepository.findByIdAndSummaryLoadBillId(itemId, loadId)
+            .orElseThrow(() -> new RuntimeException("Item not found"));
+        if (item.getSummaryLoadBill().getStatus() != SummaryLoadBill.ApprovalStatus.PENDING)
+            throw new RuntimeException("Can only edit PENDING summary loads");
+        if (quantity <= 0) throw new RuntimeException("Quantity must be positive");
+        item.setQuantity(quantity);
+        BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : item.getProduct().getUnitPrice();
+        item.setLineTotal(BigDecimal.valueOf(quantity).multiply(unitPrice));
+        summaryLoadBillItemRepository.save(item);
+        return toSummaryLoadBillResponse(summaryLoadBillRepository.findById(loadId).get());
+    }
+
+    @Transactional
+    public void deleteSummaryLoadItem(Long loadId, Long itemId) {
+        SummaryLoadBillItem item = summaryLoadBillItemRepository.findByIdAndSummaryLoadBillId(itemId, loadId)
+            .orElseThrow(() -> new RuntimeException("Item not found"));
+        if (item.getSummaryLoadBill().getStatus() != SummaryLoadBill.ApprovalStatus.PENDING)
+            throw new RuntimeException("Can only edit PENDING summary loads");
+        summaryLoadBillItemRepository.delete(item);
     }
 
     @Transactional
@@ -1087,6 +1135,51 @@ public class StockServiceImpl {
         billStockItemRepository.save(item);
     }
 
+    @Transactional
+    public BillStockItemResponse addItemToApprovedBill(Long billId, StockItemRequest req) {
+        User currentUser = getCurrentUser();
+        Bill bill = billRepository.findById(billId)
+            .orElseThrow(() -> new RuntimeException("Bill not found"));
+        ReturnProduct product = returnProductRepository.findById(req.getProductId())
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        // Stock availability check
+        List<Long> pids = List.of(product.getId());
+        Map<Long, Long> available = shadowStockMovementRepository.getAvailableBalancesForProducts(pids)
+            .stream().collect(Collectors.toMap(r -> ((Number) r[0]).longValue(), r -> ((Number) r[1]).longValue()));
+        long avail = available.getOrDefault(product.getId(), 0L);
+        if (avail < req.getQuantity()) {
+            throw new RuntimeException("Insufficient stock for " + product.getName() + " (available: " + avail + ")");
+        }
+
+        BigDecimal unitPrice = product.getUnitPrice();
+        BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(req.getQuantity()));
+
+        BillStockItem item = BillStockItem.builder()
+            .bill(bill)
+            .product(product)
+            .quantity(req.getQuantity())
+            .unitPrice(unitPrice)
+            .lineTotal(lineTotal)
+            .backorder(false)
+            .createdAt(LocalDateTime.now())
+            .build();
+        BillStockItem saved = billStockItemRepository.save(item);
+
+        createShadowStockMovement(product, req.getQuantity(), ShadowStockMovement.MovementType.BILL_OUT, bill, "ITEM-ADD", currentUser);
+
+        return BillStockItemResponse.builder()
+            .id(saved.getId())
+            .billId(bill.getId())
+            .productId(product.getId())
+            .productName(product.getName())
+            .quantity(saved.getQuantity())
+            .unitPrice(saved.getUnitPrice())
+            .lineTotal(saved.getLineTotal())
+            .backorder(false)
+            .build();
+    }
+
     // ─────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────
@@ -1180,9 +1273,10 @@ public class StockServiceImpl {
 
         List<SummaryLoadBillResponse.ItemDto> itemDtos = slb.getItems().stream()
                 .map(i -> SummaryLoadBillResponse.ItemDto.builder()
+                        .id(i.getId())
                         .productName(i.getProduct().getName())
                         .quantity(i.getQuantity())
-                        .unitPrice(i.getProduct().getUnitPrice())
+                        .unitPrice(i.getUnitPrice() != null ? i.getUnitPrice() : i.getProduct().getUnitPrice())
                         .build())
                 .collect(Collectors.toList());
 

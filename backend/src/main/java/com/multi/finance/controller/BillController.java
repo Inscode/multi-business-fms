@@ -49,6 +49,12 @@ public class BillController {
         return ResponseEntity.ok(billService.getAllBills(business, status, excludeCompleted, from, to));
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'OWNER')")
+    public ResponseEntity<List<BillResponse>> globalSearch(@RequestParam String q) {
+        return ResponseEntity.ok(billService.globalSearch(q));
+    }
+
     @GetMapping("/overdue-count")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
     public ResponseEntity<Map<String, Long>> getOverdueCount() {

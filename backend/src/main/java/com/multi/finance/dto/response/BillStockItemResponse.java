@@ -16,4 +16,5 @@ public class BillStockItemResponse {
     private Long quantity;
     private BigDecimal unitPrice;
     private BigDecimal lineTotal;
+    private Boolean backorder;
 }

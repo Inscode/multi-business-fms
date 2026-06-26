@@ -197,4 +197,8 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND (b.willBeLinked IS NULL OR b.willBeLinked = false) ORDER BY b.billDate DESC")
     List<Bill> findActiveRaincoBillsForBackorder();
 
+    // Global full-table search across all statuses/dates — for the "search all" toggle
+    @Query("SELECT b FROM Bill b WHERE LOWER(b.billNumber) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(b.customerName) LIKE LOWER(CONCAT('%',:q,'%')) ORDER BY b.billDate DESC")
+    List<Bill> globalSearch(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
+
 }

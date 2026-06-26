@@ -64,6 +64,10 @@ public class BillReturn {
     @JoinColumn(name = "responsible_worker_id")
     private Worker responsibleWorker;
 
+    @Column(name = "bill_amount_adjusted", nullable = false)
+    @Builder.Default
+    private Boolean billAmountAdjusted = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "submitted_by_id", nullable = false)
     private User submittedBy;

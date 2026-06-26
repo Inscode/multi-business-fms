@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/return-products")
@@ -42,17 +43,24 @@ public class ReturnProductController {
         return ResponseEntity.ok(returnProductService.update(id, req));
     }
 
+    @PatchMapping("/{id}/set-damage-qty")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> setDamageQty(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+        returnProductService.setDamageQty(id, body.get("qty"));
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
-        returnProductService.setActive(id, false);
+        returnProductService.setReturnProduct(id, false);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> activate(@PathVariable Long id) {
-        returnProductService.setActive(id, true);
+        returnProductService.setReturnProduct(id, true);
         return ResponseEntity.noContent().build();
     }
 }

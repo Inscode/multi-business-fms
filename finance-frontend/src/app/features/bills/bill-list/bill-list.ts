@@ -19,6 +19,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { SelectionModel } from '@angular/cdk/collections';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
@@ -32,6 +33,8 @@ import { CollectionNoteService, CollectionNoteResponse } from '../../../core/ser
 import { BillReminderResponse, BillReminderService } from '../../../core/services/bill-reminder';
 import { ReminderDialog } from '../reminder-dialog/reminder-dialog';
 import { Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { BillFilterState } from '../../../core/services/bill-filter-state';
 
 @Component({
@@ -58,6 +61,7 @@ import { BillFilterState } from '../../../core/services/bill-filter-state';
     LowerCasePipe,
     MatInput,
     MatTabsModule,
+    MatSlideToggleModule,
     LinkingBillsTab,
   ],
   templateUrl: './bill-list.html',
@@ -78,6 +82,13 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   selectedStatus = '';
   selectedArea = '';
   hideCompleted = true;
+
+  // ── Global search ──────────────────────────────────────────────
+  globalSearchMode = false;
+  globalResults: BillResponse[] = [];
+  globalSearching = false;
+  globalDropdownOpen = false;
+  private globalSearch$ = new Subject<string>();
 
   // ── Date filter ────────────────────────────────────────────────
   filterFrom: string = this.daysAgo(60);
@@ -232,6 +243,7 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.globalSearch$.complete();
     this.filterState.save({
       filterFrom: this.filterFrom,
       filterTo: this.filterTo,
@@ -270,6 +282,31 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
     this.loadOverdueCount();
     if (this.canSeePendingCollections) this.loadPendingCollections();
     if (this.canSetReminder) this.loadReminderMap();
+
+    this.globalSearch$.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(q => {
+        if (!q || q.length < 2) {
+          this.globalResults = [];
+          this.globalDropdownOpen = false;
+          this.globalSearching = false;
+          this.cdr.detectChanges();
+          return [];
+        }
+        this.globalSearching = true;
+        this.cdr.detectChanges();
+        return this.billService.globalSearch(q);
+      }),
+    ).subscribe({
+      next: (results) => {
+        this.globalResults = results as BillResponse[];
+        this.globalSearching = false;
+        this.globalDropdownOpen = this.globalResults.length > 0 || this.searchQuery.length >= 2;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.globalSearching = false; this.cdr.detectChanges(); },
+    });
   }
 
   loadPendingCollections(): void {
@@ -397,8 +434,33 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  onSearchChange(): void { this.applyFilters(); }
-  onAreaChange(): void   { this.applyFilters(); }
+  onSearchChange(): void {
+    if (this.globalSearchMode) {
+      this.globalSearch$.next(this.searchQuery.trim());
+    } else {
+      this.applyFilters();
+    }
+  }
+
+  toggleGlobalSearch(): void {
+    this.globalSearchMode = !this.globalSearchMode;
+    this.searchQuery = '';
+    this.globalResults = [];
+    this.globalDropdownOpen = false;
+    if (!this.globalSearchMode) this.applyFilters();
+    this.cdr.detectChanges();
+  }
+
+  selectGlobalResult(bill: BillResponse): void {
+    this.globalDropdownOpen = false;
+    this.router.navigate(['/bills', bill.id]);
+  }
+
+  closeGlobalDropdown(): void {
+    setTimeout(() => { this.globalDropdownOpen = false; this.cdr.detectChanges(); }, 150);
+  }
+
+  onAreaChange(): void { this.applyFilters(); }
 
   onFilterChange(): void { this.load(); }
 

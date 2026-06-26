@@ -28,6 +28,7 @@ public class SummaryLoadBillResponse {
     @Data
     @Builder
     public static class ItemDto {
+        private Long id;
         private String productName;
         private Long quantity;
         private BigDecimal unitPrice;

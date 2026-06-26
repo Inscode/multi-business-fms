@@ -17,4 +17,6 @@ public interface BillReturnRepository extends JpaRepository<BillReturn, Long> {
 
     @Query("SELECT r FROM BillReturn r LEFT JOIN FETCH r.items WHERE r.id = :id")
     Optional<BillReturn> findByIdWithItems(@Param("id") Long id);
+
+    List<BillReturn> findByStatusAndBillAmountAdjustedFalse(ReturnStatus status);
 }

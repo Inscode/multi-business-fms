@@ -15,5 +15,7 @@ public class ReturnProductResponse {
     private String name;
     private BigDecimal unitPrice;
     private Boolean active;
+    private Boolean isStockProduct;
+    private Boolean isReturnProduct;
     private LocalDateTime createdAt;
 }
