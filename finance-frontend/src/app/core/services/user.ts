@@ -24,6 +24,7 @@ export interface UpdateUserRequest {
   fullName: string;
   role: string;
   password?: string;
+  adminCurrentPassword?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -46,5 +47,9 @@ export class UserService {
 
   deactivate(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  activate(id: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${id}/activate`, {});
   }
 }
