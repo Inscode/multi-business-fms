@@ -82,6 +82,9 @@
                   <button mat-menu-item *ngIf="u.active" (click)="deactivate(u)">
                     <mat-icon>block</mat-icon><span>Deactivate</span>
                   </button>
+                  <button mat-menu-item *ngIf="!u.active" (click)="activate(u)">
+                    <mat-icon>check_circle</mat-icon><span>Activate</span>
+                  </button>
                 </mat-menu>
               </td>
             </ng-container>
@@ -126,6 +129,9 @@
                   </button>
                   <button mat-menu-item *ngIf="u.active" (click)="deactivate(u)">
                     <mat-icon>block</mat-icon><span>Deactivate</span>
+                  </button>
+                  <button mat-menu-item *ngIf="!u.active" (click)="activate(u)">
+                    <mat-icon>check_circle</mat-icon><span>Activate</span>
                   </button>
                 </mat-menu>
               </div>
@@ -176,12 +182,6 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ editingUser ? 'New Password (leave blank to keep)' : 'Password' }}</mat-label>
-          <input matInput type="password" formControlName="password" autocomplete="new-password" />
-          <mat-error *ngIf="form.get('password')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
           <mat-label>Role</mat-label>
           <mat-select formControlName="role">
             <mat-option *ngFor="let r of roles" [value]="r.value">{{ r.label }}</mat-option>
@@ -200,6 +200,58 @@
           </mat-select>
           <mat-hint>Link this login to an existing worker so they can see assigned bills</mat-hint>
         </mat-form-field>
+
+        <!-- Password section (optional on edit) -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>{{ editingUser ? 'New Password (leave blank to keep)' : 'Password' }}</mat-label>
+          <input matInput
+                 [type]="(editingUser ? showNewPw : showCreatePw) ? 'text' : 'password'"
+                 formControlName="password"
+                 autocomplete="new-password" />
+          <button mat-icon-button matSuffix type="button"
+                  (click)="editingUser ? (showNewPw = !showNewPw) : (showCreatePw = !showCreatePw)">
+            <mat-icon>{{ (editingUser ? showNewPw : showCreatePw) ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+          <mat-error *ngIf="form.get('password')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <!-- Confirm password + admin verification — only shown when new password is typed (edit mode) -->
+        <ng-container *ngIf="editingUser && isChangingPassword">
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Confirm New Password</mat-label>
+            <input matInput
+                   [type]="showConfirmPw ? 'text' : 'password'"
+                   formControlName="confirmPassword"
+                   autocomplete="new-password" />
+            <button mat-icon-button matSuffix type="button" (click)="showConfirmPw = !showConfirmPw">
+              <mat-icon>{{ showConfirmPw ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </mat-form-field>
+
+          <!-- Real-time mismatch error -->
+          <div class="inline-error" *ngIf="passwordMismatch">
+            <mat-icon>error_outline</mat-icon>
+            <span>Passwords do not match</span>
+          </div>
+
+          <div class="admin-pw-divider">
+            <span>Admin Verification</span>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Your Current Admin Password</mat-label>
+            <input matInput
+                   [type]="showAdminPw ? 'text' : 'password'"
+                   formControlName="adminCurrentPw"
+                   autocomplete="current-password" />
+            <button mat-icon-button matSuffix type="button" (click)="showAdminPw = !showAdminPw">
+              <mat-icon>{{ showAdminPw ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-hint>Required to confirm the password change</mat-hint>
+          </mat-form-field>
+
+        </ng-container>
 
         <div class="form-error" *ngIf="formError">
           <mat-icon>error_outline</mat-icon>

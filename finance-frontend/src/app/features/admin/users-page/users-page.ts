@@ -1,7 +1,9 @@
 import { CommonModule, LowerCasePipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { AbstractControl, ValidationErrors } from '@angular/forms';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
@@ -14,6 +16,15 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { UserService, UserResponse } from '../../../core/services/user';
 import { Worker as WorkerApi, WorkerResponse } from '../../../core/services/worker';
+
+function passwordsMatchValidator(group: AbstractControl): ValidationErrors | null {
+  const pw      = (group.get('password')?.value ?? '').trim();
+  const confirm = (group.get('confirmPassword')?.value ?? '').trim();
+  if (pw && confirm && pw !== confirm) {
+    return { passwordMismatch: true };
+  }
+  return null;
+}
 
 @Component({
   selector: 'app-users-page',
@@ -38,7 +49,7 @@ import { Worker as WorkerApi, WorkerResponse } from '../../../core/services/work
     MatDividerModule,
   ],
 })
-export class UsersPage implements OnInit {
+export class UsersPage implements OnInit, OnDestroy {
   users: UserResponse[] = [];
   filteredUsers: UserResponse[] = [];
   workers: WorkerResponse[] = [];
@@ -54,15 +65,23 @@ export class UsersPage implements OnInit {
 
   displayedColumns = ['fullName', 'username', 'role', 'status', 'actions'];
 
+  // Eye-toggle flags
+  showNewPw      = false;
+  showConfirmPw  = false;
+  showAdminPw    = false;
+  showCreatePw   = false;
+
   readonly roles = [
     { value: 'WORKER',          label: 'Delivery' },
     { value: 'ACCOUNTANT',      label: 'Accountant' },
     { value: 'MAIN_ACCOUNTANT', label: 'Main Accountant' },
     { value: 'SHOP_ACCOUNTANT', label: 'Shop Accountant' },
     { value: 'OWNER',           label: 'Owner' },
+    { value: 'ADMIN',           label: 'Admin' },
   ];
 
   form: FormGroup;
+  private formSub?: Subscription;
 
   get panelTitle(): string {
     return this.editingUser ? 'Edit User' : 'Add User';
@@ -74,6 +93,15 @@ export class UsersPage implements OnInit {
 
   get selectedRole(): string { return this.form.get('role')?.value ?? ''; }
 
+  get isChangingPassword(): boolean {
+    return !!(this.form.get('password')?.value?.trim());
+  }
+
+  get passwordMismatch(): boolean {
+    return this.isChangingPassword && !!this.form.hasError('passwordMismatch')
+      && !!this.form.get('confirmPassword')?.dirty;
+  }
+
   constructor(
     private fb: FormBuilder,
     private userService: UserService,
@@ -81,20 +109,29 @@ export class UsersPage implements OnInit {
     private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
-      fullName: ['', Validators.required],
-      username: ['', Validators.required],
-      password: ['', Validators.required],
-      role:     [null, Validators.required],
-      workerId: [null],
-    });
+      fullName:         ['', Validators.required],
+      username:         ['', Validators.required],
+      password:         [''],
+      confirmPassword:  [''],
+      adminCurrentPw:   [''],
+      role:             [null, Validators.required],
+      workerId:         [null],
+    }, { validators: passwordsMatchValidator });
   }
 
   ngOnInit(): void {
+    // Keep OnPush view in sync with reactive-form changes (needed for real-time validation display)
+    this.formSub = this.form.valueChanges.subscribe(() => this.cdr.detectChanges());
+
     this.load();
     this.workerService.getAllWorkers().subscribe({
       next: (list: WorkerResponse[]) => { this.workers = list.filter(w => w.active); this.cdr.detectChanges(); },
       error: () => {},
     });
+  }
+
+  ngOnDestroy(): void {
+    this.formSub?.unsubscribe();
   }
 
   load(): void {
@@ -137,6 +174,7 @@ export class UsersPage implements OnInit {
     this.form.reset();
     this.form.get('password')!.setValidators(Validators.required);
     this.form.get('password')!.updateValueAndValidity();
+    this.resetEyeToggles();
     this.formError = '';
     this.showPanel = true;
     this.cdr.detectChanges();
@@ -148,10 +186,13 @@ export class UsersPage implements OnInit {
       fullName: user.fullName,
       username: user.username,
       password: '',
-      role:     user.role,
+      confirmPassword: '',
+      adminCurrentPw: '',
+      role: user.role,
     });
     this.form.get('password')!.clearValidators();
     this.form.get('password')!.updateValueAndValidity();
+    this.resetEyeToggles();
     this.formError = '';
     this.showPanel = true;
     this.cdr.detectChanges();
@@ -161,7 +202,15 @@ export class UsersPage implements OnInit {
     this.showPanel = false;
     this.editingUser = null;
     this.form.reset();
+    this.resetEyeToggles();
     this.cdr.detectChanges();
+  }
+
+  private resetEyeToggles(): void {
+    this.showNewPw = false;
+    this.showConfirmPw = false;
+    this.showAdminPw = false;
+    this.showCreatePw = false;
   }
 
   submit(): void {
@@ -170,19 +219,34 @@ export class UsersPage implements OnInit {
       return;
     }
 
+    const { fullName, username, password, confirmPassword, adminCurrentPw, role, workerId } = this.form.value;
+    const newPw = password?.trim();
+
+    // When changing password, confirm must match and admin password is required
+    if (newPw) {
+      if (confirmPassword?.trim() !== newPw) {
+        this.formError = 'Passwords do not match.';
+        this.cdr.detectChanges();
+        return;
+      }
+      if (!adminCurrentPw?.trim()) {
+        this.formError = 'Enter your current admin password to confirm the change.';
+        this.cdr.detectChanges();
+        return;
+      }
+    }
+
     this.formLoading = true;
     this.formError = '';
     this.cdr.detectChanges();
 
-    const { fullName, username, password, role, workerId } = this.form.value;
-
-    const updatePayload = password?.trim()
-      ? { fullName, username, role, password }
+    const updatePayload = newPw
+      ? { fullName, username, role, password: newPw, adminCurrentPassword: adminCurrentPw }
       : { fullName, username, role };
 
     const request$ = this.editingUser
       ? this.userService.update(this.editingUser.id, updatePayload)
-      : this.userService.create({ fullName, username, password, role, ...(workerId ? { workerId } : {}) });
+      : this.userService.create({ fullName, username, password: newPw, role, ...(workerId ? { workerId } : {}) });
 
     request$.subscribe({
       next: () => {
@@ -202,6 +266,13 @@ export class UsersPage implements OnInit {
     this.userService.deactivate(user.id).subscribe({
       next: () => this.load(),
       error: () => alert('Failed to deactivate user.')
+    });
+  }
+
+  activate(user: UserResponse): void {
+    this.userService.activate(user.id).subscribe({
+      next: () => this.load(),
+      error: () => alert('Failed to activate user.')
     });
   }
 }
