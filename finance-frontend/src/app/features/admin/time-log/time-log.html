@@ -1,0 +1,344 @@
+<div class="tl-page-header">
+  <h2 class="tl-page-title">Time Log</h2>
+</div>
+
+<mat-tab-group animationDuration="150ms">
+
+  <!-- ── Tab 1: Average Hours ─────────────────────────────────────── -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>bar_chart</mat-icon>&nbsp;Average Hours</ng-template>
+    <div class="tl-section">
+      <div class="tl-row">
+        <label>From</label>
+        <input type="date" class="tl-date" [(ngModel)]="avgFrom" />
+        <label>To</label>
+        <input type="date" class="tl-date" [(ngModel)]="avgTo" />
+        <button class="tl-btn tl-btn-primary" (click)="loadAverage()">
+          <mat-icon>refresh</mat-icon> Load
+        </button>
+      </div>
+
+      <div class="tl-loading" *ngIf="avgLoading"><mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner></div>
+      <div class="tl-error-box" *ngIf="avgError">{{ avgError }}</div>
+
+      <div class="tl-table-wrap" *ngIf="!avgLoading && avgData.length > 0">
+        <table class="tl-table">
+          <thead>
+            <tr>
+              <th>Worker</th><th>Type</th><th>Exp. Days</th>
+              <th>Present</th><th>Half</th><th>Absent</th><th>Holidays</th>
+              <th>Total Hrs</th><th>Avg Hrs/Day</th><th>Attendance %</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let w of avgData">
+              <td class="td-name">{{ w.workerName }}</td>
+              <td><span class="type-badge">{{ w.workerType }}</span></td>
+              <td class="td-num">{{ w.expectedWorkingDays }}</td>
+              <td class="td-num td-present">{{ w.presentDays }}</td>
+              <td class="td-num td-half">{{ w.halfDays }}</td>
+              <td class="td-num td-absent">{{ w.absentDays }}</td>
+              <td class="td-num td-hol">{{ w.holidayDays }}</td>
+              <td class="td-num">{{ w.totalHoursLogged | number:'1.1-1' }}</td>
+              <td class="td-num td-avg">{{ w.averageHoursPerDay | number:'1.2-2' }}</td>
+              <td>
+                <div class="rate-bar-wrap">
+                  <div class="rate-bar" [style.width.%]="attendanceRate(w)"
+                       [style.background]="rateColor(attendanceRate(w))"></div>
+                  <span class="rate-label" [style.color]="rateColor(attendanceRate(w))">{{ attendanceRate(w) }}%</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tl-empty" *ngIf="!avgLoading && avgData.length === 0 && !avgError">
+        <mat-icon>bar_chart</mat-icon><p>Select a range and click Load</p>
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- ── Tab 2: Attendance & Time Entries ─────────────────────────── -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>fact_check</mat-icon>&nbsp;Log Attendance</ng-template>
+    <div class="tl-section">
+
+      <div class="tl-row">
+        <label>Date</label>
+        <input type="date" class="tl-date" [(ngModel)]="attDate" (ngModelChange)="loadAttendanceAndEntries()" />
+      </div>
+
+      <div class="tl-loading" *ngIf="attLoading"><mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner></div>
+      <div class="tl-error-box" *ngIf="attError">{{ attError }}</div>
+
+      <div class="att-list" *ngIf="!attLoading">
+        <div class="att-card" *ngFor="let w of workers; trackBy: trackByWorker">
+
+          <!-- Worker header -->
+          <div class="att-worker-header">
+            <div class="att-avatar">{{ w.fullName.charAt(0) }}</div>
+            <div class="att-worker-meta">
+              <span class="att-name">{{ w.fullName }}</span>
+              <span class="att-wtype">{{ w.workerType }}</span>
+            </div>
+            <!-- Saved status -->
+            <div class="att-saved-chip" *ngIf="getSavedType(w.id)"
+                 [style.color]="attTypeInfo(getSavedType(w.id)).color">
+              <mat-icon>{{ attTypeInfo(getSavedType(w.id)).icon }}</mat-icon>
+              {{ attTypeInfo(getSavedType(w.id)).label }}
+            </div>
+            <!-- Total hours for the day -->
+            <div class="att-total-hrs" *ngIf="totalMinutes(w.id) > 0">
+              <mat-icon>schedule</mat-icon>
+              {{ formatHours(totalMinutes(w.id)) }} worked
+            </div>
+          </div>
+
+          <!-- Attendance type chips -->
+          <div class="att-type-chips">
+            <button class="att-chip" *ngFor="let t of attTypes"
+                    [class.active]="getAttType(w.id) === t.value"
+                    [style.--chip-color]="t.color"
+                    (click)="setAttType(w.id, t.value)">
+              <mat-icon>{{ t.icon }}</mat-icon>{{ t.label }}
+            </button>
+            <button class="tl-btn tl-btn-save" (click)="saveAttType(w)" [disabled]="isAttSaving(w.id)">
+              <mat-progress-spinner *ngIf="isAttSaving(w.id)" diameter="12" mode="indeterminate"></mat-progress-spinner>
+              <mat-icon *ngIf="!isAttSaving(w.id)">save</mat-icon>
+              {{ isAttSaving(w.id) ? '' : 'Save' }}
+            </button>
+          </div>
+
+          <!-- Existing time entries -->
+          <div class="te-list" *ngIf="getEntries(w.id).length > 0">
+            <div class="te-entry" *ngFor="let e of getEntries(w.id); trackBy: trackByEntry">
+
+              <!-- View mode -->
+              <ng-container *ngIf="!getEditDraft(e.id)">
+                <div class="te-times">
+                  <span class="te-in"><mat-icon>login</mat-icon>{{ formatTime(e.clockIn) }}</span>
+                  <mat-icon class="te-arrow">arrow_forward</mat-icon>
+                  <span class="te-out" [class.te-open]="!e.clockOut">
+                    <mat-icon>logout</mat-icon>{{ formatTime(e.clockOut) }}
+                  </span>
+                  <span class="te-dur" *ngIf="e.workedMinutes > 0">{{ formatHours(e.workedMinutes) }}</span>
+                  <span class="te-open-badge" *ngIf="!e.clockOut">Still in</span>
+                </div>
+                <div class="te-note" *ngIf="e.notes">{{ e.notes }}</div>
+                <div class="te-actions">
+                  <button class="te-action-btn" (click)="startEditEntry(e)" matTooltip="Edit">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button class="te-action-btn te-del" (click)="deleteEntry(e)" matTooltip="Delete">
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              </ng-container>
+
+              <!-- Edit mode -->
+              <ng-container *ngIf="getEditDraft(e.id) as d">
+                <div class="te-edit-form">
+                  <div class="te-time-field">
+                    <label>In</label>
+                    <input type="time" class="te-time-input" [(ngModel)]="d.clockIn" />
+                    <button class="now-btn" (click)="setEditNow(e.id, 'clockIn')" matTooltip="Set to now">
+                      <mat-icon>access_time</mat-icon>Now
+                    </button>
+                  </div>
+                  <div class="te-time-field">
+                    <label>Out</label>
+                    <input type="time" class="te-time-input" [(ngModel)]="d.clockOut" />
+                    <button class="now-btn" (click)="setEditNow(e.id, 'clockOut')" matTooltip="Set to now">
+                      <mat-icon>access_time</mat-icon>Now
+                    </button>
+                  </div>
+                  <input class="te-notes-input" placeholder="Notes" [(ngModel)]="d.notes" />
+                  <div class="te-error" *ngIf="d.error">{{ d.error }}</div>
+                  <div class="te-edit-btns">
+                    <button class="tl-btn tl-btn-save" (click)="saveEditEntry(e)" [disabled]="d.saving">
+                      <mat-progress-spinner *ngIf="d.saving" diameter="12" mode="indeterminate"></mat-progress-spinner>
+                      <mat-icon *ngIf="!d.saving">save</mat-icon>
+                      {{ d.saving ? '' : 'Save' }}
+                    </button>
+                    <button class="tl-btn tl-btn-cancel" (click)="cancelEditEntry(e.id)">Cancel</button>
+                  </div>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Add new entry form -->
+          <div class="te-new-form" *ngIf="showNewEntry.get(w.id) && getNewDraft(w.id) as d" [attr.data-wid]="w.id">
+            <div class="te-new-title">Add Time Entry</div>
+            <div class="te-time-field">
+              <label>Clock In *</label>
+              <input type="time" class="te-time-input" [(ngModel)]="d.clockIn" />
+              <button class="now-btn now-btn-primary" (click)="setNow(w.id, 'clockIn')">
+                <mat-icon>access_time</mat-icon>Now
+              </button>
+            </div>
+            <div class="te-time-field">
+              <label>Clock Out</label>
+              <input type="time" class="te-time-input" [(ngModel)]="d.clockOut" />
+              <button class="now-btn now-btn-primary" (click)="setNow(w.id, 'clockOut')">
+                <mat-icon>access_time</mat-icon>Now
+              </button>
+            </div>
+            <input class="te-notes-input" placeholder="Notes (optional)" [(ngModel)]="d.notes" />
+            <div class="te-error" *ngIf="d.error">{{ d.error }}</div>
+            <div class="te-edit-btns">
+              <button class="tl-btn tl-btn-save" (click)="saveNewEntry(w)" [disabled]="d.saving">
+                <mat-progress-spinner *ngIf="d.saving" diameter="12" mode="indeterminate"></mat-progress-spinner>
+                <mat-icon *ngIf="!d.saving">add</mat-icon>
+                {{ d.saving ? 'Saving…' : 'Add Entry' }}
+              </button>
+              <button class="tl-btn tl-btn-cancel" (click)="toggleNewEntry(w.id)">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Add entry toggle button -->
+          <button class="te-add-btn" (click)="toggleNewEntry(w.id)" *ngIf="!showNewEntry.get(w.id)">
+            <mat-icon>add_circle_outline</mat-icon>
+            Add Time Entry
+          </button>
+
+        </div>
+
+        <div class="tl-empty" *ngIf="workers.length === 0">
+          <mat-icon>people</mat-icon><p>No active workers</p>
+        </div>
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- ── Tab 3: Holidays ─────────────────────────────────────────── -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>beach_access</mat-icon>&nbsp;Holidays</ng-template>
+    <div class="tl-section">
+
+      <div class="hol-form">
+        <h4 class="hol-form-title">Add Holiday</h4>
+        <div class="tl-row" style="flex-wrap:wrap;gap:12px">
+          <div class="tl-field">
+            <label>Date</label>
+            <input type="date" class="tl-date" [(ngModel)]="newHolDate" />
+          </div>
+          <div class="tl-field tl-field-grow">
+            <label>Name</label>
+            <input class="tl-text-input" [(ngModel)]="newHolName" placeholder="e.g. Vesak Poya" />
+          </div>
+          <div class="tl-field">
+            <label>Type</label>
+            <select class="tl-select" [(ngModel)]="newHolType">
+              <option *ngFor="let t of holTypes" [value]="t.value">{{ t.label }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="hol-applies">
+          <label class="hol-radio" (click)="newHolAll = true; newHolWorkers = []">
+            <input type="radio" [checked]="newHolAll" readonly /> All Employees
+          </label>
+          <label class="hol-radio" (click)="newHolAll = false">
+            <input type="radio" [checked]="!newHolAll" readonly /> Selected Workers
+          </label>
+        </div>
+
+        <div class="hol-workers-grid" *ngIf="!newHolAll">
+          <label class="hol-worker-chk" *ngFor="let w of workers">
+            <mat-checkbox [checked]="isHolWorkerSelected(w.id)" (change)="toggleHolWorker(w.id)">
+              {{ w.fullName }}
+            </mat-checkbox>
+          </label>
+        </div>
+
+        <div class="tl-error-box" *ngIf="holSaveError">{{ holSaveError }}</div>
+
+        <button class="tl-btn tl-btn-primary" (click)="saveHoliday()" [disabled]="holSaving || !newHolName.trim()">
+          <mat-progress-spinner *ngIf="holSaving" diameter="14" mode="indeterminate"></mat-progress-spinner>
+          <mat-icon *ngIf="!holSaving">add</mat-icon>
+          {{ holSaving ? 'Saving…' : 'Add Holiday' }}
+        </button>
+      </div>
+
+      <div class="tl-row" style="margin-top:8px">
+        <label>From</label>
+        <input type="date" class="tl-date" [(ngModel)]="holFrom" />
+        <label>To</label>
+        <input type="date" class="tl-date" [(ngModel)]="holTo" />
+        <button class="tl-btn tl-btn-primary" (click)="loadHolidays()"><mat-icon>refresh</mat-icon> Load</button>
+      </div>
+
+      <div class="tl-loading" *ngIf="holLoading"><mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner></div>
+
+      <div class="hol-list" *ngIf="!holLoading">
+        <div class="hol-card" *ngFor="let h of holidays">
+          <div class="hol-type-dot" [style.background]="holTypeColor(h.holidayType)"></div>
+          <div class="hol-info">
+            <div class="hol-name">{{ h.name }}</div>
+            <div class="hol-meta">
+              <span class="hol-date"><mat-icon>calendar_today</mat-icon>{{ h.date }}</span>
+              <span class="hol-type-chip" [style.color]="holTypeColor(h.holidayType)">{{ holTypeLabel(h.holidayType) }}</span>
+              <span class="hol-scope">
+                <mat-icon>{{ h.appliesToAll ? 'groups' : 'person' }}</mat-icon>
+                {{ h.appliesToAll ? 'All employees' : h.workerNames.join(', ') }}
+              </span>
+            </div>
+          </div>
+          <button class="hol-del-btn" (click)="deleteHoliday(h.id)" matTooltip="Delete">
+            <mat-icon>delete_outline</mat-icon>
+          </button>
+        </div>
+        <div class="tl-empty" *ngIf="holidays.length === 0">
+          <mat-icon>event_available</mat-icon><p>No holidays in this range</p>
+        </div>
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- ── Tab 4: Participants ────────────────────────────────────────── -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>group</mat-icon>&nbsp;Participants</ng-template>
+    <div class="tl-section">
+      <p class="pt-desc">Toggle which staff members are included in time log tracking and average hours calculation. Disable temporary or inactive workers to exclude them.</p>
+
+      <div class="pt-list">
+        <div class="pt-card" *ngFor="let w of allWorkers; trackBy: trackByWorker"
+             [class.pt-inactive]="!w.timeLogActive">
+          <div class="pt-avatar" [class.pt-avatar-inactive]="!w.timeLogActive">
+            {{ w.fullName.charAt(0) }}
+          </div>
+          <div class="pt-info">
+            <div class="pt-name">{{ w.fullName }}</div>
+            <div class="pt-type">{{ workerTypeLabel(w.workerType) }}</div>
+          </div>
+          <div class="pt-status" [class.pt-status-active]="w.timeLogActive">
+            <mat-icon>{{ w.timeLogActive ? 'check_circle' : 'cancel' }}</mat-icon>
+            {{ w.timeLogActive ? 'In Log' : 'Excluded' }}
+          </div>
+          <button class="pt-toggle-btn"
+                  [class.pt-toggle-on]="w.timeLogActive"
+                  [class.pt-toggle-off]="!w.timeLogActive"
+                  [disabled]="isTogglingParticipant(w.id)"
+                  (click)="toggleParticipant(w)">
+            <mat-progress-spinner *ngIf="isTogglingParticipant(w.id)" diameter="14" mode="indeterminate"></mat-progress-spinner>
+            <span *ngIf="!isTogglingParticipant(w.id)">
+              {{ w.timeLogActive ? 'Exclude' : 'Include' }}
+            </span>
+          </button>
+        </div>
+
+        <div class="tl-empty" *ngIf="allWorkers.length === 0">
+          <mat-icon>group_off</mat-icon>
+          <p>No active workers found. Add workers in the Staff page.</p>
+        </div>
+      </div>
+
+      <div class="pt-summary">
+        <span class="pt-sum-item"><mat-icon>check_circle</mat-icon>{{ workers.length }} included in log</span>
+        <span class="pt-sum-item pt-sum-excluded"><mat-icon>cancel</mat-icon>{{ allWorkers.length - workers.length }} excluded</span>
+      </div>
+    </div>
+  </mat-tab>
+
+</mat-tab-group>

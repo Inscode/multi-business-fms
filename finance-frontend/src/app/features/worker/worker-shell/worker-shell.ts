@@ -7,12 +7,16 @@ import { Auth } from '../../../core/services/auth';
 import { WorkerTranslateService, Lang } from '../../../core/services/worker-translate';
 import { WorkerBillList } from '../worker-bill-list/worker-bill-list';
 import { WorkerPayments } from '../worker-payments/worker-payments';
+import { WorkerBillsOverview } from '../worker-bills-overview/worker-bills-overview';
+import { WorkerReturnsOverview } from '../worker-returns-overview/worker-returns-overview';
+import { WorkerRemindersOverview } from '../worker-reminders-overview/worker-reminders-overview';
 
 @Component({
   selector: 'app-worker-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, MatIconModule, MatButtonModule, WorkerBillList, WorkerPayments],
+  imports: [CommonModule, MatIconModule, MatButtonModule, WorkerBillList, WorkerPayments,
+            WorkerBillsOverview, WorkerReturnsOverview, WorkerRemindersOverview],
   template: `
 <div class="worker-app">
 
@@ -36,17 +40,32 @@ import { WorkerPayments } from '../worker-payments/worker-payments';
   <main class="w-content">
     <app-worker-bill-list *ngIf="activeTab === 'bills'"></app-worker-bill-list>
     <app-worker-payments *ngIf="activeTab === 'payments'"></app-worker-payments>
+    <app-worker-bills-overview *ngIf="activeTab === 'overview'"></app-worker-bills-overview>
+    <app-worker-returns-overview *ngIf="activeTab === 'returns'"></app-worker-returns-overview>
+    <app-worker-reminders-overview *ngIf="activeTab === 'reminders'"></app-worker-reminders-overview>
   </main>
 
   <!-- Bottom tab bar -->
   <nav class="w-tabs">
     <button class="w-tab" [class.w-tab-active]="activeTab === 'bills'" (click)="activeTab = 'bills'">
-      <mat-icon>receipt_long</mat-icon>
-      <span>{{ tr.t('bills') }}</span>
+      <mat-icon>local_shipping</mat-icon>
+      <span>My Bills</span>
     </button>
     <button class="w-tab" [class.w-tab-active]="activeTab === 'payments'" (click)="activeTab = 'payments'">
       <mat-icon>payments</mat-icon>
       <span>{{ tr.t('payments') }}</span>
+    </button>
+    <button class="w-tab" [class.w-tab-active]="activeTab === 'overview'" (click)="activeTab = 'overview'">
+      <mat-icon>receipt_long</mat-icon>
+      <span>All Bills</span>
+    </button>
+    <button class="w-tab" [class.w-tab-active]="activeTab === 'returns'" (click)="activeTab = 'returns'">
+      <mat-icon>assignment_return</mat-icon>
+      <span>Returns</span>
+    </button>
+    <button class="w-tab" [class.w-tab-active]="activeTab === 'reminders'" (click)="activeTab = 'reminders'">
+      <mat-icon>notifications_active</mat-icon>
+      <span>Reminders</span>
     </button>
   </nav>
 </div>
@@ -54,7 +73,7 @@ import { WorkerPayments } from '../worker-payments/worker-payments';
   styleUrl: './worker-shell.scss',
 })
 export class WorkerShell implements OnInit {
-  activeTab: 'bills' | 'payments' = 'bills';
+  activeTab: 'bills' | 'payments' | 'overview' | 'returns' | 'reminders' = 'bills';
 
   get initial(): string { return (this.auth.getCurrentUser()?.fullName ?? 'W').charAt(0).toUpperCase(); }
   get name(): string    { return this.auth.getCurrentUser()?.fullName ?? 'Worker'; }

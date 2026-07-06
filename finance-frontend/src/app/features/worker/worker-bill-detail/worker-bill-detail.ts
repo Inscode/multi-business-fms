@@ -39,7 +39,7 @@ export class WorkerBillDetailComponent implements OnInit {
 
   // Payment
   payAmount: number | null = null;
-  payType: 'CASH' | 'CHEQUE' = 'CASH';
+  payType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER' = 'CASH';
   payChequeNo = '';
   payChequeDate = '';
   payBank = '';
@@ -80,6 +80,7 @@ export class WorkerBillDetailComponent implements OnInit {
 
   get b(): WorkerBill { return this.detail ?? this.bill; }
   get isFullyCollected(): boolean { return (this.b.tempBalance ?? 0) <= 0; }
+  get isCollectionOnly(): boolean { return !!this.b.collectionOnly; }
   get isDelivered(): boolean {
     return this.b.visitStatus === 'DELIVERED_PENDING' || this.b.visitStatus === 'DELIVERED_PAID';
   }
@@ -161,7 +162,7 @@ export class WorkerBillDetailComponent implements OnInit {
   openEditPayment(entry: WorkerPaymentEntry): void {
     this.editingEntry = entry;
     this.payAmount = entry.amount;
-    this.payType = entry.paymentType;
+    this.payType = entry.paymentType as 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
     this.payChequeNo = entry.chequeNumber ?? '';
     this.payBank = entry.bankName ?? '';
     this.payBranch = entry.branchName ?? '';
@@ -174,6 +175,7 @@ export class WorkerBillDetailComponent implements OnInit {
   submitPayment(): void {
     if (!this.payAmount || this.payAmount <= 0) { this.payError = 'Enter an amount'; return; }
     if (this.payType === 'CHEQUE' && !this.payChequeNo.trim()) { this.payError = 'Cheque number required'; return; }
+    if (this.payType === 'BANK_TRANSFER' && !this.payChequeNo.trim()) { this.payError = 'Reference number required'; return; }
 
     this.savingPayment = true;
     this.payError = '';

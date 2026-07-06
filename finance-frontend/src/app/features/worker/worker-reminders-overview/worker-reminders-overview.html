@@ -1,0 +1,80 @@
+<div class="rem-page">
+
+  <!-- Header -->
+  <div class="rem-header">
+    <mat-icon style="color:#ff9800">notifications_active</mat-icon>
+    <span>Active Reminders</span>
+  </div>
+
+  <!-- Search -->
+  <div class="rem-search">
+    <mat-icon class="search-icon">search</mat-icon>
+    <input class="search-input" [(ngModel)]="searchQuery" (ngModelChange)="applyFilters()"
+           placeholder="Search customer or bill..." />
+    <button class="clear-btn" *ngIf="searchQuery" (click)="clearSearch()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Area filter -->
+  <div class="filter-row" *ngIf="!loading && !error">
+    <select class="filter-sel" [(ngModel)]="areaFilter" (ngModelChange)="applyFilters()">
+      <option value="">All Areas</option>
+      <option *ngFor="let a of areas" [value]="a">{{ a }}</option>
+    </select>
+  </div>
+
+  <!-- Loading -->
+  <div class="w-center" *ngIf="loading">
+    <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
+  </div>
+
+  <!-- Error -->
+  <div class="w-center" *ngIf="error && !loading">
+    <mat-icon style="color:#ef5350;font-size:40px">error_outline</mat-icon>
+    <button class="w-retry-btn" (click)="load()">Retry</button>
+  </div>
+
+  <!-- Empty -->
+  <div class="w-center" *ngIf="!loading && !error && filtered.length === 0">
+    <mat-icon style="color:#bdbdbd;font-size:48px">notifications_none</mat-icon>
+    <p style="color:#9e9e9e;margin:8px 0 0">No active reminders</p>
+  </div>
+
+  <!-- Count -->
+  <div class="rem-count" *ngIf="!loading && !error && filtered.length > 0">
+    {{ filtered.length }} reminder{{ filtered.length !== 1 ? 's' : '' }}
+  </div>
+
+  <!-- Reminder cards -->
+  <div class="rem-list" *ngIf="!loading && !error">
+    <div class="rem-card" [class.overdue]="isOverdue(r.reminderDate)" *ngFor="let r of filtered">
+      <div class="card-indicator" [class.overdue-dot]="isOverdue(r.reminderDate)"></div>
+
+      <div class="card-body">
+        <div class="card-top">
+          <span class="card-billno">{{ r.billNumber }}</span>
+          <span class="period-chip">{{ periodLabel(r.period) }}</span>
+        </div>
+
+        <div class="card-customer">{{ r.customerName }}</div>
+
+        <div class="card-meta">
+          <span class="card-area" *ngIf="r.area">
+            <mat-icon>location_on</mat-icon>{{ r.area }}
+          </span>
+          <span class="card-date" [class.overdue-text]="isOverdue(r.reminderDate)">
+            <mat-icon>{{ isOverdue(r.reminderDate) ? 'warning' : 'alarm' }}</mat-icon>
+            {{ r.reminderDate }}
+            <span class="overdue-badge" *ngIf="isOverdue(r.reminderDate)">Overdue</span>
+          </span>
+        </div>
+
+        <div class="card-note" *ngIf="r.note">
+          <mat-icon>push_pin</mat-icon>
+          {{ r.note }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

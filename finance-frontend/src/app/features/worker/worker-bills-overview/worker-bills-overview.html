@@ -1,0 +1,115 @@
+<div class="ovr-page">
+
+  <!-- View toggle -->
+  <div class="view-toggle">
+    <button class="vt-btn" [class.active]="view === 'pending'" (click)="switchView('pending')">
+      <mat-icon>pending_actions</mat-icon> Pending
+    </button>
+    <button class="vt-btn" [class.active]="view === 'completed'" (click)="switchView('completed')">
+      <mat-icon>check_circle</mat-icon> Completed
+    </button>
+  </div>
+
+  <!-- Search -->
+  <div class="ovr-search">
+    <mat-icon class="search-icon">search</mat-icon>
+    <input class="search-input" [(ngModel)]="searchQuery" (ngModelChange)="applyFilters()"
+           placeholder="Search customer or bill number..." />
+    <button class="clear-btn" *ngIf="searchQuery" (click)="clearSearch()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Type filter chips -->
+  <div class="type-filter-row" *ngIf="!loading && !error">
+    <button class="type-chip" [class.active]="typeFilter === ''" (click)="setTypeFilter('')">
+      All
+    </button>
+    <button class="type-chip type-chip--new" [class.active]="typeFilter === 'new'" (click)="setTypeFilter('new')">
+      <mat-icon>fiber_new</mat-icon> New
+    </button>
+    <button class="type-chip type-chip--collection" [class.active]="typeFilter === 'collection'" (click)="setTypeFilter('collection')">
+      <mat-icon>payments</mat-icon> Collection Only
+    </button>
+  </div>
+
+  <!-- Other Filters -->
+  <div class="filter-row" *ngIf="!loading && !error">
+    <select class="filter-sel" [(ngModel)]="areaFilter" (ngModelChange)="applyFilters()">
+      <option value="">All Areas</option>
+      <option *ngFor="let a of areas" [value]="a">{{ a }}</option>
+    </select>
+
+    <select class="filter-sel" [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" *ngIf="view === 'pending'">
+      <option value="">All Statuses</option>
+      <option *ngFor="let s of pendingStatuses" [value]="s">{{ statusLabel(s) }}</option>
+    </select>
+  </div>
+
+  <!-- Loading -->
+  <div class="w-center" *ngIf="loading">
+    <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
+  </div>
+
+  <!-- Error -->
+  <div class="w-center" *ngIf="error && !loading">
+    <mat-icon style="color:#ef5350;font-size:40px">error_outline</mat-icon>
+    <button class="w-retry-btn" (click)="load()">Retry</button>
+  </div>
+
+  <!-- Empty -->
+  <div class="w-center" *ngIf="!loading && !error && filtered.length === 0">
+    <mat-icon style="color:#bdbdbd;font-size:48px">receipt_long</mat-icon>
+    <p style="color:#9e9e9e;margin:8px 0 0">No bills found</p>
+  </div>
+
+  <!-- Count -->
+  <div class="ovr-count" *ngIf="!loading && !error && filtered.length > 0">
+    {{ filtered.length }} bill{{ filtered.length !== 1 ? 's' : '' }}
+  </div>
+
+  <!-- Bill cards -->
+  <div class="ovr-list" *ngIf="!loading && !error">
+    <div class="ovr-card" *ngFor="let b of filtered">
+      <div class="card-status-dot" [style.background]="statusColor(b.status)"></div>
+
+      <div class="card-body">
+        <div class="card-top">
+          <span class="card-billno">{{ b.billNumber }}</span>
+          <span class="bill-type-badge"
+                [class.badge--new]="isNew(b)"
+                [class.badge--collection]="!isNew(b)">
+            <mat-icon>{{ isNew(b) ? 'fiber_new' : 'payments' }}</mat-icon>
+            {{ isNew(b) ? 'New' : 'Collection' }}
+          </span>
+          <span class="card-amt">Rs {{ b.totalAmount | number:'1.0-2' }}</span>
+        </div>
+
+        <div class="card-customer">{{ b.customerName }}</div>
+
+        <div class="card-meta">
+          <span class="card-area" *ngIf="b.area">
+            <mat-icon>location_on</mat-icon>{{ b.area }}
+          </span>
+          <span class="card-date">
+            <mat-icon>calendar_today</mat-icon>{{ b.billDate }}
+          </span>
+        </div>
+
+        <div class="card-footer">
+          <span class="status-chip" [style.color]="statusColor(b.status)">
+            <mat-icon [style.color]="statusColor(b.status)">{{ statusIcon(b.status) }}</mat-icon>
+            {{ statusLabel(b.status) }}
+          </span>
+          <span class="card-bal" *ngIf="b.balanceRemaining > 0">
+            Balance: Rs {{ b.balanceRemaining | number:'1.0-2' }}
+          </span>
+        </div>
+
+        <div class="card-worker" *ngIf="b.workerName">
+          <mat-icon>person</mat-icon>{{ b.workerName }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

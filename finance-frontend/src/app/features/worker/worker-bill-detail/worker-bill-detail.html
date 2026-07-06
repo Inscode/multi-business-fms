@@ -39,19 +39,33 @@
       </div>
     </div>
 
-    <!-- Visit status -->
-    <div class="section-label">Delivery Status: <strong>{{ visitStatusLabel(b.visitStatus) }}</strong></div>
+    <!-- Collection-only badge -->
+    <div class="collection-only-banner" *ngIf="isCollectionOnly">
+      <mat-icon>payments</mat-icon>
+      Collection Only — Payment entry only, no delivery tracking
+    </div>
+
+    <!-- Visit status (hidden for collection-only bills) -->
+    <div class="section-label" *ngIf="!isCollectionOnly">Delivery Status: <strong>{{ visitStatusLabel(b.visitStatus) }}</strong></div>
 
     <!-- Revisit / delivery note -->
-    <div class="revisit-banner" *ngIf="(b.visitStatus === 'REVISIT_REQUESTED' || b.visitStatus === 'DELIVERED_PENDING') && b.visitNote">
+    <div class="revisit-banner" *ngIf="!isCollectionOnly && (b.visitStatus === 'REVISIT_REQUESTED' || b.visitStatus === 'DELIVERED_PENDING') && b.visitNote">
       <mat-icon>schedule</mat-icon> {{ b.visitNote }}
     </div>
 
-    <!-- Actions: not yet visited or can change -->
+    <!-- Actions -->
     <ng-container *ngIf="!isFullyCollected">
 
-      <!-- Mark delivered / not delivered -->
-      <div class="action-row" *ngIf="!isDelivered">
+      <!-- Collection-only: show payment button directly -->
+      <div class="action-row" *ngIf="isCollectionOnly">
+        <button class="w-btn w-btn-primary" (click)="openPayment()">
+          <mat-icon>add</mat-icon>
+          {{ tr.t('add_payment') }}
+        </button>
+      </div>
+
+      <!-- Normal bills: Mark delivered / not delivered -->
+      <div class="action-row" *ngIf="!isCollectionOnly && !isDelivered">
         <button class="w-btn w-btn-primary" (click)="openDeliveredChoice()" [disabled]="savingVisit">
           <mat-icon>local_shipping</mat-icon>
           {{ tr.t('delivered') }}
@@ -62,8 +76,8 @@
         </button>
       </div>
 
-      <!-- Payment buttons (only once delivered) -->
-      <div class="action-row" *ngIf="isDelivered">
+      <!-- Payment buttons (only once delivered, for normal bills) -->
+      <div class="action-row" *ngIf="!isCollectionOnly && isDelivered">
         <button class="w-btn w-btn-primary" (click)="openPayment()">
           <mat-icon>add</mat-icon>
           {{ tr.t('add_payment') }}
@@ -82,8 +96,11 @@
     </div>
     <div class="payment-entry" *ngFor="let p of b.workerPayments">
       <div class="pe-row">
-        <span class="pe-type-chip" [class.cash]="p.paymentType === 'CASH'" [class.cheque]="p.paymentType === 'CHEQUE'">
-          {{ p.paymentType }}
+        <span class="pe-type-chip"
+              [class.cash]="p.paymentType === 'CASH'"
+              [class.cheque]="p.paymentType === 'CHEQUE'"
+              [class.transfer]="p.paymentType === 'BANK_TRANSFER'">
+          {{ p.paymentType === 'BANK_TRANSFER' ? 'Bank Transfer' : p.paymentType }}
         </span>
         <span class="pe-amt">Rs {{ p.amount | number }}</span>
         <span class="pe-status" [class.pending]="p.status === 'PENDING'" [class.confirmed]="p.status === 'OWNER_CONFIRMED'" [class.rejected]="p.status === 'REJECTED'">
@@ -91,7 +108,7 @@
         </span>
       </div>
       <div class="pe-cheque" *ngIf="p.chequeNumber">
-        Cheque: {{ p.chequeNumber }} · {{ p.bankName }}
+        {{ p.paymentType === 'BANK_TRANSFER' ? 'Ref' : 'Cheque' }}: {{ p.chequeNumber }}<span *ngIf="p.bankName"> · {{ p.bankName }}</span>
       </div>
       <div class="pe-note" *ngIf="p.workerNote">💬 {{ p.workerNote }}</div>
       <div class="pe-actions" *ngIf="p.status === 'PENDING'">
@@ -192,6 +209,9 @@
       <button class="pay-type-btn" [class.active]="payType === 'CHEQUE'" (click)="payType = 'CHEQUE'">
         🧾 {{ tr.t('cheque') }}
       </button>
+      <button class="pay-type-btn" [class.active]="payType === 'BANK_TRANSFER'" (click)="payType = 'BANK_TRANSFER'">
+        🏦 Bank Transfer
+      </button>
     </div>
 
     <div class="field-group">
@@ -220,6 +240,20 @@
         <select [(ngModel)]="payBranch" class="bank-select">
           <option value="">— Select Branch Area —</option>
           <option *ngFor="let a of areas" [value]="a">{{ a }}</option>
+        </select>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="payType === 'BANK_TRANSFER'">
+      <div class="field-group">
+        <label>Reference No. *</label>
+        <input [(ngModel)]="payChequeNo" placeholder="Transfer reference number" />
+      </div>
+      <div class="field-group">
+        <label>{{ tr.t('bank') }}</label>
+        <select [(ngModel)]="payBank" class="bank-select">
+          <option value="">— Select Bank —</option>
+          <option *ngFor="let b of banks" [value]="b">{{ b }}</option>
         </select>
       </div>
     </ng-container>

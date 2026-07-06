@@ -8,6 +8,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Auth } from '../../core/services/auth';
+import { Bill } from '../../core/services/bill';
 import { WorkerPortalService, WorkerBill, WorkerPaymentEntry, VisitStatus } from '../../core/services/worker-portal';
 
 @Component({
@@ -30,8 +31,15 @@ export class WorkerCollectionsPage implements OnInit {
   rejectReason = '';
   showRejectInput: number | null = null;
 
+  togglingBillId: number | null = null;
+  deletingEntryId: number | null = null;
+
   get isOwnerOrAdmin(): boolean {
     return ['ADMIN', 'OWNER'].includes(this.auth.getRole() ?? '');
+  }
+
+  get canToggleCollection(): boolean {
+    return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
 
   get pendingEntries(): WorkerPaymentEntry[] {
@@ -44,6 +52,7 @@ export class WorkerCollectionsPage implements OnInit {
 
   constructor(
     private svc: WorkerPortalService,
+    private billService: Bill,
     public auth: Auth,
     private cdr: ChangeDetectorRef,
   ) {}
@@ -90,6 +99,32 @@ export class WorkerCollectionsPage implements OnInit {
   cancelReject(): void {
     this.showRejectInput = null;
     this.cdr.detectChanges();
+  }
+
+  hardDelete(entryId: number): void {
+    if (!confirm('Delete this worker collection entry? If already confirmed, the bill balance will be restored.')) return;
+    this.deletingEntryId = entryId;
+    this.cdr.detectChanges();
+    this.svc.hardDeleteEntry(entryId).subscribe({
+      next: () => { this.deletingEntryId = null; this.load(); },
+      error: () => { this.deletingEntryId = null; alert('Failed to delete entry'); this.cdr.detectChanges(); },
+    });
+  }
+
+  toggleCollectionOnly(bill: WorkerBill): void {
+    this.togglingBillId = bill.id;
+    this.cdr.detectChanges();
+    this.billService.toggleCollectionOnly(bill.id).subscribe({
+      next: () => {
+        bill.collectionOnly = !bill.collectionOnly;
+        this.togglingBillId = null;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.togglingBillId = null;
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   visitColor(status: VisitStatus): string {

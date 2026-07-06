@@ -15,6 +15,7 @@ import { Router } from '@angular/router';
 import { Bill } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { CustomerService } from '../../../core/services/customer';
+import { localDateStr } from '../../../core/utils/date-utils';
 
 @Component({
   selector: 'app-create-bill',
@@ -113,9 +114,18 @@ export class CreateBill implements OnInit{
   }
 
   onCustomerInput(): void {
-    // Clear ID and area when user types freely (not selecting from list)
     this.selectedCustomerId = null;
     this.form.get('area')?.setValue(null);
+  }
+
+  onCustomerBlur(): void {
+    // If text was typed but no option was selected from the dropdown, reject it
+    const val = (this.form.get('customerName')?.value ?? '').trim();
+    if (val && !this.selectedCustomerId) {
+      this.form.get('customerName')?.setValue('');
+      this.form.get('area')?.setValue(null);
+      this.form.get('customerName')?.markAsTouched();
+    }
   }
 
   ngOnInit(): void {
@@ -185,11 +195,21 @@ export class CreateBill implements OnInit{
       this.form.markAllAsTouched();
       return;
     }
+    if (!this.selectedCustomerId) {
+      this.form.get('customerName')?.setErrors({ mustSelect: true });
+      this.form.get('customerName')?.markAsTouched();
+      return;
+    }
 
     this.loading = true;
     this.errorMsg = '';
 
-    const payload = { ...this.form.getRawValue(), customerId: this.selectedCustomerId };
+    const raw = this.form.getRawValue();
+    const payload = {
+      ...raw,
+      billDate: raw.billDate ? localDateStr(new Date(raw.billDate)) : localDateStr(),
+      customerId: this.selectedCustomerId,
+    };
     if (!payload.workerId) delete payload.workerId;
     if (!payload.customerId) delete payload.customerId;
 
@@ -205,8 +225,15 @@ export class CreateBill implements OnInit{
       if (this.isDraft) delete payload.billNumber;
       this.billService.createBill(payload).subscribe({
         next: () => this.router.navigate(['/bills']),
-        error: () => {
-          this.errorMsg = 'Failed to create bill. Please try again.';
+        error: (err) => {
+          const msg: string = err?.error?.message ?? err?.message ?? '';
+          if (msg.toLowerCase().includes('already exists')) {
+            this.form.get('billNumber')?.setErrors({ duplicate: true });
+            this.form.get('billNumber')?.markAsTouched();
+            this.errorMsg = msg;
+          } else {
+            this.errorMsg = 'Failed to create bill. Please try again.';
+          }
           this.loading = false;
         }
       });

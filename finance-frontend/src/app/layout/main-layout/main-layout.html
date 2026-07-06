@@ -44,6 +44,10 @@
         <span class="nav-badge" *ngIf="pendingEditRequests > 0 && !collapsed">{{ pendingEditRequests }}</span>
         <span class="nav-badge-dot" *ngIf="pendingEditRequests > 0 && collapsed"></span>
       </a>
+      <a class="nav-item" routerLink="/time-log" routerLinkActive="active" matRipple *ngIf="showTimeLog" (click)="isMobile && sidenav.close()">
+        <mat-icon>schedule</mat-icon>
+        <span *ngIf="!collapsed">Time Log</span>
+      </a>
       <a class="nav-item" routerLink="/returns" routerLinkActive="active" matRipple *ngIf="showReturns" (click)="isMobile && sidenav.close()">
         <mat-icon>assignment_return</mat-icon>
         <span *ngIf="!collapsed">Returns</span>

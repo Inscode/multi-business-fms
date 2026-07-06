@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
@@ -35,6 +36,7 @@ import { A } from '@angular/cdk/keycodes';
     MatProgressSpinnerModule,
     MatMenuModule,
     MatDividerModule,
+    MatTooltipModule,
   ],
   templateUrl: './staff-page.html',
   styleUrl: './staff-page.scss',
@@ -54,7 +56,7 @@ export class StaffPage implements OnInit{
   selectedType = '';
   selectedStatus = 'active';
 
-  staffTypes = ['DELIVERY', 'SALES_REP', 'SHOP'];
+  staffTypes = ['DELIVERY', 'SALES_REP', 'SHOP', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'DRIVER', 'OTHER'];
   displayedColumns = ['fullName', 'workerType', 'joinedDate', 'status', 'actions'];
 
   form: FormGroup;
@@ -83,9 +85,13 @@ export class StaffPage implements OnInit{
 
   typeLabel(type: string): string {
     const map: Record<string, string> = {
-      DELIVERY:  'Delivery',
-      SALES_REP: 'Sales Rep',
-      SHOP:      'Shop'
+      DELIVERY:       'Delivery',
+      SALES_REP:      'Sales Rep',
+      SHOP:           'Shop',
+      ACCOUNTANT:     'Accountant',
+      MAIN_ACCOUNTANT:'Main Accountant',
+      DRIVER:         'Driver',
+      OTHER:          'Other',
     };
     return map[type] ?? type;
   }
@@ -218,6 +224,16 @@ export class StaffPage implements OnInit{
     request$.subscribe({
       next: () => this.load(),
       error: () => alert('Failed to update staff status.')
+    });
+  }
+
+  toggleBillAssignable(staff: WorkerResponse): void {
+    this.workerService.toggleBillAssignable(staff.id).subscribe({
+      next: (updated) => {
+        staff.billAssignable = updated.billAssignable;
+        this.cdr.detectChanges();
+      },
+      error: () => alert('Failed to update collection status.')
     });
   }
 

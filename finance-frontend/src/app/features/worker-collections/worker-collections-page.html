@@ -35,8 +35,11 @@
               <mat-icon>person</mat-icon>
               <strong>{{ e.workerName }}</strong>
             </div>
-            <span class="type-chip" [class.cash]="e.paymentType === 'CASH'" [class.cheque]="e.paymentType === 'CHEQUE'">
-              {{ e.paymentType }}
+            <span class="type-chip"
+                  [class.cash]="e.paymentType === 'CASH'"
+                  [class.cheque]="e.paymentType === 'CHEQUE'"
+                  [class.transfer]="e.paymentType === 'BANK_TRANSFER'">
+              {{ e.paymentType === 'BANK_TRANSFER' ? 'Bank Transfer' : e.paymentType }}
             </span>
           </div>
 
@@ -72,6 +75,10 @@
             <button mat-stroked-button color="warn" (click)="startReject(e.id)">
               <mat-icon>close</mat-icon> Reject
             </button>
+            <button mat-icon-button color="warn" [disabled]="deletingEntryId === e.id"
+                    (click)="hardDelete(e.id)" matTooltip="Hard delete (removes entry)">
+              <mat-icon>delete_forever</mat-icon>
+            </button>
           </div>
 
           <!-- Acc/Main_Acc: read-only label -->
@@ -96,8 +103,11 @@
               <mat-icon>person</mat-icon>
               <strong>{{ e.workerName }}</strong>
             </div>
-            <span class="type-chip" [class.cash]="e.paymentType === 'CASH'" [class.cheque]="e.paymentType === 'CHEQUE'">
-              {{ e.paymentType }}
+            <span class="type-chip"
+                  [class.cash]="e.paymentType === 'CASH'"
+                  [class.cheque]="e.paymentType === 'CHEQUE'"
+                  [class.transfer]="e.paymentType === 'BANK_TRANSFER'">
+              {{ e.paymentType === 'BANK_TRANSFER' ? 'Bank Transfer' : e.paymentType }}
             </span>
           </div>
           <div class="entry-row">
@@ -109,6 +119,12 @@
           </div>
           <div class="entry-meta">
             Confirmed by {{ e.confirmedByName }} · {{ e.confirmedAt | date:'dd MMM, h:mm a' }}
+          </div>
+          <div class="entry-actions" *ngIf="isOwnerOrAdmin">
+            <button mat-icon-button color="warn" [disabled]="deletingEntryId === e.id"
+                    (click)="hardDelete(e.id)" matTooltip="Delete this confirmed entry (restores bill balance)">
+              <mat-icon>delete_forever</mat-icon>
+            </button>
           </div>
         </div>
       </div>
@@ -129,6 +145,10 @@
           <div class="bsc-body">
             <div class="bsc-row">
               <strong>{{ b.billNumber }}</strong>
+              <span class="collection-badge" [class.collection-badge--on]="b.collectionOnly">
+                <mat-icon>{{ b.collectionOnly ? 'payments' : 'local_shipping' }}</mat-icon>
+                {{ b.collectionOnly ? 'Collection Only' : 'New' }}
+              </span>
               <span class="bsc-amt">Rs {{ b.balanceRemaining | number }}</span>
             </div>
             <div class="bsc-customer">{{ b.customerName }}</div>
@@ -140,6 +160,15 @@
               {{ visitLabel(b.visitStatus) }}
             </div>
             <div class="bsc-note" *ngIf="b.visitNote">💬 {{ b.visitNote }}</div>
+
+            <!-- Toggle collection-only for admin/acc/main_acc -->
+            <div class="bsc-toggle" *ngIf="canToggleCollection">
+              <button mat-stroked-button [disabled]="togglingBillId === b.id"
+                      (click)="toggleCollectionOnly(b)">
+                <mat-icon>{{ b.collectionOnly ? 'fiber_new' : 'payments' }}</mat-icon>
+                {{ b.collectionOnly ? 'Mark as New' : 'Set Collection Only' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>

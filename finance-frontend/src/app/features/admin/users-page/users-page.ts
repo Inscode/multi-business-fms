@@ -222,8 +222,8 @@ export class UsersPage implements OnInit, OnDestroy {
     const { fullName, username, password, confirmPassword, adminCurrentPw, role, workerId } = this.form.value;
     const newPw = password?.trim();
 
-    // When changing password, confirm must match and admin password is required
-    if (newPw) {
+    // Confirm password + admin verification only apply when editing an existing user
+    if (this.editingUser && newPw) {
       if (confirmPassword?.trim() !== newPw) {
         this.formError = 'Passwords do not match.';
         this.cdr.detectChanges();

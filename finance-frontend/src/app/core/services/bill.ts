@@ -91,6 +91,7 @@ export interface BillResponse {
   createdAt: string;
   willBeLinked?: boolean;
   stockCleared?: boolean;
+  collectionOnly?: boolean;
 }
 
 @Injectable({
@@ -169,6 +170,10 @@ export class Bill {
 
   cancelBill(id: number): Observable<BillResponse> {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/cancel`, {});
+  }
+
+  toggleCollectionOnly(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/toggle-collection-only`, {});
   }
 
   deleteBill(id: number): Observable<void> {
