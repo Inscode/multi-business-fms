@@ -115,6 +115,10 @@ export class Payment {
     return this.http.patch<PaymentResponse>(`${this.apiUrl}/${id}/confirm`, {});
   }
 
+  rejectPayment(id: number, reason: string): Observable<PaymentResponse> {
+    return this.http.patch<PaymentResponse>(`${this.apiUrl}/${id}/reject`, { reason });
+  }
+
   markChequeReturned(id: number, returnReason: string): Observable<PaymentResponse> {
     return this.http.patch<PaymentResponse>(`${this.apiUrl}/${id}/return`, { returnReason });
   }

@@ -11,6 +11,19 @@
     </button>
   </div>
 
+  <!-- Primary type filter -->
+  <div class="type-filter-row">
+    <button class="type-chip" [class.active]="typeFilter === 'all'" (click)="setTypeFilter('all')">
+      All <span class="chip-count">{{ bills.length }}</span>
+    </button>
+    <button class="type-chip type-chip--new" [class.active]="typeFilter === 'new'" (click)="setTypeFilter('new')">
+      <mat-icon>fiber_new</mat-icon> New <span class="chip-count">{{ typeCount('new') }}</span>
+    </button>
+    <button class="type-chip type-chip--collection" [class.active]="typeFilter === 'collection'" (click)="setTypeFilter('collection')">
+      <mat-icon>payments</mat-icon> Collection Only <span class="chip-count">{{ typeCount('collection') }}</span>
+    </button>
+  </div>
+
   <!-- Search bar with clear -->
   <div class="wbl-search">
     <mat-icon class="search-icon">search</mat-icon>
@@ -21,8 +34,8 @@
     </button>
   </div>
 
-  <!-- Status filter chips -->
-  <div class="filter-chips" *ngIf="!loading && !error">
+  <!-- Status filter chips (only for new/all — collection bills don't have delivery steps) -->
+  <div class="filter-chips" *ngIf="!loading && !error && typeFilter !== 'collection'">
     <button class="filter-chip" [class.active]="statusFilter === 'all'" (click)="setStatusFilter('all')">
       {{ tr.t('filter_all') }} <span class="chip-count">{{ bills.length }}</span>
     </button>
@@ -128,6 +141,9 @@
       <button class="pay-type-btn" [class.active]="combinedPayType === 'CHEQUE'" (click)="combinedPayType = 'CHEQUE'">
         🧾 {{ tr.t('cheque') }}
       </button>
+      <button class="pay-type-btn" [class.active]="combinedPayType === 'BANK_TRANSFER'" (click)="combinedPayType = 'BANK_TRANSFER'">
+        🏦 Bank Transfer
+      </button>
     </div>
 
     <!-- Cheque fields -->
@@ -143,6 +159,18 @@
       <div class="field-group">
         <label>{{ tr.t('branch') }}</label>
         <input [(ngModel)]="combinedBranch" />
+      </div>
+    </ng-container>
+
+    <!-- Bank transfer fields -->
+    <ng-container *ngIf="combinedPayType === 'BANK_TRANSFER'">
+      <div class="field-group">
+        <label>Reference No. *</label>
+        <input [(ngModel)]="combinedChequeNo" placeholder="Transfer reference number" />
+      </div>
+      <div class="field-group">
+        <label>{{ tr.t('bank') }}</label>
+        <input [(ngModel)]="combinedBank" />
       </div>
     </ng-container>
 

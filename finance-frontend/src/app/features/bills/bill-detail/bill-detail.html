@@ -56,6 +56,14 @@
         Request Edit
       </button>
 
+      <button mat-stroked-button
+              *ngIf="canToggleCollectionOnly"
+              [color]="bill.collectionOnly ? 'primary' : ''"
+              (click)="toggleCollectionOnly()">
+        <mat-icon>{{ bill.collectionOnly ? 'fiber_new' : 'payments' }}</mat-icon>
+        {{ bill.collectionOnly ? 'Mark as New' : 'Collection Only' }}
+      </button>
+
       <button mat-stroked-button color="warn"
               *ngIf="isAdmin && isCancellable"
               (click)="cancelBill()">
@@ -521,6 +529,36 @@
 
       </ng-container>
     </mat-card>
+
+    <!-- worker collection status banners -->
+    <div class="worker-entry-banner" *ngIf="hasPendingWorkerEntry">
+      <mat-icon>hourglass_top</mat-icon>
+      <div>
+        <strong>Worker Payment Pending Admin Approval</strong>
+        <span *ngFor="let e of pendingWorkerEntries" style="display:block;font-size:13px;margin-top:2px;">
+          {{ e.workerName }} — Rs {{ e.amount | number }} ({{ e.paymentType }})
+          <span *ngIf="e.chequeNumber"> · Cheque: {{ e.chequeNumber }}</span>
+        </span>
+        <span style="font-size:12px;color:#888;margin-top:4px;display:block;">Payment entry is locked until admin approves</span>
+      </div>
+    </div>
+
+    <div class="collection-note-banner" *ngIf="pendingCollectionNote && !hasPendingWorkerEntry">
+      <mat-icon>task_alt</mat-icon>
+      <div style="flex:1">
+        <strong>Worker Collection Confirmed — Enter Payment</strong>
+        <div style="font-size:13px;margin-top:4px;">
+          Rs {{ pendingCollectionNote!.amount | number }} · {{ pendingCollectionNote!.paymentType }}
+          <span *ngIf="pendingCollectionNote!.chequeNumber"> · Cheque: {{ pendingCollectionNote!.chequeNumber }}</span>
+          <span *ngIf="pendingCollectionNote!.bankName"> · {{ pendingCollectionNote!.bankName }}</span>
+          <span *ngIf="pendingCollectionNote!.branchName"> · {{ pendingCollectionNote!.branchName }}</span>
+        </div>
+        <div style="font-size:12px;color:#555;margin-top:2px;">{{ pendingCollectionNote!.notes }}</div>
+      </div>
+      <button mat-flat-button color="primary" *ngIf="canEnterPayment" (click)="enterPayment()">
+        <mat-icon>add</mat-icon> Record Payment
+      </button>
+    </div>
 
     <!-- payment history -->
     <div class="section-header">

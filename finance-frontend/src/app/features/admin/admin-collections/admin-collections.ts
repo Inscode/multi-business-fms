@@ -22,7 +22,7 @@ export class AdminCollections implements OnInit {
   loading = false;
   editingId: number | null = null;
   editAmount = 0;
-  editType: 'CASH' | 'CHEQUE' = 'CASH';
+  editType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER' = 'CASH';
 
   constructor(private service: CollectionNoteService, private cdr: ChangeDetectorRef) {}
 
@@ -46,7 +46,7 @@ export class AdminCollections implements OnInit {
   cancelEdit(): void { this.editingId = null; this.cdr.detectChanges(); }
 
   saveEdit(n: CollectionNoteResponse): void {
-    this.service.updateNote(n.id, { amount: this.editAmount, paymentType: this.editType, notes: n.notes }).subscribe({
+    this.service.updateNote(n.id, { amount: this.editAmount, paymentType: this.editType as 'CASH' | 'CHEQUE' | 'BANK_TRANSFER', notes: n.notes }).subscribe({
       next: () => { this.editingId = null; this.load(); },
       error: () => alert('Failed to update.'),
     });

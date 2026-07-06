@@ -22,6 +22,8 @@ export interface WorkerBill {
   visitNote: string | null;
   managementNotes: string[];
   workerPayments: WorkerPaymentEntry[];
+  collectionOnly: boolean;
+  createdAt: string;
 }
 
 export interface WorkerPaymentEntry {
@@ -32,7 +34,7 @@ export interface WorkerPaymentEntry {
   groupId: number | null;
   workerName: string;
   amount: number;
-  paymentType: 'CASH' | 'CHEQUE';
+  paymentType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
   chequeNumber: string | null;
   bankName: string | null;
   branchName: string | null;
@@ -47,7 +49,7 @@ export interface WorkerPaymentEntry {
 export interface WorkerPaymentGroup {
   id: number;
   workerName: string;
-  paymentType: 'CASH' | 'CHEQUE';
+  paymentType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
   chequeNumber: string | null;
   bankName: string | null;
   totalAmount: number;
@@ -55,6 +57,70 @@ export interface WorkerPaymentGroup {
   workerNote: string | null;
   createdAt: string;
   entries: WorkerPaymentEntry[];
+}
+
+export interface WorkerBillOverview {
+  id: number;
+  billNumber: string;
+  customerName: string;
+  area: string | null;
+  status: string;
+  business: string;
+  billType: string;
+  billDate: string;
+  totalAmount: number;
+  balanceRemaining: number;
+  workerName: string | null;
+  collectionOnly: boolean;
+  createdAt: string;
+}
+
+export interface WorkerReturnOverview {
+  id: number;
+  billId: number;
+  billNumber: string;
+  customerName: string;
+  area: string | null;
+  returnType: 'DAMAGE' | 'SALABLE';
+  status: string;
+  itemsTotal: number;
+  calculatedReturnAmount: number;
+  notes: string | null;
+  responsibleWorkerName: string | null;
+  submittedAt: string;
+}
+
+export interface WorkerReminderOverview {
+  id: number;
+  billId: number;
+  billNumber: string;
+  customerName: string;
+  area: string | null;
+  reminderDate: string;
+  period: string;
+  note: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface CollectionNote {
+  id: number;
+  billId: number;
+  billNumber: string;
+  customerName: string;
+  area: string | null;
+  billBalance: number;
+  amount: number;
+  paymentType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
+  status: 'PENDING' | 'MATCHED';
+  collectedByName: string;
+  collectedAt: string;
+  notes: string | null;
+  chequeNumber: string | null;
+  bankName: string | null;
+  branchName: string | null;
+  chequeDate: string | null;
+  sourceEntryId: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -78,14 +144,14 @@ export class WorkerPortalService {
   }
 
   enterPayment(req: {
-    billId: number; amount: number; paymentType: 'CASH' | 'CHEQUE';
+    billId: number; amount: number; paymentType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
     chequeNumber?: string; bankName?: string; branchName?: string; workerNote?: string;
   }): Observable<WorkerPaymentEntry> {
     return this.http.post<WorkerPaymentEntry>(`${this.base}/payments`, req);
   }
 
   enterGroupPayment(req: {
-    paymentType: 'CASH' | 'CHEQUE';
+    paymentType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
     chequeNumber?: string; bankName?: string; branchName?: string; workerNote?: string;
     bills: { billId: number; amount: number }[];
   }): Observable<WorkerPaymentGroup> {
@@ -93,7 +159,7 @@ export class WorkerPortalService {
   }
 
   editPayment(entryId: number, req: {
-    billId: number; amount: number; paymentType: 'CASH' | 'CHEQUE';
+    billId: number; amount: number; paymentType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
     chequeNumber?: string; bankName?: string; branchName?: string; workerNote?: string;
   }): Observable<WorkerPaymentEntry> {
     return this.http.put<WorkerPaymentEntry>(`${this.base}/payments/${entryId}`, req);
@@ -130,5 +196,33 @@ export class WorkerPortalService {
 
   rejectEntry(entryId: number, reason: string): Observable<void> {
     return this.http.post<void>(`${this.collectBase}/${entryId}/reject`, { reason });
+  }
+
+  hardDeleteEntry(entryId: number): Observable<void> {
+    return this.http.delete<void>(`${this.collectBase}/${entryId}`);
+  }
+
+  getPendingEntriesForBill(billId: number): Observable<WorkerPaymentEntry[]> {
+    return this.http.get<WorkerPaymentEntry[]>(`${this.collectBase}/pending-for-bill/${billId}`);
+  }
+
+  getCollectionNotesForBill(billId: number): Observable<CollectionNote[]> {
+    return this.http.get<CollectionNote[]>(`${this.collectBase}/collection-notes-for-bill/${billId}`);
+  }
+
+  getBillsOverview(view: 'pending' | 'completed' = 'pending'): Observable<WorkerBillOverview[]> {
+    return this.http.get<WorkerBillOverview[]>(`${this.base}/bills/overview`, { params: { view } });
+  }
+
+  toggleCollectionOnly(billId: number): Observable<void> {
+    return this.http.patch<void>(`${environment.apiUrl}/bills/${billId}/toggle-collection-only`, {});
+  }
+
+  getReturnsOverview(): Observable<WorkerReturnOverview[]> {
+    return this.http.get<WorkerReturnOverview[]>(`${this.base}/returns/overview`);
+  }
+
+  getRemindersOverview(): Observable<WorkerReminderOverview[]> {
+    return this.http.get<WorkerReminderOverview[]>(`${this.base}/reminders/overview`);
   }
 }

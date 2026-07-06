@@ -12,6 +12,8 @@ export interface WorkerResponse {
   joinedDate: string;
   notes: string;
   createdAt: string;
+  timeLogActive: boolean;
+  billAssignable: boolean;
 }
 
 export interface WorkerRequest {
@@ -52,5 +54,9 @@ export class Worker {
 
   deactivateWorker(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  toggleBillAssignable(id: number): Observable<WorkerResponse> {
+    return this.http.patch<WorkerResponse>(`${this.apiUrl}/${id}/toggle-bill-assignable`, {});
   }
 }

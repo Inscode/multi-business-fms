@@ -19,6 +19,7 @@ import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
 import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { BillReturnResponse, BillReturnService } from '../../../core/services/bill-return';
+import { WorkerPortalService, WorkerPaymentEntry, CollectionNote } from '../../../core/services/worker-portal';
 import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-edit-dialog';
 import { BillStockStatus, ReturnProductResponse, StockService } from '../../../core/services/stock';
 
@@ -55,6 +56,8 @@ export class BillDetail implements OnInit {
   returns: BillReturnResponse[] = [];
   workers: WorkerResponse[] = [];
   stockStatus: BillStockStatus | null = null;
+  pendingWorkerEntries: WorkerPaymentEntry[] = [];
+  collectionNotes: CollectionNote[] = [];
   loading = true;
   paymentsLoading = true;
   returnsLoading = false;
@@ -121,7 +124,16 @@ export class BillDetail implements OnInit {
   get canEnterPayment(): boolean {
     return !this.isOwner && (this.isAccountant || this.isAdmin || this.isMainAccountant) &&
       !this.bill?.fullyPaid && this.bill?.status !== 'CANCELLED' &&
-      this.bill?.status !== 'COMPLETED';
+      this.bill?.status !== 'COMPLETED' &&
+      this.pendingWorkerEntries.length === 0;
+  }
+
+  get hasPendingWorkerEntry(): boolean {
+    return this.pendingWorkerEntries.length > 0;
+  }
+
+  get pendingCollectionNote(): CollectionNote | null {
+    return this.collectionNotes.find(n => n.status === 'PENDING') ?? null;
   }
 
   get canRequestEdit(): boolean {
@@ -134,6 +146,10 @@ export class BillDetail implements OnInit {
       !this.stockStatus?.stockReconciled;
   }
 
+  get canToggleCollectionOnly(): boolean {
+    return this.isAdmin || this.isAccountant || this.isMainAccountant;
+  }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -143,6 +159,7 @@ export class BillDetail implements OnInit {
     private workerService: Worker,
     private auth: Auth,
     private stockService: StockService,
+    private workerPortalService: WorkerPortalService,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
   ) {}
@@ -152,6 +169,7 @@ export class BillDetail implements OnInit {
     this.load(id);
     this.loadWorkers();
     this.loadProducts();
+    this.loadWorkerCollectionStatus(id);
 
     this.refProductCtrl.valueChanges.subscribe(val => {
       if (typeof val === 'string') {
@@ -285,8 +303,19 @@ export class BillDetail implements OnInit {
 
   private loadWorkers(): void {
     this.workerService.getAllWorkers().subscribe({
-      next: (w) => this.workers = w.filter(w => w.active),
+      next: (w) => this.workers = w.filter(w => w.active && w.billAssignable),
       error: () => this.workers = []
+    });
+  }
+
+  loadWorkerCollectionStatus(billId: number): void {
+    this.workerPortalService.getPendingEntriesForBill(billId).subscribe({
+      next: (entries) => { this.pendingWorkerEntries = entries; this.cdr.detectChanges(); },
+      error: () => {}
+    });
+    this.workerPortalService.getCollectionNotesForBill(billId).subscribe({
+      next: (notes) => { this.collectionNotes = notes; this.cdr.detectChanges(); },
+      error: () => {}
     });
   }
 
@@ -332,8 +361,19 @@ export class BillDetail implements OnInit {
 
   enterPayment(): void {
     if (!this.bill) return;
+    const note = this.pendingCollectionNote;
     this.router.navigate(['/payments/enter'], {
-      state: { preselectedBill: this.bill }
+      state: {
+        preselectedBill: this.bill,
+        ...(note ? {
+          collectionNoteId: note.id,
+          prefillAmount: note.amount,
+          prefillPaymentType: note.paymentType,
+          prefillChequeNumber: note.chequeNumber,
+          prefillBankName: note.bankName,
+          prefillBranchName: note.branchName,
+        } : {}),
+      }
     });
   }
 
@@ -405,6 +445,17 @@ export class BillDetail implements OnInit {
         this.cdr.detectChanges();
       },
       error: (err) => alert(err?.error?.message ?? 'Failed to cancel bill.'),
+    });
+  }
+
+  toggleCollectionOnly(): void {
+    if (!this.bill) return;
+    this.billService.toggleCollectionOnly(this.bill.id).subscribe({
+      next: () => {
+        this.bill = { ...this.bill!, collectionOnly: !this.bill!.collectionOnly };
+        this.cdr.detectChanges();
+      },
+      error: (err) => alert(err?.error?.message ?? 'Failed to update collection status.'),
     });
   }
 

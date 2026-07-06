@@ -144,6 +144,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/tasks/task-board/task-board')
           .then(m => m.TaskBoard)
       },
+      {
+        path: 'time-log',
+        loadComponent: () => import('./features/admin/time-log/time-log')
+          .then(m => m.TimeLogPage),
+        canActivate: [adminGuard]
+      },
     ]
   },
   {

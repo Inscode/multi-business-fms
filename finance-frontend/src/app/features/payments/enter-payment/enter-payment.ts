@@ -108,9 +108,13 @@ export class EnterPayment implements OnInit {
       this.onBillSelect(preselected);
     }
 
-    if (history.state?.prefillAmount) {
-      this.form.patchValue({ amount: history.state.prefillAmount });
-    }
+    // Pre-fill from a confirmed worker CollectionNote
+    const state = history.state ?? {};
+    if (state.prefillAmount)      this.form.patchValue({ amount: state.prefillAmount });
+    if (state.prefillPaymentType) this.form.patchValue({ paymentType: state.prefillPaymentType });
+    if (state.prefillChequeNumber) this.form.patchValue({ chequeNumber: state.prefillChequeNumber });
+    if (state.prefillBankName)    this.form.patchValue({ bankName: state.prefillBankName });
+    if (state.prefillBranchName)  this.form.patchValue({ branchName: state.prefillBranchName });
   }
 
   private loadBills(): void {

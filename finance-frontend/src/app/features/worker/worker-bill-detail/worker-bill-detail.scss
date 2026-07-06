@@ -154,6 +154,7 @@
   border-radius: 10px;
   &.cash { background: #e8f5e9; color: #2e7d32; }
   &.cheque { background: #e3f2fd; color: #1565c0; }
+  &.transfer { background: #f3e5f5; color: #6a1b9a; }
 }
 
 .pe-amt { font-size: 15px; font-weight: 700; color: #1a1a2e; flex: 1; }
@@ -333,4 +334,19 @@
   font-size: 16px;
   border-radius: 14px;
   margin-top: 6px;
+}
+
+
+.collection-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fff3e0;
+  border: 1.5px solid #ff9800;
+  border-radius: 10px;
+  color: #e65100;
+  font-size: 13px;
+  font-weight: 500;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
 }

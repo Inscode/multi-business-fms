@@ -5,17 +5,170 @@
     <p class="page-sub">Select a bill and mark how you collected payment</p>
   </div>
 
+  <!-- Mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn" [class.active]="mode === 'single'" (click)="setMode('single')">
+      <mat-icon>receipt_long</mat-icon>
+      Single Bill
+    </button>
+    <button class="mode-btn" [class.active]="mode === 'combined'" (click)="setMode('combined')">
+      <mat-icon>layers</mat-icon>
+      Combined Payment
+    </button>
+  </div>
+
   <!-- Success message -->
   <div class="success-banner" *ngIf="successMsg">
     <mat-icon>check_circle</mat-icon>
     <span>{{ successMsg }}</span>
   </div>
 
-  <!-- STEP 1: Select bill (hidden after selection) -->
-  <ng-container *ngIf="!selectedBill">
+  <!-- Error -->
+  <div class="error-msg" *ngIf="errorMsg">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMsg }}</span>
+  </div>
 
+  <!-- ════════════════════════════════ SINGLE MODE ═════════════════════════════════ -->
+  <ng-container *ngIf="mode === 'single'">
+
+    <!-- STEP 1: Select bill -->
+    <ng-container *ngIf="!selectedBill">
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+        <mat-label>Search by name or invoice number</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [(ngModel)]="searchQuery" (ngModelChange)="applySearch()" />
+        <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery = ''; applySearch()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+
+      <div class="type-filter-row">
+        <button class="type-filter-btn" [class.active]="selectedBillType === ''" (click)="setTypeFilter('')">All</button>
+        <button class="type-filter-btn cash" [class.active]="selectedBillType === 'CASH'" (click)="setTypeFilter('CASH')">
+          <mat-icon>payments</mat-icon> Cash Bills
+        </button>
+        <button class="type-filter-btn credit" [class.active]="selectedBillType === 'CREDIT'" (click)="setTypeFilter('CREDIT')">
+          <mat-icon>credit_card</mat-icon> Credit Bills
+        </button>
+      </div>
+
+      <div class="loading-state" *ngIf="loading">
+        <mat-spinner diameter="32"></mat-spinner>
+      </div>
+
+      <div class="bill-list" *ngIf="!loading">
+        <div class="bill-item" *ngFor="let b of filteredBills" (click)="selectBill(b)"
+             [class.cash-bill]="b.billType === 'CASH'">
+          <div class="bill-item-left">
+            <div class="bill-item-top-row">
+              <span class="bill-num">{{ b.billNumber }}</span>
+              <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
+                {{ b.billType === 'CASH' ? '⚡ CASH' : 'CREDIT' }}
+              </span>
+            </div>
+            <span class="bill-customer">{{ b.customerName }}</span>
+            <span class="bill-area">{{ b.area ?? '—' }} · {{ b.business }}</span>
+          </div>
+          <div class="bill-item-right">
+            <span class="bill-balance">Rs {{ b.balanceRemaining | number }}</span>
+            <mat-icon class="chevron">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="filteredBills.length === 0">
+          <mat-icon>receipt_long</mat-icon>
+          <p>No bills found</p>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- STEP 2: Collection form -->
+    <ng-container *ngIf="selectedBill">
+
+      <div class="selected-bill">
+        <div class="selected-bill-top">
+          <div class="selected-bill-info">
+            <span class="selected-num">{{ selectedBill.billNumber }}</span>
+            <span class="selected-customer">{{ selectedBill.customerName }}</span>
+            <span class="selected-area">{{ selectedBill.area ?? '—' }} · {{ selectedBill.business }}</span>
+          </div>
+          <button mat-icon-button (click)="clearSelection()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="bill-detail-grid">
+          <div class="bill-detail-item">
+            <span class="detail-label">Bill Date</span>
+            <span class="detail-val">{{ selectedBill.billDate }}</span>
+          </div>
+          <div class="bill-detail-item">
+            <span class="detail-label">Bill Total</span>
+            <span class="detail-val">Rs {{ selectedBill.totalAmount | number }}</span>
+          </div>
+          <div class="bill-detail-item">
+            <span class="detail-label">Already Paid</span>
+            <span class="detail-val paid">Rs {{ selectedBill.amountPaid | number }}</span>
+          </div>
+          <div class="bill-detail-item">
+            <span class="detail-label">Outstanding</span>
+            <span class="detail-val outstanding">Rs {{ selectedBill.balanceRemaining | number }}</span>
+          </div>
+        </div>
+      </div>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+        <mat-label>Amount Collected</mat-label>
+        <span matPrefix>Rs&nbsp;</span>
+        <input matInput type="number" [(ngModel)]="amount" min="0.01" [readonly]="!canEditAmount" />
+      </mat-form-field>
+      <p class="amount-locked-note" *ngIf="!canEditAmount">
+        <mat-icon>lock</mat-icon> Amount is set to the outstanding balance and cannot be changed.
+      </p>
+
+      <p class="type-label">Payment Type</p>
+      <div class="type-row type-row-3">
+        <button class="type-btn" [class.active]="paymentType === 'CASH'" (click)="setType('CASH')">
+          <mat-icon>payments</mat-icon> Cash
+        </button>
+        <button class="type-btn" [class.active]="paymentType === 'CHEQUE'" (click)="setType('CHEQUE')">
+          <mat-icon>description</mat-icon> Cheque
+        </button>
+        <button class="type-btn" [class.active]="paymentType === 'BANK_TRANSFER'" (click)="setType('BANK_TRANSFER')">
+          <mat-icon>account_balance</mat-icon> Transfer
+        </button>
+      </div>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+        <mat-label>Notes (optional)</mat-label>
+        <input matInput [(ngModel)]="notes" />
+      </mat-form-field>
+
+      <button mat-flat-button color="primary" class="submit-btn"
+        (click)="submit()"
+        [disabled]="submitting || !amount || amount <= 0">
+        <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
+        <ng-container *ngIf="!submitting">
+          <mat-icon>check</mat-icon>
+          Mark as Collected
+        </ng-container>
+      </button>
+
+    </ng-container>
+  </ng-container>
+
+  <!-- ════════════════════════════════ COMBINED MODE ═══════════════════════════════ -->
+  <ng-container *ngIf="mode === 'combined'">
+
+    <div class="combined-hint">
+      <mat-icon>info_outline</mat-icon>
+      <span>Add 2 or more bills collected under a single payment (e.g. one cheque covering multiple customers).</span>
+    </div>
+
+    <!-- Bill search -->
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
-      <mat-label>Search by name or invoice number</mat-label>
+      <mat-label>Search bills to add</mat-label>
       <mat-icon matPrefix>search</mat-icon>
       <input matInput [(ngModel)]="searchQuery" (ngModelChange)="applySearch()" />
       <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery = ''; applySearch()">
@@ -24,14 +177,12 @@
     </mat-form-field>
 
     <div class="type-filter-row">
-      <button class="type-filter-btn" [class.active]="selectedBillType === ''" (click)="setTypeFilter('')">
-        All
-      </button>
+      <button class="type-filter-btn" [class.active]="selectedBillType === ''" (click)="setTypeFilter('')">All</button>
       <button class="type-filter-btn cash" [class.active]="selectedBillType === 'CASH'" (click)="setTypeFilter('CASH')">
-        <mat-icon>payments</mat-icon> Cash Bills
+        <mat-icon>payments</mat-icon> Cash
       </button>
       <button class="type-filter-btn credit" [class.active]="selectedBillType === 'CREDIT'" (click)="setTypeFilter('CREDIT')">
-        <mat-icon>credit_card</mat-icon> Credit Bills
+        <mat-icon>credit_card</mat-icon> Credit
       </button>
     </div>
 
@@ -39,9 +190,12 @@
       <mat-spinner diameter="32"></mat-spinner>
     </div>
 
+    <!-- Bill list — tap to add to cart -->
     <div class="bill-list" *ngIf="!loading">
-      <div class="bill-item" *ngFor="let b of filteredBills" (click)="selectBill(b)"
-           [class.cash-bill]="b.billType === 'CASH'">
+      <div class="bill-item" *ngFor="let b of filteredBills"
+           [class.cash-bill]="b.billType === 'CASH'"
+           [class.in-cart]="isInCart(b.id)"
+           (click)="addToCombined(b)">
         <div class="bill-item-left">
           <div class="bill-item-top-row">
             <span class="bill-num">{{ b.billNumber }}</span>
@@ -50,111 +204,102 @@
             </span>
           </div>
           <span class="bill-customer">{{ b.customerName }}</span>
-          <span class="bill-area">{{ b.area ?? '—' }} · {{ b.business }}</span>
+          <span class="bill-area">{{ b.area ?? '—' }}</span>
         </div>
         <div class="bill-item-right">
           <span class="bill-balance">Rs {{ b.balanceRemaining | number }}</span>
-          <mat-icon class="chevron">chevron_right</mat-icon>
+          <mat-icon class="cart-icon" *ngIf="isInCart(b.id)">check_circle</mat-icon>
+          <mat-icon class="chevron" *ngIf="!isInCart(b.id)">add_circle_outline</mat-icon>
         </div>
       </div>
-
       <div class="empty-state" *ngIf="filteredBills.length === 0">
         <mat-icon>receipt_long</mat-icon>
         <p>No bills found</p>
       </div>
     </div>
-  </ng-container>
 
-  <!-- STEP 2: Collection form (shown after bill selected) -->
-  <ng-container *ngIf="selectedBill">
+    <!-- Cart -->
+    <div class="cart-section" *ngIf="combinedItems.length > 0">
+      <div class="cart-header">
+        <span class="cart-title">Selected Bills ({{ combinedItems.length }})</span>
+        <span class="cart-total">Total: Rs {{ combinedTotal | number }}</span>
+      </div>
 
-    <!-- Selected bill summary -->
-    <div class="selected-bill">
-      <div class="selected-bill-top">
-        <div class="selected-bill-info">
-          <span class="selected-num">{{ selectedBill.billNumber }}</span>
-          <span class="selected-customer">{{ selectedBill.customerName }}</span>
-          <span class="selected-area">{{ selectedBill.area ?? '—' }} · {{ selectedBill.business }}</span>
+      <div class="cart-item" *ngFor="let item of combinedItems">
+        <div class="cart-item-info">
+          <span class="cart-bill-num">{{ item.bill.billNumber }}</span>
+          <span class="cart-customer">{{ item.bill.customerName }}</span>
         </div>
-        <button mat-icon-button (click)="clearSelection()">
-          <mat-icon>close</mat-icon>
+        <input class="cart-amount-input" type="number" [(ngModel)]="item.amount" min="0.01" />
+        <button mat-icon-button color="warn" (click)="removeFromCombined(item.bill.id)"
+                matTooltip="Remove">
+          <mat-icon>remove_circle_outline</mat-icon>
         </button>
       </div>
-      <div class="bill-detail-grid">
-        <div class="bill-detail-item">
-          <span class="detail-label">Bill Date</span>
-          <span class="detail-val">{{ selectedBill.billDate }}</span>
-        </div>
-        <div class="bill-detail-item">
-          <span class="detail-label">Bill Total</span>
-          <span class="detail-val">Rs {{ selectedBill.totalAmount | number }}</span>
-        </div>
-        <div class="bill-detail-item">
-          <span class="detail-label">Already Paid</span>
-          <span class="detail-val paid">Rs {{ selectedBill.amountPaid | number }}</span>
-        </div>
-        <div class="bill-detail-item">
-          <span class="detail-label">Outstanding</span>
-          <span class="detail-val outstanding">Rs {{ selectedBill.balanceRemaining | number }}</span>
-        </div>
+
+      <p class="cart-min-warn" *ngIf="combinedItems.length < 2">
+        Add at least 2 bills to submit a combined payment.
+      </p>
+    </div>
+
+    <!-- Payment type + details (shown when cart has items) -->
+    <ng-container *ngIf="combinedItems.length >= 2">
+
+      <p class="type-label">Payment Type</p>
+      <div class="type-row type-row-3">
+        <button class="type-btn" [class.active]="combinedPaymentType === 'CASH'" (click)="setCombinedType('CASH')">
+          <mat-icon>payments</mat-icon> Cash
+        </button>
+        <button class="type-btn" [class.active]="combinedPaymentType === 'CHEQUE'" (click)="setCombinedType('CHEQUE')">
+          <mat-icon>description</mat-icon> Cheque
+        </button>
+        <button class="type-btn" [class.active]="combinedPaymentType === 'BANK_TRANSFER'" (click)="setCombinedType('BANK_TRANSFER')">
+          <mat-icon>account_balance</mat-icon> Transfer
+        </button>
       </div>
-    </div>
 
-    <!-- Amount input — read-only for ACC/MAIN_ACC -->
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
-      <mat-label>Amount Collected</mat-label>
-      <span matPrefix>Rs&nbsp;</span>
-      <input matInput type="number" [(ngModel)]="amount" min="0.01" [readonly]="!canEditAmount" />
-    </mat-form-field>
-    <p class="amount-locked-note" *ngIf="!canEditAmount">
-      <mat-icon>lock</mat-icon> Amount is set to the outstanding balance and cannot be changed.
-    </p>
-
-    <!-- Payment type — big tap buttons -->
-    <p class="type-label">Payment Type</p>
-    <div class="type-row">
-      <button class="type-btn"
-        [class.active]="paymentType === 'CASH'"
-        (click)="setType('CASH')">
-        <mat-icon>payments</mat-icon>
-        Cash
-      </button>
-      <button class="type-btn"
-        [class.active]="paymentType === 'CHEQUE'"
-        (click)="setType('CHEQUE')">
-        <mat-icon>description</mat-icon>
-        Cheque
-      </button>
-    </div>
-
-    <!-- Optional notes -->
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
-      <mat-label>Notes (optional)</mat-label>
-      <input matInput [(ngModel)]="notes" />
-    </mat-form-field>
-
-    <!-- Cheque reminder -->
-    <div class="cheque-note" *ngIf="paymentType === 'CHEQUE'">
-      <mat-icon>info_outline</mat-icon>
-      <span>Accountant will enter cheque details (number, bank, date) when formalizing this payment.</span>
-    </div>
-
-    <!-- Error -->
-    <div class="error-msg" *ngIf="errorMsg">
-      <mat-icon>error_outline</mat-icon>
-      <span>{{ errorMsg }}</span>
-    </div>
-
-    <!-- Submit -->
-    <button mat-flat-button color="primary" class="submit-btn"
-      (click)="submit()"
-      [disabled]="submitting || !amount || amount <= 0">
-      <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
-      <ng-container *ngIf="!submitting">
-        <mat-icon>check</mat-icon>
-        Mark as Collected
+      <!-- Cheque fields -->
+      <ng-container *ngIf="combinedPaymentType === 'CHEQUE'">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+          <mat-label>Cheque Number (optional)</mat-label>
+          <mat-icon matPrefix>tag</mat-icon>
+          <input matInput [(ngModel)]="chequeNumber" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+          <mat-label>Bank Name (optional)</mat-label>
+          <input matInput [(ngModel)]="bankName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+          <mat-label>Branch Name (optional)</mat-label>
+          <input matInput [(ngModel)]="branchName" />
+        </mat-form-field>
       </ng-container>
-    </button>
+
+      <!-- Bank transfer reference -->
+      <ng-container *ngIf="combinedPaymentType === 'BANK_TRANSFER'">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+          <mat-label>Reference Number (optional)</mat-label>
+          <mat-icon matPrefix>tag</mat-icon>
+          <input matInput [(ngModel)]="referenceNumber" />
+        </mat-form-field>
+      </ng-container>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="amount-field">
+        <mat-label>Notes (optional)</mat-label>
+        <input matInput [(ngModel)]="combinedNotes" />
+      </mat-form-field>
+
+      <button mat-flat-button color="primary" class="submit-btn"
+        (click)="submitCombined()"
+        [disabled]="submittingCombined || !combinedValid">
+        <mat-spinner diameter="18" *ngIf="submittingCombined"></mat-spinner>
+        <ng-container *ngIf="!submittingCombined">
+          <mat-icon>layers</mat-icon>
+          Save Combined Collection ({{ combinedItems.length }} bills · Rs {{ combinedTotal | number }})
+        </ng-container>
+      </button>
+
+    </ng-container>
 
   </ng-container>
 

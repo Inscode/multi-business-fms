@@ -85,6 +85,10 @@
                     [class.inactive]="!s.active">
                 {{ s.active ? 'Active' : 'Inactive' }}
               </span>
+              <span class="collection-badge" [class.collection-off]="!s.billAssignable"
+                    [matTooltip]="s.billAssignable ? 'Eligible for bill assignment' : 'Not assigned to field collection'">
+                <mat-icon>{{ s.billAssignable ? 'assignment_ind' : 'person_off' }}</mat-icon>
+              </span>
             </td>
           </ng-container>
 
@@ -101,6 +105,10 @@
                 <button mat-menu-item (click)="openEditPanel(s)">
                   <mat-icon>edit</mat-icon>
                   <span>Edit</span>
+                </button>
+                <button mat-menu-item (click)="toggleBillAssignable(s)">
+                  <mat-icon>{{ s.billAssignable ? 'remove_shopping_cart' : 'assignment_ind' }}</mat-icon>
+                  <span>{{ s.billAssignable ? 'Remove from Collection' : 'Enable Collection' }}</span>
                 </button>
                 <button mat-menu-item (click)="toggleActive(s)">
                   <mat-icon>{{ s.active ? 'block' : 'check_circle' }}</mat-icon>

@@ -22,6 +22,7 @@ export class WorkerBillList implements OnInit {
   loading = false;
   error = false;
   searchQuery = '';
+  typeFilter: 'all' | 'new' | 'collection' = 'all';
   statusFilter: 'all' | 'not_visited' | 'not_delivered' | 'awaiting' | 'submitted' = 'all';
 
   selectedBill: WorkerBill | null = null;
@@ -30,7 +31,7 @@ export class WorkerBillList implements OnInit {
   multiSelectMode = false;
   selectedBills: WorkerBill[] = [];
   showCombinedSheet = false;
-  combinedPayType: 'CASH' | 'CHEQUE' = 'CHEQUE';
+  combinedPayType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER' = 'CHEQUE';
   combinedChequeNo = '';
   combinedBank = '';
   combinedBranch = '';
@@ -69,13 +70,31 @@ export class WorkerBillList implements OnInit {
     });
   }
 
+  setTypeFilter(t: typeof this.typeFilter): void {
+    this.typeFilter = t;
+    this.statusFilter = 'all';
+    this.applyFilter();
+  }
+
   setStatusFilter(f: typeof this.statusFilter): void {
     this.statusFilter = f;
     this.applyFilter();
   }
 
+  typeCount(t: 'new' | 'collection'): number {
+    return this.bills.filter(b => t === 'new' ? this.isNew(b) : !this.isNew(b)).length;
+  }
+
   filterCount(f: typeof this.statusFilter): number {
-    return this.bills.filter(b => this.matchesStatusFilter(b, f)).length;
+    const typeFiltered = this.typeFilter === 'all' ? this.bills
+      : this.bills.filter(b => this.typeFilter === 'new' ? this.isNew(b) : !this.isNew(b));
+    return typeFiltered.filter(b => this.matchesStatusFilter(b, f)).length;
+  }
+
+  isNew(b: WorkerBill): boolean {
+    if (b.collectionOnly) return false;
+    if (!b.createdAt) return false;
+    return (Date.now() - new Date(b.createdAt).getTime()) <= 3 * 24 * 60 * 60 * 1000;
   }
 
   private matchesStatusFilter(b: WorkerBill, f: typeof this.statusFilter): boolean {
@@ -91,6 +110,11 @@ export class WorkerBillList implements OnInit {
   applyFilter(): void {
     const q = this.searchQuery.toLowerCase().trim();
     this.filtered = this.bills
+      .filter(b => {
+        if (this.typeFilter === 'new') return this.isNew(b);
+        if (this.typeFilter === 'collection') return !this.isNew(b);
+        return true;
+      })
       .filter(b => this.matchesStatusFilter(b, this.statusFilter))
       .filter(b => !q || b.customerName.toLowerCase().includes(q) ||
           b.billNumber.toLowerCase().includes(q) ||
@@ -152,6 +176,10 @@ export class WorkerBillList implements OnInit {
   submitCombined(): void {
     if (this.combinedPayType === 'CHEQUE' && !this.combinedChequeNo.trim()) {
       this.combinedError = 'Cheque number required';
+      return;
+    }
+    if (this.combinedPayType === 'BANK_TRANSFER' && !this.combinedChequeNo.trim()) {
+      this.combinedError = 'Reference number required';
       return;
     }
     const bills = this.selectedBills.map(b => ({

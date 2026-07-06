@@ -111,14 +111,7 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   statuses = ['', 'CREATED', 'ASSIGNED', 'SHOP_WORKER_ASSIGNED',
               'SHOP_RECEIVED', 'STORE_RECEIVED', 'COMPLETED', 'CANCELLED'];
 
-  areas = [
-    'Ambagasdowa', 'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
-    'Bogakumbura', 'Boralanda', 'Demodara', 'Diyatalawa', 'Ella',
-    'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',
-    'Hopton', 'Kandaketiya', 'Keppatipola', 'Kumbalwela', 'Lunugala',
-    'Lunuwatta', 'Mahiyanganaya', 'Meegahakivula', 'Passara',
-    'Uva-Paranagama', 'Welimada',
-  ];
+  areas: string[] = [];
 
   selection = new SelectionModel<any>(true, []);
 
@@ -405,6 +398,11 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
     this.billService.getBills(filter).subscribe({
       next: (b) => {
         this.allBills = b;
+        this.areas = [...new Set(b.map(bill => bill.area).filter((a): a is string => !!a))].sort();
+        // clear area filter if the selected area is no longer in the loaded data
+        if (this.selectedArea && !this.areas.includes(this.selectedArea)) {
+          this.selectedArea = '';
+        }
         this.loading = false;
         this.applyFilters();
         this.cdr.detectChanges();
@@ -419,7 +417,7 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
 
   private loadWorkers(): void {
     this.workerService.getAllWorkers().subscribe({
-      next: (w) => this.workers = w.filter(w => w.active),
+      next: (w) => this.workers = w.filter(w => w.active && w.billAssignable),
       error: () => this.workers = [],
     });
   }

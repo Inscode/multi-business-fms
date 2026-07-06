@@ -61,6 +61,7 @@
             placeholder="Enter bill number from bill book or system"
           />
           <mat-error *ngIf="form.get('billNumber')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('billNumber')?.hasError('duplicate')">This bill number already exists — use a different number</mat-error>
         </mat-form-field>
       </div>
 
@@ -74,13 +75,16 @@
           <mat-label>Customer Name</mat-label>
           <input matInput formControlName="customerName"
                  [matAutocomplete]="customerAuto"
-                 placeholder="Type to search or enter new name"
-                 (input)="onCustomerInput()" />
+                 placeholder="Type to search and select a customer"
+                 (input)="onCustomerInput()"
+                 (blur)="onCustomerBlur()" />
+          <mat-icon matSuffix *ngIf="selectedCustomerId" style="color:#4caf50">check_circle</mat-icon>
           <mat-autocomplete #customerAuto="matAutocomplete"
                             (optionSelected)="onCustomerSelected($event.option.value)">
             <mat-option *ngFor="let c of filteredCustomers" [value]="c.name">{{ c.name }}</mat-option>
           </mat-autocomplete>
           <mat-error *ngIf="form.get('customerName')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('customerName')?.hasError('mustSelect')">Select a customer from the list</mat-error>
         </mat-form-field>
       </div>
 

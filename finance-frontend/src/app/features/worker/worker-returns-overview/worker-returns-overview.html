@@ -1,0 +1,94 @@
+<div class="ret-page">
+
+  <!-- Header info -->
+  <div class="ret-header">
+    <mat-icon style="color:#ef5350">assignment_return</mat-icon>
+    <span>Pending Returns</span>
+  </div>
+
+  <!-- Search -->
+  <div class="ret-search">
+    <mat-icon class="search-icon">search</mat-icon>
+    <input class="search-input" [(ngModel)]="searchQuery" (ngModelChange)="applyFilters()"
+           placeholder="Search customer or bill..." />
+    <button class="clear-btn" *ngIf="searchQuery" (click)="clearSearch()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-row" *ngIf="!loading && !error">
+    <select class="filter-sel" [(ngModel)]="areaFilter" (ngModelChange)="applyFilters()">
+      <option value="">All Areas</option>
+      <option *ngFor="let a of areas" [value]="a">{{ a }}</option>
+    </select>
+    <select class="filter-sel" [(ngModel)]="typeFilter" (ngModelChange)="applyFilters()">
+      <option value="">All Types</option>
+      <option value="SALABLE">Salable</option>
+      <option value="DAMAGE">Damage</option>
+    </select>
+  </div>
+
+  <!-- Loading -->
+  <div class="w-center" *ngIf="loading">
+    <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
+  </div>
+
+  <!-- Error -->
+  <div class="w-center" *ngIf="error && !loading">
+    <mat-icon style="color:#ef5350;font-size:40px">error_outline</mat-icon>
+    <button class="w-retry-btn" (click)="load()">Retry</button>
+  </div>
+
+  <!-- Empty -->
+  <div class="w-center" *ngIf="!loading && !error && filtered.length === 0">
+    <mat-icon style="color:#bdbdbd;font-size:48px">assignment_return</mat-icon>
+    <p style="color:#9e9e9e;margin:8px 0 0">No pending returns</p>
+  </div>
+
+  <!-- Count -->
+  <div class="ret-count" *ngIf="!loading && !error && filtered.length > 0">
+    {{ filtered.length }} return{{ filtered.length !== 1 ? 's' : '' }}
+  </div>
+
+  <!-- Return cards -->
+  <div class="ret-list" *ngIf="!loading && !error">
+    <div class="ret-card" *ngFor="let r of filtered">
+      <div class="card-type-bar" [style.background]="typeColor(r.returnType)"></div>
+
+      <div class="card-body">
+        <div class="card-top">
+          <span class="card-billno">{{ r.billNumber }}</span>
+          <span class="type-chip" [style.color]="typeColor(r.returnType)">
+            <mat-icon [style.color]="typeColor(r.returnType)">{{ typeIcon(r.returnType) }}</mat-icon>
+            {{ r.returnType }}
+          </span>
+        </div>
+
+        <div class="card-customer">{{ r.customerName }}</div>
+
+        <div class="card-meta">
+          <span class="card-area" *ngIf="r.area">
+            <mat-icon>location_on</mat-icon>{{ r.area }}
+          </span>
+          <span class="card-date">
+            <mat-icon>schedule</mat-icon>{{ r.submittedAt | slice:0:10 }}
+          </span>
+        </div>
+
+        <div class="card-amounts">
+          <span class="amt-item">Items: Rs {{ r.itemsTotal | number:'1.0-2' }}</span>
+          <span class="amt-ret">Return: Rs {{ r.calculatedReturnAmount | number:'1.0-2' }}</span>
+        </div>
+
+        <div class="card-worker" *ngIf="r.responsibleWorkerName">
+          <mat-icon>person</mat-icon>{{ r.responsibleWorkerName }}
+        </div>
+
+        <div class="card-notes" *ngIf="r.notes">
+          <mat-icon>notes</mat-icon>{{ r.notes }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

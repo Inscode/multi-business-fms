@@ -190,6 +190,15 @@ export class PaymentList implements OnInit, AfterViewInit {
     });
   }
 
+  rejectPayment(payment: PaymentResponse): void {
+    const reason = prompt(`Reason for rejecting payment of Rs ${payment.paymentAmount} for ${payment.billNumber}?`);
+    if (reason === null) return;
+    this.paymentService.rejectPayment(payment.id, reason).subscribe({
+      next: () => this.load(),
+      error: (err) => alert(err?.error?.message ?? 'Failed to reject payment.'),
+    });
+  }
+
   canEdit(payment: PaymentResponse): boolean {
     return !this.isOwner && payment.status === 'ENTERED' && (this.isAccountant || this.isAdmin);
   }
@@ -200,12 +209,16 @@ export class PaymentList implements OnInit, AfterViewInit {
            this.isAdmin;
   }
 
+  canReject(payment: PaymentResponse): boolean {
+    return this.isAdmin && payment.status === 'ENTERED';
+  }
+
   canDelete(payment: PaymentResponse): boolean {
     return this.isAdmin && payment.status === 'ENTERED';
   }
 
   hasActions(payment: PaymentResponse): boolean {
-    return this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment);
+    return this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment) || this.canReject(payment);
   }
 
   deletePayment(payment: PaymentResponse): void {
