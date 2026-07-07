@@ -119,13 +119,16 @@ export class CreateBill implements OnInit{
   }
 
   onCustomerBlur(): void {
-    // If text was typed but no option was selected from the dropdown, reject it
-    const val = (this.form.get('customerName')?.value ?? '').trim();
-    if (val && !this.selectedCustomerId) {
-      this.form.get('customerName')?.setValue('');
-      this.form.get('area')?.setValue(null);
-      this.form.get('customerName')?.markAsTouched();
-    }
+    // Delay so optionSelected fires first — clicking a dropdown item blurs the
+    // input before the selection event, making selectedCustomerId still null at blur time.
+    setTimeout(() => {
+      const val = (this.form.get('customerName')?.value ?? '').trim();
+      if (val && !this.selectedCustomerId) {
+        this.form.get('customerName')?.setValue('');
+        this.form.get('area')?.setValue(null);
+        this.form.get('customerName')?.markAsTouched();
+      }
+    }, 200);
   }
 
   ngOnInit(): void {
@@ -170,6 +173,14 @@ export class CreateBill implements OnInit{
       next: (list) => {
         this.allCustomers = list.map(c => ({ id: c.id, name: c.name, area: c.area }));
         this.filteredCustomers = this.allCustomers.slice(0, 50);
+
+        // Restore selectedCustomerId when editing — the form patches customerName
+        // text but has no customerId field, so we match by name after the list loads.
+        if (this.isEditing && !this.selectedCustomerId) {
+          const match = this.allCustomers.find(c => c.name === this.editingBill?.customerName);
+          if (match) this.selectedCustomerId = match.id;
+        }
+
         const ctrl = this.form.get('customerName');
         ctrl?.valueChanges.subscribe(v => this.filterCustomers(v ?? ''));
       },

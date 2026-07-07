@@ -248,7 +248,16 @@ export class EnterPayment implements OnInit {
   cancel(): void { this.redirect(); }
 
   private redirect(): void {
-    const dest = this.auth.getRole() === 'SHOP_ACCOUNTANT' ? '/dashboard/shop' : '/payments';
-    this.router.navigate([dest]);
+    if (this.auth.getRole() === 'SHOP_ACCOUNTANT') {
+      this.router.navigate(['/dashboard/shop']);
+      return;
+    }
+    // Return to the bill detail if we came from one
+    const billId = this.selectedBill?.id ?? this.editingPayment?.billId ?? null;
+    if (billId) {
+      this.router.navigate(['/bills', billId]);
+    } else {
+      this.router.navigate(['/payments']);
+    }
   }
 }

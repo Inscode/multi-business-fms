@@ -161,6 +161,89 @@
   margin: 0 0 32px;
 }
 
+/* ── Demo box ─────────────────────────────────────── */
+.demo-box {
+  background: linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%);
+  border: 1.5px solid #a5d6a7;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.demo-label {
+  font-size: 12px;
+  color: #2e7d32;
+  font-weight: 600;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-badge {
+  background: #2e7d32;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.demo-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.demo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px;
+  border: 1.5px solid #c8e6c9;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+
+  &:hover:not(:disabled) {
+    border-color: #43a047;
+    background: #f1f8e9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(67,160,71,0.15);
+  }
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .demo-icon { font-size: 20px; line-height: 1; }
+  .demo-role { font-size: 12px; font-weight: 700; color: #1a1a2e; }
+  .demo-desc { font-size: 10px; color: #888; }
+}
+
+/* ── Divider ──────────────────────────────────────── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+
+  span {
+    font-size: 11px;
+    color: #aaa;
+    white-space: nowrap;
+  }
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e0e0e0;
+  }
+}
+
 .login-form {
   display: flex;
   flex-direction: column;

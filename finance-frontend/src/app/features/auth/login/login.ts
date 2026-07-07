@@ -43,6 +43,25 @@ export class Login {
     });
   }
 
+  tryDemo(role: 'admin' | 'acc' | 'owner'): void {
+    const users = {
+      admin: { username: 'demo_admin', role: 'ADMIN',       fullName: 'Demo Admin',       id: 901 },
+      acc:   { username: 'demo_acc',   role: 'ACCOUNTANT',  fullName: 'Demo Accountant',  id: 902 },
+      owner: { username: 'demo_owner', role: 'OWNER',       fullName: 'Demo Owner',       id: 903 },
+    };
+    const u = users[role];
+    const enc = (obj: object) => btoa(JSON.stringify(obj)).replace(/=/g, '');
+    const token = [
+      enc({ alg: 'none', typ: 'JWT' }),
+      enc({ sub: u.username, role: u.role, fullName: u.fullName, id: u.id,
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + 86400 * 30 }),
+      'demo',
+    ].join('.');
+    this.auth.saveToken(token);
+    this.router.navigate(['/dashboard']);
+  }
+
   submit(): void {
     if (this.form.invalid) return;
     this.loading = true;

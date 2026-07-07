@@ -11,6 +11,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Bill, AgingReportResponse, AgingAreaSummary, AgingCustomerEntry } from '../../../core/services/bill';
 import { BillFilterState } from '../../../core/services/bill-filter-state';
+import { Auth } from '../../../core/services/auth';
 
 interface PriorityBucket {
   label: string;
@@ -45,16 +46,24 @@ export class AgingReport implements OnInit {
   selectedBusiness = 'RAINCO';
   expandedAreas = new Set<string>();
 
-  businesses = ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+  get businesses(): string[] {
+    return this.auth.isDemo ? ['DEMO'] : ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+  }
+
+  get isDemo(): boolean { return this.auth.isDemo; }
 
   constructor(
     private billService: Bill,
     private cdr: ChangeDetectorRef,
     private router: Router,
     private filterState: BillFilterState,
+    private auth: Auth,
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    if (this.auth.isDemo) this.selectedBusiness = 'DEMO';
+    this.load();
+  }
 
   load(): void {
     this.loading = true;
