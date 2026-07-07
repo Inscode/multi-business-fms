@@ -42,6 +42,33 @@
       <h1 class="form-title">Sign in to continue</h1>
       <p class="form-sub">Enter the credentials issued by your manager.</p>
 
+      <!-- Demo access -->
+      <div class="demo-box">
+        <p class="demo-label">
+          <span class="demo-badge">LIVE DEMO</span>
+          Try the system with pre-loaded data
+        </p>
+        <div class="demo-btns">
+          <button type="button" class="demo-btn admin" (click)="tryDemo('admin')" [disabled]="loading">
+            <span class="demo-icon">🔧</span>
+            <span class="demo-role">Admin</span>
+            <span class="demo-desc">Full access</span>
+          </button>
+          <button type="button" class="demo-btn acc" (click)="tryDemo('acc')" [disabled]="loading">
+            <span class="demo-icon">📒</span>
+            <span class="demo-role">Accountant</span>
+            <span class="demo-desc">Payments & bills</span>
+          </button>
+          <button type="button" class="demo-btn owner" (click)="tryDemo('owner')" [disabled]="loading">
+            <span class="demo-icon">👔</span>
+            <span class="demo-role">Owner</span>
+            <span class="demo-desc">Collections</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="divider"><span>or sign in with credentials</span></div>
+
       <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
         <div class="field-group">
           <label class="field-label">Username</label>

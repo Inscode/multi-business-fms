@@ -4,6 +4,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { routes } from './app.routes';
 import { jwtInterceptor } from './core/interceptors/jwt-interceptor';
+import { demoInterceptor } from './core/interceptors/demo-interceptor';
 import { registerLocaleData } from '@angular/common';
 import localeEn from '@angular/common/locales/en';
 
@@ -13,7 +14,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([jwtInterceptor])),
+    provideHttpClient(withInterceptors([jwtInterceptor, demoInterceptor])),
     provideNativeDateAdapter(),
     { provide: LOCALE_ID, useValue: 'en-US' },
   ]

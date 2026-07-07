@@ -114,6 +114,16 @@
   <mat-sidenav-content>
     <div class="layout-wrapper">
       <app-navbar (toggleSidenav)="toggleCollapse()"> </app-navbar>
+
+      <!-- Demo mode banner -->
+      <div class="demo-banner" *ngIf="isDemo">
+        <span class="demo-banner-badge">DEMO</span>
+        <span class="demo-banner-text">Read-only demo — explore freely, all write actions are disabled.</span>
+        <a class="demo-banner-link" href="https://github.com/Inscode" target="_blank" rel="noopener">
+          View Source →
+        </a>
+      </div>
+
       <div class="page-body">
         <router-outlet></router-outlet>
       </div>

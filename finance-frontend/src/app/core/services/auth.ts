@@ -63,4 +63,13 @@ export class Auth {
     return this.getCurrentUser()?.role ?? null;
   }
 
+  getUsername(): string | null {
+    return this.getCurrentUser()?.username ?? null;
+  }
+
+  get isDemo(): boolean {
+    const u = this.getUsername();
+    return u === 'demo_admin' || u === 'demo_acc' || u === 'demo_owner';
+  }
+
 }

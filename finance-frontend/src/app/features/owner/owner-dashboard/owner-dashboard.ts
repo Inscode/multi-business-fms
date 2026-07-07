@@ -51,7 +51,14 @@ export class OwnerDashboard implements OnInit {
   checklistLoading = false;
 
   selectedBusiness = 'RAINCO';
-  businesses = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
+
+  get businesses(): string[] {
+    return this.auth.isDemo
+      ? ['DEMO']
+      : ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
+  }
+
+  get isDemo(): boolean { return this.auth.isDemo; }
 
   paymentColumns   = ['select', 'billNumber', 'customerName', 'amount', 'paymentType', 'enteredByName', 'paymentDate', 'action'];
   unassignedColumns = ['billNumber', 'customerName', 'totalAmount', 'status'];
@@ -75,6 +82,7 @@ export class OwnerDashboard implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    if (this.auth.isDemo) this.selectedBusiness = 'DEMO';
     this.load();
     this.loadChecklist();
   }

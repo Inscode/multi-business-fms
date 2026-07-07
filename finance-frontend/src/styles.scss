@@ -22,6 +22,18 @@ body {
   font-size: 13px !important;
 }
 
+/* Demo mode snackbar */
+.demo-snack .mdc-snackbar__surface {
+  background: #f57f17 !important;
+}
+.demo-snack .mdc-snackbar__label {
+  color: #fff !important;
+  font-weight: 500;
+}
+.demo-snack .mat-mdc-snack-bar-action {
+  color: #fff !important;
+}
+
 @media (max-width: 768px) {
   .mat-mdc-option {
     font-size: 12px !important;

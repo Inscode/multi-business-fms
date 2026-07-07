@@ -12,6 +12,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Dashboard, CollectionHealthData, UpcomingChequeEntry, ChequeDetailEntry } from '../../../core/services/dashboard';
+import { Auth } from '../../../core/services/auth';
 
 @Component({
   selector: 'app-collection-health',
@@ -41,7 +42,11 @@ export class CollectionHealth implements OnInit {
   error = false;
   selectedBusiness = 'RAINCO';
 
-  businesses = ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+  get businesses(): string[] {
+    return this.auth.isDemo ? ['DEMO'] : ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+  }
+
+  get isDemo(): boolean { return this.auth.isDemo; }
 
   // ── Cheque date-range picker (Cash Flow tab) ────────────────────
   displayedCheques: UpcomingChequeEntry[] = [];
@@ -69,9 +74,13 @@ export class CollectionHealth implements OnInit {
   constructor(
     private dashboardService: Dashboard,
     private cdr: ChangeDetectorRef,
+    private auth: Auth,
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    if (this.auth.isDemo) this.selectedBusiness = 'DEMO';
+    this.load();
+  }
 
   load(): void {
     this.loading = true;

@@ -98,7 +98,10 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   overdueMode = false;
   overdueCount = 0;
 
+  get isDemo(): boolean { return this.auth.isDemo; }
+
   get businesses(): string[] {
+    if (this.isDemo) return ['DEMO'];
     const role = this.auth.getRole();
     if (role === 'SHOP_ACCOUNTANT') return ['RETAIL_SHOP'];
     if (role === 'ACCOUNTANT' || role === 'MAIN_ACCOUNTANT')
@@ -198,7 +201,9 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
     private router: Router,
     private filterState: BillFilterState,
   ) {
-    if (this.auth.getRole() === 'SHOP_ACCOUNTANT') {
+    if (this.auth.isDemo) {
+      this.selectedBusiness = 'DEMO';
+    } else if (this.auth.getRole() === 'SHOP_ACCOUNTANT') {
       this.selectedBusiness = 'RETAIL_SHOP';
     }
     this.displayedColumns = this.canEnterPayment
@@ -270,6 +275,8 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
       this.overdueMode      = saved.overdueMode;
       this.searchQuery      = saved.searchQuery;
     }
+    // Demo users are always locked to DEMO regardless of restored state
+    if (this.auth.isDemo) this.selectedBusiness = 'DEMO';
     this.load();
     this.loadWorkers();
     this.loadOverdueCount();

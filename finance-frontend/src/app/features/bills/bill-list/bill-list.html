@@ -144,9 +144,9 @@
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field" *ngIf="!isShopAccountant">
               <mat-label>Business</mat-label>
-              <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
-                <mat-option value="">All</mat-option>
-                <mat-option *ngFor="let b of businesses.slice(1)" [value]="b">{{ b }}</mat-option>
+              <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()" [disabled]="isDemo">
+                <mat-option value="" *ngIf="!isDemo">All</mat-option>
+                <mat-option *ngFor="let b of isDemo ? businesses : businesses.slice(1)" [value]="b">{{ b }}</mat-option>
               </mat-select>
             </mat-form-field>
 
