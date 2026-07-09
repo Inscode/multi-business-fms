@@ -641,33 +641,138 @@
     <!-- returns history -->
     <div class="section-header">
       <span class="section-title">Returns</span>
+      <span class="return-count-badge" *ngIf="returns.length > 0">{{ returns.length }}</span>
     </div>
 
-    <mat-card class="table-card">
-      <div class="loading-state" *ngIf="returnsLoading">
-        <mat-spinner diameter="28"></mat-spinner>
-      </div>
+    <div class="loading-state" *ngIf="returnsLoading">
+      <mat-spinner diameter="28"></mat-spinner>
+    </div>
 
-      <div class="empty-state" *ngIf="!returnsLoading && returns.length === 0">
-        <mat-icon>assignment_return</mat-icon>
-        <p>No returns submitted for this bill</p>
-      </div>
+    <div class="empty-state return-empty" *ngIf="!returnsLoading && returns.length === 0">
+      <mat-icon>assignment_return</mat-icon>
+      <p>No returns submitted for this bill</p>
+    </div>
 
-      <div class="return-rows" *ngIf="!returnsLoading && returns.length > 0">
-        <div class="return-row" *ngFor="let r of returns">
-          <div class="return-row-left">
-            <span class="type-chip" [class.damage]="r.returnType === 'DAMAGE'" [class.salable]="r.returnType === 'SALABLE'">
-              {{ r.returnType }}
-            </span>
-            <span class="return-amount">Rs {{ (r.approvedAmount ?? r.calculatedReturnAmount) | number:'1.2-2' }}</span>
-            <span class="return-items">{{ r.items.length }} item(s)</span>
+    <div class="return-cards" *ngIf="!returnsLoading && returns.length > 0">
+      <mat-card class="return-card" *ngFor="let r of returns">
+
+        <!-- Header -->
+        <div class="return-card-header" [class.damage-header]="r.returnType === 'DAMAGE'" [class.salable-header]="r.returnType === 'SALABLE'">
+          <span class="type-chip" [class.damage]="r.returnType === 'DAMAGE'" [class.salable]="r.returnType === 'SALABLE'">
+            <mat-icon class="type-icon">{{ r.returnType === 'DAMAGE' ? 'broken_image' : 'recycling' }}</mat-icon>
+            {{ r.returnType }}
+          </span>
+          <span class="badge badge-{{ r.status | lowercase }}">{{ r.status }}</span>
+          <span class="return-header-amount">
+            Rs {{ (r.approvedAmount ?? r.calculatedReturnAmount) | number:'1.2-2' }}
+          </span>
+          <span class="return-header-date">{{ r.submittedAt | date:'dd MMM yyyy' }}</span>
+        </div>
+
+        <!-- Line items table -->
+        <div class="return-items-section">
+          <table mat-table [dataSource]="r.items" class="return-items-table">
+
+            <ng-container matColumnDef="itemName">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let i">{{ i.itemName }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="quantityRequested">
+              <th mat-header-cell *matHeaderCellDef>Requested</th>
+              <td mat-cell *matCellDef="let i">{{ i.quantityRequested }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="quantityReturned">
+              <th mat-header-cell *matHeaderCellDef>Returned</th>
+              <td mat-cell *matCellDef="let i">
+                <span *ngIf="i.quantityReturned != null; else dash">{{ i.quantityReturned }}</span>
+                <ng-template #dash><span class="na-dash">—</span></ng-template>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="unitPrice">
+              <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+              <td mat-cell *matCellDef="let i">Rs {{ i.unitPrice | number:'1.2-2' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="lineTotal">
+              <th mat-header-cell *matHeaderCellDef>Line Total</th>
+              <td mat-cell *matCellDef="let i" class="line-total-cell">Rs {{ i.lineTotal | number:'1.2-2' }}</td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="returnItemColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: returnItemColumns"></tr>
+          </table>
+        </div>
+
+        <!-- Financial summary -->
+        <div class="return-financials">
+          <div class="fin-row">
+            <span class="fin-label">Items Total</span>
+            <span class="fin-value">Rs {{ r.itemsTotal | number:'1.2-2' }}</span>
           </div>
-          <div class="return-row-right">
-            <span class="badge badge-{{ r.status | lowercase }}">{{ r.status }}</span>
-            <span class="return-date">{{ r.submittedAt | date:'dd MMM yyyy' }}</span>
+          <div class="fin-row" *ngIf="r.discountPercentage">
+            <span class="fin-label">Discount</span>
+            <span class="fin-value discount-val">{{ r.discountPercentage }}%</span>
+          </div>
+          <div class="fin-row" *ngIf="r.discountFixed">
+            <span class="fin-label">Discount (Fixed)</span>
+            <span class="fin-value discount-val">− Rs {{ r.discountFixed | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-row fin-subtotal">
+            <span class="fin-label">Calculated Amount</span>
+            <span class="fin-value">Rs {{ r.calculatedReturnAmount | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-row fin-approved" *ngIf="r.status === 'APPROVED'">
+            <span class="fin-label">
+              <mat-icon class="fin-icon">verified</mat-icon>
+              Approved Amount
+            </span>
+            <span class="fin-value approved-val">Rs {{ r.approvedAmount | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-row fin-approved" *ngIf="r.status === 'APPROVED' && r.approvedWith">
+            <span class="fin-label">Approved With</span>
+            <span class="fin-value approved-with-chip">{{ r.approvedWith }}</span>
+          </div>
+          <div class="fin-row fin-shortfall" *ngIf="r.shortfallAmount && r.shortfallAmount > 0">
+            <span class="fin-label">
+              <mat-icon class="fin-icon warn-icon">warning</mat-icon>
+              Shortfall
+            </span>
+            <span class="fin-value shortfall-val">Rs {{ r.shortfallAmount | number:'1.2-2' }}</span>
+          </div>
+          <div class="fin-row fin-rejected" *ngIf="r.status === 'REJECTED' && r.rejectionReason">
+            <span class="fin-label">
+              <mat-icon class="fin-icon reject-icon">cancel</mat-icon>
+              Rejection Reason
+            </span>
+            <span class="fin-value reject-reason">{{ r.rejectionReason }}</span>
           </div>
         </div>
-      </div>
-    </mat-card>
+
+        <!-- Meta footer -->
+        <div class="return-meta">
+          <span class="meta-item">
+            <mat-icon class="meta-icon">person</mat-icon>
+            Submitted by {{ r.submittedByName }}
+          </span>
+          <span class="meta-item" *ngIf="r.responsibleWorkerName">
+            <mat-icon class="meta-icon">engineering</mat-icon>
+            Responsible: {{ r.responsibleWorkerName }}
+          </span>
+          <span class="meta-item" *ngIf="r.reviewedByName">
+            <mat-icon class="meta-icon">rate_review</mat-icon>
+            Reviewed by {{ r.reviewedByName }}
+            <span *ngIf="r.reviewedAt"> · {{ r.reviewedAt | date:'dd MMM yyyy' }}</span>
+          </span>
+          <span class="meta-item meta-notes" *ngIf="r.notes">
+            <mat-icon class="meta-icon">notes</mat-icon>
+            {{ r.notes }}
+          </span>
+        </div>
+
+      </mat-card>
+    </div>
   </ng-container>
 </div>

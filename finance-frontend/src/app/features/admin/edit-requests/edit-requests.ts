@@ -105,9 +105,9 @@ export class EditRequestsPage implements OnInit {
         confirmText: 'Approve',
         confirmColor: 'primary',
       },
-      width: '360px',
-    }).afterClosed().subscribe(confirmed => {
-      if (!confirmed) return;
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
       this.editRequestService.approve(req.id).subscribe({
         next: () => this.load(),
         error: () => alert('Failed to approve request.'),
@@ -116,10 +116,22 @@ export class EditRequestsPage implements OnInit {
   }
 
   reject(req: EditRequestResponse): void {
-    const reason = prompt('Rejection reason (optional):') ?? '';
-    this.editRequestService.reject(req.id, reason).subscribe({
-      next: () => this.load(),
-      error: () => alert('Failed to reject request.'),
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Reject Edit Request',
+        message: `Reject the edit request for ${req.targetRef}?`,
+        confirmText: 'Reject',
+        confirmColor: 'warn',
+        showInput: true,
+        inputLabel: 'Rejection reason (optional)',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.editRequestService.reject(req.id, result.inputValue ?? '').subscribe({
+        next: () => this.load(),
+        error: () => alert('Failed to reject request.'),
+      });
     });
   }
 }

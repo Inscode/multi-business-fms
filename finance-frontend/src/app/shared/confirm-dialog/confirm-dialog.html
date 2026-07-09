@@ -1,13 +1,13 @@
-<div style="padding: 24px; min-width: 380px; max-width: 480px;">
-  <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 12px">{{ data.title }}</h2>
-  <p style="font-size: 14px; color: #607d8b; margin: 0 0 20px; white-space: pre-line; line-height: 1.8">{{ data.message }}</p>
+<div class="dlg">
+  <h2 class="dlg-title">{{ data.title }}</h2>
+  <p class="dlg-message">{{ data.message }}</p>
 
-  <mat-form-field *ngIf="data.showInput" appearance="fill" style="width: 100%; margin-bottom: 20px;">
+  <mat-form-field *ngIf="data.showInput" appearance="outline" class="dlg-input">
     <mat-label>{{ data.inputLabel ?? 'Reason' }}</mat-label>
     <textarea matInput [(ngModel)]="inputValue" rows="3"></textarea>
   </mat-form-field>
 
-  <div style="display: flex; justify-content: flex-end; gap: 12px">
+  <div class="dlg-actions">
     <button mat-stroked-button *ngIf="!data.hideCancel" (click)="cancel()">Cancel</button>
     <button mat-flat-button [color]="data.confirmColor"
       [disabled]="data.inputRequired && !inputValue.trim()"

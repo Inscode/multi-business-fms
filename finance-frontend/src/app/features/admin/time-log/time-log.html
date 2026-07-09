@@ -296,7 +296,135 @@
     </div>
   </mat-tab>
 
-  <!-- ── Tab 4: Participants ────────────────────────────────────────── -->
+  <!-- ── Tab 4: Monthly View ──────────────────────────────────────── -->
+  <mat-tab>
+    <ng-template mat-tab-label><mat-icon>calendar_month</mat-icon>&nbsp;Monthly View</ng-template>
+    <div class="tl-section">
+
+      <div class="tl-row" style="flex-wrap:wrap;gap:12px;align-items:flex-end">
+        <div class="tl-field">
+          <label>Month</label>
+          <input type="month" class="tl-date" [(ngModel)]="mvMonth" />
+        </div>
+        <div class="tl-field" style="min-width:200px">
+          <label>Worker</label>
+          <select class="tl-select" [(ngModel)]="mvWorkerId">
+            <option [ngValue]="null">— Select worker —</option>
+            <option *ngFor="let w of allWorkers" [ngValue]="w.id">{{ w.fullName }}</option>
+          </select>
+        </div>
+        <button class="tl-btn tl-btn-primary" (click)="loadMonthlyView()" [disabled]="!mvWorkerId || !mvMonth">
+          <mat-icon>refresh</mat-icon> Load
+        </button>
+      </div>
+
+      <div class="tl-loading" *ngIf="mvLoading"><mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner></div>
+      <div class="tl-error-box" *ngIf="mvError">{{ mvError }}</div>
+
+      <ng-container *ngIf="!mvLoading && mvRecords.length > 0">
+        <!-- Summary pills -->
+        <div class="mv-summary">
+          <span class="mv-pill mv-present"><mat-icon>check_circle</mat-icon>{{ mvTotalPresent }} Present</span>
+          <span class="mv-pill mv-half"><mat-icon>access_time</mat-icon>{{ mvTotalHalf }} Half Day</span>
+          <span class="mv-pill mv-absent"><mat-icon>cancel</mat-icon>{{ mvTotalAbsent }} Absent</span>
+          <span class="mv-pill mv-holiday"><mat-icon>event_available</mat-icon>{{ mvTotalHoliday }} Informed Leave</span>
+          <span class="mv-pill mv-hours"><mat-icon>schedule</mat-icon>{{ mvTotalHours | number:'1.1-1' }}h Total</span>
+        </div>
+
+        <div class="tl-table-wrap">
+          <table class="tl-table mv-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Attendance</th>
+                <th>Hours</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngFor="let d of mvDays">
+                <!-- View row -->
+                <tr [class.mv-weekend]="mvDayName(d) === 'Sat' || mvDayName(d) === 'Sun'"
+                    [class.mv-editing-row]="mvEditingDate === d">
+                  <td class="td-num">{{ d | date:'d MMM' }}</td>
+                  <td class="td-name" style="font-weight:500">{{ mvDayName(d) }}</td>
+                  <td>
+                    <ng-container *ngIf="mvDayMap.get(d) as rec">
+                      <span class="mv-att-badge" [style.color]="mvAttColor(rec.attendanceType)">
+                        {{ rec.attendanceType === 'HALF_DAY' ? 'Half Day' : rec.attendanceType === 'HOLIDAY' ? 'Informed Leave' : (rec.attendanceType | titlecase) }}
+                      </span>
+                    </ng-container>
+                    <span class="muted" *ngIf="!mvDayMap.get(d)">—</span>
+                  </td>
+                  <td class="td-num">
+                    <ng-container *ngIf="(mvDayMap.get(d)?.hoursWorked ?? 0) > 0">
+                      {{ mvDayMap.get(d)!.hoursWorked | number:'1.1-1' }}h
+                    </ng-container>
+                    <span class="muted" *ngIf="!(mvDayMap.get(d)?.hoursWorked)">—</span>
+                  </td>
+                  <td class="muted" style="font-size:0.82rem">{{ mvDayMap.get(d)?.notes || '' }}</td>
+                  <td>
+                    <button class="te-action-btn" (click)="mvStartEdit(d)"
+                            *ngIf="mvEditingDate !== d"
+                            [title]="mvDayMap.get(d) ? 'Edit' : 'Mark attendance'">
+                      <mat-icon>{{ mvDayMap.get(d) ? 'edit' : 'add_circle_outline' }}</mat-icon>
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- Inline edit row -->
+                <tr *ngIf="mvEditingDate === d" class="mv-edit-row">
+                  <td colspan="6">
+                    <div class="mv-edit-form">
+                      <div class="att-type-chips" style="flex-wrap:wrap">
+                        <button class="att-chip" *ngFor="let t of attTypes"
+                                [class.active]="mvEditType === t.value"
+                                [style.--chip-color]="t.color"
+                                (click)="mvEditType = t.value; mvOnTypeChange()">
+                          <mat-icon>{{ t.icon }}</mat-icon>{{ t.label }}
+                        </button>
+                      </div>
+
+                      <div class="mv-edit-hours" *ngIf="mvEditType === 'PRESENT' || mvEditType === 'HALF_DAY'">
+                        <label>Hours worked</label>
+                        <input type="number" class="te-time-input" style="width:70px"
+                               [(ngModel)]="mvEditHours" min="0.5" max="24" step="0.5" />
+                        <span class="muted" style="font-size:12px">
+                          (default: {{ mvSelectedWorker?.normalWorkingHours ?? 8 }}h)
+                        </span>
+                      </div>
+
+                      <div class="tl-error-box" *ngIf="mvEditError">{{ mvEditError }}</div>
+
+                      <div class="te-edit-btns">
+                        <button class="tl-btn tl-btn-save" (click)="mvSaveDay()" [disabled]="mvEditSaving">
+                          <mat-progress-spinner *ngIf="mvEditSaving" diameter="12" mode="indeterminate"></mat-progress-spinner>
+                          <mat-icon *ngIf="!mvEditSaving">save</mat-icon>
+                          {{ mvEditSaving ? '' : 'Save' }}
+                        </button>
+                        <button class="tl-btn tl-btn-cancel" (click)="mvCancelEdit()">Cancel</button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </ng-container>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+
+      <div class="tl-empty" *ngIf="!mvLoading && !mvError && mvRecords.length === 0 && mvWorkerId">
+        <mat-icon>calendar_month</mat-icon><p>No attendance records for this month</p>
+      </div>
+      <div class="tl-empty" *ngIf="!mvLoading && !mvWorkerId">
+        <mat-icon>person_search</mat-icon><p>Select a worker and month, then click Load</p>
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- ── Tab 5: Participants ────────────────────────────────────────── -->
   <mat-tab>
     <ng-template mat-tab-label><mat-icon>group</mat-icon>&nbsp;Participants</ng-template>
     <div class="tl-section">

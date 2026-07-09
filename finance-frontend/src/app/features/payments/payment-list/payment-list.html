@@ -128,6 +128,10 @@
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #menu="matMenu">
+                <button mat-menu-item *ngIf="canConfirm(p)" (click)="confirmPayment(p)" style="color: #2e7d32;">
+                  <mat-icon style="color: #2e7d32;">check_circle</mat-icon>
+                  <span>Confirm</span>
+                </button>
                 <button mat-menu-item *ngIf="canEdit(p)" (click)="editPayment(p)">
                   <mat-icon>edit</mat-icon>
                   <span>Edit</span>

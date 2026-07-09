@@ -1,0 +1,37 @@
+.dlg {
+  padding: 24px;
+  width: min(440px, 90vw);
+  box-sizing: border-box;
+}
+
+.dlg-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 10px;
+}
+
+.dlg-message {
+  font-size: 14px;
+  color: #607d8b;
+  margin: 0 0 20px;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.dlg-input {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.dlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  button {
+    min-width: 88px;
+  }
+}

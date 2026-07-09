@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Inject, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -11,6 +12,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { EditRequestService } from '../../core/services/edit-request';
+import { CustomerService, CustomerResponse } from '../../core/services/customer';
 
 export interface RequestEditDialogData {
   type: 'BILL' | 'PAYMENT';
@@ -34,6 +36,7 @@ export interface RequestEditDialogData {
     MatDatepickerModule,
     MatNativeDateModule,
     MatProgressSpinnerModule,
+    MatAutocompleteModule,
   ],
   templateUrl: './request-edit-dialog.html',
   styleUrl: './request-edit-dialog.scss',
@@ -55,6 +58,10 @@ export class RequestEditDialog implements OnInit {
     'Meegahakivula', 'Passara', 'Uva-Paranagama', 'Welimada',
   ];
 
+  allCustomers: CustomerResponse[] = [];
+  filteredCustomers: CustomerResponse[] = [];
+  customerSearchCtrl = new FormControl('');
+
   get isBill(): boolean { return this.data.type === 'BILL'; }
 
   get isCheque(): boolean {
@@ -64,6 +71,7 @@ export class RequestEditDialog implements OnInit {
   constructor(
     private fb: FormBuilder,
     private editRequestService: EditRequestService,
+    private customerService: CustomerService,
     public dialogRef: MatDialogRef<RequestEditDialog>,
     @Inject(MAT_DIALOG_DATA) public data: RequestEditDialogData,
   ) {}
@@ -82,6 +90,21 @@ export class RequestEditDialog implements OnInit {
         notes:        [c['notes']        ?? ''],
         reason:       ['', Validators.required],
       });
+
+      this.customerSearchCtrl.setValue(c['customerName'] ?? '');
+
+      this.customerService.getActive().subscribe({
+        next: (customers) => {
+          this.allCustomers = customers;
+          this.filterCustomers(this.customerSearchCtrl.value ?? '');
+        },
+        error: () => {},
+      });
+
+      // Option value is a string (customer name), so this ctrl always holds a string
+      this.customerSearchCtrl.valueChanges.subscribe(val => {
+        this.filterCustomers(val ?? '');
+      });
     } else {
       this.form = this.fb.group({
         amount:       [c['paymentAmount'] ?? null, [Validators.required, Validators.min(0.01)]],
@@ -96,6 +119,21 @@ export class RequestEditDialog implements OnInit {
         reason:       ['', Validators.required],
       });
     }
+  }
+
+  onCustomerSelected(event: MatAutocompleteSelectedEvent): void {
+    // option [value] is c.name (string) — Material writes it directly to the input, no displayWith needed
+    const name = event.option.value as string;
+    const customer = this.allCustomers.find(c => c.name === name);
+    this.form.get('customerName')!.setValue(name);
+    if (customer?.area) this.form.get('area')!.setValue(customer.area);
+  }
+
+  private filterCustomers(search: string): void {
+    const s = search.toLowerCase().trim();
+    this.filteredCustomers = s
+      ? this.allCustomers.filter(c => c.name.toLowerCase().includes(s) || (c.area ?? '').toLowerCase().includes(s))
+      : this.allCustomers.slice(0, 30);
   }
 
   submit(): void {

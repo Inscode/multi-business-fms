@@ -124,12 +124,12 @@
         </a>
       </div>
 
-      <div class="page-body">
+      <div class="page-body" (scroll)="onPageScroll($event)">
         <router-outlet></router-outlet>
       </div>
 
       <!-- Mobile bottom nav bar -->
-      <nav class="mobile-bottom-nav" *ngIf="isMobile">
+      <nav class="mobile-bottom-nav" *ngIf="isMobile" [class.nav-hidden]="navHidden">
         <a class="mob-nav-item" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact:false}">
           <mat-icon>dashboard</mat-icon>
           <span>Home</span>

@@ -4,21 +4,9 @@
       <h1 class="page-title">Salary Review</h1>
       <p class="page-sub pending" *ngIf="pendingCount > 0">{{ pendingCount }} pending approval</p>
     </div>
-    <!-- Date Range Picker -->
-    <div class="date-range">
-      <mat-form-field appearance="outline" class="date-field">
-        <mat-label>From</mat-label>
-        <input matInput type="date" [(ngModel)]="fromDate" (change)="load()" />
-      </mat-form-field>
-      <span class="date-sep">→</span>
-      <mat-form-field appearance="outline" class="date-field">
-        <mat-label>To</mat-label>
-        <input matInput type="date" [(ngModel)]="toDate" (change)="load()" />
-      </mat-form-field>
-      <button mat-icon-button (click)="load()" title="Refresh">
-        <mat-icon>refresh</mat-icon>
-      </button>
-    </div>
+    <button mat-icon-button (click)="load()" title="Refresh">
+      <mat-icon>refresh</mat-icon>
+    </button>
   </div>
 
   <!-- Summary pills -->
@@ -45,13 +33,12 @@
     </div>
   </div>
 
-  <div class="loading-state" *ngIf="loading"><mat-spinner diameter="32"></mat-spinner></div>
-  <div class="error-state" *ngIf="error && !loading">
-    <p>Failed to load data.</p>
-    <button mat-stroked-button (click)="load()">Retry</button>
+  <div class="error-state" *ngIf="salaryError && !salaryLoading">
+    <p>Failed to load salary data.</p>
+    <button mat-stroked-button (click)="loadSalary()">Retry</button>
   </div>
 
-  <mat-tab-group *ngIf="!loading && !error" class="review-tabs">
+  <mat-tab-group class="review-tabs">
 
     <!-- ══ TAB 1: Salary Payments ══ -->
     <mat-tab>
@@ -64,6 +51,17 @@
       <div class="tab-body">
         <div class="tab-filters">
           <mat-form-field appearance="outline" style="width:160px">
+            <mat-label>Month</mat-label>
+            <input matInput type="month" [(ngModel)]="selectedMonth" (change)="loadSalary()" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" style="width:200px">
+            <mat-label>Search Name</mat-label>
+            <input matInput [(ngModel)]="filterName" placeholder="Filter by name..." />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" style="width:160px">
             <mat-label>Status</mat-label>
             <mat-select [(ngModel)]="filterStatus">
               <mat-option value="">All</mat-option>
@@ -75,68 +73,72 @@
           </mat-form-field>
         </div>
 
-        <div class="empty-state" *ngIf="displayedPayments.length === 0">
-          <mat-icon>payments</mat-icon>
-          <p>No salary payments in this period</p>
-        </div>
+        <div class="loading-state" *ngIf="salaryLoading"><mat-spinner diameter="32"></mat-spinner></div>
 
-        <div class="payments-table" *ngIf="displayedPayments.length > 0">
-          <div class="table-header">
-            <span>Recipient</span>
-            <span>Month</span>
-            <span class="col-right">Amount</span>
-            <span class="col-right">Monthly Salary</span>
-            <span class="col-right">Remaining After</span>
-            <span>Status</span>
-            <span>Entered By</span>
-            <span>Submitted At</span>
-            <span></span>
+        <ng-container *ngIf="!salaryLoading">
+          <div class="empty-state" *ngIf="displayedPayments.length === 0">
+            <mat-icon>payments</mat-icon>
+            <p>No salary payments for this month</p>
           </div>
 
-          <div class="table-row"
-               *ngFor="let p of displayedPayments"
-               [class.over-salary]="p.overSalary && (p.status === 'APPROVED' || p.status === 'RECORDED')"
-               [class.pending]="p.status === 'PENDING_APPROVAL'">
-
-            <div class="recip-cell">
-              <span class="recip-name">{{ p.recipientName }}</span>
-              <span class="desig-badge">{{ p.designation | titlecase }}</span>
-              <span class="payment-notes" *ngIf="p.notes">{{ p.notes }}</span>
+          <div class="payments-table" *ngIf="displayedPayments.length > 0">
+            <div class="table-header">
+              <span>Recipient</span>
+              <span>Date</span>
+              <span class="col-right">Amount</span>
+              <span class="col-right">Monthly Salary</span>
+              <span class="col-right">Remaining After</span>
+              <span>Status</span>
+              <span>Entered By</span>
+              <span>Submitted At</span>
+              <span></span>
             </div>
-            <span class="month-cell">{{ p.month }}</span>
-            <span class="amount-cell col-right">Rs {{ p.amount | number:'1.2-2' }}</span>
-            <span class="salary-cell col-right" *ngIf="p.monthlySalary">Rs {{ p.monthlySalary | number:'1.2-2' }}</span>
-            <span class="salary-cell col-right" *ngIf="!p.monthlySalary">—</span>
-            <span class="remaining-cell col-right"
-                  [class.over]="(p.remainingAfter || 0) < 0"
-                  *ngIf="p.remainingAfter !== null && p.remainingAfter !== undefined">
-              <mat-icon *ngIf="p.remainingAfter < 0" class="warn-icon">warning</mat-icon>
-              Rs {{ p.remainingAfter | number:'1.2-2' }}
-            </span>
-            <span class="remaining-cell col-right" *ngIf="p.remainingAfter === null || p.remainingAfter === undefined">—</span>
-            <span class="status-chip status-{{ p.status | lowercase }}">{{ statusLabel(p.status) }}</span>
-            <span class="entered-by">{{ p.enteredByName }}</span>
-            <span class="submitted-at" [title]="p.createdAt | date:'dd MMM yyyy, h:mm:ss a'">
-              {{ p.createdAt | date:'dd MMM yy, h:mm a' }}
-            </span>
-            <div class="row-actions">
-              <ng-container *ngIf="p.status === 'PENDING_APPROVAL'">
-                <button mat-icon-button color="primary" title="Approve" (click)="approve(p)">
-                  <mat-icon>check_circle</mat-icon>
-                </button>
-                <button mat-icon-button color="warn" title="Reject" (click)="reject(p)">
-                  <mat-icon>cancel</mat-icon>
-                </button>
-              </ng-container>
-              <span class="reviewed-by" *ngIf="p.status === 'APPROVED' || p.status === 'REJECTED'">
-                {{ p.reviewedByName }}
+
+            <div class="table-row"
+                 *ngFor="let p of displayedPayments"
+                 [class.over-salary]="p.overSalary && (p.status === 'APPROVED' || p.status === 'RECORDED')"
+                 [class.pending]="p.status === 'PENDING_APPROVAL'">
+
+              <div class="recip-cell">
+                <span class="recip-name">{{ p.recipientName }}</span>
+                <span class="desig-badge">{{ p.designation | titlecase }}</span>
+                <span class="payment-notes" *ngIf="p.notes">{{ p.notes }}</span>
+              </div>
+              <span class="month-cell">{{ p.paymentDate | date:'d MMM' }}</span>
+              <span class="amount-cell col-right">Rs {{ p.amount | number:'1.2-2' }}</span>
+              <span class="salary-cell col-right" *ngIf="p.monthlySalary">Rs {{ p.monthlySalary | number:'1.2-2' }}</span>
+              <span class="salary-cell col-right" *ngIf="!p.monthlySalary">—</span>
+              <span class="remaining-cell col-right"
+                    [class.over]="(p.remainingAfter || 0) < 0"
+                    *ngIf="p.remainingAfter !== null && p.remainingAfter !== undefined">
+                <mat-icon *ngIf="p.remainingAfter < 0" class="warn-icon">warning</mat-icon>
+                Rs {{ p.remainingAfter | number:'1.2-2' }}
               </span>
-              <span class="reject-reason" *ngIf="p.status === 'REJECTED' && p.rejectionReason" [title]="p.rejectionReason">
-                <mat-icon>info</mat-icon>
+              <span class="remaining-cell col-right" *ngIf="p.remainingAfter === null || p.remainingAfter === undefined">—</span>
+              <span class="status-chip status-{{ p.status | lowercase }}">{{ statusLabel(p.status) }}</span>
+              <span class="entered-by">{{ p.enteredByName }}</span>
+              <span class="submitted-at" [title]="p.createdAt | date:'dd MMM yyyy, h:mm:ss a'">
+                {{ p.createdAt | date:'dd MMM yy, h:mm a' }}
               </span>
+              <div class="row-actions">
+                <ng-container *ngIf="p.status === 'PENDING_APPROVAL'">
+                  <button mat-icon-button color="primary" title="Approve" (click)="approve(p)">
+                    <mat-icon>check_circle</mat-icon>
+                  </button>
+                  <button mat-icon-button color="warn" title="Reject" (click)="reject(p)">
+                    <mat-icon>cancel</mat-icon>
+                  </button>
+                </ng-container>
+                <span class="reviewed-by" *ngIf="p.status === 'APPROVED' || p.status === 'REJECTED'">
+                  {{ p.reviewedByName }}
+                </span>
+                <span class="reject-reason" *ngIf="p.status === 'REJECTED' && p.rejectionReason" [title]="p.rejectionReason">
+                  <mat-icon>info</mat-icon>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        </ng-container>
       </div>
     </mat-tab>
 
@@ -145,48 +147,52 @@
       <ng-template mat-tab-label>
         <mat-icon class="tab-icon">remove_shopping_cart</mat-icon>
         Purchases
-        <span class="tab-badge" *ngIf="displayedPurchases.length > 0">{{ displayedPurchases.length }}</span>
+        <span class="tab-badge" *ngIf="tabPurchases.length > 0">{{ tabPurchases.length }}</span>
       </ng-template>
 
       <div class="tab-body">
-        <div class="empty-state" *ngIf="displayedPurchases.length === 0">
-          <mat-icon>remove_shopping_cart</mat-icon>
-          <p>No confirmed tab purchases in this period</p>
-        </div>
+        <div class="loading-state" *ngIf="othersLoading"><mat-spinner diameter="32"></mat-spinner></div>
 
-        <div class="generic-table" *ngIf="displayedPurchases.length > 0">
-          <table>
-            <thead>
-              <tr>
-                <th>Worker</th>
-                <th>Items</th>
-                <th class="col-right">Total</th>
-                <th>Date</th>
-                <th>Month</th>
-                <th>Entered By</th>
-                <th>Confirmed By</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let t of displayedPurchases">
-                <td class="bold">{{ t.recipientName }}</td>
-                <td class="muted">{{ t.items.length }} item(s)</td>
-                <td class="col-right bold">Rs {{ t.totalAmount | number:'1.2-2' }}</td>
-                <td>{{ t.billDate }}</td>
-                <td>{{ t.month }}</td>
-                <td class="muted">{{ t.enteredByName }}</td>
-                <td class="muted">{{ t.adminConfirmedByName }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="2" class="bold">Total</td>
-                <td class="col-right bold total-row">Rs {{ totalTabPurchases | number:'1.2-2' }}</td>
-                <td colspan="4"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <ng-container *ngIf="!othersLoading">
+          <div class="empty-state" *ngIf="tabPurchases.length === 0">
+            <mat-icon>remove_shopping_cart</mat-icon>
+            <p>No confirmed tab purchases</p>
+          </div>
+
+          <div class="generic-table" *ngIf="tabPurchases.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Worker</th>
+                  <th>Items</th>
+                  <th class="col-right">Total</th>
+                  <th>Date</th>
+                  <th>Month</th>
+                  <th>Entered By</th>
+                  <th>Confirmed By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let t of tabPurchases">
+                  <td class="bold">{{ t.recipientName }}</td>
+                  <td class="muted">{{ t.items.length }} item(s)</td>
+                  <td class="col-right bold">Rs {{ t.totalAmount | number:'1.2-2' }}</td>
+                  <td>{{ t.billDate }}</td>
+                  <td>{{ t.month }}</td>
+                  <td class="muted">{{ t.enteredByName }}</td>
+                  <td class="muted">{{ t.adminConfirmedByName }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" class="bold">Total</td>
+                  <td class="col-right bold total-row">Rs {{ totalTabPurchases | number:'1.2-2' }}</td>
+                  <td colspan="4"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </ng-container>
       </div>
     </mat-tab>
 
@@ -195,67 +201,71 @@
       <ng-template mat-tab-label>
         <mat-icon class="tab-icon">savings</mat-icon>
         Bonus / Advance
-        <span class="tab-badge" *ngIf="displayedAdvanceBonuses.length > 0">{{ displayedAdvanceBonuses.length }}</span>
+        <span class="tab-badge" *ngIf="advanceBonuses.length > 0">{{ advanceBonuses.length }}</span>
       </ng-template>
 
       <div class="tab-body">
-        <div class="empty-state" *ngIf="displayedAdvanceBonuses.length === 0">
-          <mat-icon>savings</mat-icon>
-          <p>No confirmed advances or bonuses in this period</p>
-        </div>
+        <div class="loading-state" *ngIf="othersLoading"><mat-spinner diameter="32"></mat-spinner></div>
 
-        <div class="generic-table" *ngIf="displayedAdvanceBonuses.length > 0">
-          <table>
-            <thead>
-              <tr>
-                <th>Worker</th>
-                <th>Type</th>
-                <th>Reason</th>
-                <th class="col-right">Amount</th>
-                <th>Month</th>
-                <th>Payment Date</th>
-                <th class="col-right">Recovered</th>
-                <th>Status</th>
-                <th>Entered By</th>
-                <th>Confirmed By</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let a of displayedAdvanceBonuses">
-                <td class="bold">{{ a.recipientName }}</td>
-                <td>
-                  <span class="type-badge" [class]="a.type.toLowerCase()">{{ a.type }}</span>
-                </td>
-                <td>{{ a.reason }}</td>
-                <td class="col-right bold">Rs {{ a.amount | number:'1.2-2' }}</td>
-                <td>{{ a.month }}</td>
-                <td>{{ a.paymentDate }}</td>
-                <td class="col-right">
-                  <ng-container *ngIf="a.type === 'ADVANCE'">
-                    Rs {{ a.recoveredAmount | number:'1.2-2' }}
-                    <span class="recovered-tag" *ngIf="a.fullyRecovered">✓</span>
-                  </ng-container>
-                  <ng-container *ngIf="a.type === 'BONUS'">—</ng-container>
-                </td>
-                <td><span class="wf-status" [class]="a.status.toLowerCase().replace('_','-')">{{ wfStatusLabel(a.status) }}</span></td>
-                <td class="muted">{{ a.enteredByName }}</td>
-                <td class="muted">{{ a.adminConfirmedByName }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="3" class="bold">Advances Total</td>
-                <td class="col-right bold total-row">Rs {{ totalAdvances | number:'1.2-2' }}</td>
-                <td colspan="6"></td>
-              </tr>
-              <tr>
-                <td colspan="3" class="bold">Bonuses Total</td>
-                <td class="col-right bold total-row green-total">Rs {{ totalBonuses | number:'1.2-2' }}</td>
-                <td colspan="6"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <ng-container *ngIf="!othersLoading">
+          <div class="empty-state" *ngIf="advanceBonuses.length === 0">
+            <mat-icon>savings</mat-icon>
+            <p>No confirmed advances or bonuses</p>
+          </div>
+
+          <div class="generic-table" *ngIf="advanceBonuses.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Worker</th>
+                  <th>Type</th>
+                  <th>Reason</th>
+                  <th class="col-right">Amount</th>
+                  <th>Month</th>
+                  <th>Payment Date</th>
+                  <th class="col-right">Recovered</th>
+                  <th>Status</th>
+                  <th>Entered By</th>
+                  <th>Confirmed By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of advanceBonuses">
+                  <td class="bold">{{ a.recipientName }}</td>
+                  <td>
+                    <span class="type-badge" [class]="a.type.toLowerCase()">{{ a.type }}</span>
+                  </td>
+                  <td>{{ a.reason }}</td>
+                  <td class="col-right bold">Rs {{ a.amount | number:'1.2-2' }}</td>
+                  <td>{{ a.month }}</td>
+                  <td>{{ a.paymentDate }}</td>
+                  <td class="col-right">
+                    <ng-container *ngIf="a.type === 'ADVANCE'">
+                      Rs {{ a.recoveredAmount | number:'1.2-2' }}
+                      <span class="recovered-tag" *ngIf="a.fullyRecovered">✓</span>
+                    </ng-container>
+                    <ng-container *ngIf="a.type === 'BONUS'">—</ng-container>
+                  </td>
+                  <td><span class="wf-status" [class]="a.status.toLowerCase().replace('_','-')">{{ wfStatusLabel(a.status) }}</span></td>
+                  <td class="muted">{{ a.enteredByName }}</td>
+                  <td class="muted">{{ a.adminConfirmedByName }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="bold">Advances Total</td>
+                  <td class="col-right bold total-row">Rs {{ totalAdvances | number:'1.2-2' }}</td>
+                  <td colspan="6"></td>
+                </tr>
+                <tr>
+                  <td colspan="3" class="bold">Bonuses Total</td>
+                  <td class="col-right bold total-row green-total">Rs {{ totalBonuses | number:'1.2-2' }}</td>
+                  <td colspan="6"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </ng-container>
       </div>
     </mat-tab>
 

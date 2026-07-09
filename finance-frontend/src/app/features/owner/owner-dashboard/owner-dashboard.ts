@@ -142,12 +142,12 @@ export class OwnerDashboard implements OnInit {
         confirmText: 'Confirm',
         confirmColor: 'primary'
       },
-      width: '400px'
-    }).afterClosed().subscribe(confirmed => {
-      if (!confirmed) return;
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
       this.paymentService.confirmPayment(id).subscribe({
         next: () => this.load(),
-        error: () => alert('Failed to confirm payment.')
+        error: () => this.load(),
       });
     });
   }
@@ -173,9 +173,9 @@ export class OwnerDashboard implements OnInit {
         confirmText: 'Confirm All',
         confirmColor: 'primary'
       },
-      width: '360px'
-    }).afterClosed().subscribe(confirmed => {
-      if (!confirmed) return;
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
       const selected = [...this.selection.selected];
       from(selected).pipe(
         concatMap(p => this.paymentService.confirmPayment(p.id))

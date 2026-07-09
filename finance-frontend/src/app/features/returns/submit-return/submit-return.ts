@@ -8,6 +8,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { Bill, BillResponse } from '../../../core/services/bill';
 import { BillReturnService, BillReturnItemRequest } from '../../../core/services/bill-return';
 import { ReturnProductService, ReturnProductResponse } from '../../../core/services/return-product';
@@ -44,8 +47,10 @@ interface LineItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SubmitReturn implements OnInit {
-  bills: BillResponse[] = [];
-  filteredBills: BillResponse[] = [];
+  billResults: BillResponse[] = [];
+  billSearching = false;
+  private billSearch$ = new Subject<string>();
+
   selectedBill: BillResponse | null = null;
   products: ReturnProductResponse[] = [];
   workers: WorkerResponse[] = [];
@@ -63,10 +68,10 @@ export class SubmitReturn implements OnInit {
   responsibleWorkerId: number | null = null;
   notes = '';
 
-  loading = false;
-  loadingBills = true;
   submitting = false;
   errorMsg = '';
+  submitted = false;
+  lastSubmittedBill: { id: number; billNumber: string; customerName: string } | null = null;
 
   returnTypes = ['DAMAGE', 'SALABLE'];
 
@@ -112,33 +117,36 @@ export class SubmitReturn implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.billService.getBills().subscribe({
-      next: (b) => {
-        this.bills = b.filter(bill => bill.status !== 'COMPLETED');
-        this.filteredBills = this.bills;
-        this.loadingBills = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loadingBills = false;
-        this.cdr.detectChanges();
-      },
-    });
     this.workerService.getAllWorkers().subscribe({
-      next: (w: WorkerResponse[]) => { this.workers = w; this.cdr.detectChanges(); },
+      next: (w: WorkerResponse[]) => { this.workers = w; this.cdr.markForCheck(); },
       error: () => {},
+    });
+
+    this.billSearch$.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(q => {
+        if (!q || q.length < 2) {
+          this.billResults = [];
+          this.billSearching = false;
+          this.cdr.markForCheck();
+          return of([]);
+        }
+        this.billSearching = true;
+        this.cdr.markForCheck();
+        return this.billService.globalSearch(q).pipe(
+          catchError(() => of([]))
+        );
+      }),
+    ).subscribe(results => {
+      this.billResults = (results as BillResponse[]).filter(b => b.status !== 'COMPLETED');
+      this.billSearching = false;
+      this.cdr.markForCheck();
     });
   }
 
-  filterBills(): void {
-    const q = this.searchQuery.toLowerCase().trim();
-    this.filteredBills = q
-      ? this.bills.filter(b =>
-          b.billNumber.toLowerCase().includes(q) ||
-          b.customerName.toLowerCase().includes(q)
-        )
-      : this.bills;
-    this.cdr.detectChanges();
+  onBillSearchInput(): void {
+    this.billSearch$.next(this.searchQuery.trim());
   }
 
   selectBill(bill: BillResponse): void {
@@ -152,8 +160,27 @@ export class SubmitReturn implements OnInit {
     this.discountFixed = null;
     this.predictedValue = null;
     this.searchQuery = `${bill.billNumber} — ${bill.customerName}`;
-    this.filteredBills = [];
-    this.cdr.detectChanges();
+    this.billResults = [];
+    this.submitted = false;
+    this.errorMsg = '';
+    this.cdr.markForCheck();
+  }
+
+  submitAnother(): void {
+    this.submitted = false;
+    this.returnType = '';
+    this.items = [];
+    this.products = [];
+    this.filteredProducts = [];
+    this.productSearch = '';
+    this.discountPercentage = null;
+    this.discountFixed = null;
+    this.predictedValue = null;
+    this.responsibleWorkerId = null;
+    this.notes = '';
+    this.errorMsg = '';
+    // Keep selectedBill and searchQuery so they don't need to re-select
+    this.cdr.markForCheck();
   }
 
   onReturnTypeChange(): void {
@@ -179,14 +206,14 @@ export class SubmitReturn implements OnInit {
   clearBill(): void {
     this.selectedBill = null;
     this.searchQuery = '';
+    this.billResults = [];
     this.items = [];
     this.products = [];
     this.filteredProducts = [];
     this.productSearch = '';
     this.showProductDropdown = false;
     this.returnType = '';
-    this.filteredBills = this.bills;
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   filterProducts(): void {
@@ -285,15 +312,22 @@ export class SubmitReturn implements OnInit {
       notes: this.notes || undefined,
     };
 
-    this.billReturnService.create(this.selectedBill!.id, payload).subscribe({
+    const billId = this.selectedBill!.id;
+    this.lastSubmittedBill = {
+      id: billId,
+      billNumber: this.selectedBill!.billNumber,
+      customerName: this.selectedBill!.customerName,
+    };
+    this.billReturnService.create(billId, payload).subscribe({
       next: () => {
         this.submitting = false;
-        this.router.navigate(['/bills', this.selectedBill!.id]);
+        this.submitted = true;
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.submitting = false;
         this.errorMsg = err?.error?.message ?? 'Failed to submit return.';
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
     });
   }

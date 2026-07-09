@@ -21,6 +21,7 @@ import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { BillReturnResponse, BillReturnService } from '../../../core/services/bill-return';
 import { WorkerPortalService, WorkerPaymentEntry, CollectionNote } from '../../../core/services/worker-portal';
 import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-edit-dialog';
+import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { BillStockStatus, ReturnProductResponse, StockService } from '../../../core/services/stock';
 
 @Component({
@@ -67,6 +68,7 @@ export class BillDetail implements OnInit {
   paymentColumns = ['paymentDate', 'amount', 'type', 'status', 'enteredBy', 'actions'];
   stockItemColumns = ['productName', 'quantity', 'unitPrice', 'lineTotal'];
   comparisonColumns = ['productName', 'systemQty', 'childQty', 'diff'];
+  returnItemColumns = ['itemName', 'quantityRequested', 'quantityReturned', 'unitPrice', 'lineTotal'];
 
   // Reference item entry (for SYSTEM linking bills)
   allProducts: ReturnProductResponse[] = [];
@@ -438,13 +440,22 @@ export class BillDetail implements OnInit {
 
   cancelBill(): void {
     if (!this.bill) return;
-    if (!confirm(`Cancel bill ${this.bill.billNumber}? The bill will be marked as CANCELLED.`)) return;
-    this.billService.cancelBill(this.bill.id).subscribe({
-      next: (updated) => {
-        this.bill = updated;
-        this.cdr.detectChanges();
+    const billNum = this.bill.billNumber;
+    const billId = this.bill.id;
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Cancel Bill',
+        message: `Cancel bill ${billNum}? The bill will be marked as CANCELLED.`,
+        confirmText: 'Cancel Bill',
+        confirmColor: 'warn',
       },
-      error: (err) => alert(err?.error?.message ?? 'Failed to cancel bill.'),
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.billService.cancelBill(billId).subscribe({
+        next: (updated) => { this.bill = updated; this.cdr.detectChanges(); },
+        error: (err) => alert(err?.error?.message ?? 'Failed to cancel bill.'),
+      });
     });
   }
 
@@ -461,19 +472,40 @@ export class BillDetail implements OnInit {
 
   deleteBill(): void {
     if (!this.bill) return;
-    const ref = this.bill.billNumber;
-    if (!confirm(`Delete bill ${ref}? This cannot be undone. Bills with confirmed payments cannot be deleted.`)) return;
-    this.billService.deleteBill(this.bill.id).subscribe({
-      next: () => this.router.navigate(['/bills']),
-      error: (err) => alert(err?.error?.message ?? 'Failed to delete bill.'),
+    const billNum = this.bill.billNumber;
+    const billId = this.bill.id;
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Delete Bill',
+        message: `Delete bill ${billNum}? This cannot be undone.\nBills with confirmed payments cannot be deleted.`,
+        confirmText: 'Delete',
+        confirmColor: 'warn',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.billService.deleteBill(billId).subscribe({
+        next: () => this.router.navigate(['/bills']),
+        error: (err) => alert(err?.error?.message ?? 'Failed to delete bill.'),
+      });
     });
   }
 
   deletePayment(payment: PaymentResponse): void {
-    if (!confirm(`Delete payment of Rs ${payment.paymentAmount} on ${payment.paymentDate}? This cannot be undone.`)) return;
-    this.paymentService.deletePayment(payment.id).subscribe({
-      next: () => this.loadPayments(this.bill!.id),
-      error: (err) => alert(err?.error?.message ?? 'Failed to delete payment.'),
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Delete Payment',
+        message: `Delete payment of Rs ${payment.paymentAmount} on ${payment.paymentDate}? This cannot be undone.`,
+        confirmText: 'Delete',
+        confirmColor: 'warn',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.paymentService.deletePayment(payment.id).subscribe({
+        next: () => this.loadPayments(this.bill!.id),
+        error: (err) => alert(err?.error?.message ?? 'Failed to delete payment.'),
+      });
     });
   }
 
