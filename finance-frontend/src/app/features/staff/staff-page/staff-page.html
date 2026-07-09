@@ -175,6 +175,13 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Normal Working Hours / Day</mat-label>
+          <input matInput type="number" formControlName="normalWorkingHours" min="1" max="24" />
+          <mat-hint>Hours used when marking a full day in time log</mat-hint>
+          <mat-error *ngIf="form.get('normalWorkingHours')?.invalid">1–24 required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
           <mat-label>Base Salary (Rs)</mat-label>
           <input matInput type="number" formControlName="baseSalary" />
           <mat-error *ngIf="form.get('baseSalary')?.hasError('required')">

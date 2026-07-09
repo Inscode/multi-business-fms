@@ -96,6 +96,12 @@ export class StaffPage implements OnInit{
     return map[type] ?? type;
   }
 
+  readonly defaultHoursByType: Record<string, number> = {
+    DELIVERY: 10, SHOP: 10,
+    ACCOUNTANT: 8, MAIN_ACCOUNTANT: 8,
+    SALES_REP: 8, DRIVER: 8, OTHER: 8,
+  };
+
   constructor(
     private fb: FormBuilder,
     private workerService: Worker,
@@ -103,11 +109,20 @@ export class StaffPage implements OnInit{
     private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
-      fullName: ['', Validators.required],
-      workerType: [null, Validators.required],
-      baseSalary: [null, [Validators.required, Validators.min(1)]],
-      joinedDate : [new Date(), Validators.required],
-      notes: [''],
+      fullName:            ['', Validators.required],
+      workerType:          [null, Validators.required],
+      baseSalary:          [null, [Validators.required, Validators.min(1)]],
+      joinedDate:          [new Date(), Validators.required],
+      notes:               [''],
+      normalWorkingHours:  [8, [Validators.required, Validators.min(1), Validators.max(24)]],
+    });
+
+    // Auto-fill default hours when type changes (only if user hasn't changed it manually yet)
+    this.form.get('workerType')!.valueChanges.subscribe(type => {
+      if (type && !this.editingStaff) {
+        this.form.get('normalWorkingHours')!.setValue(this.defaultHoursByType[type] ?? 8, { emitEvent: false });
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -168,11 +183,12 @@ export class StaffPage implements OnInit{
   openEditPanel(staff: WorkerResponse): void {
     this.editingStaff = staff;
     this.form.patchValue({
-      fullName:   staff.fullName,
-      workerType: staff.workerType,
-      baseSalary: staff.baseSalary,
-      joinedDate: new Date(staff.joinedDate),
-      notes:      staff.notes,
+      fullName:           staff.fullName,
+      workerType:         staff.workerType,
+      baseSalary:         staff.baseSalary,
+      joinedDate:         new Date(staff.joinedDate),
+      notes:              staff.notes,
+      normalWorkingHours: staff.normalWorkingHours ?? (this.defaultHoursByType[staff.workerType] ?? 8),
     });
     this.formError = '';
     this.showPanel = true;

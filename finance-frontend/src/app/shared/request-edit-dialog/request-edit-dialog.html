@@ -12,8 +12,17 @@
       <div class="field-row">
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field">
           <mat-label>Customer Name</mat-label>
-          <input matInput formControlName="customerName" />
-          <mat-error>Required</mat-error>
+          <input matInput
+                 [formControl]="customerSearchCtrl"
+                 [matAutocomplete]="customerAuto"
+                 placeholder="Search customer..." />
+          <mat-autocomplete #customerAuto="matAutocomplete"
+                            (optionSelected)="onCustomerSelected($event)">
+            <mat-option *ngFor="let c of filteredCustomers" [value]="c.name">
+              {{ c.name }}<span *ngIf="c.area" style="color:#888;font-size:12px;margin-left:6px">· {{ c.area }}</span>
+            </mat-option>
+          </mat-autocomplete>
+          <mat-error *ngIf="form.get('customerName')?.hasError('required')">Required</mat-error>
         </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field">
           <mat-label>Business</mat-label>

@@ -10,6 +10,7 @@
   'People\'s Bank',
   'Sampath Bank',
   'Seylan Bank',
+  'Cargills Bank',
   'Union Bank',
 ];
 

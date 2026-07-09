@@ -14,6 +14,7 @@ export interface WorkerResponse {
   createdAt: string;
   timeLogActive: boolean;
   billAssignable: boolean;
+  normalWorkingHours: number;
 }
 
 export interface WorkerRequest {
@@ -22,6 +23,7 @@ export interface WorkerRequest {
   baseSalary: number;
   joinedDate: string;
   notes?: string;
+  normalWorkingHours?: number;
 }
 
 @Injectable({

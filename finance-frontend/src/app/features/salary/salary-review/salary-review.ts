@@ -1,6 +1,5 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -35,24 +34,23 @@ export class SalaryReview implements OnInit {
   pendingApprovals: SalaryPaymentResponse[] = [];
   tabPurchases: WorkerTabPurchaseResponse[] = [];
   advanceBonuses: WorkerAdvanceBonusResponse[] = [];
-  loading = false;
-  error = false;
 
-  // Default: current month from first day to today
-  fromDate = localDateStr(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  toDate = localDateStr();
-  filterStatus = '';
+  salaryLoading = false;
+  othersLoading = false;
+  salaryError   = false;
+
+  // Salary Money tab filters
+  selectedMonth = new Date().toISOString().slice(0, 7); // "2026-07"
+  filterStatus  = '';
+  filterName    = '';
+
+  get loading(): boolean { return this.salaryLoading || this.othersLoading; }
 
   get displayedPayments(): SalaryPaymentResponse[] {
-    return this.payments.filter(p => !this.filterStatus || p.status === this.filterStatus);
-  }
-
-  get displayedPurchases(): WorkerTabPurchaseResponse[] {
-    return this.tabPurchases;
-  }
-
-  get displayedAdvanceBonuses(): WorkerAdvanceBonusResponse[] {
-    return this.advanceBonuses;
+    return this.payments.filter(p =>
+      (!this.filterStatus || p.status === this.filterStatus) &&
+      (!this.filterName   || p.recipientName.toLowerCase().includes(this.filterName.toLowerCase()))
+    );
   }
 
   get pendingCount(): number {
@@ -86,44 +84,56 @@ export class SalaryReview implements OnInit {
   ngOnInit(): void { this.load(); }
 
   load(): void {
-    if (!this.fromDate || !this.toDate) return;
-    this.loading = true;
-    this.error = false;
+    this.loadSalary();
+    this.loadOthers();
+  }
 
-    let rangePayments: SalaryPaymentResponse[] = [];
+  loadSalary(): void {
+    if (!this.selectedMonth) return;
+    this.salaryLoading = true;
+    this.salaryError   = false;
+
     let pending: SalaryPaymentResponse[] = [];
+    let monthPayments: SalaryPaymentResponse[] = [];
     let loaded = 0;
 
     const done = (ok: boolean) => {
-      if (!ok) this.error = true;
-      if (++loaded === 4) {
-        // Merge: date-range results + pending approvals not in range
-        const ids = new Set(rangePayments.map(x => x.id));
+      if (!ok) this.salaryError = true;
+      if (++loaded === 2) {
+        const ids = new Set(monthPayments.map(x => x.id));
         this.pendingApprovals = pending;
-        this.payments = [...rangePayments, ...pending.filter(x => !ids.has(x.id))];
-        this.loading = false;
+        this.payments = [...monthPayments, ...pending.filter(x => !ids.has(x.id))];
+        this.salaryLoading = false;
         this.cdr.detectChanges();
       }
     };
 
     this.salaryService.getPendingApprovalPayments().subscribe({
-      next: (p) => { pending = p; done(true); },
+      next: p  => { pending = p; done(true); },
       error: () => done(true),
     });
 
-    this.salaryService.getPaymentsByDateRange(this.fromDate, this.toDate).subscribe({
-      next: (p) => { rangePayments = p; done(true); },
+    this.salaryService.getAllPayments(this.selectedMonth).subscribe({
+      next: p  => { monthPayments = p; done(true); },
       error: () => done(false),
     });
+  }
 
-    this.workerFinanceService.getTabPurchasesByDateRange(this.fromDate, this.toDate).subscribe({
-      next: (list) => { this.tabPurchases = list; done(true); },
-      error: () => { this.tabPurchases = []; done(true); },
+  loadOthers(): void {
+    this.othersLoading = true;
+    let loaded = 0;
+    const done = () => {
+      if (++loaded === 2) { this.othersLoading = false; this.cdr.detectChanges(); }
+    };
+
+    this.workerFinanceService.getAllTabPurchases().subscribe({
+      next: list => { this.tabPurchases = list; done(); },
+      error: ()  => { this.tabPurchases = []; done(); },
     });
 
-    this.workerFinanceService.getAdvanceBonusByDateRange(this.fromDate, this.toDate).subscribe({
-      next: (list) => { this.advanceBonuses = list; done(true); },
-      error: () => { this.advanceBonuses = []; done(true); },
+    this.workerFinanceService.getAllAdvanceBonus().subscribe({
+      next: list => { this.advanceBonuses = list; done(); },
+      error: ()  => { this.advanceBonuses = []; done(); },
     });
   }
 
@@ -131,7 +141,7 @@ export class SalaryReview implements OnInit {
     const overMsg = p.overSalary ? `\n\n⚠️ WARNING: This will exceed ${p.recipientName}'s monthly salary of Rs ${p.monthlySalary?.toLocaleString()}.` : '';
     if (!confirm(`Approve Rs ${p.amount.toLocaleString()} for ${p.recipientName} (${p.month})?${overMsg}`)) return;
     this.salaryService.approve(p.id).subscribe({
-      next: () => this.load(),
+      next: () => this.loadSalary(),
       error: (err) => alert(err?.error?.message ?? 'Failed to approve.'),
     });
   }
@@ -139,7 +149,7 @@ export class SalaryReview implements OnInit {
   reject(p: SalaryPaymentResponse): void {
     const reason = prompt('Rejection reason (optional):') ?? '';
     this.salaryService.reject(p.id, reason).subscribe({
-      next: () => this.load(),
+      next: () => this.loadSalary(),
       error: () => alert('Failed to reject.'),
     });
   }

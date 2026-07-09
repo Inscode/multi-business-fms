@@ -166,6 +166,11 @@ mat-sidenav-content {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 1000;
     align-items: stretch;
+    transition: transform 0.25s ease;
+
+    &.nav-hidden {
+      transform: translateY(100%);
+    }
   }
 }
 

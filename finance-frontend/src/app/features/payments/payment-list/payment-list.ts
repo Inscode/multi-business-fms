@@ -17,6 +17,7 @@ import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { Auth } from '../../../core/services/auth';
 import { Router, RouterLink } from '@angular/router';
 import { ReturnChequeDialog } from '../return-cheque-dialog/return-cheque-dialog';
+import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
@@ -183,20 +184,46 @@ export class PaymentList implements OnInit, AfterViewInit {
     this.router.navigate(['/payments/enter'], { state: { payment } });
   }
 
-  confirmPayment(id: number): void {
-    this.paymentService.confirmPayment(id).subscribe({
-      next: () => this.load(),
-      error: () => alert('Failed to confirm payment.')
+  confirmPayment(payment: PaymentResponse): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Confirm Payment',
+        message: `Confirm payment of Rs ${payment.paymentAmount} for ${payment.billNumber} — ${payment.customerName}?`,
+        confirmText: 'Confirm',
+        confirmColor: 'primary',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.paymentService.confirmPayment(payment.id).subscribe({
+        next: () => this.load(),
+        error: () => this.load(),
+      });
     });
   }
 
   rejectPayment(payment: PaymentResponse): void {
-    const reason = prompt(`Reason for rejecting payment of Rs ${payment.paymentAmount} for ${payment.billNumber}?`);
-    if (reason === null) return;
-    this.paymentService.rejectPayment(payment.id, reason).subscribe({
-      next: () => this.load(),
-      error: (err) => alert(err?.error?.message ?? 'Failed to reject payment.'),
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Reject Payment',
+        message: `Reject payment of Rs ${payment.paymentAmount} for ${payment.billNumber} — ${payment.customerName}?`,
+        confirmText: 'Reject',
+        confirmColor: 'warn',
+        showInput: true,
+        inputLabel: 'Reason for rejection (optional)',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.paymentService.rejectPayment(payment.id, result.inputValue ?? '').subscribe({
+        next: () => this.load(),
+        error: (err) => this.load(),
+      });
     });
+  }
+
+  canConfirm(payment: PaymentResponse): boolean {
+    return (this.isAdmin || this.isOwner) && payment.status === 'ENTERED';
   }
 
   canEdit(payment: PaymentResponse): boolean {
@@ -218,14 +245,24 @@ export class PaymentList implements OnInit, AfterViewInit {
   }
 
   hasActions(payment: PaymentResponse): boolean {
-    return this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment) || this.canReject(payment);
+    return this.canConfirm(payment) || this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment) || this.canReject(payment);
   }
 
   deletePayment(payment: PaymentResponse): void {
-    if (!confirm(`Delete payment of Rs ${payment.paymentAmount} for ${payment.billNumber}? This cannot be undone.`)) return;
-    this.paymentService.deletePayment(payment.id).subscribe({
-      next: () => this.load(),
-      error: (err) => alert(err?.error?.message ?? 'Failed to delete payment.'),
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Delete Payment',
+        message: `Delete payment of Rs ${payment.paymentAmount} for ${payment.billNumber}? This cannot be undone.`,
+        confirmText: 'Delete',
+        confirmColor: 'warn',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.paymentService.deletePayment(payment.id).subscribe({
+        next: () => this.load(),
+        error: () => this.load(),
+      });
     });
   }     
   

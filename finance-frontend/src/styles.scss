@@ -35,9 +35,17 @@ body {
 }
 
 @media (max-width: 768px) {
+  /* Prevent iOS auto-zoom on focused inputs (requires 16px minimum) */
+  input, select, textarea,
+  .mat-mdc-input-element,
+  .mat-mdc-select-value-text {
+    font-size: 16px !important;
+  }
+
+  /* Comfortable touch height for dropdown options */
   .mat-mdc-option {
-    font-size: 12px !important;
-    min-height: 34px !important;
+    font-size: 14px !important;
+    min-height: 44px !important;
   }
 }
 

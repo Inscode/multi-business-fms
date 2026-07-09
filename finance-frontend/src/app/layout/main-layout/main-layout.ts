@@ -32,6 +32,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   collapsed = false;
   isMobile  = false;
+  navHidden = false;
+  private lastScrollTop = 0;
   private resizeTimer: ReturnType<typeof setTimeout> | null = null;
   pendingEditRequests = 0;
   pendingReturns = 0;
@@ -74,6 +76,15 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isMobile = window.innerWidth < 768;
   }
 
+  onPageScroll(event: Event): void {
+    if (!this.isMobile) return;
+    const el = event.target as HTMLElement;
+    const st = el.scrollTop;
+    if (Math.abs(st - this.lastScrollTop) < 8) return;
+    this.navHidden = st > this.lastScrollTop && st > 60;
+    this.lastScrollTop = st;
+  }
+
   toggleCollapse(): void {
     if (this.isMobile) {
       this.sidenav.toggle();
@@ -84,45 +95,45 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadPendingCount(): void {
     this.editRequestService.getPending().subscribe({
-      next: (list) => this.pendingEditRequests = list.length,
-      error: () => this.pendingEditRequests = 0,
+      next: (list) => setTimeout(() => this.pendingEditRequests = list.length),
+      error: () => {},
     });
   }
 
   private loadPendingReturns(): void {
     this.billReturnService.getPendingCount().subscribe({
-      next: (res) => this.pendingReturns = res.count,
-      error: () => this.pendingReturns = 0,
+      next: (res) => setTimeout(() => this.pendingReturns = res.count),
+      error: () => {},
     });
   }
 
   private loadPendingExpenses(): void {
     this.expenseService.getPendingCount().subscribe({
-      next: (res) => this.pendingExpenses = res.count,
-      error: () => this.pendingExpenses = 0,
+      next: (res) => setTimeout(() => this.pendingExpenses = res.count),
+      error: () => {},
     });
   }
 
   private loadPendingSalary(): void {
     this.salaryService.getPendingCount().subscribe({
-      next: (res) => this.pendingSalary = res.count,
-      error: () => this.pendingSalary = 0,
+      next: (res) => setTimeout(() => this.pendingSalary = res.count),
+      error: () => {},
     });
   }
 
   private loadWorkerFinanceCounts(): void {
     this.workerFinanceService.getTabCounts().subscribe({
-      next: (res) => {
+      next: (res) => setTimeout(() => {
         this.pendingWorkerFinanceOwner += res.pendingOwner;
         this.pendingWorkerFinanceAdmin += res.pendingAdmin;
-      },
+      }),
       error: () => {},
     });
     this.workerFinanceService.getAdvanceBonusCounts().subscribe({
-      next: (res) => {
+      next: (res) => setTimeout(() => {
         this.pendingWorkerFinanceOwner += res.pendingOwner;
         this.pendingWorkerFinanceAdmin += res.pendingAdmin;
-      },
+      }),
       error: () => {},
     });
   }

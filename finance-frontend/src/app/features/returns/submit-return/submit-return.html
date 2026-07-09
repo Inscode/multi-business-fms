@@ -6,22 +6,41 @@
     </div>
   </div>
 
+  <!-- ── Success screen ───────────────────────────────────────── -->
+  <div class="submit-success" *ngIf="submitted && lastSubmittedBill">
+    <div class="success-icon-wrap">
+      <mat-icon class="success-icon">check_circle</mat-icon>
+    </div>
+    <h2 class="success-title">Return Submitted</h2>
+    <p class="success-bill">{{ lastSubmittedBill.billNumber }} — {{ lastSubmittedBill.customerName }}</p>
+    <div class="success-actions">
+      <button mat-flat-button color="primary" (click)="submitAnother()">
+        <mat-icon>add</mat-icon>
+        Submit Another Return for this Bill
+      </button>
+      <a mat-stroked-button [routerLink]="['/bills', lastSubmittedBill.id]">
+        <mat-icon>receipt_long</mat-icon>
+        View Bill Detail
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Form ──────────────────────────────────────────────────── -->
+  <ng-container *ngIf="!submitted">
+
   <div class="form-card">
     <div class="section-title">1. Select Bill</div>
 
     <div class="bill-search" *ngIf="!selectedBill">
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Search by bill number or customer name</mat-label>
-        <input matInput [(ngModel)]="searchQuery" (input)="filterBills()" placeholder="e.g. BL-001 or John">
-        <mat-icon matSuffix>search</mat-icon>
+        <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onBillSearchInput()" placeholder="Type at least 2 characters…">
+        <mat-spinner *ngIf="billSearching" matSuffix diameter="16" style="margin-right:4px"></mat-spinner>
+        <mat-icon *ngIf="!billSearching" matSuffix>search</mat-icon>
       </mat-form-field>
 
-      <div class="loading-state" *ngIf="loadingBills">
-        <mat-spinner diameter="24"></mat-spinner>
-      </div>
-
-      <div class="bill-dropdown" *ngIf="filteredBills.length > 0 && searchQuery.length > 0">
-        <div class="bill-option" *ngFor="let b of filteredBills | slice:0:10" (click)="selectBill(b)">
+      <div class="bill-dropdown" *ngIf="billResults.length > 0">
+        <div class="bill-option" *ngFor="let b of billResults" (click)="selectBill(b)">
           <div class="bill-opt-top">
             <span class="bill-num">{{ b.billNumber }}</span>
             <span class="bill-biz">{{ b.business }}</span>
@@ -78,11 +97,6 @@
       </div>
     </div>
 
-    <div class="no-products" *ngIf="!isPlastic && products.length === 0">
-      <mat-icon>info</mat-icon>
-      <span>No products in catalog for {{ selectedBusiness }}. Use manual entry.</span>
-    </div>
-
     <button mat-stroked-button (click)="addManualItem()" class="add-manual-btn">
       <mat-icon>add</mat-icon> Add Item Manually
     </button>
@@ -107,12 +121,12 @@
           <input class="item-input num-input" type="number" [(ngModel)]="item.unitPrice"
                  [readonly]="!!item.productId"
                  placeholder="0.00"
-                 (input)="updateLineTotal(item)">
+                 (ngModelChange)="updateLineTotal(item)">
         </div>
         <div class="col-qty">
           <input class="item-input num-input" type="number" [(ngModel)]="item.quantityRequested"
                  min="1" placeholder="1"
-                 (input)="updateLineTotal(item)">
+                 (ngModelChange)="updateLineTotal(item)">
         </div>
         <div class="col-total">Rs {{ item.lineTotal | number:'1.2-2' }}</div>
         <div class="col-action">
@@ -206,4 +220,6 @@
       </button>
     </div>
   </div>
+
+  </ng-container>
 </div>

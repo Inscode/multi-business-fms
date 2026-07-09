@@ -1,64 +1,15 @@
-// ── Global search ────────────────────────────────────────────────
 .search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-
   .search-field { flex: 1; }
 
-  .global-search-toggle {
-    color: #90a4ae;
-    &.active { color: #1976d2; background: #e3f2fd; border-radius: 50%; }
-  }
-
-  .global-dropdown {
-    position: absolute;
-    top: calc(100% + 2px);
-    left: 0;
-    right: 0;
-    background: #fff;
-    border: 1.5px solid #90caf9;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.13);
-    z-index: 9999;
-    max-height: 380px;
-    overflow-y: auto;
-
-    .global-no-results {
-      padding: 16px;
-      text-align: center;
-      color: #90a4ae;
-      font-size: 13px;
-    }
-
-    .global-result-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      cursor: pointer;
-      border-bottom: 1px solid #f0f0f0;
-      font-size: 13px;
-      transition: background 0.1s;
-
-      &:last-child { border-bottom: none; }
-      &:hover { background: #e3f2fd; }
-
-      .gr-number   { font-weight: 700; color: #1565c0; min-width: 90px; }
-      .gr-customer { flex: 1; font-weight: 600; }
-      .gr-area     { color: #607d8b; font-size: 12px; min-width: 90px; }
-      .gr-amount   { font-weight: 600; color: #2e7d32; min-width: 80px; text-align: right; }
-      .gr-status   {
-        font-size: 10px; font-weight: 700; padding: 2px 7px;
-        border-radius: 10px; white-space: nowrap;
-        background: #f5f5f5; color: #616161;
-        &.gs-completed  { background: #e8f5e9; color: #2e7d32; }
-        &.gs-cancelled  { background: #ffebee; color: #c62828; }
-        &.gs-created    { background: #e3f2fd; color: #1565c0; }
-        &.gs-assigned   { background: #fff3e0; color: #e65100; }
-      }
-    }
+  .clear-btn {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; color: #90a4ae; }
+    &:hover mat-icon { color: #546e7a; }
   }
 }
 
@@ -487,9 +438,9 @@
     }
 
     mat-form-field {
-      --mat-form-field-container-height: 40px;
-      --mat-form-field-outlined-label-text-populated-size: 12px;
-      font-size: 13px;
+      --mat-form-field-container-height: 48px;
+      --mat-form-field-outlined-label-text-populated-size: 13px;
+      font-size: 14px;
     }
   }
 }
@@ -579,13 +530,32 @@
     font-size: 11px;
     color: #607d8b;
   }
+
+  @media (max-width: 768px) {
+    padding: 14px 16px 16px;
+
+    .bill-card-row { margin-bottom: 10px; }
+
+    .bill-number { font-size: 14px; }
+    .customer    { font-size: 14px; }
+    .amount      { font-size: 15px; }
+    .balance     { font-size: 13px; }
+    .meta        { font-size: 12px; line-height: 1.5; }
+
+    .action-btn { height: 44px; font-size: 14px; }
+  }
 }
 
 .badge {
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
   &-created              { background: #e3f2fd; color: #1565c0; }
   &-assigned             { background: #fff3e0; color: #e65100; }
   &-shop_worker_assigned { background: #f3e5f5; color: #6a1b9a; }

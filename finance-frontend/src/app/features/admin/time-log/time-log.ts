@@ -87,11 +87,157 @@ export class TimeLogPage implements OnInit {
   ];
 
   readonly attTypes = [
-    { value: 'PRESENT',  label: 'Present',  icon: 'check_circle', color: '#43a047' },
-    { value: 'HALF_DAY', label: 'Half Day', icon: 'access_time',  color: '#ff9800' },
-    { value: 'ABSENT',   label: 'Absent',   icon: 'cancel',       color: '#ef5350' },
-    { value: 'HOLIDAY',  label: 'Holiday',  icon: 'beach_access', color: '#7b1fa2' },
+    { value: 'PRESENT',  label: 'Present',       icon: 'check_circle',  color: '#43a047' },
+    { value: 'HALF_DAY', label: 'Half Day',       icon: 'access_time',   color: '#ff9800' },
+    { value: 'ABSENT',   label: 'Absent',         icon: 'cancel',        color: '#ef5350' },
+    { value: 'HOLIDAY',  label: 'Informed Leave', icon: 'event_available', color: '#7b1fa2' },
   ];
+
+  // ── Monthly View tab ─────────────────────────────────────────────────
+  mvMonth    = new Date().toISOString().slice(0, 7);  // "2026-07"
+  mvWorkerId: number | null = null;
+  mvRecords: WorkerAttendanceRecord[] = [];
+  mvLoading  = false;
+  mvError    = '';
+
+  get mvDays(): string[] {
+    if (!this.mvMonth) return [];
+    const [y, m] = this.mvMonth.split('-').map(Number);
+    const count  = new Date(y, m, 0).getDate();
+    return Array.from({ length: count }, (_, i) =>
+      `${y}-${String(m).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`
+    );
+  }
+
+  get mvDayMap(): Map<string, WorkerAttendanceRecord> {
+    const map = new Map<string, WorkerAttendanceRecord>();
+    this.mvRecords.forEach(r => map.set(r.date, r));
+    return map;
+  }
+
+  get mvTotalPresent(): number { return this.mvRecords.filter(r => r.attendanceType === 'PRESENT').length; }
+  get mvTotalHalf():    number { return this.mvRecords.filter(r => r.attendanceType === 'HALF_DAY').length; }
+  get mvTotalAbsent():  number { return this.mvRecords.filter(r => r.attendanceType === 'ABSENT').length; }
+  get mvTotalHoliday(): number { return this.mvRecords.filter(r => r.attendanceType === 'HOLIDAY').length; }
+  get mvTotalHours():   number {
+    return this.mvRecords.reduce((s, r) => s + (r.hoursWorked ?? 0), 0);
+  }
+
+  get mvSelectedWorker(): WorkerResponse | null {
+    return this.allWorkers.find(w => w.id === this.mvWorkerId) ?? null;
+  }
+
+  // ── Monthly View inline editing ──────────────────────────────────────
+  mvEditingDate: string | null = null;
+  mvEditType     = 'PRESENT';
+  mvEditHours: number | null   = null;
+  mvEditSaving   = false;
+  mvEditError    = '';
+
+  mvStartEdit(date: string): void {
+    const existing = this.mvDayMap.get(date);
+    this.mvEditingDate = date;
+    this.mvEditType    = existing?.attendanceType ?? 'PRESENT';
+    this.mvEditHours   = existing?.hoursWorked   ?? (this.mvSelectedWorker?.normalWorkingHours ?? 8);
+    this.mvEditError   = '';
+    this.cdr.detectChanges();
+  }
+
+  mvCancelEdit(): void {
+    this.mvEditingDate = null;
+    this.mvEditError   = '';
+    this.cdr.detectChanges();
+  }
+
+  mvOnTypeChange(): void {
+    if (this.mvEditType === 'ABSENT' || this.mvEditType === 'HOLIDAY') {
+      this.mvEditHours = 0;
+    } else if (!this.mvEditHours) {
+      this.mvEditHours = this.mvSelectedWorker?.normalWorkingHours ?? 8;
+    }
+    this.cdr.detectChanges();
+  }
+
+  mvSaveDay(): void {
+    if (!this.mvWorkerId || !this.mvEditingDate) return;
+    this.mvEditSaving = true;
+    this.mvEditError  = '';
+    this.cdr.detectChanges();
+
+    const date      = this.mvEditingDate;
+    const workerId  = this.mvWorkerId;
+    const attType   = this.mvEditType;
+    const hours     = this.mvEditHours ?? 0;
+
+    this.timeLog.recordAttendance({ workerId, date, attendanceType: attType }).subscribe({
+      next: rec => {
+        const idx = this.mvRecords.findIndex(r => r.date === date);
+        const updated = { ...rec, hoursWorked: hours > 0 ? hours : (rec.hoursWorked ?? null) };
+        if (idx >= 0) this.mvRecords[idx] = updated; else this.mvRecords.push(updated);
+        this.mvRecords = [...this.mvRecords];
+
+        // Add time entry for worked hours on PRESENT / HALF_DAY
+        if ((attType === 'PRESENT' || attType === 'HALF_DAY') && hours > 0) {
+          const clockIn  = '08:00';
+          const clockOut = this.addHoursToTime(clockIn, hours);
+          this.timeLog.addTimeEntry({ workerId, date, clockIn, clockOut, notes: null }).subscribe({
+            next: entry => {
+              // Update hoursWorked in the record
+              const i = this.mvRecords.findIndex(r => r.date === date);
+              if (i >= 0) this.mvRecords[i] = { ...this.mvRecords[i], hoursWorked: entry.workedMinutes / 60 };
+              this.mvRecords = [...this.mvRecords];
+              this.mvEditSaving  = false;
+              this.mvEditingDate = null;
+              this.cdr.detectChanges();
+            },
+            error: () => {
+              this.mvEditSaving  = false;
+              this.mvEditingDate = null;
+              this.cdr.detectChanges();
+            },
+          });
+        } else {
+          this.mvEditSaving  = false;
+          this.mvEditingDate = null;
+          this.cdr.detectChanges();
+        }
+      },
+      error: e => {
+        this.mvEditError  = e?.error?.message ?? 'Failed to save.';
+        this.mvEditSaving = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private addHoursToTime(time: string, hours: number): string {
+    const [h, m] = time.split(':').map(Number);
+    const total  = h * 60 + m + Math.round(hours * 60);
+    return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+
+  loadMonthlyView(): void {
+    if (!this.mvMonth || !this.mvWorkerId) return;
+    const [y, m] = this.mvMonth.split('-').map(Number);
+    const from   = `${y}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const to     = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    this.mvLoading = true;
+    this.mvError   = '';
+    this.cdr.detectChanges();
+    this.timeLog.getWorkerAttendance(this.mvWorkerId, from, to).subscribe({
+      next: recs  => { this.mvRecords = recs; this.mvLoading = false; this.cdr.detectChanges(); },
+      error: ()   => { this.mvError = 'Failed to load.'; this.mvLoading = false; this.cdr.detectChanges(); },
+    });
+  }
+
+  mvDayName(dateStr: string): string {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+  }
+
+  mvAttColor(type: string): string {
+    return ({ PRESENT: '#43a047', HALF_DAY: '#ff9800', ABSENT: '#ef5350', HOLIDAY: '#7b1fa2' } as Record<string, string>)[type] ?? '#888';
+  }
 
   constructor(
     private timeLog: TimeLogService,
