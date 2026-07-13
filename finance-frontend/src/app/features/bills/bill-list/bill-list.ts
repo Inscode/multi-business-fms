@@ -25,6 +25,7 @@ import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Bill, BillResponse, BillSequenceGap } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { LinkingBillsTab } from '../linking-bills-tab/linking-bills-tab';
+import { ReviewBillsTab } from '../review-bills-tab/review-bills-tab';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
 import { BulkAssignDialog } from '../bulk-assign-dialog/bulk-assign-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
@@ -61,6 +62,7 @@ import { BillFilterState } from '../../../core/services/bill-filter-state';
     MatInput,
     MatTabsModule,
     LinkingBillsTab,
+    ReviewBillsTab,
   ],
   templateUrl: './bill-list.html',
   styleUrl: './bill-list.scss',
@@ -150,6 +152,14 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
 
   get canSeePendingCollections(): boolean {
     return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
+
+  // ── Bill Review ────────────────────────────────────────────────
+  unreviewedCount = 0;
+
+  onReviewCountChanged(count: number): void {
+    this.unreviewedCount = count;
+    this.cdr.markForCheck();
   }
 
   // ── Sequence gap check ─────────────────────────────────────────
@@ -405,7 +415,21 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
           this.selectedArea = '';
         }
         this.loading = false;
-        this.applyFilters();
+        if (this.searchQuery.trim().length >= 2) {
+          this.searching = true;
+          this.cdr.detectChanges();
+          this.billService.globalSearch(this.searchQuery.trim()).subscribe({
+            next: results => {
+              this.dataSource.data = results;
+              this.searching = false;
+              if (this.paginator) this.paginator.firstPage();
+              this.cdr.detectChanges();
+            },
+            error: () => { this.searching = false; this.applyFilters(); this.cdr.detectChanges(); }
+          });
+        } else {
+          this.applyFilters();
+        }
         this.cdr.detectChanges();
       },
       error: () => {

@@ -211,3 +211,147 @@
     margin-bottom: 16px;
   }
 }
+
+// ── Cheque search row ──────────────────────────────────────────────────────
+.cheque-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.cheque-number-field {
+  min-width: 220px;
+  max-width: 300px;
+}
+
+.future-cheques-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  height: 40px;
+
+  .expand-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    transition: transform 0.2s;
+    &.expanded { transform: rotate(180deg); }
+  }
+
+  &.active {
+    background: #e3f2fd;
+    color: #1565c0;
+    border-color: #1565c0;
+  }
+}
+
+// ── Cheque number search results ───────────────────────────────────────────
+.cheque-search-results {
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #1976d2;
+}
+
+.cheque-results-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 10px;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; color: #1976d2; }
+}
+
+.cheque-num-cell {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+// ── Future cheques panel ───────────────────────────────────────────────────
+.future-cheques-panel {
+  margin: 12px 0;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+  padding: 14px 16px;
+}
+
+.future-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  mat-icon:first-child { color: #1976d2; }
+
+  span {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+  }
+}
+
+.future-customer-search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.customer-search-field { width: 100%; }
+
+.future-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  color: #888;
+  font-size: 13px;
+}
+
+.future-refresh-spinner {
+  opacity: 0.6;
+}
+
+.future-table {
+  margin-top: 8px;
+}
+
+.future-summary {
+  font-size: 12px;
+  color: #666;
+  padding: 6px 8px;
+  font-weight: 500;
+}
+
+.cheque-date-cell {
+  white-space: nowrap;
+  .days-away {
+    font-size: 11px;
+    color: #888;
+    margin-left: 4px;
+  }
+}
+
+.amount-cell { font-weight: 600; }
+
+.branch-label { color: #888; font-size: 12px; }
+
+.empty-state-small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 4px;
+  font-size: 13px;
+  color: #888;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}

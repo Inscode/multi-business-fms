@@ -1,0 +1,121 @@
+<div class="review-tab">
+
+  <div class="review-toolbar">
+    <div class="review-info">
+      <mat-icon>rate_review</mat-icon>
+      <span *ngIf="!loading">
+        {{ bills.length === 0 ? 'All bills reviewed' : bills.length + ' unreviewed bill' + (bills.length !== 1 ? 's' : '') }}
+      </span>
+      <span *ngIf="loading">Loading…</span>
+    </div>
+    <div class="review-actions">
+      <button mat-stroked-button
+              *ngIf="selection.selected.length > 0"
+              [disabled]="markingSelected"
+              (click)="markSelected()">
+        <mat-spinner diameter="16" *ngIf="markingSelected" style="display:inline-block;margin-right:4px"></mat-spinner>
+        <mat-icon *ngIf="!markingSelected">check</mat-icon>
+        Mark Selected as Reviewed ({{ selection.selected.length }})
+      </button>
+      <button mat-flat-button color="primary"
+              *ngIf="bills.length > 0"
+              [disabled]="markingAll"
+              (click)="markAll()">
+        <mat-spinner diameter="16" *ngIf="markingAll" style="display:inline-block;margin-right:4px"></mat-spinner>
+        <mat-icon *ngIf="!markingAll">done_all</mat-icon>
+        Mark All as Reviewed
+      </button>
+      <button mat-icon-button (click)="load()" matTooltip="Refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="empty-state" *ngIf="bills.length === 0">
+      <mat-icon>check_circle</mat-icon>
+      <p>All bills are reviewed. New bills entered will appear here.</p>
+    </div>
+
+    <mat-card class="review-table-card" *ngIf="bills.length > 0">
+      <table mat-table [dataSource]="bills">
+
+        <!-- Checkbox -->
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef>
+            <mat-checkbox
+              [checked]="allSelected"
+              [indeterminate]="someSelected"
+              (change)="toggleAll()"
+              color="primary">
+            </mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let b" (click)="$event.stopPropagation()">
+            <mat-checkbox
+              [checked]="selection.isSelected(b)"
+              (change)="selection.toggle(b)"
+              color="primary">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="billNumber">
+          <th mat-header-cell *matHeaderCellDef>Bill No.</th>
+          <td mat-cell *matCellDef="let b">
+            <a [routerLink]="['/bills', b.id]" class="bill-link">{{ b.billNumber }}</a>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="customerName">
+          <th mat-header-cell *matHeaderCellDef>Customer</th>
+          <td mat-cell *matCellDef="let b">{{ b.customerName }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="area">
+          <th mat-header-cell *matHeaderCellDef>Area</th>
+          <td mat-cell *matCellDef="let b">{{ b.area ?? '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="business">
+          <th mat-header-cell *matHeaderCellDef>Business</th>
+          <td mat-cell *matCellDef="let b">{{ b.business }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="billType">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let b">
+            <span class="bill-type-badge" [class.cash]="b.billType === 'CASH'" [class.credit]="b.billType === 'CREDIT'">
+              {{ b.billType }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="totalAmount">
+          <th mat-header-cell *matHeaderCellDef>Amount</th>
+          <td mat-cell *matCellDef="let b">Rs {{ b.totalAmount | number }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="enteredBy">
+          <th mat-header-cell *matHeaderCellDef>Entered By</th>
+          <td mat-cell *matCellDef="let b">{{ b.enteredByName }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>Entered At</th>
+          <td mat-cell *matCellDef="let b" class="date-cell">{{ b.createdAt | date:'dd/MM/yy HH:mm' }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"
+            class="review-row"
+            [class.selected-row]="selection.isSelected(row)">
+        </tr>
+      </table>
+    </mat-card>
+  </ng-container>
+
+</div>
