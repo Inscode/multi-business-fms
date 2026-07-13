@@ -191,4 +191,22 @@ export class Bill {
       params: { business },
     });
   }
+
+  // ── Bill Review ────────────────────────────────────────────────────────────
+
+  getUnreviewedBills(): Observable<BillResponse[]> {
+    return this.http.get<BillResponse[]>(`${this.apiUrl}/review/unreviewed`);
+  }
+
+  getUnreviewedCount(): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${this.apiUrl}/review/unreviewed-count`);
+  }
+
+  markBillsReviewed(billIds: number[]): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/review/mark`, { billIds });
+  }
+
+  markAllBillsReviewed(): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/review/mark-all`, {});
+  }
 }

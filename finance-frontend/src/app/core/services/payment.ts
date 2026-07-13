@@ -156,4 +156,16 @@ export class Payment {
   deletePayment(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
+
+  getFutureCheques(customer?: string): Observable<PaymentResponse[]> {
+    let params = new HttpParams();
+    if (customer?.trim()) params = params.set('customer', customer.trim());
+    return this.http.get<PaymentResponse[]>(`${this.apiUrl}/future-cheques`, { params });
+  }
+
+  searchByChequeNumber(chequeNumber: string): Observable<PaymentResponse[]> {
+    return this.http.get<PaymentResponse[]>(`${this.apiUrl}/cheque-search`, {
+      params: { chequeNumber },
+    });
+  }
 }

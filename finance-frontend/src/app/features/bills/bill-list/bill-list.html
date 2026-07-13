@@ -78,12 +78,21 @@
     </div>
   </div>
 
-  <!-- Admin: tabs with Linking Bills -->
+  <!-- Admin: tabs with Review Bills + Linking Bills -->
   <mat-tab-group animationDuration="150ms" class="bills-tabs" *ngIf="isAdmin">
     <mat-tab>
       <ng-template mat-tab-label><mat-icon>receipt_long</mat-icon>&nbsp;Bills</ng-template>
       <div class="tab-body">
         <ng-container *ngTemplateOutlet="billsContent"></ng-container>
+      </div>
+    </mat-tab>
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>rate_review</mat-icon>&nbsp;Review Bills
+        <span class="review-count-badge" *ngIf="unreviewedCount > 0">{{ unreviewedCount }}</span>
+      </ng-template>
+      <div class="tab-body">
+        <app-review-bills-tab (countChanged)="onReviewCountChanged($event)" />
       </div>
     </mat-tab>
     <mat-tab>

@@ -1,5 +1,5 @@
 ﻿import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,6 +21,9 @@ import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-payment-list',
@@ -51,7 +54,7 @@ import { MatNativeDateModule } from '@angular/material/core';
   styleUrl: './payment-list.scss',
 })
 
-export class PaymentList implements OnInit, AfterViewInit {
+export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
   dataSource = new MatTableDataSource<PaymentResponse>([]);
   loading = true;
   error = false;
@@ -65,6 +68,21 @@ export class PaymentList implements OnInit, AfterViewInit {
   filterTo   = '';
 
   private allPayments: PaymentResponse[] = [];
+
+  // ── Cheque number search ───────────────────────────────────────
+  chequeNumberQuery = '';
+  chequeSearchResults: PaymentResponse[] = [];
+  chequeSearchLoading = false;
+  chequeSearchActive = false;
+  private chequeSearch$ = new Subject<string>();
+
+  // ── Future cheques panel ───────────────────────────────────────
+  futureChequesPanelOpen = false;
+  private allFutureCheques: PaymentResponse[] = [];
+  futureCheques: PaymentResponse[] = [];
+  futureChequeLoading = false;
+  futureChequeRefreshing = false;
+  futureCustomerQuery = '';
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
@@ -85,7 +103,8 @@ export class PaymentList implements OnInit, AfterViewInit {
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
-  get isOwner(): boolean { return this.auth.getRole() === 'OWNER';}
+  get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
+  get canSeeChequeTools(): boolean { return this.isAdmin || this.isOwner; }
 
   constructor(
     private paymentService: Payment,
@@ -124,7 +143,38 @@ export class PaymentList implements OnInit, AfterViewInit {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+
+    this.chequeSearch$.pipe(
+      debounceTime(350),
+      distinctUntilChanged(),
+      switchMap(q => {
+        if (!q || q.length < 2) {
+          this.chequeSearchActive = false;
+          this.chequeSearchLoading = false;
+          this.chequeSearchResults = [];
+          this.cdr.detectChanges();
+          return of(null);
+        }
+        this.chequeSearchLoading = true;
+        this.chequeSearchActive = true;
+        this.cdr.detectChanges();
+        return this.paymentService.searchByChequeNumber(q).pipe(
+          catchError(() => of(null))
+        );
+      }),
+    ).subscribe(results => {
+      if (results === null) { this.chequeSearchLoading = false; this.cdr.detectChanges(); return; }
+      this.chequeSearchResults = results as PaymentResponse[];
+      this.chequeSearchLoading = false;
+      this.cdr.detectChanges();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.chequeSearch$.complete();
+  }
 
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
@@ -246,6 +296,73 @@ export class PaymentList implements OnInit, AfterViewInit {
 
   hasActions(payment: PaymentResponse): boolean {
     return this.canConfirm(payment) || this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment) || this.canReject(payment);
+  }
+
+  get futureChequeTotal(): number {
+    return this.futureCheques.reduce((sum, p) => sum + p.paymentAmount, 0);
+  }
+
+  daysUntil(dateStr: string): number {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr + 'T00:00:00');
+    return Math.round((target.getTime() - today.getTime()) / 86400000);
+  }
+
+  // ── Cheque number search ─────────────────────────────────────────────────
+  onChequeNumberChange(): void {
+    this.chequeSearch$.next(this.chequeNumberQuery.trim());
+  }
+
+  clearChequeSearch(): void {
+    this.chequeNumberQuery = '';
+    this.chequeSearchActive = false;
+    this.chequeSearchResults = [];
+    this.chequeSearch$.next('');
+  }
+
+  // ── Future cheques panel ─────────────────────────────────────────────────
+  toggleFutureCheques(): void {
+    this.futureChequesPanelOpen = !this.futureChequesPanelOpen;
+    if (this.futureChequesPanelOpen && this.allFutureCheques.length === 0) {
+      this.loadFutureCheques();
+    }
+  }
+
+  loadFutureCheques(): void {
+    this.futureChequeLoading = this.allFutureCheques.length === 0;
+    this.futureChequeRefreshing = this.allFutureCheques.length > 0;
+    this.cdr.detectChanges();
+    this.paymentService.getFutureCheques().subscribe({
+      next: (res) => {
+        this.allFutureCheques = res;
+        this.applyFutureFilter();
+        this.futureChequeLoading = false;
+        this.futureChequeRefreshing = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.futureChequeLoading = false;
+        this.futureChequeRefreshing = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  onFutureCustomerSearch(): void {
+    this.applyFutureFilter();
+  }
+
+  clearFutureCustomer(): void {
+    this.futureCustomerQuery = '';
+    this.applyFutureFilter();
+  }
+
+  private applyFutureFilter(): void {
+    const q = this.futureCustomerQuery.toLowerCase().trim();
+    this.futureCheques = q
+      ? this.allFutureCheques.filter(p => p.customerName.toLowerCase().includes(q))
+      : this.allFutureCheques.slice();
+    this.cdr.detectChanges();
   }
 
   deletePayment(payment: PaymentResponse): void {
