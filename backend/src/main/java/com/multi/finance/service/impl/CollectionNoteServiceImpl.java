@@ -1,5 +1,6 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.dto.request.CollectionNoteBulkRequest;
 import com.multi.finance.dto.request.CollectionNoteRequest;
 import com.multi.finance.dto.response.CollectionNoteResponse;
 import com.multi.finance.entity.Bill;
@@ -40,9 +41,42 @@ public class CollectionNoteServiceImpl {
                 .collectedBy(owner)
                 .collectedAt(LocalDateTime.now())
                 .notes(request.getNotes())
+                .chequeNumber(request.getChequeNumber())
+                .bankName(request.getBankName())
+                .branchName(request.getBranchName())
+                .chequeDate(request.getChequeDate())
+                .referenceNumber(request.getReferenceNumber())
                 .build();
 
         return toResponse(collectionNoteRepository.save(note));
+    }
+
+    @Transactional
+    public List<CollectionNoteResponse> createBulk(CollectionNoteBulkRequest request) {
+        User owner = getCurrentUser();
+        LocalDateTime now = LocalDateTime.now();
+
+        return request.getBills().stream().map(entry -> {
+            Bill bill = billRepository.findById(entry.getBillId())
+                    .orElseThrow(() -> new RuntimeException("Bill not found: " + entry.getBillId()));
+
+            CollectionNote note = CollectionNote.builder()
+                    .bill(bill)
+                    .amount(entry.getAmount())
+                    .paymentType(request.getPaymentType())
+                    .status(CollectionNoteStatus.PENDING)
+                    .collectedBy(owner)
+                    .collectedAt(now)
+                    .notes(request.getNotes())
+                    .chequeNumber(request.getChequeNumber())
+                    .bankName(request.getBankName())
+                    .branchName(request.getBranchName())
+                    .chequeDate(request.getChequeDate())
+                    .referenceNumber(request.getReferenceNumber())
+                    .build();
+
+            return toResponse(collectionNoteRepository.save(note));
+        }).toList();
     }
 
     // Owner sees their own collection notes
@@ -68,6 +102,13 @@ public class CollectionNoteServiceImpl {
     public List<CollectionNoteResponse> getAll() {
         return collectionNoteRepository.findAll().stream()
                 .sorted((a, b) -> b.getCollectedAt().compareTo(a.getCollectedAt()))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CollectionNoteResponse> getByBillId(Long billId) {
+        return collectionNoteRepository.findByBillId(billId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -103,6 +144,12 @@ public class CollectionNoteServiceImpl {
                 .collectedByName(note.getCollectedBy().getFullName())
                 .collectedAt(note.getCollectedAt())
                 .notes(note.getNotes())
+                .chequeNumber(note.getChequeNumber())
+                .bankName(note.getBankName())
+                .branchName(note.getBranchName())
+                .chequeDate(note.getChequeDate())
+                .referenceNumber(note.getReferenceNumber())
+                .sourceEntryId(note.getSourceEntryId())
                 .build();
     }
 

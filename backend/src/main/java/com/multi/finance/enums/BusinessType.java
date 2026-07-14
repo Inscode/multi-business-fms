@@ -5,5 +5,6 @@ public enum BusinessType {
     RETAIL_SHOP,
     PLASTIC,
     HARDWARE,
-    STATIONERY
+    STATIONERY,
+    DEMO
 }

@@ -27,7 +27,6 @@ public class CollectionNote {
     @Column(nullable = false)
     private BigDecimal amount;
 
-    // Only CASH or CHEQUE — owner doesn't deal with bank transfers
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_type", nullable = false)
     private PaymentType paymentType;
@@ -44,4 +43,24 @@ public class CollectionNote {
     private LocalDateTime collectedAt;
 
     private String notes;
+
+    // Cheque / bank-transfer details (all optional)
+    @Column(name = "cheque_number")
+    private String chequeNumber;
+
+    @Column(name = "bank_name")
+    private String bankName;
+
+    @Column(name = "branch_name")
+    private String branchName;
+
+    @Column(name = "cheque_date")
+    private java.time.LocalDate chequeDate;
+
+    @Column(name = "reference_number")
+    private String referenceNumber;
+
+    // Link back to the worker entry that generated this note (nullable for manually created notes)
+    @Column(name = "source_entry_id")
+    private Long sourceEntryId;
 }

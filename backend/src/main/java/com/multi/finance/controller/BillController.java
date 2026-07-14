@@ -13,6 +13,7 @@ import com.multi.finance.dto.response.DashboardStatsResponse;
 import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.service.impl.BillServiceImpl;
+import com.multi.finance.service.impl.WorkerPortalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,12 +25,14 @@ import java.time.LocalDate;
 import java.util.Map;
 
 import java.util.List;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/bills")
 @RequiredArgsConstructor
 public class BillController {
     private final BillServiceImpl billService;
+    private final WorkerPortalService workerPortalService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
@@ -170,10 +173,45 @@ public class BillController {
         return ResponseEntity.ok(billService.getBillById(id));
     }
 
+    @PatchMapping("/{id}/toggle-collection-only")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<Void> toggleCollectionOnly(@PathVariable Long id) {
+        workerPortalService.toggleCollectionOnly(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteBill(@PathVariable Long id) {
         billService.deleteBill(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ── Bill Review ───────────────────────────────────────────────────────────
+
+    @GetMapping("/review/unreviewed")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BillResponse>> getUnreviewedBills() {
+        return ResponseEntity.ok(billService.getUnreviewedBills());
+    }
+
+    @GetMapping("/review/unreviewed-count")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Long>> getUnreviewedCount() {
+        return ResponseEntity.ok(Map.of("count", billService.getUnreviewedCount()));
+    }
+
+    @PostMapping("/review/mark")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> markBillsReviewed(@RequestBody Map<String, List<Long>> body) {
+        billService.markBillsReviewed(body.getOrDefault("billIds", Collections.emptyList()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/review/mark-all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> markAllReviewed() {
+        billService.markAllBillsReviewed();
         return ResponseEntity.noContent().build();
     }
 

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  logback-spring.xml — Spring Boot's preferred Logback config file.
+
+  WHY THIS EXISTS:
+    In development  → logs print to the console (you read them live).
+    In production   → logs push to Grafana Loki via HTTP (searchable forever,
+                      even after the server restarts or the process dies).
+
+  HOW LOKI WORKS:
+    Unlike a database, Loki doesn't index the log content — it indexes LABELS
+    (key=value pairs). You search by label first, then filter text within matches.
+    That's why we attach labels like app, environment, level to every log line.
+-->
+<configuration>
+
+  <!-- ── Development: plain console output ─────────────────────────────── -->
+  <springProfile name="!prod">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE" />
+    </root>
+  </springProfile>
+
+  <!-- ── Production: push structured logs to Grafana Loki ──────────────── -->
+  <springProfile name="prod">
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+      <http>
+        <!-- Grafana Cloud Loki push URL — set via env var on your server -->
+        <url>${GRAFANA_LOKI_URL}/loki/api/v1/push</url>
+        <auth>
+          <!-- Basic auth: base64("tenantId:apiKey") — Grafana provides this -->
+          <username>${GRAFANA_LOKI_USER}</username>
+          <password>${GRAFANA_LOKI_TOKEN}</password>
+        </auth>
+      </http>
+      <format>
+        <label>
+          <!--
+            Labels = how you FILTER logs in Grafana.
+            Keep them low-cardinality (few distinct values) — Loki indexes these.
+            DON'T use user IDs or request IDs as labels (too many unique values = slow).
+          -->
+          <pattern>app=finance-backend,environment=production,level=%level,logger=%logger{20}</pattern>
+        </label>
+        <message>
+          <!-- The actual log line sent as JSON — searchable via LogQL in Grafana -->
+          <pattern>{"timestamp":"%d{ISO8601}","level":"%level","thread":"%thread","logger":"%logger{36}","message":"%msg%replace(%xException){'\n',' '}"}%n</pattern>
+        </message>
+      </format>
+      <batchMaxItems>100</batchMaxItems>
+      <batchTimeoutMs>5000</batchTimeoutMs>  <!-- send batch every 5s or when 100 items, whichever first -->
+    </appender>
+
+    <!-- Also keep console output in prod for docker/systemd logs -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+      </encoder>
+    </appender>
+
+    <root level="INFO">
+      <appender-ref ref="LOKI" />
+      <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Silence noisy Spring Security debug logs -->
+    <logger name="org.springframework.security" level="WARN" />
+    <logger name="org.hibernate.SQL" level="WARN" />
+  </springProfile>
+
+</configuration>

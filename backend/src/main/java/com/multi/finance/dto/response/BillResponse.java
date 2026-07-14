@@ -41,4 +41,5 @@ public class BillResponse {
     private LocalDateTime createdAt;
     private Boolean willBeLinked;
     private Boolean stockCleared;
+    private Boolean collectionOnly;
 }

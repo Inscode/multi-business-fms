@@ -25,10 +25,19 @@ public class WorkerServiceImpl {
                 .active(true)
                 .joinedDate(request.getJoinedDate())
                 .notes(request.getNotes())
+                .normalWorkingHours(resolveWorkingHours(request.getNormalWorkingHours(), request.getWorkerType()))
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
         return toResponse(workerRepository.save(worker));
+    }
+
+    private int resolveWorkingHours(Integer provided, WorkerType type) {
+        if (provided != null && provided > 0) return provided;
+        return switch (type) {
+            case DELIVERY, SHOP -> 10;
+            default             -> 8;
+        };
     }
 
     public List<WorkerResponse> getAllWorkers() {
@@ -54,6 +63,7 @@ public class WorkerServiceImpl {
         worker.setBaseSalary(request.getBaseSalary());
         worker.setJoinedDate(request.getJoinedDate());
         worker.setNotes(request.getNotes());
+        worker.setNormalWorkingHours(resolveWorkingHours(request.getNormalWorkingHours(), request.getWorkerType()));
         worker.setUpdatedAt(LocalDateTime.now());
         return toResponse(workerRepository.save(worker));
 
@@ -85,7 +95,16 @@ public class WorkerServiceImpl {
                 .joinedDate(worker.getJoinedDate())
                 .notes(worker.getNotes())
                 .createdAt(worker.getCreatedAt())
+                .timeLogActive(worker.getTimeLogActive())
+                .billAssignable(worker.getBillAssignable())
+                .normalWorkingHours(worker.getNormalWorkingHours())
                 .build();
+    }
 
+    public WorkerResponse toggleBillAssignable(Long workerId) {
+        Worker worker = workerRepository.findById(workerId)
+                .orElseThrow(() -> new RuntimeException("Worker not found"));
+        worker.setBillAssignable(!Boolean.TRUE.equals(worker.getBillAssignable()));
+        return toResponse(workerRepository.save(worker));
     }
 }

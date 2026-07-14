@@ -24,3 +24,25 @@ app:
 
 server:
   port: ${PORT:8080}
+
+# ── Observability ────────────────────────────────────────────────────────────
+#
+# HOW THIS WORKS:
+#   Metrics + Traces: Grafana OTel Java agent (grafana-opentelemetry-java.jar)
+#                     attaches to the JVM at startup via -javaagent flag.
+#                     Auto-instruments HTTP requests, JDBC queries, JVM stats.
+#                     Pushes to Grafana Cloud via OTEL_* env vars on the server.
+#
+#   Logs:             Loki4j logback appender pushes structured logs to Grafana Loki.
+#                     Configured in logback-spring.xml.
+#
+# No extra process runs on the server — agent is inside the JVM, Loki4j is async HTTP.
+#
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health   # /actuator/health only — safe to expose publicly
+  endpoint:
+    health:
+      show-details: never

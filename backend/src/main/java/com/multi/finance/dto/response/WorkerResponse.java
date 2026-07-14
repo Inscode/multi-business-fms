@@ -19,5 +19,7 @@ public class WorkerResponse {
     private LocalDate joinedDate;
     private String notes;
     private LocalDateTime createdAt;
-
+    private Boolean timeLogActive;
+    private Boolean billAssignable;
+    private Integer normalWorkingHours;
 }

@@ -23,4 +23,10 @@ public class CollectionNoteResponse {
     private String collectedByName;
     private LocalDateTime collectedAt;
     private String notes;
+    private String chequeNumber;
+    private String bankName;
+    private String branchName;
+    private java.time.LocalDate chequeDate;
+    private String referenceNumber;
+    private Long sourceEntryId;
 }

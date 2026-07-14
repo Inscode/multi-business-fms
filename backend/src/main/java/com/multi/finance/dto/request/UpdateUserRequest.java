@@ -19,5 +19,7 @@ public class UpdateUserRequest {
 
     private String password;
 
+    private String adminCurrentPassword;
+
     private Boolean active;
 }

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -79,6 +80,15 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getTodaysPayments());
     }
 
+    @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<PaymentResponse> rejectPayment(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reason = body != null ? body.getOrDefault("reason", "") : "";
+        return ResponseEntity.ok(paymentService.rejectPayment(id, reason));
+    }
+
     @PatchMapping("/{id}/return")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PaymentResponse> markChequeReturned(
@@ -137,6 +147,22 @@ public class PaymentController {
             @PathVariable Long groupId,
             @Valid @RequestBody ReturnPaymentRequest request) {
         return ResponseEntity.ok(paymentService.returnGroup(groupId, request.getReturnReason()));
+    }
+
+    // ── Cheque lookup ─────────────────────────────────────────────────────────
+
+    @GetMapping("/future-cheques")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<PaymentResponse>> getFutureCheques(
+            @RequestParam(required = false) String customer) {
+        return ResponseEntity.ok(paymentService.getFutureCheques(customer));
+    }
+
+    @GetMapping("/cheque-search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<PaymentResponse>> searchByChequeNumber(
+            @RequestParam String chequeNumber) {
+        return ResponseEntity.ok(paymentService.searchByChequeNumber(chequeNumber));
     }
 
 }

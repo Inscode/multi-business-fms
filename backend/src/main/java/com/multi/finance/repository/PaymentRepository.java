@@ -67,6 +67,11 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.bill.id = :billId AND p.status = 'ENTERED'")
     BigDecimal sumEnteredForBill(@Param("billId") Long billId);
 
+    // ── Copilot queries ───────────────────────────────────────────────────────
+
+    @Query("SELECT p FROM Payment p JOIN FETCH p.bill WHERE p.bill.id IN :billIds ORDER BY p.paymentDate DESC")
+    List<Payment> findByBillIdIn(@Param("billIds") List<Long> billIds);
+
     /** Returns [billId, maxPaymentDate] pairs — single bulk query, avoids N+1 in aging report */
     @Query("SELECT p.bill.id, MAX(p.paymentDate) FROM Payment p WHERE p.bill.id IN :billIds AND p.status = 'CONFIRMED' GROUP BY p.bill.id")
     List<Object[]> findLastConfirmedDatesByBillIds(@Param("billIds") List<Long> billIds);
@@ -133,4 +138,21 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
            "ORDER BY p.amount DESC", nativeQuery = true)
     List<Object[]> findChequeDetailsByDate(@Param("business") String business,
                                            @Param("date") LocalDate date);
+
+    /** Future-dated cheques (chequeDate >= today), optionally filtered by customer name substring */
+    @Query("SELECT p FROM Payment p JOIN FETCH p.bill b " +
+           "WHERE p.paymentType = com.multi.finance.enums.PaymentType.CHEQUE " +
+           "AND p.chequeDate >= :today " +
+           "AND p.status NOT IN (com.multi.finance.enums.PaymentStatus.REJECTED, com.multi.finance.enums.PaymentStatus.RETURNED) " +
+           "AND (:customer IS NULL OR LOWER(b.customerName) LIKE LOWER(CONCAT('%', CAST(:customer AS string), '%'))) " +
+           "ORDER BY p.chequeDate ASC")
+    List<Payment> findFutureCheques(@Param("today") LocalDate today, @Param("customer") String customer);
+
+    /** All cheque payments whose cheque number contains the given substring (no date constraint) */
+    @Query("SELECT p FROM Payment p JOIN FETCH p.bill " +
+           "WHERE p.paymentType = com.multi.finance.enums.PaymentType.CHEQUE " +
+           "AND p.chequeNumber IS NOT NULL " +
+           "AND LOWER(p.chequeNumber) LIKE LOWER(CONCAT('%', CAST(:chequeNumber AS string), '%')) " +
+           "ORDER BY p.chequeDate ASC NULLS LAST")
+    List<Payment> findByChequeNumberContaining(@Param("chequeNumber") String chequeNumber);
 }

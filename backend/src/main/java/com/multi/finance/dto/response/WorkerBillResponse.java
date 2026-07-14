@@ -32,4 +32,7 @@ public class WorkerBillResponse {
 
     // Worker's entered payments for this bill
     private List<WorkerPaymentEntryResponse> workerPayments;
+
+    private Boolean collectionOnly;
+    private String createdAt;
 }

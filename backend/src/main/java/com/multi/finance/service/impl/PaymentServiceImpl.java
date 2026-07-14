@@ -72,34 +72,22 @@ public class PaymentServiceImpl {
             }
         }
 
-        // Deduct already-ENTERED (not yet confirmed) payments so two drafts
-        // for the same bill can't together exceed the real balance.
-        BigDecimal alreadyEntered = paymentRepository.sumEnteredForBill(billId);
-        BigDecimal effectiveBalance = bill.getBalanceRemaining().subtract(alreadyEntered);
-        if (request.getAmount().compareTo(effectiveBalance) > 0) {
-            throw new RuntimeException(
-                    "Payment amount exceeds remaining balance" +
-                    (alreadyEntered.compareTo(BigDecimal.ZERO) > 0
-                        ? " (Rs " + alreadyEntered.toPlainString() + " is already pending confirmation)"
-                        : ""));
+        // Balance is deducted immediately at entry time.
+        // balanceRemaining already reflects all previously entered payments.
+        if (request.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
+            throw new RuntimeException("Payment amount exceeds remaining balance (Rs " +
+                    bill.getBalanceRemaining().toPlainString() + ")");
         }
 
-        /*
-         * Validate cheque details
-         */
         if (request.getPaymentType() == PaymentType.CHEQUE) {
-
             if (request.getChequeNumber() == null ||
                     request.getBankName() == null ||
                     request.getChequeDate() == null) {
-
-                throw new RuntimeException(
-                        "Cheque details are required");
+                throw new RuntimeException("Cheque details are required");
             }
         }
 
-        boolean isPartial = request.getAmount()
-                .compareTo(effectiveBalance) < 0;
+        boolean isPartial = request.getAmount().compareTo(bill.getBalanceRemaining()) < 0;
 
         CollectionNote collectionNote = null;
         if (request.getCollectionNoteId() != null) {
@@ -149,59 +137,56 @@ public class PaymentServiceImpl {
             collectionNoteRepository.save(collectionNote);
         }
 
+        // Deduct balance immediately at entry — applies to direct payments and CollectionNote-linked
+        // payments alike. Worker-confirmed CollectionNotes no longer pre-deduct at confirmation.
+        applyBalanceDeduction(bill, payment.getAmount());
+
         return toResponse(payment, bill);
     }
+
     @Transactional
     public PaymentResponse confirmPayment(Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
 
-        if (payment.getStatus().equals(PaymentStatus.CONFIRMED)) {
+        if (payment.getStatus() == PaymentStatus.CONFIRMED) {
             throw new RuntimeException("Payment is already confirmed");
         }
-
-        Bill bill = payment.getBill();
-
-        if (payment.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
-            throw new RuntimeException(
-                    "Payment amount (Rs " + payment.getAmount().toPlainString() +
-                    ") exceeds the current bill balance (Rs " + bill.getBalanceRemaining().toPlainString() +
-                    "). Another payment for this bill may have been confirmed first.");
+        if (payment.getStatus() == PaymentStatus.REJECTED) {
+            throw new RuntimeException("Cannot confirm a rejected payment");
         }
 
-        // Update payment
+        // Balance was already deducted at entry — confirmation is now just a status mark.
         payment.setStatus(PaymentStatus.CONFIRMED);
         payment.setConfirmedBy(getCurrentUser());
         payment.setConfirmedAt(LocalDateTime.now());
         payment.setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
 
-        /*
-         * NOW update official bill balances
-         */
-        BigDecimal newAmountPaid =
-                bill.getAmountPaid().add(payment.getAmount());
+        return toResponse(payment, payment.getBill());
+    }
 
-        BigDecimal newBalance =
-                bill.getTotalAmount().subtract(newAmountPaid);
+    @Transactional
+    public PaymentResponse rejectPayment(Long paymentId, String reason) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
 
-        bill.setAmountPaid(newAmountPaid);
-
-        bill.setBalanceRemaining(newBalance);
-
-        bill.setFullyPaid(
-                newBalance.compareTo(BigDecimal.ZERO) <= 0
-        );
-
-        if (Boolean.TRUE.equals(bill.getFullyPaid())) {
-            bill.setStatus(BillStatus.COMPLETED);
+        if (payment.getStatus() == PaymentStatus.CONFIRMED) {
+            throw new RuntimeException("Cannot reject an already confirmed payment. Use cheque return for confirmed payments.");
+        }
+        if (payment.getStatus() == PaymentStatus.REJECTED) {
+            throw new RuntimeException("Payment is already rejected");
         }
 
-        bill.setUpdatedAt(LocalDateTime.now());
+        // Restore balance for all rejected payments — balance was deducted at entry for all types.
+        restoreBalance(payment.getBill(), payment.getAmount());
 
-        billRepository.save(bill);
+        payment.setStatus(PaymentStatus.REJECTED);
+        payment.setReturnReason(reason != null ? reason : "Rejected by admin");
+        payment.setUpdatedAt(LocalDateTime.now());
+        paymentRepository.save(payment);
 
-        return toResponse(payment, bill);
+        return toResponse(payment, payment.getBill());
     }
 
     @Transactional(readOnly = true)
@@ -272,7 +257,34 @@ public class PaymentServiceImpl {
         if (payment.getStatus() != PaymentStatus.ENTERED) {
             throw new RuntimeException("Only ENTERED payments can be deleted");
         }
+        // Restore balance — deducted at entry for all payment types.
+        restoreBalance(payment.getBill(), payment.getAmount());
         paymentRepository.delete(payment);
+    }
+
+    private void applyBalanceDeduction(Bill bill, BigDecimal amount) {
+        BigDecimal newBalance = bill.getBalanceRemaining().subtract(amount);
+        bill.setBalanceRemaining(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
+        bill.setAmountPaid(bill.getAmountPaid().add(amount));
+        bill.setFullyPaid(bill.getBalanceRemaining().compareTo(BigDecimal.ZERO) <= 0);
+        if (Boolean.TRUE.equals(bill.getFullyPaid())) {
+            bill.setStatus(BillStatus.COMPLETED);
+        }
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
+    }
+
+    private void restoreBalance(Bill bill, BigDecimal amount) {
+        BigDecimal newBalance = bill.getBalanceRemaining().add(amount);
+        BigDecimal newPaid = bill.getAmountPaid().subtract(amount);
+        bill.setBalanceRemaining(newBalance);
+        bill.setAmountPaid(newPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newPaid);
+        bill.setFullyPaid(false);
+        if (bill.getStatus() == BillStatus.COMPLETED) {
+            bill.setStatus(BillStatus.STORE_RECEIVED);
+        }
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
     }
 
     private Payment getPaymentById(Long id) {
@@ -314,6 +326,20 @@ public class PaymentServiceImpl {
         if (payment.getStatus() != PaymentStatus.ENTERED) {
             throw new RuntimeException("Only ENTERED payments can be edited");
         }
+
+        // Adjust balance for amount change — applies to all payment types.
+        BigDecimal diff = request.getAmount().subtract(payment.getAmount());
+        Bill bill = payment.getBill();
+        BigDecimal newBalance = bill.getBalanceRemaining().subtract(diff);
+        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("Updated amount exceeds remaining balance");
+        }
+        bill.setBalanceRemaining(newBalance);
+        bill.setAmountPaid(bill.getAmountPaid().add(diff));
+        bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
+        if (Boolean.TRUE.equals(bill.getFullyPaid())) bill.setStatus(BillStatus.COMPLETED);
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
 
         payment.setAmount(request.getAmount());
         payment.setPaymentType(request.getPaymentType());
@@ -398,16 +424,11 @@ public class PaymentServiceImpl {
             if (bill.getFullyPaid()) {
                 throw new RuntimeException("Bill " + item.getBillId() + " is already fully paid");
             }
-            BigDecimal alreadyEntered = paymentRepository.sumEnteredForBill(item.getBillId());
-            BigDecimal effectiveBalance = bill.getBalanceRemaining().subtract(alreadyEntered);
-            if (item.getAmount().compareTo(effectiveBalance) > 0) {
-                throw new RuntimeException("Amount exceeds balance for bill: " + item.getBillId() +
-                    (alreadyEntered.compareTo(BigDecimal.ZERO) > 0
-                        ? " (Rs " + alreadyEntered.toPlainString() + " pending confirmation)"
-                        : ""));
+            if (item.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
+                throw new RuntimeException("Amount exceeds balance for bill: " + bill.getBillNumber());
             }
 
-            boolean isPartial = item.getAmount().compareTo(effectiveBalance) < 0;
+            boolean isPartial = item.getAmount().compareTo(bill.getBalanceRemaining()) < 0;
 
             return Payment.builder()
                     .bill(bill)
@@ -431,6 +452,11 @@ public class PaymentServiceImpl {
 
         paymentRepository.saveAll(payments);
 
+        // Deduct balance immediately for each bill in the bulk payment
+        for (Payment p : payments) {
+            applyBalanceDeduction(p.getBill(), p.getAmount());
+        }
+
         return toGroupResponse(group, payments);
     }
 
@@ -446,29 +472,8 @@ public class PaymentServiceImpl {
         User currentUser = getCurrentUser();
         List<Payment> payments = paymentRepository.findByGroupId(groupId);
 
+        // Balance was already deducted at bulk entry time — confirmation is a status mark only.
         for (Payment payment : payments) {
-            Bill bill = payment.getBill();
-
-            if (payment.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
-                throw new RuntimeException(
-                        "Payment amount (Rs " + payment.getAmount().toPlainString() +
-                        ") exceeds bill balance (Rs " + bill.getBalanceRemaining().toPlainString() +
-                        ") for bill " + bill.getBillNumber() + ". Confirm individual payments separately.");
-            }
-
-            BigDecimal newAmountPaid = bill.getAmountPaid().add(payment.getAmount());
-            BigDecimal newBalance    = bill.getTotalAmount().subtract(newAmountPaid);
-
-            bill.setAmountPaid(newAmountPaid);
-            bill.setBalanceRemaining(newBalance);
-            bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
-
-            if (Boolean.TRUE.equals(bill.getFullyPaid())) {
-                bill.setStatus(BillStatus.COMPLETED);
-            }
-            bill.setUpdatedAt(LocalDateTime.now());
-            billRepository.save(bill);
-
             payment.setStatus(PaymentStatus.CONFIRMED);
             payment.setConfirmedBy(currentUser);
             payment.setConfirmedAt(LocalDateTime.now());
@@ -574,6 +579,24 @@ public class PaymentServiceImpl {
                 .createdAt(group.getCreatedAt())
                 .payments(paymentResponses)
                 .build();
+    }
+
+    // ── Cheque queries ────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<PaymentResponse> getFutureCheques(String customer) {
+        return paymentRepository.findFutureCheques(LocalDate.now(), customer)
+                .stream()
+                .map(p -> toResponse(p, p.getBill()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentResponse> searchByChequeNumber(String chequeNumber) {
+        return paymentRepository.findByChequeNumberContaining(chequeNumber)
+                .stream()
+                .map(p -> toResponse(p, p.getBill()))
+                .collect(Collectors.toList());
     }
 
     private PaymentResponse toResponse(Payment payment, Bill bill) {

@@ -26,4 +26,6 @@ public class WorkerRequest {
 
     private String notes;
 
+    private Integer normalWorkingHours;
+
 }

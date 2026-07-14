@@ -2,8 +2,7 @@ package com.multi.finance.config;
 
 import com.multi.finance.entity.ReturnProduct;
 import com.multi.finance.entity.User;
-import com.multi.finance.enums.BusinessType;
-import com.multi.finance.enums.UserRole;
+import com.multi.finance.enums.*;
 import com.multi.finance.repository.ReturnProductRepository;
 import com.multi.finance.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +29,24 @@ public class DataInitializer implements ApplicationRunner {
     @Value("${app.admin.password:password123}")
     private String adminPassword;
 
+    @Value("${app.copilot.password:CopilotService@2026!}")
+    private String copilotPassword;
+
     @Override
     public void run(ApplicationArguments args) {
         createUserIfNotExists("admin", "Admin User", UserRole.ADMIN, adminPassword);
+        createUserIfNotExists("copilot_service", "Copilot Service Account", UserRole.OWNER, copilotPassword);
+        seedDemoUsers();
         seedReturnProducts();
+    }
+
+    private void seedDemoUsers() {
+        // Demo accounts exist for backend DemoInterceptor (defense-in-depth).
+        // All demo data is served from the frontend — no DB data needed.
+        createUserIfNotExists("demo_admin",  "Demo Admin",       UserRole.ADMIN,      "Demo@2026");
+        createUserIfNotExists("demo_acc",    "Demo Accountant",  UserRole.ACCOUNTANT, "Demo@2026");
+        createUserIfNotExists("demo_owner",  "Demo Owner",       UserRole.OWNER,      "Demo@2026");
+        log.info("[Init] Demo accounts ready.");
     }
 
     private void seedReturnProducts() {

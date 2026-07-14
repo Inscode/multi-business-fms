@@ -3,9 +3,12 @@ package com.multi.finance.service.impl;
 import com.multi.finance.dto.request.WorkerGroupPaymentRequest;
 import com.multi.finance.dto.request.WorkerPaymentRequest;
 import com.multi.finance.dto.request.WorkerVisitRequest;
+import com.multi.finance.dto.response.WorkerBillOverviewResponse;
 import com.multi.finance.dto.response.WorkerBillResponse;
 import com.multi.finance.dto.response.WorkerPaymentEntryResponse;
 import com.multi.finance.dto.response.WorkerPaymentGroupResponse;
+import com.multi.finance.dto.response.WorkerReminderOverviewResponse;
+import com.multi.finance.dto.response.WorkerReturnOverviewResponse;
 import com.multi.finance.entity.*;
 import com.multi.finance.enums.*;
 import com.multi.finance.repository.*;
@@ -31,6 +34,7 @@ public class WorkerPortalService {
     private final WorkerPaymentEntryRepository entryRepository;
     private final WorkerPaymentGroupRepository groupRepository;
     private final BillReminderRepository reminderRepository;
+    private final BillReturnRepository billReturnRepository;
 
     // ── Helper ──────────────────────────────────────────────────────
 
@@ -99,6 +103,8 @@ public class WorkerPortalService {
                     .visitNote(visit != null ? visit.getWorkerNote() : null)
                     .managementNotes(notesMap.getOrDefault(b.getId(), List.of()))
                     .workerPayments(List.of()) // lite list view — full detail loaded separately
+                    .collectionOnly(Boolean.TRUE.equals(b.getCollectionOnly()))
+                    .createdAt(b.getCreatedAt() != null ? b.getCreatedAt().toString() : null)
                     .build();
         }).sorted(Comparator.comparing(r -> r.getVisitStatus().ordinal()))
                 .collect(Collectors.toList());
@@ -141,6 +147,8 @@ public class WorkerPortalService {
                 .visitNote(visit != null ? visit.getWorkerNote() : null)
                 .managementNotes(notes)
                 .workerPayments(payments)
+                .collectionOnly(Boolean.TRUE.equals(bill.getCollectionOnly()))
+                .createdAt(bill.getCreatedAt() != null ? bill.getCreatedAt().toString() : null)
                 .build();
     }
 
@@ -316,6 +324,83 @@ public class WorkerPortalService {
         return entryRepository
                 .findByWorkerIdAndEnteredAtBetweenOrderByEnteredAtDesc(worker.getId(), start, end)
                 .stream().map(this::toEntryResponse).collect(Collectors.toList());
+    }
+
+    // ── Overview Queries (all bills/returns/reminders) ────────────────
+
+    private static final List<BillStatus> PENDING_STATUSES = List.of(
+            BillStatus.CREATED, BillStatus.ASSIGNED, BillStatus.SHOP_WORKER_ASSIGNED,
+            BillStatus.STORE_RECEIVED, BillStatus.SHOP_RECEIVED);
+
+    @Transactional(readOnly = true)
+    public List<WorkerBillOverviewResponse> getAllBillsOverview(String view) {
+        List<Bill> bills;
+        if ("completed".equalsIgnoreCase(view)) {
+            LocalDate cutoff = LocalDate.now().minusDays(60);
+            bills = billRepository.findByStatusAndBillDateBetweenOrderByCreatedAtDesc(
+                    BillStatus.COMPLETED, cutoff, LocalDate.now());
+        } else {
+            bills = billRepository.findByStatusInOrderByCreatedAtDesc(PENDING_STATUSES);
+        }
+        return bills.stream().map(b -> WorkerBillOverviewResponse.builder()
+                .id(b.getId())
+                .billNumber(b.getBillNumber())
+                .customerName(b.getCustomerName())
+                .area(b.getArea())
+                .status(b.getStatus().name())
+                .business(b.getBusiness().name())
+                .billType(b.getBillType().name())
+                .billDate(b.getBillDate().toString())
+                .totalAmount(b.getTotalAmount())
+                .balanceRemaining(b.getBalanceRemaining())
+                .workerName(b.getCurrentHolder() != null ? b.getCurrentHolder().getFullName() : null)
+                .collectionOnly(Boolean.TRUE.equals(b.getCollectionOnly()))
+                .createdAt(b.getCreatedAt() != null ? b.getCreatedAt().toString() : null)
+                .build()).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void toggleCollectionOnly(Long billId) {
+        Bill bill = billRepository.findById(billId)
+                .orElseThrow(() -> new RuntimeException("Bill not found"));
+        bill.setCollectionOnly(!Boolean.TRUE.equals(bill.getCollectionOnly()));
+        billRepository.save(bill);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkerReturnOverviewResponse> getPendingReturns() {
+        return billReturnRepository.findByStatusOrderBySubmittedAtDesc(ReturnStatus.PENDING)
+                .stream().map(r -> WorkerReturnOverviewResponse.builder()
+                        .id(r.getId())
+                        .billId(r.getBill().getId())
+                        .billNumber(r.getBill().getBillNumber())
+                        .customerName(r.getBill().getCustomerName())
+                        .area(r.getBill().getArea())
+                        .returnType(r.getReturnType().name())
+                        .status(r.getStatus().name())
+                        .itemsTotal(r.getItemsTotal())
+                        .calculatedReturnAmount(r.getCalculatedReturnAmount())
+                        .notes(r.getNotes())
+                        .responsibleWorkerName(r.getResponsibleWorker() != null ? r.getResponsibleWorker().getFullName() : null)
+                        .submittedAt(r.getSubmittedAt().toString())
+                        .build()).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkerReminderOverviewResponse> getPendingReminders() {
+        return reminderRepository.findByStatus(ReminderStatus.PENDING)
+                .stream().map(r -> WorkerReminderOverviewResponse.builder()
+                        .id(r.getId())
+                        .billId(r.getBill().getId())
+                        .billNumber(r.getBill().getBillNumber())
+                        .customerName(r.getBill().getCustomerName())
+                        .area(r.getBill().getArea())
+                        .reminderDate(r.getReminderDate().toString())
+                        .period(r.getPeriod().name())
+                        .note(r.getNote())
+                        .status(r.getStatus().name())
+                        .createdAt(r.getCreatedAt().toString())
+                        .build()).collect(Collectors.toList());
     }
 
     // ── Mappers ───────────────────────────────────────────────────────

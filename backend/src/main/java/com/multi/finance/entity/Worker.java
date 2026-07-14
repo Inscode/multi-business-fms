@@ -47,11 +47,23 @@ public class Worker {
     @JoinColumn(name = "user_id")
     private User user;
 
+    /** When false, worker is excluded from time log tracking (e.g. temporary staff) */
+    @Builder.Default
+    @Column(name = "time_log_active", nullable = false)
+    private Boolean timeLogActive = true;
+
+    /** When true, worker appears in bill assignment dropdowns (field collection eligible) */
+    @Builder.Default
+    @Column(name = "bill_assignable", nullable = false)
+    private Boolean billAssignable = true;
+
+    /** Default hours worked per day — used by time-log monthly view when admin marks a normal day */
+    @Column(name = "normal_working_hours")
+    private Integer normalWorkingHours;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }
-
-//"ACCOUNTANT", "DELIVERY", "SALES_REP", "SHOP"

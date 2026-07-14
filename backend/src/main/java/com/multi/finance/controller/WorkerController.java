@@ -60,6 +60,12 @@ public class WorkerController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/toggle-bill-assignable")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<WorkerResponse> toggleBillAssignable(@PathVariable Long id) {
+        return ResponseEntity.ok(workerService.toggleBillAssignable(id));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deactivateWorker(@PathVariable Long id) {
