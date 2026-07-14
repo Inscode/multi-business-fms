@@ -53,7 +53,6 @@ jobs:
       #
       - name: Stop finance service on server
         run: ssh deploy@139.162.39.68 "sudo systemctl stop finance || true"
-        # deploy user has ONLY this sudo permission — if key leaks, attacker can't do anything else
 
       # ── 5. Deploy the JAR ────────────────────────────────────────────────────
       - name: Copy JAR to server
