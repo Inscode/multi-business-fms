@@ -32,11 +32,11 @@
       <http>
         <!-- Grafana Cloud Loki push URL — set via env var on your server -->
         <url>${GRAFANA_LOKI_URL}/loki/api/v1/push</url>
-        <auth>
-          <!-- Basic auth: base64("tenantId:apiKey") — Grafana provides this -->
-          <username>${GRAFANA_LOKI_USER}</username>
-          <password>${GRAFANA_LOKI_TOKEN}</password>
-        </auth>
+        <!-- Basic auth as explicit header — more reliable than <auth> tag across loki4j versions -->
+        <header>
+          <name>Authorization</name>
+          <value>Basic ${GRAFANA_LOKI_BASIC_AUTH}</value>
+        </header>
       </http>
       <format>
         <label>
