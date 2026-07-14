@@ -23,6 +23,8 @@ public interface WorkerPaymentEntryRepository extends JpaRepository<WorkerPaymen
 
     List<WorkerPaymentEntry> findByBillIdAndStatusNot(Long billId, WorkerPaymentStatus status);
 
+    List<WorkerPaymentEntry> findByBillIdAndStatus(Long billId, WorkerPaymentStatus status);
+
     List<WorkerPaymentEntry> findByGroupId(Long groupId);
 
     // Temp balance: sum of PENDING entries for a bill

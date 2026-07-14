@@ -91,6 +91,11 @@ public class Bill {
     @Column(name = "fully_paid", nullable = false)
     private Boolean fullyPaid;
 
+    /** Manually marked as collection-only — skip delivery classification regardless of bill age. */
+    @Column(name = "collection_only", nullable = false)
+    @Builder.Default
+    private Boolean collectionOnly = false;
+
     /**
      * True for SYSTEM bills that will be reconciled via End-of-Month linking to DRAFT/MANUAL bills.
      * When true: excluded from Summary Load + Stock Item Entry; only appears in Linking tab.

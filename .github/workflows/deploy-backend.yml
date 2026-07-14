@@ -1,0 +1,86 @@
+name: Deploy Backend to Production
+
+# Trigger: every push to dev branch
+on:
+  push:
+    branches: [dev]
+    paths:
+      # Only run when backend code actually changed — skip if only frontend was touched
+      - 'backend/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Build ─────────────────────────────────────────────────────────────
+      #
+      # WHY cache: Maven downloads ~50MB of dependencies on every run without it.
+      # With cache, subsequent deploys take ~30s instead of ~2 minutes.
+      #
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR (skip tests for faster deploy)
+        working-directory: backend
+        run: mvn package -DskipTests
+
+      # ── 3. Set up SSH ────────────────────────────────────────────────────────
+      #
+      # WHY ssh-keyscan: GitHub Actions runner doesn't know your server yet.
+      # This adds the server's fingerprint to known_hosts so SSH doesn't
+      # prompt "are you sure you want to connect?" and hang the pipeline.
+      #
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 139.162.39.68 >> ~/.ssh/known_hosts
+
+      # ── 4. Stop the service ──────────────────────────────────────────────────
+      #
+      # Must stop BEFORE copying the jar — JVM locks the file on Linux while running.
+      # We use || true so the step doesn't fail if the service was already stopped.
+      #
+      - name: Stop finance service on server
+        run: ssh deploy@139.162.39.68 "sudo systemctl stop finance || true"
+        # deploy user has ONLY this sudo permission — if key leaks, attacker can't do anything else
+
+      # ── 5. Deploy the JAR ────────────────────────────────────────────────────
+      - name: Copy JAR to server
+        run: |
+          scp backend/target/finance-0.0.1-SNAPSHOT.jar \
+            deploy@139.162.39.68:/opt/finance/app.jar
+
+      # ── 6. Restart the service ───────────────────────────────────────────────
+      - name: Start finance service on server
+        run: ssh deploy@139.162.39.68 "sudo systemctl start finance"
+
+      # ── 7. Health check ──────────────────────────────────────────────────────
+      #
+      # Wait 20s for Spring Boot to start, then hit /actuator/health.
+      # If it returns anything other than 200, the deploy is marked failed.
+      # This catches startup crashes (bad migration, missing env var, etc.)
+      #
+      - name: Wait for app to start
+        run: sleep 20
+
+      - name: Health check
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://139.162.39.68:8080/actuator/health)
+          echo "Health check status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Health check failed — checking server logs..."
+            ssh deploy@139.162.39.68 "sudo journalctl -u finance -n 50 --no-pager"
+            exit 1
+          fi
+          echo "Deploy successful!"

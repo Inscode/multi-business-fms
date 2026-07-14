@@ -6,6 +6,7 @@ import com.multi.finance.dto.request.BulkAssignBillRequest;
 import com.multi.finance.dto.request.BulkBillIdsRequest;
 import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.entity.Bill;
+import com.multi.finance.entity.BillReview;
 import com.multi.finance.entity.Customer;
 import com.multi.finance.entity.User;
 import com.multi.finance.entity.Worker;
@@ -14,6 +15,7 @@ import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.BillReviewRepository;
 import com.multi.finance.repository.CustomerRepository;
 import com.multi.finance.repository.PaymentRepository;
 import com.multi.finance.repository.UserRepository;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +50,7 @@ public class BillServiceImpl {
     private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
+    private final BillReviewRepository billReviewRepository;
 
     public BillResponse createBill(BillRequest request) {
         User currentUser = getCurrentUser();
@@ -63,9 +67,19 @@ public class BillServiceImpl {
         }
 
         String billNumber = switch (request.getBillSource()) {
-            case DRAFT  -> generateDraftNumber();
-            case SYSTEM -> "SYS-" + request.getBillNumber();
-            case MANUAL -> "MAN-" + request.getBillNumber();
+            case DRAFT  -> generateDraftNumber(request.getBusiness());
+            case SYSTEM -> {
+                String num = "SYS-" + stripLeadingZeros(request.getBillNumber());
+                if (billRepository.existsByBillNumberAndBusiness(num, request.getBusiness()))
+                    throw new RuntimeException("Bill number " + num + " already exists in this business");
+                yield num;
+            }
+            case MANUAL -> {
+                String num = "MAN-" + stripLeadingZeros(request.getBillNumber());
+                if (billRepository.existsByBillNumberAndBusiness(num, request.getBusiness()))
+                    throw new RuntimeException("Bill number " + num + " already exists in this business");
+                yield num;
+            }
         };
 
         Worker worker = null;
@@ -122,6 +136,8 @@ public class BillServiceImpl {
     @Transactional(readOnly = true)
     public List<BillResponse> getAllBills(BusinessType business, BillStatus status,
                                           boolean excludeCompleted, LocalDate from, LocalDate to) {
+        // Real users cannot access the DEMO business — it exists only for portfolio demo sessions
+        if (business == BusinessType.DEMO) return List.of();
         User caller = getCurrentUser();
         boolean doExclude = excludeCompleted && status == null;
         List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.CANCELLED);
@@ -197,9 +213,10 @@ public class BillServiceImpl {
     }
 
     /**
-     * Returns the business types visible to the given role.
-     * Returns null for ADMIN/OWNER (unrestricted) and for SHOP_ACCOUNTANT
-     * (their query is special — handled separately via findShopAccountantBills).
+     * Returns the real business types visible to the given role.
+     * DEMO is excluded for all real users — demo sessions use fake JWTs
+     * intercepted on the frontend before reaching this service.
+     * Returns null only for SHOP_ACCOUNTANT (handled by dedicated queries).
      */
     private List<BusinessType> getAllowedBusinessTypes(UserRole role) {
         return switch (role) {
@@ -207,8 +224,10 @@ public class BillServiceImpl {
             case ACCOUNTANT, MAIN_ACCOUNTANT -> List.of(
                     BusinessType.RAINCO, BusinessType.STATIONERY,
                     BusinessType.PLASTIC, BusinessType.HARDWARE);
-            case ADMIN, OWNER -> null; // unrestricted
-            case WORKER -> List.of(); // workers don't access the main bill list
+            case ADMIN, OWNER -> List.of(
+                    BusinessType.RAINCO, BusinessType.RETAIL_SHOP, BusinessType.STATIONERY,
+                    BusinessType.PLASTIC, BusinessType.HARDWARE);
+            case WORKER -> List.of();
         };
     }
 
@@ -639,7 +658,8 @@ public class BillServiceImpl {
             List<Integer> nums = new ArrayList<>();
 
             for (Bill bill : sourceBills) {
-                String num = bill.getBillNumber();
+                // Strip duplication suffix (e.g. "-DUP-411") before extracting the sequence number
+                String num = bill.getBillNumber().replaceAll("-DUP-\\d+$", "");
                 int lastDash = num.lastIndexOf('-');
                 if (lastDash < 0) continue;
                 String pref   = num.substring(0, lastDash + 1);
@@ -694,14 +714,76 @@ public class BillServiceImpl {
         return toResponse(findBillById(id));
     }
 
+    // ── Bill Review ──────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<BillResponse> getUnreviewedBills() {
+        User caller = getCurrentUser();
+        Set<Long> reviewed = billReviewRepository.findReviewedBillIdsByUserId(caller.getId());
+        return billRepository.findAll().stream()
+                .filter(b -> b.getStatus() != BillStatus.CANCELLED && !reviewed.contains(b.getId()))
+                .sorted(Comparator.comparing(Bill::getCreatedAt).reversed())
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public long getUnreviewedCount() {
+        User caller = getCurrentUser();
+        Set<Long> reviewed = billReviewRepository.findReviewedBillIdsByUserId(caller.getId());
+        return billRepository.countByStatusNot(BillStatus.CANCELLED) - reviewed.size();
+    }
+
+    @Transactional
+    public void markBillsReviewed(List<Long> billIds) {
+        User caller = getCurrentUser();
+        LocalDateTime now = LocalDateTime.now();
+        for (Long billId : billIds) {
+            if (!billReviewRepository.existsByBillIdAndReviewedById(billId, caller.getId())) {
+                Bill bill = billRepository.findById(billId)
+                        .orElseThrow(() -> new RuntimeException("Bill not found: " + billId));
+                billReviewRepository.save(BillReview.builder()
+                        .bill(bill)
+                        .reviewedBy(caller)
+                        .reviewedAt(now)
+                        .build());
+            }
+        }
+    }
+
+    @Transactional
+    public void markAllBillsReviewed() {
+        User caller = getCurrentUser();
+        Set<Long> alreadyReviewed = billReviewRepository.findReviewedBillIdsByUserId(caller.getId());
+        LocalDateTime now = LocalDateTime.now();
+        billRepository.findAll().stream()
+                .filter(b -> b.getStatus() != BillStatus.CANCELLED && !alreadyReviewed.contains(b.getId()))
+                .forEach(bill -> billReviewRepository.save(BillReview.builder()
+                        .bill(bill)
+                        .reviewedBy(caller)
+                        .reviewedAt(now)
+                        .build()));
+    }
+
     private User getCurrentUser() {
         return (User) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
     }
 
-    private String generateDraftNumber() {
-        long count = billRepository.countAllDrafts();
-        return String.format("DFT-%04d", count + 1);
+    private String stripLeadingZeros(String raw) {
+        if (raw == null) return raw;
+        try { return String.valueOf(Long.parseLong(raw.trim())); }
+        catch (NumberFormatException e) { return raw.trim(); }
+    }
+
+    private String generateDraftNumber(BusinessType business) {
+        Integer max = billRepository.findMaxDraftSequenceByBusiness(business);
+        int next = (max == null ? 0 : max) + 1;
+        String candidate;
+        do {
+            candidate = String.format("DFT-%d", next++);
+        } while (billRepository.existsByBillNumberAndBusiness(candidate, business));
+        return candidate;
     }
 
 
@@ -731,6 +813,7 @@ public class BillServiceImpl {
                 .createdAt(bill.getCreatedAt())
                 .willBeLinked(bill.getWillBeLinked())
                 .stockCleared(bill.getStockCleared())
+                .collectionOnly(bill.getCollectionOnly())
                 .build();
     }
 

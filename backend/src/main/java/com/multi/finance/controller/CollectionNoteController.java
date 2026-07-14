@@ -1,5 +1,6 @@
 package com.multi.finance.controller;
 
+import com.multi.finance.dto.request.CollectionNoteBulkRequest;
 import com.multi.finance.dto.request.CollectionNoteRequest;
 import com.multi.finance.dto.response.CollectionNoteResponse;
 import com.multi.finance.service.impl.CollectionNoteServiceImpl;
@@ -18,12 +19,18 @@ public class CollectionNoteController {
 
     private final CollectionNoteServiceImpl collectionNoteService;
 
-    // Only owner/admin marks a bill as collected
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     public ResponseEntity<CollectionNoteResponse> create(
             @Valid @RequestBody CollectionNoteRequest request) {
         return ResponseEntity.ok(collectionNoteService.create(request));
+    }
+
+    @PostMapping("/bulk")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<List<CollectionNoteResponse>> createBulk(
+            @Valid @RequestBody CollectionNoteBulkRequest request) {
+        return ResponseEntity.ok(collectionNoteService.createBulk(request));
     }
 
     // Owner/Admin sees their own collection notes

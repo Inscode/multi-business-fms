@@ -21,4 +21,13 @@ public class CollectionNoteRequest {
     private PaymentType paymentType; // CASH or CHEQUE only
 
     private String notes;
+
+    // Cheque fields — optional
+    private String chequeNumber;
+    private String bankName;
+    private String branchName;
+    private java.time.LocalDate chequeDate;
+
+    // Bank transfer — optional
+    private String referenceNumber;
 }

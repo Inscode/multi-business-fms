@@ -2,7 +2,9 @@ package com.multi.finance.controller;
 
 import com.multi.finance.dto.response.WorkerBillResponse;
 import com.multi.finance.dto.response.WorkerPaymentEntryResponse;
+import com.multi.finance.service.impl.CollectionNoteServiceImpl;
 import com.multi.finance.service.impl.WorkerCollectionService;
+import com.multi.finance.dto.response.CollectionNoteResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +19,7 @@ import java.util.Map;
 public class WorkerCollectionController {
 
     private final WorkerCollectionService workerCollectionService;
+    private final CollectionNoteServiceImpl collectionNoteService;
 
     /** All entries — owner/admin/acc/main_acc can view */
     @GetMapping
@@ -61,5 +64,27 @@ public class WorkerCollectionController {
                                        @RequestBody Map<String, String> body) {
         workerCollectionService.rejectEntry(entryId, body.getOrDefault("reason", ""));
         return ResponseEntity.noContent().build();
+    }
+
+    /** Hard-delete a worker entry (admin/owner only) — also restores balance if confirmed */
+    @DeleteMapping("/{entryId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<Void> hardDelete(@PathVariable Long entryId) {
+        workerCollectionService.hardDeleteEntry(entryId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** PENDING worker entries for a specific bill — used by bill-detail to show status */
+    @GetMapping("/pending-for-bill/{billId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<WorkerPaymentEntryResponse>> getPendingForBill(@PathVariable Long billId) {
+        return ResponseEntity.ok(workerCollectionService.getPendingEntriesForBill(billId));
+    }
+
+    /** Collection notes for a specific bill — pending notes show the acc what to record */
+    @GetMapping("/collection-notes-for-bill/{billId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<CollectionNoteResponse>> getCollectionNotesForBill(@PathVariable Long billId) {
+        return ResponseEntity.ok(collectionNoteService.getByBillId(billId));
     }
 }

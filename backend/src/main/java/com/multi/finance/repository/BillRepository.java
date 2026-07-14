@@ -37,6 +37,7 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     long countByBillDateAndStatusNot(LocalDate date, BillStatus status);
     long countByStatus(BillStatus status);
+    long countByStatusNot(BillStatus status);
     long countByBillDateAndStatus(LocalDate date, BillStatus status);
     List<Bill> findByStatus(BillStatus status);
     long countByStatusIn(List<BillStatus> statuses);
@@ -73,6 +74,11 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     @Query("SELECT COUNT(b) FROM Bill b WHERE b.billSource = 'DRAFT'")
     long countAllDrafts();
+
+    @Query("SELECT MAX(CAST(SUBSTRING(b.billNumber, 5) AS int)) FROM Bill b WHERE b.billNumber LIKE 'DFT-%' AND b.business = :business")
+    Integer findMaxDraftSequenceByBusiness(@Param("business") BusinessType business);
+
+    boolean existsByBillNumberAndBusiness(String billNumber, BusinessType business);
 
     List<Bill> findAllByOrderByCreatedAtDesc();
     List<Bill> findByBusinessOrderByCreatedAtDesc(BusinessType business);
@@ -197,8 +203,16 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND (b.willBeLinked IS NULL OR b.willBeLinked = false) ORDER BY b.billDate DESC")
     List<Bill> findActiveRaincoBillsForBackorder();
 
-    // Global full-table search across all statuses/dates — for the "search all" toggle
-    @Query("SELECT b FROM Bill b WHERE LOWER(b.billNumber) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(b.customerName) LIKE LOWER(CONCAT('%',:q,'%')) ORDER BY b.billDate DESC")
+    // Global full-table search across all statuses/dates — excludes DEMO business
+    @Query("SELECT b FROM Bill b WHERE b.business <> 'DEMO' AND (LOWER(b.billNumber) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(b.customerName) LIKE LOWER(CONCAT('%',:q,'%'))) ORDER BY b.billDate DESC")
     List<Bill> globalSearch(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
+
+    // ── Copilot queries ───────────────────────────────────────────────────────
+
+    @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.customer WHERE b.fullyPaid = false AND b.status NOT IN :excluded ORDER BY b.billDate ASC")
+    List<Bill> findOutstandingBillsWithCustomer(@Param("excluded") List<BillStatus> excluded);
+
+    @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.customer WHERE LOWER(b.customerName) LIKE LOWER(CONCAT('%', :name, '%')) OR (b.customer IS NOT NULL AND LOWER(b.customer.name) LIKE LOWER(CONCAT('%', :name, '%'))) ORDER BY b.createdAt DESC")
+    List<Bill> findByCustomerNameContainingIgnoreCase(@Param("name") String name);
 
 }

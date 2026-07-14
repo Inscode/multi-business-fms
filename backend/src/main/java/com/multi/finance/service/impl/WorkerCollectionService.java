@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -60,9 +61,12 @@ public class WorkerCollectionService {
         entry.setConfirmedAt(LocalDateTime.now());
         entryRepository.save(entry);
 
-        // Create CollectionNote so accountant can formally enter the payment
+        Bill bill = billRepository.findById(entry.getBill().getId())
+                .orElseThrow(() -> new RuntimeException("Bill not found"));
+
+        // Create CollectionNote — balance deducts when acc enters the formal payment
         CollectionNote note = CollectionNote.builder()
-                .bill(entry.getBill())
+                .bill(bill)
                 .amount(entry.getAmount())
                 .paymentType(entry.getPaymentType())
                 .status(CollectionNoteStatus.PENDING)
@@ -70,6 +74,10 @@ public class WorkerCollectionService {
                 .collectedAt(LocalDateTime.now())
                 .notes("Worker: " + entry.getWorker().getFullName()
                         + (entry.getWorkerNote() != null ? " — " + entry.getWorkerNote() : ""))
+                .chequeNumber(entry.getChequeNumber())
+                .bankName(entry.getBankName())
+                .branchName(entry.getBranchName())
+                .sourceEntryId(entry.getId())
                 .build();
         collectionNoteRepository.save(note);
 
@@ -100,8 +108,11 @@ public class WorkerCollectionService {
                 entry.setConfirmedAt(LocalDateTime.now());
                 entryRepository.save(entry);
 
+                Bill bill = billRepository.findById(entry.getBill().getId())
+                        .orElseThrow(() -> new RuntimeException("Bill not found"));
+
                 CollectionNote note = CollectionNote.builder()
-                        .bill(entry.getBill())
+                        .bill(bill)
                         .amount(entry.getAmount())
                         .paymentType(entry.getPaymentType())
                         .status(CollectionNoteStatus.PENDING)
@@ -110,6 +121,10 @@ public class WorkerCollectionService {
                         .notes("Worker: " + entry.getWorker().getFullName()
                                 + " | Combined payment group #" + groupId
                                 + (entry.getWorkerNote() != null ? " — " + entry.getWorkerNote() : ""))
+                        .chequeNumber(entry.getChequeNumber())
+                        .bankName(entry.getBankName())
+                        .branchName(entry.getBranchName())
+                        .sourceEntryId(entry.getId())
                         .build();
                 collectionNoteRepository.save(note);
 
@@ -164,6 +179,52 @@ public class WorkerCollectionService {
                     .workerPayments(List.of())
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    /** Hard-delete a worker entry (admin only). Removes the linked CollectionNote if PENDING. */
+    @Transactional
+    public void hardDeleteEntry(Long entryId) {
+        WorkerPaymentEntry entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new RuntimeException("Entry not found"));
+
+        // Balance was never deducted at confirmation — only deducts when acc enters formal payment.
+        // If the CollectionNote is already MATCHED (acc has entered payment), the balance was
+        // deducted at that point and should not be reversed here (use payment reject/delete for that).
+        collectionNoteRepository.deleteBySourceEntryId(entryId);
+
+        entryRepository.delete(entry);
+    }
+
+    /** Returns PENDING worker entries for a specific bill (for bill-detail status display). */
+    @Transactional(readOnly = true)
+    public List<WorkerPaymentEntryResponse> getPendingEntriesForBill(Long billId) {
+        return entryRepository.findByBillIdAndStatus(billId, WorkerPaymentStatus.PENDING)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    private void applyBalanceDeduction(Bill bill, BigDecimal amount) {
+        BigDecimal newBalance = bill.getBalanceRemaining().subtract(amount);
+        bill.setBalanceRemaining(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
+        bill.setAmountPaid(bill.getAmountPaid().add(amount));
+        bill.setFullyPaid(bill.getBalanceRemaining().compareTo(BigDecimal.ZERO) <= 0);
+        if (Boolean.TRUE.equals(bill.getFullyPaid())) {
+            bill.setStatus(BillStatus.COMPLETED);
+        }
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
+    }
+
+    private void restoreBalance(Bill bill, BigDecimal amount) {
+        BigDecimal newBalance = bill.getBalanceRemaining().add(amount);
+        BigDecimal newPaid = bill.getAmountPaid().subtract(amount);
+        bill.setBalanceRemaining(newBalance);
+        bill.setAmountPaid(newPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newPaid);
+        bill.setFullyPaid(false);
+        if (bill.getStatus() == BillStatus.COMPLETED) {
+            bill.setStatus(BillStatus.STORE_RECEIVED);
+        }
+        bill.setUpdatedAt(LocalDateTime.now());
+        billRepository.save(bill);
     }
 
     private void updateVisitPaid(Long billId, Long workerId) {

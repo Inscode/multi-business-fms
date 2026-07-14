@@ -50,6 +50,10 @@ public class Jwtutil {
         return username.equals(user.getUsername()) && !isTokenExpired(token);
     }
 
+    public Date getExpirationDate(String token) {
+        return extractClaims(token).getExpiration();
+    }
+
     private boolean isTokenExpired(String token) {
         return extractClaims(token).getExpiration().before(new Date());
     }

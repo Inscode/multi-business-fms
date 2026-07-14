@@ -4,11 +4,15 @@ import com.multi.finance.dto.request.RegisterRequest;
 import com.multi.finance.dto.request.UpdateUserRequest;
 import com.multi.finance.dto.response.UserResponse;
 import com.multi.finance.service.impl.UserServiceImpl;
+import com.multi.finance.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 import java.util.List;
 
@@ -37,9 +41,10 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateUserRequest request
-            ) {
-        return ResponseEntity.ok(userService.updateUser(id, request));
+            @Valid @RequestBody UpdateUserRequest request,
+            @AuthenticationPrincipal User adminUser
+    ) {
+        return ResponseEntity.ok(userService.updateUser(id, request, adminUser));
     }
 
     @DeleteMapping("/{id}")
@@ -48,5 +53,13 @@ public class UserController {
         userService.deactivateUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> activateUser(@PathVariable Long id) {
+        userService.activateUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
 
 }

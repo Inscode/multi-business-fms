@@ -3,9 +3,12 @@ package com.multi.finance.controller;
 import com.multi.finance.dto.request.WorkerGroupPaymentRequest;
 import com.multi.finance.dto.request.WorkerPaymentRequest;
 import com.multi.finance.dto.request.WorkerVisitRequest;
+import com.multi.finance.dto.response.WorkerBillOverviewResponse;
 import com.multi.finance.dto.response.WorkerBillResponse;
 import com.multi.finance.dto.response.WorkerPaymentEntryResponse;
 import com.multi.finance.dto.response.WorkerPaymentGroupResponse;
+import com.multi.finance.dto.response.WorkerReminderOverviewResponse;
+import com.multi.finance.dto.response.WorkerReturnOverviewResponse;
 import com.multi.finance.service.impl.WorkerPortalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -69,5 +72,21 @@ public class WorkerPortalController {
     @GetMapping("/payments/today")
     public ResponseEntity<List<WorkerPaymentEntryResponse>> getTodayPayments() {
         return ResponseEntity.ok(workerPortalService.getTodayPayments());
+    }
+
+    @GetMapping("/bills/overview")
+    public ResponseEntity<List<WorkerBillOverviewResponse>> getBillsOverview(
+            @RequestParam(defaultValue = "pending") String view) {
+        return ResponseEntity.ok(workerPortalService.getAllBillsOverview(view));
+    }
+
+    @GetMapping("/returns/overview")
+    public ResponseEntity<List<WorkerReturnOverviewResponse>> getReturnsOverview() {
+        return ResponseEntity.ok(workerPortalService.getPendingReturns());
+    }
+
+    @GetMapping("/reminders/overview")
+    public ResponseEntity<List<WorkerReminderOverviewResponse>> getRemindersOverview() {
+        return ResponseEntity.ok(workerPortalService.getPendingReminders());
     }
 }
