@@ -66,20 +66,25 @@ jobs:
 
       # ── 7. Health check ──────────────────────────────────────────────────────
       #
-      # Wait 20s for Spring Boot to start, then hit /actuator/health.
-      # If it returns anything other than 200, the deploy is marked failed.
-      # This catches startup crashes (bad migration, missing env var, etc.)
+      # Port 8080 is not exposed publicly so we check via SSH instead.
+      # Verifies the service is active AND Spring Boot finished starting.
+      # If it crashed (bad migration, missing env var), logs are printed here.
       #
       - name: Wait for app to start
-        run: sleep 20
+        run: sleep 25
 
       - name: Health check
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://139.162.39.68:8080/actuator/health)
-          echo "Health check status: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "Health check failed — checking server logs..."
-            ssh deploy@139.162.39.68 "sudo journalctl -u finance -n 50 --no-pager"
-            exit 1
-          fi
-          echo "Deploy successful!"
+          ssh deploy@139.162.39.68 "
+            if ! systemctl is-active --quiet finance; then
+              echo 'Service is not running!'
+              sudo journalctl -u finance -n 50 --no-pager
+              exit 1
+            fi
+            if ! sudo journalctl -u finance -n 100 --no-pager | grep -q 'Started FinanceApplication'; then
+              echo 'Spring Boot did not finish starting!'
+              sudo journalctl -u finance -n 80 --no-pager
+              exit 1
+            fi
+            echo 'Deploy successful — service is running and Spring Boot started.'
+          "
