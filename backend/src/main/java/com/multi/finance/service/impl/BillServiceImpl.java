@@ -18,6 +18,7 @@ import com.multi.finance.enums.BusinessType;
 import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillNumberSkipRepository;
 import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.BillReturnRepository;
 import com.multi.finance.repository.BillReviewRepository;
 import com.multi.finance.repository.CustomerRepository;
 import com.multi.finance.repository.PaymentRepository;
@@ -55,6 +56,7 @@ public class BillServiceImpl {
     private final CustomerRepository customerRepository;
     private final BillReviewRepository billReviewRepository;
     private final BillNumberSkipRepository billNumberSkipRepository;
+    private final BillReturnRepository billReturnRepository;
 
     public BillResponse createBill(BillRequest request) {
         User currentUser = getCurrentUser();
@@ -79,7 +81,17 @@ public class BillServiceImpl {
                 yield num;
             }
             case MANUAL -> {
-                String num = "MAN-" + stripLeadingZeros(request.getBillNumber());
+                // PLASTIC and STATIONERY use the shared physical book (BK- prefix)
+                boolean sharedBook = request.getBusiness() == BusinessType.PLASTIC
+                                  || request.getBusiness() == BusinessType.STATIONERY;
+                String num = (sharedBook ? "BK-" : "MAN-") + stripLeadingZeros(request.getBillNumber());
+                if (billRepository.existsByBillNumberAndBusiness(num, request.getBusiness()))
+                    throw new RuntimeException("Bill number " + num + " already exists in this business");
+                yield num;
+            }
+            case MANUAL_BOOK -> {
+                // RAINCO uses the shared physical book (BK- prefix)
+                String num = "BK-" + stripLeadingZeros(request.getBillNumber());
                 if (billRepository.existsByBillNumberAndBusiness(num, request.getBusiness()))
                     throw new RuntimeException("Bill number " + num + " already exists in this business");
                 yield num;
@@ -128,9 +140,11 @@ public class BillServiceImpl {
 
         BillResponse response = toResponse(billRepository.save(bill));
 
-        // Save skipped continuation page numbers for MANUAL bills
+        // Save skipped continuation page numbers for MANUAL / MANUAL_BOOK bills
         // ADMIN → APPROVED immediately; ACC/MAIN_ACCOUNTANT → PENDING (admin reviews in Reviews tab)
-        boolean canSubmitSkips = request.getBillSource() == BillSource.MANUAL
+        boolean isBookSourceBill = request.getBillSource() == BillSource.MANUAL
+                                || request.getBillSource() == BillSource.MANUAL_BOOK;
+        boolean canSubmitSkips = isBookSourceBill
                 && request.getSkippedBillNumbers() != null
                 && !request.getSkippedBillNumbers().isEmpty()
                 && (currentUser.getRole() == UserRole.ADMIN
@@ -140,7 +154,10 @@ public class BillServiceImpl {
         if (canSubmitSkips) {
             String skipStatus = currentUser.getRole() == UserRole.ADMIN ? "APPROVED" : "PENDING";
             Bill savedBill = billRepository.findById(response.getId()).orElse(null);
-            String businessName = request.getBusiness().name();
+            // MANUAL_BOOK (RAINCO) skips are stored under PLASTIC — the canonical key for the shared book
+            String businessName = request.getBillSource() == BillSource.MANUAL_BOOK
+                    ? "PLASTIC"
+                    : request.getBusiness().name();
             List<BillNumberSkip> skips = request.getSkippedBillNumbers().stream()
                     .map(String::trim)
                     .filter(n -> !n.isBlank())
@@ -494,6 +511,7 @@ public class BillServiceImpl {
         }
 
         paymentRepository.deleteAll(paymentRepository.findByBillId(bill.getId()));
+        billReturnRepository.deleteAll(billReturnRepository.findByBillIdOrderBySubmittedAtDesc(bill.getId()));
         billRepository.delete(bill);
     }
 
@@ -538,24 +556,25 @@ public class BillServiceImpl {
     }
 
     // Returns next 5 suggested bill numbers for the given business+source combo.
-    // PLASTIC+MANUAL and STATIONERY+MANUAL share one sequence.
+    // Shared physical book (BK- prefix): PLASTIC MANUAL + STATIONERY MANUAL + RAINCO MANUAL_BOOK.
     // Takes GREATEST across bills table and skip table so continuation pages don't re-appear.
     public List<Integer> getNextBillNumbers(BusinessType business, BillSource billSource) {
         int maxInBills;
         int maxInSkips;
 
-        boolean isSharedManual = billSource == BillSource.MANUAL &&
-                (business == BusinessType.PLASTIC || business == BusinessType.STATIONERY);
+        boolean isSharedBook = billSource == BillSource.MANUAL_BOOK
+                || (billSource == BillSource.MANUAL
+                    && (business == BusinessType.PLASTIC || business == BusinessType.STATIONERY));
 
-        if (isSharedManual) {
-            maxInBills = coalesce(billRepository.findMaxPlasticStationeryManualBillNumber());
-            maxInSkips = coalesce(billNumberSkipRepository.findMaxPlasticStationerySkippedNumber());
+        if (isSharedBook) {
+            maxInBills = coalesce(billRepository.findMaxSharedBookBillNumber());
+            maxInSkips = coalesce(billNumberSkipRepository.findMaxSharedBookSkippedNumber());
         } else if (billSource == BillSource.MANUAL) {
             maxInBills = coalesce(billRepository.findMaxManualBillNumber(business.name()));
             maxInSkips = coalesce(billNumberSkipRepository.findMaxSkippedNumber(business.name()));
         } else {
             maxInBills = coalesce(billRepository.findMaxSystemBillNumber(business.name()));
-            maxInSkips = 0; // skips only apply to MANUAL bills
+            maxInSkips = 0; // skips only apply to MANUAL/MANUAL_BOOK bills
         }
 
         int next = Math.max(maxInBills, maxInSkips) + 1;

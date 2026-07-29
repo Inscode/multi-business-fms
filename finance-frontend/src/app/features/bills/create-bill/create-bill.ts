@@ -50,6 +50,17 @@ export class CreateBill implements OnInit{
   billTypes   = ['CASH', 'CREDIT'];
   billSources = ['SYSTEM', 'MANUAL', 'DRAFT'];
 
+  get availableBillSources(): string[] {
+    const business = this.form.get('business')?.value;
+    if (business === 'RAINCO') {
+      return ['SYSTEM', 'MANUAL', 'MANUAL_BOOK', 'DRAFT'];
+    }
+    if (business === 'PLASTIC' || business === 'STATIONERY') {
+      return ['SYSTEM', 'MANUAL_BOOK', 'DRAFT'];
+    }
+    return ['SYSTEM', 'MANUAL', 'DRAFT'];
+  }
+
   suggestedBillNumbers: number[] = [];
   loadingNumbers = false;
   readonly String = String;
@@ -226,7 +237,14 @@ export class CreateBill implements OnInit{
     };
 
     this.form.get('billSource')?.valueChanges.subscribe(loadNumbers);
-    this.form.get('business')?.valueChanges.subscribe(loadNumbers);
+    this.form.get('business')?.valueChanges.subscribe(() => {
+      const currentSource = this.form.get('billSource')?.value;
+      const available = this.availableBillSources;
+      if (!available.includes(currentSource)) {
+        this.form.get('billSource')?.setValue('SYSTEM');
+      }
+      loadNumbers();
+    });
 
     // Load on init with default values
     loadNumbers();
