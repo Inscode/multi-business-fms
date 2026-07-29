@@ -10,6 +10,7 @@ import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.dto.response.BillSequenceGapResponse;
 import com.multi.finance.dto.response.DashboardResponse;
 import com.multi.finance.dto.response.DashboardStatsResponse;
+import com.multi.finance.dto.response.SkipReviewResponse;
 import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.service.impl.BillServiceImpl;
@@ -56,6 +57,34 @@ public class BillController {
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'OWNER')")
     public ResponseEntity<List<BillResponse>> globalSearch(@RequestParam String q) {
         return ResponseEntity.ok(billService.globalSearch(q));
+    }
+
+    @GetMapping("/next-numbers")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<Integer>> getNextBillNumbers(
+            @RequestParam com.multi.finance.enums.BusinessType business,
+            @RequestParam com.multi.finance.enums.BillSource billSource) {
+        return ResponseEntity.ok(billService.getNextBillNumbers(business, billSource));
+    }
+
+    @GetMapping("/skip-reviews")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<SkipReviewResponse>> getPendingSkips() {
+        return ResponseEntity.ok(billService.getPendingSkips());
+    }
+
+    @PatchMapping("/skip-reviews/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> approveSkip(@PathVariable Long id) {
+        billService.approveSkip(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/skip-reviews/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> rejectSkip(@PathVariable Long id) {
+        billService.rejectSkip(id);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/overdue-count")

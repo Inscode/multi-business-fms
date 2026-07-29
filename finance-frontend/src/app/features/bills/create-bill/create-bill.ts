@@ -50,6 +50,10 @@ export class CreateBill implements OnInit{
   billTypes   = ['CASH', 'CREDIT'];
   billSources = ['SYSTEM', 'MANUAL', 'DRAFT'];
 
+  suggestedBillNumbers: number[] = [];
+  loadingNumbers = false;
+  readonly String = String;
+
   get isDraft(): boolean {
     return this.form.get('billSource')?.value === 'DRAFT';
   }
@@ -71,17 +75,18 @@ export class CreateBill implements OnInit{
     private auth: Auth
   ) {
     this.form = this.fb.group({
-      business:     ['RAINCO', Validators.required],
-      division:     [null, Validators.required],
-      billType:     [null, Validators.required],
-      billSource:   ['SYSTEM', Validators.required],
-      billNumber:   [''],
-      area: [null],
-      customerName: ['', Validators.required],
-      totalAmount:  [null, [Validators.required, Validators.min(0.01)]],
-      billDate:     [new Date()],
-      workerId:     [null],
-      notes:        [''],
+      business:           ['RAINCO', Validators.required],
+      division:           [null, Validators.required],
+      billType:           [null, Validators.required],
+      billSource:         ['SYSTEM', Validators.required],
+      billNumber:         [''],
+      area:               [null],
+      customerName:       ['', Validators.required],
+      totalAmount:        [null, [Validators.required, Validators.min(0.01)]],
+      billDate:           [new Date()],
+      workerId:           [null],
+      notes:              [''],
+      skippedBillNumbers: [''],
     });
   }
 
@@ -189,16 +194,42 @@ export class CreateBill implements OnInit{
   }
 
   private watchBillSource(): void {
-    this.form.get('billSource')?.valueChanges.subscribe(source => {
+    const loadNumbers = () => {
+      const business = this.form.get('business')?.value;
+      const billSource = this.form.get('billSource')?.value;
       const billNumberControl = this.form.get('billNumber');
-      if (source === 'DRAFT') {
+
+      if (billSource === 'DRAFT') {
         billNumberControl?.clearValidators();
         billNumberControl?.setValue('');
-      } else {
-        billNumberControl?.setValidators(Validators.required);
+        billNumberControl?.updateValueAndValidity();
+        this.suggestedBillNumbers = [];
+        return;
       }
+
+      billNumberControl?.setValidators(Validators.required);
       billNumberControl?.updateValueAndValidity();
-    });
+
+      if (business && billSource && billSource !== 'DRAFT') {
+        this.loadingNumbers = true;
+        this.billService.getNextBillNumbers(business, billSource).subscribe({
+          next: (nums) => {
+            this.suggestedBillNumbers = nums;
+            if (nums.length > 0 && !this.form.get('billNumber')?.value) {
+              this.form.get('billNumber')?.setValue(String(nums[0]));
+            }
+            this.loadingNumbers = false;
+          },
+          error: () => { this.loadingNumbers = false; }
+        });
+      }
+    };
+
+    this.form.get('billSource')?.valueChanges.subscribe(loadNumbers);
+    this.form.get('business')?.valueChanges.subscribe(loadNumbers);
+
+    // Load on init with default values
+    loadNumbers();
   }
 
   submit(): void {
@@ -216,11 +247,20 @@ export class CreateBill implements OnInit{
     this.errorMsg = '';
 
     const raw = this.form.getRawValue();
-    const payload = {
+    const skippedRaw: string = raw.skippedBillNumbers ?? '';
+    const skippedBillNumbers = skippedRaw
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 0);
+
+    const payload: any = {
       ...raw,
       billDate: raw.billDate ? localDateStr(new Date(raw.billDate)) : localDateStr(),
       customerId: this.selectedCustomerId,
+      skippedBillNumbers: skippedBillNumbers.length > 0 ? skippedBillNumbers : undefined,
     };
+    delete payload.skippedBillNumbers; // remove string field
+    if (skippedBillNumbers.length > 0) payload.skippedBillNumbers = skippedBillNumbers;
     if (!payload.workerId) delete payload.workerId;
     if (!payload.customerId) delete payload.customerId;
 

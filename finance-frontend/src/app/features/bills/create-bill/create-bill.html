@@ -55,11 +55,10 @@
       <div class="form-row" *ngIf="!isDraft && !isEditing">
         <mat-form-field appearance="outline" class="field-full">
           <mat-label>Bill Number</mat-label>
-          <input
-            matInput
-            formControlName="billNumber"
-            placeholder="Enter bill number from bill book or system"
-          />
+          <mat-select formControlName="billNumber">
+            <mat-option *ngIf="loadingNumbers" disabled>Loading...</mat-option>
+            <mat-option *ngFor="let n of suggestedBillNumbers" [value]="String(n)">{{ n }}</mat-option>
+          </mat-select>
           <mat-error *ngIf="form.get('billNumber')?.hasError('required')">Required</mat-error>
           <mat-error *ngIf="form.get('billNumber')?.hasError('duplicate')">This bill number already exists — use a different number</mat-error>
         </mat-form-field>
@@ -68,6 +67,16 @@
       <div class="draft-notice" *ngIf="isDraft && !isEditing">
         <mat-icon>info_outline</mat-icon>
         <span>Bill number will be auto-generated (DFT-XXXX)</span>
+      </div>
+
+      <!-- Continuation pages: admin = approved immediately, acc = goes to admin review -->
+      <div class="form-row" *ngIf="!isDraft && !isEditing && form.get('billSource')?.value === 'MANUAL'">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Continuation pages used (comma-separated)</mat-label>
+          <input matInput formControlName="skippedBillNumbers" placeholder="e.g. 341, 342" />
+          <mat-hint *ngIf="isAdmin">These will be marked as used immediately</mat-hint>
+          <mat-hint *ngIf="!isAdmin">These will be sent to admin for review</mat-hint>
+        </mat-form-field>
       </div>
 
       <div class="form-row">

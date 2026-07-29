@@ -203,6 +203,23 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND (b.willBeLinked IS NULL OR b.willBeLinked = false) ORDER BY b.billDate DESC")
     List<Bill> findActiveRaincoBillsForBackorder();
 
+    // Bills are stored as "MAN-655" or "SYS-13529" — strip 4-char prefix before casting
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(bill_number FROM 5) AS INTEGER)), 0) FROM bills " +
+                   "WHERE business = :business AND bill_source = 'MANUAL' " +
+                   "AND bill_number ~ '^MAN-[0-9]+$'", nativeQuery = true)
+    Integer findMaxManualBillNumber(@Param("business") String business);
+
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(bill_number FROM 5) AS INTEGER)), 0) FROM bills " +
+                   "WHERE business = :business AND bill_source = 'SYSTEM' " +
+                   "AND bill_number ~ '^SYS-[0-9]+$'", nativeQuery = true)
+    Integer findMaxSystemBillNumber(@Param("business") String business);
+
+    // Shared sequence for PLASTIC+STATIONERY MANUAL bills
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(bill_number FROM 5) AS INTEGER)), 0) FROM bills " +
+                   "WHERE business IN ('PLASTIC','STATIONERY') AND bill_source = 'MANUAL' " +
+                   "AND bill_number ~ '^MAN-[0-9]+$'", nativeQuery = true)
+    Integer findMaxPlasticStationeryManualBillNumber();
+
     // Global full-table search across all statuses/dates — excludes DEMO business
     @Query("SELECT b FROM Bill b WHERE b.business <> 'DEMO' AND (LOWER(b.billNumber) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(b.customerName) LIKE LOWER(CONCAT('%',:q,'%'))) ORDER BY b.billDate DESC")
     List<Bill> globalSearch(@Param("q") String q, org.springframework.data.domain.Pageable pageable);

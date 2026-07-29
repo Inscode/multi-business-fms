@@ -94,6 +94,16 @@ export interface BillResponse {
   collectionOnly?: boolean;
 }
 
+export interface SkipReviewResponse {
+  id: number;
+  business: string;
+  skippedBillNumber: string;
+  relatedBillNumber: string | null;
+  customerName: string | null;
+  submittedByName: string | null;
+  submittedAt: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -104,6 +114,22 @@ export class Bill {
 
   globalSearch(q: string): Observable<BillResponse[]> {
     return this.http.get<BillResponse[]>(`${this.apiUrl}/search`, { params: { q } });
+  }
+
+  getNextBillNumbers(business: string, billSource: string): Observable<number[]> {
+    return this.http.get<number[]>(`${this.apiUrl}/next-numbers`, { params: { business, billSource } });
+  }
+
+  getPendingSkips(): Observable<SkipReviewResponse[]> {
+    return this.http.get<SkipReviewResponse[]>(`${this.apiUrl}/skip-reviews`);
+  }
+
+  approveSkip(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/skip-reviews/${id}/approve`, {});
+  }
+
+  rejectSkip(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/skip-reviews/${id}/reject`, {});
   }
 
   getBills(filter?: BillFilter): Observable<BillResponse[]> {
