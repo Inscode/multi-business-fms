@@ -5,7 +5,9 @@ import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.request.BulkAssignBillRequest;
 import com.multi.finance.dto.request.BulkBillIdsRequest;
 import com.multi.finance.dto.response.BillResponse;
+import com.multi.finance.dto.response.SkipReviewResponse;
 import com.multi.finance.entity.Bill;
+import com.multi.finance.entity.BillNumberSkip;
 import com.multi.finance.entity.BillReview;
 import com.multi.finance.entity.Customer;
 import com.multi.finance.entity.User;
@@ -14,6 +16,7 @@ import com.multi.finance.enums.BillSource;
 import com.multi.finance.enums.BillStatus;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.enums.UserRole;
+import com.multi.finance.repository.BillNumberSkipRepository;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.BillReviewRepository;
 import com.multi.finance.repository.CustomerRepository;
@@ -51,6 +54,7 @@ public class BillServiceImpl {
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
     private final BillReviewRepository billReviewRepository;
+    private final BillNumberSkipRepository billNumberSkipRepository;
 
     public BillResponse createBill(BillRequest request) {
         User currentUser = getCurrentUser();
@@ -122,7 +126,37 @@ public class BillServiceImpl {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return toResponse(billRepository.save(bill));
+        BillResponse response = toResponse(billRepository.save(bill));
+
+        // Save skipped continuation page numbers for MANUAL bills
+        // ADMIN → APPROVED immediately; ACC/MAIN_ACCOUNTANT → PENDING (admin reviews in Reviews tab)
+        boolean canSubmitSkips = request.getBillSource() == BillSource.MANUAL
+                && request.getSkippedBillNumbers() != null
+                && !request.getSkippedBillNumbers().isEmpty()
+                && (currentUser.getRole() == UserRole.ADMIN
+                    || currentUser.getRole() == UserRole.ACCOUNTANT
+                    || currentUser.getRole() == UserRole.MAIN_ACCOUNTANT);
+
+        if (canSubmitSkips) {
+            String skipStatus = currentUser.getRole() == UserRole.ADMIN ? "APPROVED" : "PENDING";
+            Bill savedBill = billRepository.findById(response.getId()).orElse(null);
+            String businessName = request.getBusiness().name();
+            List<BillNumberSkip> skips = request.getSkippedBillNumbers().stream()
+                    .map(String::trim)
+                    .filter(n -> !n.isBlank())
+                    .map(n -> BillNumberSkip.builder()
+                            .business(businessName)
+                            .billNumber(stripLeadingZeros(n))
+                            .status(skipStatus)
+                            .submittedBy(currentUser)
+                            .bill(savedBill)
+                            .createdAt(LocalDateTime.now())
+                            .build())
+                    .toList();
+            billNumberSkipRepository.saveAll(skips);
+        }
+
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -467,6 +501,71 @@ public class BillServiceImpl {
     public List<BillResponse> getLinkingBills() {
         return billRepository.findByWillBeLinkedTrueOrderByBillDateDesc()
                 .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    public List<SkipReviewResponse> getPendingSkips() {
+        return billNumberSkipRepository.findAllPending().stream()
+                .map(s -> SkipReviewResponse.builder()
+                        .id(s.getId())
+                        .business(s.getBusiness())
+                        .skippedBillNumber(s.getBillNumber())
+                        .relatedBillNumber(s.getBill() != null ? s.getBill().getBillNumber() : null)
+                        .customerName(s.getBill() != null ? s.getBill().getCustomerName() : null)
+                        .submittedByName(s.getSubmittedBy() != null ? s.getSubmittedBy().getUsername() : null)
+                        .submittedAt(s.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    public void approveSkip(Long id) {
+        BillNumberSkip skip = billNumberSkipRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Skip not found"));
+        User admin = getCurrentUser();
+        skip.setStatus("APPROVED");
+        skip.setReviewedBy(admin);
+        skip.setReviewedAt(LocalDateTime.now());
+        billNumberSkipRepository.save(skip);
+    }
+
+    public void rejectSkip(Long id) {
+        BillNumberSkip skip = billNumberSkipRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Skip not found"));
+        User admin = getCurrentUser();
+        skip.setStatus("REJECTED");
+        skip.setReviewedBy(admin);
+        skip.setReviewedAt(LocalDateTime.now());
+        billNumberSkipRepository.save(skip);
+    }
+
+    // Returns next 5 suggested bill numbers for the given business+source combo.
+    // PLASTIC+MANUAL and STATIONERY+MANUAL share one sequence.
+    // Takes GREATEST across bills table and skip table so continuation pages don't re-appear.
+    public List<Integer> getNextBillNumbers(BusinessType business, BillSource billSource) {
+        int maxInBills;
+        int maxInSkips;
+
+        boolean isSharedManual = billSource == BillSource.MANUAL &&
+                (business == BusinessType.PLASTIC || business == BusinessType.STATIONERY);
+
+        if (isSharedManual) {
+            maxInBills = coalesce(billRepository.findMaxPlasticStationeryManualBillNumber());
+            maxInSkips = coalesce(billNumberSkipRepository.findMaxPlasticStationerySkippedNumber());
+        } else if (billSource == BillSource.MANUAL) {
+            maxInBills = coalesce(billRepository.findMaxManualBillNumber(business.name()));
+            maxInSkips = coalesce(billNumberSkipRepository.findMaxSkippedNumber(business.name()));
+        } else {
+            maxInBills = coalesce(billRepository.findMaxSystemBillNumber(business.name()));
+            maxInSkips = 0; // skips only apply to MANUAL bills
+        }
+
+        int next = Math.max(maxInBills, maxInSkips) + 1;
+        List<Integer> options = new ArrayList<>();
+        for (int i = 0; i < 5; i++) options.add(next + i);
+        return options;
+    }
+
+    private int coalesce(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private static final int OVERDUE_DAYS = 45;

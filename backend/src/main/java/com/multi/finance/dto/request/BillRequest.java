@@ -10,6 +10,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 public class BillRequest {
@@ -44,5 +45,8 @@ public class BillRequest {
     private LocalDate billDate;
 
     private String notes;
+
+    // Admin-only: additional page numbers from the physical bill book consumed by this bill
+    private List<String> skippedBillNumbers;
 
 }

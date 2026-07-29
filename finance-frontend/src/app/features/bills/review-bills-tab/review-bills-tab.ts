@@ -10,7 +10,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { SelectionModel } from '@angular/cdk/collections';
-import { Bill, BillResponse } from '../../../core/services/bill';
+import { Bill, BillResponse, SkipReviewResponse } from '../../../core/services/bill';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 
 @Component({
@@ -42,6 +42,10 @@ export class ReviewBillsTab implements OnInit {
   markingAll = false;
   markingSelected = false;
 
+  pendingSkips: SkipReviewResponse[] = [];
+  loadingSkips = false;
+  processingSkipId: number | null = null;
+
   selection = new SelectionModel<BillResponse>(true, []);
 
   displayedColumns = ['select', 'billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'enteredBy', 'createdAt'];
@@ -54,6 +58,7 @@ export class ReviewBillsTab implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.loadSkips();
   }
 
   load(): void {
@@ -95,6 +100,32 @@ export class ReviewBillsTab implements OnInit {
     this.billService.markBillsReviewed(ids).subscribe({
       next: () => { this.markingSelected = false; this.load(); },
       error: () => { this.markingSelected = false; this.cdr.markForCheck(); },
+    });
+  }
+
+  loadSkips(): void {
+    this.loadingSkips = true;
+    this.billService.getPendingSkips().subscribe({
+      next: (skips) => { this.pendingSkips = skips; this.loadingSkips = false; this.cdr.markForCheck(); },
+      error: () => { this.loadingSkips = false; this.cdr.markForCheck(); },
+    });
+  }
+
+  approveSkip(skip: SkipReviewResponse): void {
+    this.processingSkipId = skip.id;
+    this.cdr.markForCheck();
+    this.billService.approveSkip(skip.id).subscribe({
+      next: () => { this.processingSkipId = null; this.loadSkips(); },
+      error: () => { this.processingSkipId = null; this.cdr.markForCheck(); },
+    });
+  }
+
+  rejectSkip(skip: SkipReviewResponse): void {
+    this.processingSkipId = skip.id;
+    this.cdr.markForCheck();
+    this.billService.rejectSkip(skip.id).subscribe({
+      next: () => { this.processingSkipId = null; this.loadSkips(); },
+      error: () => { this.processingSkipId = null; this.cdr.markForCheck(); },
     });
   }
 

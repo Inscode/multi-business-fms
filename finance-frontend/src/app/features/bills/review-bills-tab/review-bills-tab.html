@@ -118,4 +118,87 @@
     </mat-card>
   </ng-container>
 
+  <!-- ── Invoice Number Skip Reviews ───────────────────────── -->
+  <div class="skip-review-section">
+    <div class="review-toolbar">
+      <div class="review-info">
+        <mat-icon>skip_next</mat-icon>
+        <span *ngIf="!loadingSkips">
+          {{ pendingSkips.length === 0 ? 'No pending invoice skips' : pendingSkips.length + ' pending invoice skip' + (pendingSkips.length !== 1 ? 's' : '') }}
+        </span>
+        <span *ngIf="loadingSkips">Loading…</span>
+      </div>
+      <button mat-icon-button (click)="loadSkips()" matTooltip="Refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+
+    <div class="loading-state" *ngIf="loadingSkips">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+
+    <ng-container *ngIf="!loadingSkips">
+      <div class="empty-state" *ngIf="pendingSkips.length === 0">
+        <mat-icon>check_circle</mat-icon>
+        <p>No pending invoice skip requests.</p>
+      </div>
+
+      <mat-card class="review-table-card" *ngIf="pendingSkips.length > 0">
+        <table mat-table [dataSource]="pendingSkips">
+
+          <ng-container matColumnDef="business">
+            <th mat-header-cell *matHeaderCellDef>Business</th>
+            <td mat-cell *matCellDef="let s">{{ s.business }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="skippedBillNumber">
+            <th mat-header-cell *matHeaderCellDef>Skipped Page</th>
+            <td mat-cell *matCellDef="let s"><strong>{{ s.skippedBillNumber }}</strong></td>
+          </ng-container>
+
+          <ng-container matColumnDef="relatedBill">
+            <th mat-header-cell *matHeaderCellDef>Related Bill</th>
+            <td mat-cell *matCellDef="let s">{{ s.relatedBillNumber ?? '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="customerName">
+            <th mat-header-cell *matHeaderCellDef>Customer</th>
+            <td mat-cell *matCellDef="let s">{{ s.customerName ?? '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="submittedBy">
+            <th mat-header-cell *matHeaderCellDef>Submitted By</th>
+            <td mat-cell *matCellDef="let s">{{ s.submittedByName ?? '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="submittedAt">
+            <th mat-header-cell *matHeaderCellDef>Submitted At</th>
+            <td mat-cell *matCellDef="let s">{{ s.submittedAt | date:'dd/MM/yy HH:mm' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let s">
+              <button mat-icon-button color="primary"
+                      [disabled]="processingSkipId === s.id"
+                      (click)="approveSkip(s)"
+                      matTooltip="Approve — mark this page as used">
+                <mat-icon>check_circle</mat-icon>
+              </button>
+              <button mat-icon-button color="warn"
+                      [disabled]="processingSkipId === s.id"
+                      (click)="rejectSkip(s)"
+                      matTooltip="Reject — ignore this skip">
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="['business','skippedBillNumber','relatedBill','customerName','submittedBy','submittedAt','actions']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['business','skippedBillNumber','relatedBill','customerName','submittedBy','submittedAt','actions']"></tr>
+        </table>
+      </mat-card>
+    </ng-container>
+  </div>
+
 </div>

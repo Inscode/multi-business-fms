@@ -7,12 +7,17 @@
     In production   → logs push to Grafana Loki via HTTP (searchable forever,
                       even after the server restarts or the process dies).
 
-  HOW LOKI WORKS:
-    Unlike a database, Loki doesn't index the log content — it indexes LABELS
-    (key=value pairs). You search by label first, then filter text within matches.
-    That's why we attach labels like app, environment, level to every log line.
+  WHY <springProperty> instead of ${ENV_VAR} directly:
+    Plain Logback ${VAR} only reads JVM system properties (-DVAR=...), NOT OS
+    environment variables from the shell/systemd. <springProperty> uses Spring's
+    Environment which DOES include OS env vars — that's the correct bridge here.
 -->
 <configuration>
+
+  <!-- Pull env vars into logback via Spring's Environment (reads OS env vars correctly) -->
+  <springProperty name="lokiUrl"      source="GRAFANA_LOKI_URL"      defaultValue="http://localhost:3100"/>
+  <springProperty name="lokiUsername" source="GRAFANA_LOKI_USERNAME"  defaultValue=""/>
+  <springProperty name="lokiPassword" source="GRAFANA_LOKI_PASSWORD"  defaultValue=""/>
 
   <!-- ── Development: plain console output ─────────────────────────────── -->
   <springProfile name="!prod">
@@ -30,13 +35,11 @@
   <springProfile name="prod">
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
       <http>
-        <!-- Grafana Cloud Loki push URL — set via env var on your server -->
-        <url>${GRAFANA_LOKI_URL}/loki/api/v1/push</url>
-        <!-- Basic auth as explicit header — more reliable than <auth> tag across loki4j versions -->
-        <header>
-          <name>Authorization</name>
-          <value>Basic ${GRAFANA_LOKI_BASIC_AUTH}</value>
-        </header>
+        <url>${lokiUrl}/loki/api/v1/push</url>
+        <auth>
+          <username>${lokiUsername}</username>
+          <password>${lokiPassword}</password>
+        </auth>
       </http>
       <format>
         <label>
@@ -49,11 +52,11 @@
         </label>
         <message>
           <!-- The actual log line sent as JSON — searchable via LogQL in Grafana -->
-          <pattern>{"timestamp":"%d{ISO8601}","level":"%level","thread":"%thread","logger":"%logger{36}","message":"%msg%replace(%xException){'\n',' '}"}%n</pattern>
+          <pattern>{"timestamp":"%d{ISO8601}","level":"%level","thread":"%thread","logger":"%logger{36}","message":"%msg%replace(%xException){'\n',' '}"}%n</pattern>
         </message>
       </format>
       <batchMaxItems>100</batchMaxItems>
-      <batchTimeoutMs>5000</batchTimeoutMs>  <!-- send batch every 5s or when 100 items, whichever first -->
+      <batchTimeoutMs>5000</batchTimeoutMs>
     </appender>
 
     <!-- Also keep console output in prod for docker/systemd logs -->
