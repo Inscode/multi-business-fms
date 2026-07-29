@@ -1205,9 +1205,10 @@ public class StockServiceImpl {
 
     private String generateBillNumber(BillSource source) {
         return switch (source) {
-            case SYSTEM -> "SYS-" + System.currentTimeMillis();
-            case DRAFT  -> "DFT-" + System.currentTimeMillis();
-            case MANUAL -> "MAN-" + System.currentTimeMillis();
+            case SYSTEM      -> "SYS-" + System.currentTimeMillis();
+            case DRAFT       -> "DFT-" + System.currentTimeMillis();
+            case MANUAL      -> "MAN-" + System.currentTimeMillis();
+            case MANUAL_BOOK -> "BK-"  + System.currentTimeMillis();
         };
     }
 

@@ -474,10 +474,13 @@ export class BillDetail implements OnInit {
     if (!this.bill) return;
     const billNum = this.bill.billNumber;
     const billId = this.bill.id;
+    const returnWarning = this.returns.length > 0
+      ? `\n\n⚠️ This bill has ${this.returns.length} return record${this.returns.length !== 1 ? 's' : ''} which will also be deleted.`
+      : '';
     this.dialog.open(ConfirmDialog, {
       data: {
         title: 'Delete Bill',
-        message: `Delete bill ${billNum}? This cannot be undone.\nBills with confirmed payments cannot be deleted.`,
+        message: `Delete bill ${billNum}? This cannot be undone.\nBills with confirmed payments cannot be deleted.${returnWarning}`,
         confirmText: 'Delete',
         confirmColor: 'warn',
       },
