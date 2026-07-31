@@ -69,4 +69,16 @@ public interface ShadowStockMovementRepository extends JpaRepository<ShadowStock
            "FROM ReturnProduct p LEFT JOIN ShadowStockMovement m ON m.product = p " +
            "WHERE p.business = 'RAINCO' GROUP BY p.id")
     List<Object[]> getAggregatedBalancesForRainco();
+
+    /** Returns [productId, damageQty] for all products of a given business that have damage balance > 0. */
+    @Query("SELECT p.id, " +
+           "COALESCE(SUM(CASE WHEN m.cancelled = false AND m.type = 'DAMAGE_IN' THEN m.quantity " +
+           "                  WHEN m.cancelled = false AND m.type = 'DAMAGE_TO_COMPANY' THEN -m.quantity " +
+           "                  ELSE 0 END), 0) AS damageQty " +
+           "FROM ReturnProduct p LEFT JOIN ShadowStockMovement m ON m.product = p " +
+           "WHERE p.business = :business AND p.isReturnProduct = true " +
+           "GROUP BY p.id HAVING COALESCE(SUM(CASE WHEN m.cancelled = false AND m.type = 'DAMAGE_IN' THEN m.quantity " +
+           "                                        WHEN m.cancelled = false AND m.type = 'DAMAGE_TO_COMPANY' THEN -m.quantity " +
+           "                                        ELSE 0 END), 0) > 0")
+    List<Object[]> getDamageStockByBusiness(@Param("business") com.multi.finance.enums.BusinessType business);
 }

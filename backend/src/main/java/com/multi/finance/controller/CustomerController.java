@@ -3,6 +3,7 @@ package com.multi.finance.controller;
 import com.multi.finance.dto.request.CustomerRequest;
 import com.multi.finance.dto.response.CustomerResponse;
 import com.multi.finance.service.impl.CustomerServiceImpl;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,13 +32,13 @@ public class CustomerController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
-    public ResponseEntity<CustomerResponse> create(@RequestBody CustomerRequest req) {
+    public ResponseEntity<CustomerResponse> create(@Valid @RequestBody CustomerRequest req) {
         return ResponseEntity.ok(customerService.create(req));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<CustomerResponse> update(@PathVariable Long id, @RequestBody CustomerRequest req) {
+    public ResponseEntity<CustomerResponse> update(@PathVariable Long id, @Valid @RequestBody CustomerRequest req) {
         return ResponseEntity.ok(customerService.update(id, req));
     }
 

@@ -485,6 +485,18 @@ public class BillServiceImpl {
         if (request.getBillType() != null) {
             bill.setBillType(request.getBillType());
         }
+        if (request.getBillSource() != null) {
+            bill.setBillSource(request.getBillSource());
+        }
+        if (request.getBillNumber() != null && !request.getBillNumber().isBlank()) {
+            String newNum = request.getBillNumber().trim();
+            // Only update if actually changed — skip duplicate check for same value
+            if (!newNum.equals(bill.getBillNumber())) {
+                if (billRepository.existsByBillNumberAndBusiness(newNum, bill.getBusiness()))
+                    throw new RuntimeException("Bill number " + newNum + " already exists in this business");
+                bill.setBillNumber(newNum);
+            }
+        }
         if (request.getTotalAmount() != null) {
             bill.setTotalAmount(request.getTotalAmount());
             BigDecimal newBalance = request.getTotalAmount().subtract(bill.getAmountPaid());
@@ -577,9 +589,19 @@ public class BillServiceImpl {
             maxInSkips = 0; // skips only apply to MANUAL/MANUAL_BOOK bills
         }
 
+        int count;
+        if (billSource == BillSource.SYSTEM
+                && (business == BusinessType.RAINCO || business == BusinessType.STATIONERY)) {
+            count = 20;
+        } else if (isSharedBook) {
+            count = 10;
+        } else {
+            count = 5; // RAINCO MANUAL and all other combos
+        }
+
         int next = Math.max(maxInBills, maxInSkips) + 1;
         List<Integer> options = new ArrayList<>();
-        for (int i = 0; i < 5; i++) options.add(next + i);
+        for (int i = 0; i < count; i++) options.add(next + i);
         return options;
     }
 
