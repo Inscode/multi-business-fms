@@ -87,8 +87,8 @@ export class CustomersPage implements OnInit {
   ) {
     this.form = this.fb.group({
       name:     ['', [Validators.required, Validators.minLength(2)]],
-      phone:    [''],
-      area:     [null],
+      phone:    ['', Validators.required],
+      area:     [null, Validators.required],
       tier:     [null],
       shopType: [null],
     });

@@ -54,7 +54,8 @@
         </mat-form-field>
       </div>
 
-      <div class="form-row" *ngIf="!isDraft && !isEditing">
+      <!-- Non-admin create: sequence dropdown -->
+      <div class="form-row" *ngIf="!isDraft && !isEditing && !isAdmin">
         <mat-form-field appearance="outline" class="field-full">
           <mat-label>Bill Number</mat-label>
           <mat-select formControlName="billNumber">
@@ -63,6 +64,34 @@
           </mat-select>
           <mat-error *ngIf="form.get('billNumber')?.hasError('required')">Required</mat-error>
           <mat-error *ngIf="form.get('billNumber')?.hasError('duplicate')">This bill number already exists — use a different number</mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- Admin create: free-text input with sequence autocomplete -->
+      <div class="form-row" *ngIf="!isDraft && !isEditing && isAdmin">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Bill Number</mat-label>
+          <input matInput formControlName="billNumber"
+                 [matAutocomplete]="billNumAuto"
+                 placeholder="Type any number or pick from sequence" />
+          <mat-spinner matSuffix diameter="16" *ngIf="loadingNumbers" style="margin-right:8px"></mat-spinner>
+          <mat-autocomplete #billNumAuto="matAutocomplete">
+            <mat-option *ngFor="let n of suggestedBillNumbers" [value]="String(n)">{{ n }}</mat-option>
+          </mat-autocomplete>
+          <mat-hint *ngIf="suggestedBillNumbers.length > 0 && !loadingNumbers">
+            Next in sequence: {{ suggestedBillNumbers[0] }}
+          </mat-hint>
+          <mat-error *ngIf="form.get('billNumber')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('billNumber')?.hasError('duplicate')">This bill number already exists — use a different number</mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- Admin edit: editable bill number field -->
+      <div class="form-row" *ngIf="isEditing && isAdmin">
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Bill Number</mat-label>
+          <input matInput formControlName="billNumber" />
+          <mat-error *ngIf="form.get('billNumber')?.hasError('duplicate')">This bill number already exists</mat-error>
         </mat-form-field>
       </div>
 
