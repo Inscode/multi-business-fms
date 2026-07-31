@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CollectionNoteResponse, CollectionNoteService } from '../../../core/services/collection-note';
@@ -11,7 +12,7 @@ import { CollectionNoteResponse, CollectionNoteService } from '../../../core/ser
   standalone: true,
   imports: [
     CommonModule, FormsModule, DecimalPipe, DatePipe,
-    MatButtonModule, MatIconModule, MatProgressSpinnerModule,
+    MatButtonModule, MatButtonToggleModule, MatIconModule, MatProgressSpinnerModule,
   ],
   templateUrl: './admin-collections.html',
   styleUrl: './admin-collections.scss',
@@ -23,6 +24,15 @@ export class AdminCollections implements OnInit {
   editingId: number | null = null;
   editAmount = 0;
   editType: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER' = 'CASH';
+  statusFilter: 'ALL' | 'PENDING' | 'MATCHED' = 'ALL';
+
+  get filtered(): CollectionNoteResponse[] {
+    if (this.statusFilter === 'ALL') return this.notes;
+    return this.notes.filter(n => n.status === this.statusFilter);
+  }
+
+  get pendingCount(): number  { return this.notes.filter(n => n.status === 'PENDING').length; }
+  get matchedCount(): number  { return this.notes.filter(n => n.status === 'MATCHED').length; }
 
   constructor(private service: CollectionNoteService, private cdr: ChangeDetectorRef) {}
 

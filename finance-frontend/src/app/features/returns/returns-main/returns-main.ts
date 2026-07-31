@@ -5,6 +5,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { SubmitReturn } from '../submit-return/submit-return';
 import { ReviewReturns } from '../review-returns/review-returns';
 import { ReturnProductsPage } from '../../admin/return-products/return-products';
+import { SubmitDamageDispatch } from '../submit-damage-dispatch/submit-damage-dispatch';
+import { ViewDamageDispatches } from '../view-damage-dispatches/view-damage-dispatches';
 import { Auth } from '../../../core/services/auth';
 
 @Component({
@@ -13,6 +15,7 @@ import { Auth } from '../../../core/services/auth';
   imports: [
     CommonModule, MatTabsModule, MatIconModule,
     SubmitReturn, ReviewReturns, ReturnProductsPage,
+    SubmitDamageDispatch, ViewDamageDispatches,
   ],
   template: `
     <div class="main-page">
@@ -25,6 +28,14 @@ import { Auth } from '../../../core/services/auth';
         <mat-tab *ngIf="canReview">
           <ng-template mat-tab-label><mat-icon>rate_review</mat-icon>&nbsp;Review Returns</ng-template>
           <div class="tab-body"><app-review-returns [readonly]="isReadOnlyReturns" /></div>
+        </mat-tab>
+        <mat-tab *ngIf="isAdmin">
+          <ng-template mat-tab-label><mat-icon>local_shipping</mat-icon>&nbsp;Send to Company</ng-template>
+          <div class="tab-body"><app-submit-damage-dispatch /></div>
+        </mat-tab>
+        <mat-tab *ngIf="isAdmin">
+          <ng-template mat-tab-label><mat-icon>history</mat-icon>&nbsp;Dispatch History</ng-template>
+          <div class="tab-body"><app-view-damage-dispatches /></div>
         </mat-tab>
         <mat-tab *ngIf="canManageProducts">
           <ng-template mat-tab-label><mat-icon>inventory_2</mat-icon>&nbsp;Return Products</ng-template>
@@ -43,6 +54,7 @@ export class ReturnsMain {
   constructor(private auth: Auth) {}
 
   get role(): string { return this.auth.getRole() ?? ''; }
+  get isAdmin():           boolean { return this.role === 'ADMIN'; }
   get canSubmit():         boolean { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
   get canReview():         boolean { return ['ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
   get isReadOnlyReturns(): boolean { return !['ADMIN', 'OWNER'].includes(this.role); }

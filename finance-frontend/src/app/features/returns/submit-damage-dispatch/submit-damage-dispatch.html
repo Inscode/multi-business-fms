@@ -1,0 +1,99 @@
+<div class="dispatch-page">
+
+  <div class="toolbar">
+    <mat-form-field appearance="outline" class="business-field">
+      <mat-label>Business</mat-label>
+      <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="loadStock()">
+        <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="date-field">
+      <mat-label>Dispatch Date</mat-label>
+      <input matInput [matDatepicker]="picker" [(ngModel)]="dispatchDate" />
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="notes-field">
+      <mat-label>Notes (optional)</mat-label>
+      <input matInput [(ngModel)]="notes" placeholder="e.g. batch reference, driver name" />
+    </mat-form-field>
+  </div>
+
+  <div class="loading" *ngIf="loadingStock">
+    <mat-spinner diameter="32"></mat-spinner>
+    <span>Loading damage stock…</span>
+  </div>
+
+  <div class="empty" *ngIf="!loadingStock && stockItems.length === 0">
+    <mat-icon>inventory_2</mat-icon>
+    <p>No damage stock available for {{ selectedBusiness }}.</p>
+  </div>
+
+  <ng-container *ngIf="!loadingStock && stockItems.length > 0">
+    <p class="section-label">Select items to dispatch to company</p>
+
+    <div class="stock-grid">
+      <div class="stock-card"
+           *ngFor="let item of stockItems"
+           [class.selected]="isSelected(item)"
+           (click)="toggleItem(item)">
+        <div class="card-check">
+          <mat-icon>{{ isSelected(item) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        </div>
+        <div class="card-body">
+          <div class="product-name">{{ item.productName }}</div>
+          <div class="product-meta">
+            <span class="damage-qty">{{ item.damageQty }} in damage</span>
+            <span class="unit-price">Rs {{ item.unitPrice | number:'1.2-2' }} / unit</span>
+          </div>
+        </div>
+        <div class="qty-row" *ngIf="isSelected(item)" (click)="$event.stopPropagation()">
+          <button mat-icon-button (click)="setQty(item, getQty(item) - 1)"><mat-icon>remove</mat-icon></button>
+          <input type="number" class="qty-input"
+                 [value]="getQty(item)"
+                 [max]="item.damageQty"
+                 min="1"
+                 (change)="setQty(item, +$any($event.target).value)" />
+          <button mat-icon-button (click)="setQty(item, getQty(item) + 1)"><mat-icon>add</mat-icon></button>
+          <span class="line-value">= Rs {{ (item.unitPrice * getQty(item)) | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-bar" *ngIf="selected.length > 0">
+      <div class="value-breakdown">
+        <div class="value-row">
+          <span class="value-label">Gross Value</span>
+          <span class="value-amount">Rs {{ grossTotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="value-row discount-row">
+          <span class="value-label">After {{ MARGIN_DISCOUNT }}% margin discount</span>
+          <span class="value-amount after-margin">Rs {{ afterMargin | number:'1.2-2' }}</span>
+        </div>
+        <div class="value-row predicted-row">
+          <span class="value-label">Predicted Value (enter manually)</span>
+          <div class="predicted-input-wrap">
+            <span class="rs-prefix">Rs</span>
+            <input type="number" class="predicted-input" [(ngModel)]="predictedValue"
+                   placeholder="0.00" min="0" step="0.01" />
+          </div>
+        </div>
+      </div>
+      <button mat-flat-button color="primary" [disabled]="!canSubmit" (click)="submit()">
+        <mat-spinner diameter="16" *ngIf="saving"></mat-spinner>
+        <mat-icon *ngIf="!saving">send</mat-icon>
+        {{ saving ? 'Recording…' : 'Record Dispatch' }}
+      </button>
+    </div>
+
+    <div class="success-msg" *ngIf="successMsg">
+      <mat-icon>check_circle</mat-icon> {{ successMsg }}
+    </div>
+    <div class="error-msg" *ngIf="errorMsg">
+      <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+    </div>
+  </ng-container>
+
+</div>

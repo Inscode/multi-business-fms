@@ -6,13 +6,21 @@
     </button>
   </div>
 
+  <div class="filter-bar">
+    <mat-button-toggle-group [(ngModel)]="statusFilter" aria-label="Filter by status">
+      <mat-button-toggle value="ALL">All ({{ notes.length }})</mat-button-toggle>
+      <mat-button-toggle value="PENDING">Pending ({{ pendingCount }})</mat-button-toggle>
+      <mat-button-toggle value="MATCHED">Matched ({{ matchedCount }})</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
   <div class="loading" *ngIf="loading">
     <mat-spinner diameter="32"></mat-spinner>
   </div>
 
-  <p class="empty" *ngIf="!loading && notes.length === 0">No collection notes found.</p>
+  <p class="empty" *ngIf="!loading && filtered.length === 0">No collection notes found.</p>
 
-  <div class="table-wrap" *ngIf="!loading && notes.length > 0">
+  <div class="table-wrap" *ngIf="!loading && filtered.length > 0">
     <table>
       <thead>
         <tr>
@@ -29,7 +37,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let n of notes">
+        <tr *ngFor="let n of filtered">
           <td class="bold">{{ n.customerName }}</td>
           <td>{{ n.billNumber }}</td>
           <td class="muted">{{ n.area }}</td>

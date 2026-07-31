@@ -1,0 +1,77 @@
+<div class="dispatches-page">
+
+  <div class="header">
+    <span class="title">Damage Dispatches to Company</span>
+    <button mat-stroked-button (click)="load()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="loading" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="empty" *ngIf="!loading && dispatches.length === 0">
+    <mat-icon>local_shipping</mat-icon>
+    <p>No dispatches recorded yet.</p>
+  </div>
+
+  <div class="batch-list" *ngIf="!loading && dispatches.length > 0">
+    <div class="batch-card" *ngFor="let d of dispatches">
+
+      <div class="batch-header" (click)="toggle(d)">
+        <div class="batch-left">
+          <mat-icon class="expand-icon">{{ expandedId === d.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+          <div class="batch-meta">
+            <span class="batch-id">Dispatch #{{ d.id }}</span>
+            <span class="batch-biz">{{ d.business }}</span>
+          </div>
+        </div>
+        <div class="batch-right">
+          <span class="batch-date">{{ d.dispatchDate | date:'dd MMM yyyy' }}</span>
+          <span class="batch-value">Rs {{ d.totalValue | number:'1.2-2' }}</span>
+          <span class="batch-by" *ngIf="d.enteredByName">by {{ d.enteredByName }}</span>
+        </div>
+      </div>
+
+      <div class="batch-notes" *ngIf="d.notes">{{ d.notes }}</div>
+
+      <div class="batch-detail" *ngIf="expandedId === d.id">
+        <div class="detail-loading" *ngIf="loadingDetail === d.id">
+          <mat-spinner diameter="20"></mat-spinner> Loading items…
+        </div>
+
+        <table class="items-table" *ngIf="loadingDetail !== d.id && detailFor(d.id)">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th class="r">Unit Price</th>
+              <th class="r">Qty</th>
+              <th class="r">Line Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of detailFor(d.id)!.items">
+              <td>{{ item.productName }}</td>
+              <td class="r">Rs {{ item.unitPrice | number:'1.2-2' }}</td>
+              <td class="r">{{ item.quantity }}</td>
+              <td class="r bold">Rs {{ item.lineTotal | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" class="r total-label">Gross Value</td>
+              <td class="r total-value">Rs {{ detailFor(d.id)!.totalValue | number:'1.2-2' }}</td>
+            </tr>
+            <tr *ngIf="detailFor(d.id)!.predictedValue != null">
+              <td colspan="3" class="r total-label">Predicted Value</td>
+              <td class="r predicted-value">Rs {{ detailFor(d.id)!.predictedValue | number:'1.2-2' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+</div>

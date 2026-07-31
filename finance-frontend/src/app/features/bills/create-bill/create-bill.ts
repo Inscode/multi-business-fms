@@ -164,8 +164,11 @@ export class CreateBill implements OnInit{
         billDate:     b.billDate ? new Date(b.billDate) : null,
         workerId:     b.workerId ?? null,
         notes:        b.notes ?? '',
+        billNumber:   b.billNumber ?? '',
       });
-      this.form.get('billSource')?.disable();
+      if (!this.isAdmin) {
+        this.form.get('billSource')?.disable();
+      }
       this.form.get('billNumber')?.clearValidators();
       this.form.get('billNumber')?.updateValueAndValidity();
     } else {
@@ -226,7 +229,7 @@ export class CreateBill implements OnInit{
         this.billService.getNextBillNumbers(business, billSource).subscribe({
           next: (nums) => {
             this.suggestedBillNumbers = nums;
-            if (nums.length > 0 && !this.form.get('billNumber')?.value) {
+            if (nums.length > 0 && !this.form.get('billNumber')?.value && !this.isAdmin) {
               this.form.get('billNumber')?.setValue(String(nums[0]));
             }
             this.loadingNumbers = false;

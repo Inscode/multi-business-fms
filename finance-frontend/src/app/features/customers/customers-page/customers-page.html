@@ -25,17 +25,19 @@
 
       <div class="form-row-3">
         <mat-form-field appearance="outline">
-          <mat-label>Phone</mat-label>
+          <mat-label>Phone *</mat-label>
           <input matInput formControlName="phone" placeholder="07X XXXXXXX" />
           <mat-icon matPrefix>phone</mat-icon>
+          <mat-error *ngIf="form.get('phone')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Area</mat-label>
+          <mat-label>Area *</mat-label>
           <mat-select formControlName="area">
             <mat-option [value]="null">— None —</mat-option>
             <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
           </mat-select>
+          <mat-error *ngIf="form.get('area')?.hasError('required')">Required</mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
