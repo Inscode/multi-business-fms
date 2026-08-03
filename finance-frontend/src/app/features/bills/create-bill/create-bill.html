@@ -101,7 +101,7 @@
       </div>
 
       <!-- Continuation pages: admin = approved immediately, acc = goes to admin review -->
-      <div class="form-row" *ngIf="!isDraft && !isEditing && (form.get('billSource')?.value === 'MANUAL' || form.get('billSource')?.value === 'MANUAL_BOOK')">
+      <div class="form-row" *ngIf="!isDraft && !isEditing && form.get('billSource')?.value === 'MANUAL_BOOK'">
         <mat-form-field appearance="outline" class="field-full">
           <mat-label>Continuation pages used (comma-separated)</mat-label>
           <input matInput formControlName="skippedBillNumbers" placeholder="e.g. 341, 342" />

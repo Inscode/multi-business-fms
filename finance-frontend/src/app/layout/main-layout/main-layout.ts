@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, AfterViewInit, OnDestroy, HostListener, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, AfterViewInit, OnDestroy, HostListener, ViewChild } from '@angular/core';
 import { MatRippleModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -49,6 +49,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     private expenseService: ExpenseService,
     private salaryService: SalaryService,
     private workerFinanceService: WorkerFinanceService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -74,6 +75,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
   checkScreen(): void {
     this.isMobile = window.innerWidth < 768;
+    this.cdr.markForCheck();
   }
 
   onPageScroll(event: Event): void {
@@ -95,28 +97,28 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadPendingCount(): void {
     this.editRequestService.getPending().subscribe({
-      next: (list) => setTimeout(() => this.pendingEditRequests = list.length),
+      next: (list) => setTimeout(() => { this.pendingEditRequests = list.length; this.cdr.markForCheck(); }),
       error: () => {},
     });
   }
 
   private loadPendingReturns(): void {
     this.billReturnService.getPendingCount().subscribe({
-      next: (res) => setTimeout(() => this.pendingReturns = res.count),
+      next: (res) => setTimeout(() => { this.pendingReturns = res.count; this.cdr.markForCheck(); }),
       error: () => {},
     });
   }
 
   private loadPendingExpenses(): void {
     this.expenseService.getPendingCount().subscribe({
-      next: (res) => setTimeout(() => this.pendingExpenses = res.count),
+      next: (res) => setTimeout(() => { this.pendingExpenses = res.count; this.cdr.markForCheck(); }),
       error: () => {},
     });
   }
 
   private loadPendingSalary(): void {
     this.salaryService.getPendingCount().subscribe({
-      next: (res) => setTimeout(() => this.pendingSalary = res.count),
+      next: (res) => setTimeout(() => { this.pendingSalary = res.count; this.cdr.markForCheck(); }),
       error: () => {},
     });
   }
@@ -126,6 +128,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => setTimeout(() => {
         this.pendingWorkerFinanceOwner += res.pendingOwner;
         this.pendingWorkerFinanceAdmin += res.pendingAdmin;
+        this.cdr.markForCheck();
       }),
       error: () => {},
     });
@@ -133,6 +136,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => setTimeout(() => {
         this.pendingWorkerFinanceOwner += res.pendingOwner;
         this.pendingWorkerFinanceAdmin += res.pendingAdmin;
+        this.cdr.markForCheck();
       }),
       error: () => {},
     });

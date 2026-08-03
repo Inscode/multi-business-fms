@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
@@ -45,7 +45,8 @@ export class ReminderDialog {
     private fb: FormBuilder,
     private reminderService: BillReminderService,
     private dialogRef: MatDialogRef<ReminderDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: ReminderDialogData
+    @Inject(MAT_DIALOG_DATA) public data: ReminderDialogData,
+    private cdr: ChangeDetectorRef
   ) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -76,6 +77,7 @@ export class ReminderDialog {
       error: (e) => {
         this.errorMsg = e?.error?.message ?? 'Failed to save reminder.';
         this.saving   = false;
+        this.cdr.markForCheck();
       },
     });
   }

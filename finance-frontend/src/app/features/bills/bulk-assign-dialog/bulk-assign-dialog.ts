@@ -1,5 +1,5 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -43,6 +43,7 @@ export class BulkAssignDialog {
     private dialogRef: MatDialogRef<BulkAssignDialog>,
     @Inject(MAT_DIALOG_DATA) public data: BulkAssignDialogData,
     private billService: Bill,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   submit(): void {
@@ -60,6 +61,7 @@ export class BulkAssignDialog {
       error: (e) => {
         this.errorMsg = e?.error?.message ?? 'Failed to assign bills. Please try again.';
         this.submitting = false;
+        this.cdr.markForCheck();
       },
     });
   }

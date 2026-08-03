@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -33,7 +33,8 @@ export class ReturnChequeDialog {
     private fb: FormBuilder,
     private paymentService: Payment,
     private dialogRef: MatDialogRef<ReturnChequeDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: {paymentId: number; billNumber: string}
+    @Inject(MAT_DIALOG_DATA) public data: {paymentId: number; billNumber: string},
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       returnReason: ['', [Validators.required, Validators.minLength(5)]]
@@ -57,6 +58,7 @@ export class ReturnChequeDialog {
       error: (e) => {
         this.errorMsg = e?.error?.message ?? 'Failed to process cheque return.';
         this.loading = false;
+        this.cdr.markForCheck();
       }
     });
   }

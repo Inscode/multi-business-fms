@@ -1,5 +1,5 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject } from '@angular/core';
 import { localDateStr } from '../../../core/utils/date-utils';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -67,6 +67,7 @@ export class BulkPaymentDialog {
     @Inject(MAT_DIALOG_DATA) public data: BulkPaymentDialogData,
     fb: FormBuilder,
     private paymentService: Payment,
+    private cdr: ChangeDetectorRef,
   ) {
     const today = new Date();
 
@@ -143,6 +144,7 @@ export class BulkPaymentDialog {
       error: (e) => {
         this.errorMsg = e?.error?.message ?? 'Failed to submit payment. Please try again.';
         this.submitting = false;
+        this.cdr.markForCheck();
       },
     });
   }

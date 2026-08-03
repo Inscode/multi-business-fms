@@ -83,7 +83,8 @@ export class CreateBill implements OnInit{
     private workerService: Worker,
     private customerService: CustomerService,
     private router: Router,
-    private auth: Auth
+    private auth: Auth,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       business:           ['RAINCO', Validators.required],
@@ -143,6 +144,7 @@ export class CreateBill implements OnInit{
         this.form.get('customerName')?.setValue('');
         this.form.get('area')?.setValue(null);
         this.form.get('customerName')?.markAsTouched();
+        this.cdr.markForCheck();
       }
     }, 200);
   }
@@ -182,8 +184,8 @@ export class CreateBill implements OnInit{
 
   private loadWorkers(): void {
     this.workerService.getAllWorkers().subscribe({
-      next: (w) => this.workers = w.filter(w => w.active),
-      error: () => this.workers = []
+      next: (w) => { this.workers = w.filter(w => w.active); this.cdr.markForCheck(); },
+      error: () => { this.workers = []; this.cdr.markForCheck(); }
     });
   }
 
@@ -202,6 +204,7 @@ export class CreateBill implements OnInit{
 
         const ctrl = this.form.get('customerName');
         ctrl?.valueChanges.subscribe(v => this.filterCustomers(v ?? ''));
+        this.cdr.markForCheck();
       },
       error: () => {}
     });
@@ -212,6 +215,11 @@ export class CreateBill implements OnInit{
       const business = this.form.get('business')?.value;
       const billSource = this.form.get('billSource')?.value;
       const billNumberControl = this.form.get('billNumber');
+
+      // Continuation pages only apply to MANUAL_BOOK — drop anything typed before a switch
+      if (billSource !== 'MANUAL_BOOK') {
+        this.form.get('skippedBillNumbers')?.setValue('');
+      }
 
       if (billSource === 'DRAFT') {
         billNumberControl?.clearValidators();
@@ -233,8 +241,9 @@ export class CreateBill implements OnInit{
               this.form.get('billNumber')?.setValue(String(nums[0]));
             }
             this.loadingNumbers = false;
+            this.cdr.markForCheck();
           },
-          error: () => { this.loadingNumbers = false; }
+          error: () => { this.loadingNumbers = false; this.cdr.markForCheck(); }
         });
       }
     };
@@ -291,6 +300,7 @@ export class CreateBill implements OnInit{
         error: () => {
           this.errorMsg = 'Failed to update bill. Please try again.';
           this.loading = false;
+          this.cdr.markForCheck();
         }
       });
     } else {
@@ -307,6 +317,7 @@ export class CreateBill implements OnInit{
             this.errorMsg = 'Failed to create bill. Please try again.';
           }
           this.loading = false;
+          this.cdr.markForCheck();
         }
       });
     }

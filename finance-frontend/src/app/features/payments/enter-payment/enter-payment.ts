@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
@@ -76,7 +76,8 @@ export class EnterPayment implements OnInit {
     private billService: Bill,
     private workerService: Worker,
     private auth: Auth,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       paymentType:          [null, Validators.required],
@@ -121,19 +122,22 @@ export class EnterPayment implements OnInit {
     this.billService.getBills({
       business: this.filterBusiness || undefined
     }).subscribe({
-      next: (b) => this.bills = b.filter(
-        b => !b.fullyPaid &&
-             b.status !== 'CANCELLED' &&
-             b.status !== 'COMPLETED'
-      ),
-      error: () => this.bills = []
+      next: (b) => {
+        this.bills = b.filter(
+          b => !b.fullyPaid &&
+               b.status !== 'CANCELLED' &&
+               b.status !== 'COMPLETED'
+        );
+        this.cdr.markForCheck();
+      },
+      error: () => { this.bills = []; this.cdr.markForCheck(); }
     });
   }
 
   private loadWorkers(): void {
     this.workerService.getAllWorkers().subscribe({
-      next: (w) => this.workers = w.filter(w => w.active),
-      error: () => this.workers = []
+      next: (w) => { this.workers = w.filter(w => w.active); this.cdr.markForCheck(); },
+      error: () => { this.workers = []; this.cdr.markForCheck(); }
     });
   }
 
@@ -241,6 +245,7 @@ export class EnterPayment implements OnInit {
       error: (e) => {
         this.errorMsg = e?.error?.message ?? 'Failed to save payment.';
         this.loading  = false;
+        this.cdr.markForCheck();
       }
     });
   }

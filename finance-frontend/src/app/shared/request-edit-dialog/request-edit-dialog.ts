@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
@@ -74,6 +74,7 @@ export class RequestEditDialog implements OnInit {
     private customerService: CustomerService,
     public dialogRef: MatDialogRef<RequestEditDialog>,
     @Inject(MAT_DIALOG_DATA) public data: RequestEditDialogData,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -97,6 +98,7 @@ export class RequestEditDialog implements OnInit {
         next: (customers) => {
           this.allCustomers = customers;
           this.filterCustomers(this.customerSearchCtrl.value ?? '');
+          this.cdr.markForCheck();
         },
         error: () => {},
       });
@@ -142,7 +144,14 @@ export class RequestEditDialog implements OnInit {
     this.submitting = true;
     this.errorMsg = '';
 
-    const { reason, ...changes } = this.form.value;
+    const { reason, ...rest } = this.form.value;
+
+    // Dates must go out as plain yyyy-MM-dd — JSON.stringify would turn a Date into
+    // a UTC instant, which both displays badly for the admin and can shift the day.
+    const changes: Record<string, any> = {};
+    for (const [key, value] of Object.entries(rest)) {
+      changes[key] = value instanceof Date ? this.toLocalDateString(value) : value;
+    }
 
     this.editRequestService.create({
       type:             this.data.type,
@@ -155,7 +164,14 @@ export class RequestEditDialog implements OnInit {
       error: () => {
         this.errorMsg = 'Failed to submit request. Please try again.';
         this.submitting = false;
+        this.cdr.markForCheck();
       },
     });
+  }
+
+  private toLocalDateString(d: Date): string {
+    const month = `${d.getMonth() + 1}`.padStart(2, '0');
+    const day = `${d.getDate()}`.padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
   }
 }

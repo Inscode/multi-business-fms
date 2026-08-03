@@ -69,10 +69,24 @@ export class EditRequestsPage implements OnInit {
       const obj = JSON.parse(changesJson);
       return Object.entries(obj)
         .filter(([, v]) => v !== null && v !== '' && v !== undefined)
-        .map(([key, value]) => ({ key: this.labelFor(key), value: String(value) }));
+        .map(([key, value]) => ({ key: this.labelFor(key), value: this.valueFor(key, value) }));
     } catch {
       return [];
     }
+  }
+
+  private static readonly DATE_KEYS = ['billDate', 'paymentDate', 'chequeDate'];
+
+  private valueFor(key: string, value: unknown): string {
+    if (EditRequestsPage.DATE_KEYS.includes(key) && typeof value === 'string') {
+      // Stored as yyyy-MM-dd now; older requests hold a full UTC ISO instant
+      const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+      if (match) {
+        const [, year, month, day] = match;
+        return `${day}/${month}/${year}`;
+      }
+    }
+    return String(value);
   }
 
   private labelFor(key: string): string {
