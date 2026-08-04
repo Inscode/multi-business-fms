@@ -116,3 +116,16 @@
     }
   }
 }
+
+// ── Cheque age hint (bill date → cheque date) ────────────────────────
+.age-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.age-ok   { background: #e8f5e9; color: #2e7d32; }
+.age-warn { background: #fff8e1; color: #ef6c00; }
+.age-late { background: #ffebee; color: #c62828; }

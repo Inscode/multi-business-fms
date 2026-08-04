@@ -103,6 +103,10 @@
             <input matInput [matDatepicker]="chequePicker" formControlName="chequeDate" />
             <mat-datepicker-toggle matSuffix [for]="chequePicker"></mat-datepicker-toggle>
             <mat-datepicker #chequePicker></mat-datepicker>
+            <mat-hint *ngIf="chequeAge !== null">
+              <span class="age-chip age-{{ ageBand(chequeAge) }}">{{ ageLabel(chequeAge) }}</span>
+              from bill date ({{ selectedBillDate | date: 'dd MMM yyyy' }})
+            </mat-hint>
             <mat-error *ngIf="form.get('chequeDate')?.hasError('required')">Required</mat-error>
           </mat-form-field>
         </div>

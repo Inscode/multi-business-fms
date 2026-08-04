@@ -14,6 +14,7 @@ const STATUS_LABELS: Record<string, string> = {
   SHOP_WORKER_ASSIGNED: 'Shop Worker Assigned',
   STORE_RECEIVED: 'Store Received',
   SHOP_RECEIVED: 'Shop Received',
+  AWAITING_CONFIRMATION: 'Awaiting Confirmation',
   COMPLETED: 'Completed',
 };
 
@@ -23,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
   SHOP_WORKER_ASSIGNED: '#7b1fa2',
   STORE_RECEIVED: '#f57c00',
   SHOP_RECEIVED: '#0288d1',
+  AWAITING_CONFIRMATION: '#8d6e63',
   COMPLETED: '#43a047',
 };
 
@@ -130,6 +132,7 @@ export class WorkerBillsOverview implements OnInit {
       SHOP_WORKER_ASSIGNED: 'store',
       STORE_RECEIVED: 'inventory',
       SHOP_RECEIVED: 'shopping_bag',
+      AWAITING_CONFIRMATION: 'hourglass_top',
       COMPLETED: 'check_circle',
     };
     return map[s] ?? 'receipt_long';

@@ -21,7 +21,7 @@ export interface WorkerAttendanceRecord {
   workerId: number;
   workerName: string;
   date: string;
-  attendanceType: 'PRESENT' | 'HALF_DAY' | 'ABSENT' | 'HOLIDAY';
+  attendanceType: 'PRESENT' | 'HALF_DAY' | 'ABSENT' | 'HOLIDAY' | 'GENERAL_HOLIDAY';
   hoursWorked: number | null;
   notes: string | null;
 }
@@ -32,6 +32,7 @@ export interface CompanyHoliday {
   name: string;
   holidayType: 'POYA' | 'NATIONAL' | 'PUBLIC' | 'OTHER';
   appliesToAll: boolean;
+  workerIds: number[];
   workerNames: string[];
   createdAt: string;
 }

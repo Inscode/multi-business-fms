@@ -109,7 +109,8 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   get isShopAccountant(): boolean { return this.auth.getRole() === 'SHOP_ACCOUNTANT'; }
 
   statuses = ['', 'CREATED', 'ASSIGNED', 'SHOP_WORKER_ASSIGNED',
-              'SHOP_RECEIVED', 'STORE_RECEIVED', 'COMPLETED', 'CANCELLED'];
+              'SHOP_RECEIVED', 'STORE_RECEIVED', 'AWAITING_CONFIRMATION',
+              'COMPLETED', 'CANCELLED'];
 
   areas: string[] = [];
 

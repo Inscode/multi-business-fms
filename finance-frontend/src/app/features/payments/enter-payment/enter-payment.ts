@@ -15,6 +15,7 @@ import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
 import { Router } from '@angular/router';
 import { BANKS, AREAS } from '../../../core/constants/payment-options';
+import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel } from '../../../core/utils/cheque-age';
 
 @Component({
   selector: 'app-enter-payment',
@@ -57,6 +58,22 @@ export class EnterPayment implements OnInit {
   get isBankTransfer(): boolean {
     return this.form.get('paymentType')?.value === 'BANK_TRANSFER';
   }
+
+  /** Bill date backing the cheque-age hint — from the picked bill, or the payment being edited. */
+  get selectedBillDate(): string | null {
+    return this.selectedBill?.billDate ?? this.editingPayment?.billDate ?? null;
+  }
+
+  /** Days between the bill date and the cheque date currently in the form. */
+  get chequeAge(): number | null {
+    if (!this.isCheque) return null;
+    const chequeDate = this.form.get('chequeDate')?.value as Date | null;
+    if (!chequeDate) return null;
+    return chequeAgeDays(this.selectedBillDate, this.toLocalDateStr(new Date(chequeDate)));
+  }
+
+  ageBand(days: number): ChequeAgeBand { return chequeAgeBand(days); }
+  ageLabel(days: number): string { return chequeAgeLabel(days); }
 
   get isEditing(): boolean {
     return !!history.state?.payment;

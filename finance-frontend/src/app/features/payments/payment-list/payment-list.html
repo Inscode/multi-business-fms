@@ -9,6 +9,8 @@
     </a>
   </div>
 
+  <mat-tab-group class="payment-tabs" animationDuration="0ms" (selectedIndexChange)="onTabChange($event)">
+  <mat-tab label="All Payments">
   <div class="filters">
     <div class="filters-row">
       <mat-form-field appearance="outline" class="search-field">
@@ -67,164 +69,6 @@
       </button>
     </div>
 
-    <!-- Cheque number search row — admin/owner only -->
-    <div class="cheque-search-row" *ngIf="canSeeChequeTools">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="cheque-number-field">
-        <mat-label>Search by Cheque No.</mat-label>
-        <input matInput
-               [(ngModel)]="chequeNumberQuery"
-               (ngModelChange)="onChequeNumberChange()"
-               placeholder="Enter cheque number…" />
-        <mat-spinner *ngIf="chequeSearchLoading" matSuffix diameter="16" style="margin-right:4px"></mat-spinner>
-        <button mat-icon-button matSuffix *ngIf="chequeNumberQuery && !chequeSearchLoading"
-                (click)="clearChequeSearch()" matTooltip="Clear">
-          <mat-icon>close</mat-icon>
-        </button>
-        <mat-icon *ngIf="!chequeNumberQuery && !chequeSearchLoading" matSuffix>tag</mat-icon>
-      </mat-form-field>
-
-      <button mat-stroked-button class="future-cheques-btn"
-              [class.active]="futureChequesPanelOpen"
-              (click)="toggleFutureCheques()">
-        <mat-icon>event</mat-icon>
-        Future Cheques
-        <mat-icon class="expand-icon" [class.expanded]="futureChequesPanelOpen">expand_more</mat-icon>
-      </button>
-    </div>
-  </div>
-
-  <!-- Cheque number search results — admin/owner only -->
-  <div class="cheque-search-results" *ngIf="chequeSearchActive && canSeeChequeTools">
-    <div class="cheque-results-header">
-      <mat-icon>search</mat-icon>
-      <span>Cheque search: "{{ chequeNumberQuery }}" — {{ chequeSearchResults.length }} result{{ chequeSearchResults.length !== 1 ? 's' : '' }}</span>
-    </div>
-    <mat-card class="table-card" *ngIf="chequeSearchResults.length > 0">
-      <div class="table-scroll-wrap">
-        <table mat-table [dataSource]="chequeSearchResults">
-          <ng-container matColumnDef="billNumber">
-            <th mat-header-cell *matHeaderCellDef>Bill No.</th>
-            <td mat-cell *matCellDef="let p">{{ p.billNumber }}</td>
-          </ng-container>
-          <ng-container matColumnDef="customerName">
-            <th mat-header-cell *matHeaderCellDef>Customer</th>
-            <td mat-cell *matCellDef="let p">{{ p.customerName }}</td>
-          </ng-container>
-          <ng-container matColumnDef="chequeNumber">
-            <th mat-header-cell *matHeaderCellDef>Cheque No.</th>
-            <td mat-cell *matCellDef="let p" class="cheque-num-cell">{{ p.chequeNumber }}</td>
-          </ng-container>
-          <ng-container matColumnDef="bank">
-            <th mat-header-cell *matHeaderCellDef>Bank</th>
-            <td mat-cell *matCellDef="let p">{{ p.bankName ?? '—' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="amount">
-            <th mat-header-cell *matHeaderCellDef>Amount</th>
-            <td mat-cell *matCellDef="let p">Rs {{ p.paymentAmount | number }}</td>
-          </ng-container>
-          <ng-container matColumnDef="chequeDate">
-            <th mat-header-cell *matHeaderCellDef>Cheque Date</th>
-            <td mat-cell *matCellDef="let p">{{ p.chequeDate | date:'dd/MM/yyyy' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
-            <td mat-cell *matCellDef="let p">
-              <span class="badge badge-{{ p.status | lowercase }}">{{ p.status }}</span>
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="['billNumber','customerName','chequeNumber','bank','amount','chequeDate','status']"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['billNumber','customerName','chequeNumber','bank','amount','chequeDate','status']"></tr>
-        </table>
-      </div>
-    </mat-card>
-    <div class="empty-state-small" *ngIf="chequeSearchResults.length === 0 && !chequeSearchLoading">
-      <mat-icon>search_off</mat-icon> No cheques found with that number.
-    </div>
-  </div>
-
-  <!-- Future cheques panel — admin/owner only -->
-  <div class="future-cheques-panel" *ngIf="futureChequesPanelOpen && canSeeChequeTools">
-    <div class="future-panel-header">
-      <mat-icon>event</mat-icon>
-      <span>Future-Dated Cheques</span>
-      <div class="future-customer-search">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="customer-search-field">
-          <mat-label>Filter by customer</mat-label>
-          <input matInput [(ngModel)]="futureCustomerQuery" (ngModelChange)="onFutureCustomerSearch()"
-                 placeholder="Customer name…" />
-          <button mat-icon-button matSuffix *ngIf="futureCustomerQuery" (click)="clearFutureCustomer()">
-            <mat-icon>close</mat-icon>
-          </button>
-          <mat-icon *ngIf="!futureCustomerQuery" matSuffix>person_search</mat-icon>
-        </mat-form-field>
-      </div>
-      <mat-spinner *ngIf="futureChequeRefreshing" diameter="18" class="future-refresh-spinner"></mat-spinner>
-      <button mat-icon-button (click)="loadFutureCheques()" matTooltip="Refresh" [disabled]="futureChequeRefreshing">
-        <mat-icon>refresh</mat-icon>
-      </button>
-    </div>
-
-    <div class="future-loading" *ngIf="futureChequeLoading">
-      <mat-spinner diameter="24"></mat-spinner>
-      <span>Loading…</span>
-    </div>
-
-    <ng-container *ngIf="!futureChequeLoading">
-      <div class="empty-state-small" *ngIf="futureCheques.length === 0">
-        <mat-icon>check_circle</mat-icon>
-        No future-dated cheques{{ futureCustomerQuery ? ' for "' + futureCustomerQuery + '"' : '' }}.
-      </div>
-      <mat-card class="table-card future-table" *ngIf="futureCheques.length > 0">
-        <div class="future-summary">
-          {{ futureCheques.length }} cheque{{ futureCheques.length !== 1 ? 's' : '' }} pending
-          · Total: Rs {{ futureChequeTotal | number }}
-        </div>
-        <div class="table-scroll-wrap">
-          <table mat-table [dataSource]="futureCheques">
-            <ng-container matColumnDef="chequeDate">
-              <th mat-header-cell *matHeaderCellDef>Cheque Date</th>
-              <td mat-cell *matCellDef="let p" class="cheque-date-cell">
-                {{ p.chequeDate | date:'dd/MM/yyyy' }}
-                <span class="days-away" *ngIf="p.chequeDate">
-                  ({{ daysUntil(p.chequeDate) }}d)
-                </span>
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="customerName">
-              <th mat-header-cell *matHeaderCellDef>Customer</th>
-              <td mat-cell *matCellDef="let p">{{ p.customerName }}</td>
-            </ng-container>
-            <ng-container matColumnDef="billNumber">
-              <th mat-header-cell *matHeaderCellDef>Bill No.</th>
-              <td mat-cell *matCellDef="let p">{{ p.billNumber }}</td>
-            </ng-container>
-            <ng-container matColumnDef="chequeNumber">
-              <th mat-header-cell *matHeaderCellDef>Cheque No.</th>
-              <td mat-cell *matCellDef="let p" class="cheque-num-cell">{{ p.chequeNumber ?? '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="bank">
-              <th mat-header-cell *matHeaderCellDef>Bank / Branch</th>
-              <td mat-cell *matCellDef="let p">
-                {{ p.bankName ?? '—' }}
-                <span *ngIf="p.branchName" class="branch-label">/ {{ p.branchName }}</span>
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="amount">
-              <th mat-header-cell *matHeaderCellDef>Amount</th>
-              <td mat-cell *matCellDef="let p" class="amount-cell">Rs {{ p.paymentAmount | number }}</td>
-            </ng-container>
-            <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef>Status</th>
-              <td mat-cell *matCellDef="let p">
-                <span class="badge badge-{{ p.status | lowercase }}">{{ p.status }}</span>
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="['chequeDate','customerName','billNumber','chequeNumber','bank','amount','status']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['chequeDate','customerName','billNumber','chequeNumber','bank','amount','status']"></tr>
-          </table>
-        </div>
-      </mat-card>
-    </ng-container>
   </div>
 
   <ng-container *ngIf="!error; else errorBlock">
@@ -255,6 +99,16 @@
         <ng-container matColumnDef="type">
           <th mat-header-cell *matHeaderCellDef>Type</th>
           <td mat-cell *matCellDef="let p">{{ p.paymentType }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="chequeAge">
+          <th mat-header-cell *matHeaderCellDef matTooltip="Days from bill date to cheque date">Age</th>
+          <td mat-cell *matCellDef="let p">
+            <ng-container *ngIf="ageDays(p) as d; else noRowAge">
+              <span class="age-chip age-{{ ageBand(d) }}" [matTooltip]="ageTooltip(d)">{{ ageLabel(d) }}</span>
+            </ng-container>
+            <ng-template #noRowAge><span class="muted">—</span></ng-template>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="enteredBy">
@@ -336,4 +190,237 @@
       <button mat-stroked-button (click)="load()">Retry</button>
     </div>
   </ng-template>
+  </mat-tab>
+
+  <!-- ── Cheque Payments ─────────────────────────────────────────────────── -->
+  <!-- ── Cheque Payments ─────────────────────────────────────────────────── -->
+  <mat-tab label="Cheque Payments">
+    <ng-template matTabContent>
+      <div class="cheque-tab">
+        <div class="cheque-search-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="cheque-number-field"
+                          *ngIf="canSeeChequeTools">
+            <mat-label>Search by Cheque No.</mat-label>
+            <input matInput
+                   [(ngModel)]="chequeNumberQuery"
+                   (ngModelChange)="onChequeNumberChange()"
+                   placeholder="Searches every cheque ever entered" />
+            <mat-spinner *ngIf="chequeSearchLoading" matSuffix diameter="16" style="margin-right:4px"></mat-spinner>
+            <button mat-icon-button matSuffix *ngIf="chequeNumberQuery && !chequeSearchLoading"
+                    (click)="clearChequeSearch()" matTooltip="Clear">
+              <mat-icon>close</mat-icon>
+            </button>
+            <mat-icon *ngIf="!chequeNumberQuery && !chequeSearchLoading" matSuffix>tag</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="customer-search-field">
+            <mat-label>Search by customer</mat-label>
+            <input matInput [(ngModel)]="futureCustomerQuery" (ngModelChange)="onFutureCustomerSearch()"
+                   placeholder="Adds their last 3 months" />
+            <button mat-icon-button matSuffix *ngIf="futureCustomerQuery" (click)="clearFutureCustomer()">
+              <mat-icon>close</mat-icon>
+            </button>
+            <mat-icon *ngIf="!futureCustomerQuery" matSuffix>person_search</mat-icon>
+          </mat-form-field>
+
+          <mat-spinner *ngIf="futureChequeRefreshing" diameter="18" class="future-refresh-spinner"></mat-spinner>
+          <button mat-icon-button (click)="loadFutureCheques()" matTooltip="Refresh"
+                  [disabled]="futureChequeRefreshing">
+            <mat-icon>refresh</mat-icon>
+          </button>
+        </div>
+
+        <!-- Cheque number search results — spans every cheque, not just future ones -->
+        <div class="cheque-search-results" *ngIf="chequeSearchActive && canSeeChequeTools">
+          <div class="cheque-results-header">
+            <mat-icon>search</mat-icon>
+            <span>Cheque no. "{{ chequeNumberQuery }}" — {{ chequeSearchFiltered.length }} result{{ chequeSearchFiltered.length !== 1 ? 's' : '' }}</span>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="bank-filter-field"
+                            *ngIf="chequeSearchBanks.length > 1">
+              <mat-label>Bank</mat-label>
+              <mat-select [(ngModel)]="chequeBankFilter">
+                <mat-option value="">All banks</mat-option>
+                <mat-option *ngFor="let b of chequeSearchBanks" [value]="b">{{ b }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="bank-clash-note" *ngIf="chequeSearchBanks.length > 1">
+            <mat-icon>info</mat-icon>
+            This number exists at {{ chequeSearchBanks.length }} banks — filter by bank to identify the right customer.
+          </div>
+
+          <mat-card class="table-card" *ngIf="chequeSearchFiltered.length > 0">
+            <div class="table-scroll-wrap">
+              <table mat-table [dataSource]="chequeSearchFiltered">
+                <ng-container matColumnDef="billNumber">
+                  <th mat-header-cell *matHeaderCellDef>Bill No.</th>
+                  <td mat-cell *matCellDef="let p">{{ p.billNumber }}</td>
+                </ng-container>
+                <ng-container matColumnDef="customerName">
+                  <th mat-header-cell *matHeaderCellDef>Customer</th>
+                  <td mat-cell *matCellDef="let p">{{ p.customerName }}</td>
+                </ng-container>
+                <ng-container matColumnDef="chequeNumber">
+                  <th mat-header-cell *matHeaderCellDef>Cheque No.</th>
+                  <td mat-cell *matCellDef="let p" class="cheque-num-cell">{{ p.chequeNumber }}</td>
+                </ng-container>
+                <ng-container matColumnDef="bank">
+                  <th mat-header-cell *matHeaderCellDef>Bank</th>
+                  <td mat-cell *matCellDef="let p">
+                    {{ p.bankName ?? '—' }}
+                    <span *ngIf="p.branchName" class="branch-label">/ {{ p.branchName }}</span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="amount">
+                  <th mat-header-cell *matHeaderCellDef>Amount</th>
+                  <td mat-cell *matCellDef="let p" class="amount-cell">Rs {{ p.paymentAmount | number }}</td>
+                </ng-container>
+                <ng-container matColumnDef="billDate">
+                  <th mat-header-cell *matHeaderCellDef>Bill Date</th>
+                  <td mat-cell *matCellDef="let p">{{ p.billDate ? (p.billDate | date:'dd/MM/yyyy') : '—' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="chequeDate">
+                  <th mat-header-cell *matHeaderCellDef>Cheque Date</th>
+                  <td mat-cell *matCellDef="let p">{{ p.chequeDate ? (p.chequeDate | date:'dd/MM/yyyy') : '—' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="when">
+                  <th mat-header-cell *matHeaderCellDef>When</th>
+                  <td mat-cell *matCellDef="let p">
+                    <span class="when-tag" [class.when-future]="isFutureCheque(p)">{{ whenLabel(p) }}</span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="chequeAge">
+                  <th mat-header-cell *matHeaderCellDef matTooltip="Days from bill date to cheque date">Age</th>
+                  <td mat-cell *matCellDef="let p">
+                    <ng-container *ngIf="ageDays(p) as d; else noAge">
+                      <span class="age-chip age-{{ ageBand(d) }}" [matTooltip]="ageTooltip(d)">{{ ageLabel(d) }}</span>
+                    </ng-container>
+                    <ng-template #noAge><span class="muted">—</span></ng-template>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="status">
+                  <th mat-header-cell *matHeaderCellDef>Status</th>
+                  <td mat-cell *matCellDef="let p">
+                    <span class="badge badge-{{ p.status | lowercase }}">{{ p.status }}</span>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="chequeColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: chequeColumns"></tr>
+              </table>
+            </div>
+          </mat-card>
+          <div class="empty-state-small" *ngIf="chequeSearchFiltered.length === 0 && !chequeSearchLoading">
+            <mat-icon>search_off</mat-icon> No cheques found with that number.
+          </div>
+        </div>
+
+        <!-- Future cheques (plus the searched customer's last 3 months) -->
+        <ng-container *ngIf="!chequeSearchActive">
+          <div class="band-tabs">
+            <button type="button" class="band-tab" [class.active]="chequeBandFilter === 'ALL'"
+                    (click)="setBandFilter('ALL')">
+              All <span class="band-count">{{ chequeCount }}</span>
+            </button>
+            <button type="button" class="band-tab band-ok" [class.active]="chequeBandFilter === 'ok'"
+                    (click)="setBandFilter('ok')">
+              0–45 days <span class="band-count">{{ bandCount('ok') }}</span>
+            </button>
+            <button type="button" class="band-tab band-warn" [class.active]="chequeBandFilter === 'warn'"
+                    (click)="setBandFilter('warn')">
+              45–60 days <span class="band-count">{{ bandCount('warn') }}</span>
+            </button>
+            <button type="button" class="band-tab band-late" [class.active]="chequeBandFilter === 'late'"
+                    (click)="setBandFilter('late')">
+              Over 60 days <span class="band-count">{{ bandCount('late') }}</span>
+            </button>
+          </div>
+
+          <p class="band-hint">
+            <ng-container *ngIf="!futureCustomerQuery">
+              Future-dated cheques still to clear · Total: Rs {{ chequeTotal | number }}
+            </ng-container>
+            <ng-container *ngIf="futureCustomerQuery">
+              "{{ futureCustomerQuery }}" — future cheques plus the last 3 months · Total: Rs {{ chequeTotal | number }}
+            </ng-container>
+            · Age = days from bill date to cheque date
+          </p>
+
+          <div class="future-loading" *ngIf="futureChequeLoading">
+            <mat-spinner diameter="24"></mat-spinner>
+            <span>Loading…</span>
+          </div>
+
+          <mat-card class="table-card" *ngIf="!futureChequeLoading">
+            <div class="table-scroll-wrap">
+              <table mat-table [dataSource]="chequePayments">
+                <ng-container matColumnDef="billNumber">
+                  <th mat-header-cell *matHeaderCellDef>Bill No.</th>
+                  <td mat-cell *matCellDef="let p">{{ p.billNumber }}</td>
+                </ng-container>
+                <ng-container matColumnDef="customerName">
+                  <th mat-header-cell *matHeaderCellDef>Customer</th>
+                  <td mat-cell *matCellDef="let p">{{ p.customerName }}</td>
+                </ng-container>
+                <ng-container matColumnDef="chequeNumber">
+                  <th mat-header-cell *matHeaderCellDef>Cheque No.</th>
+                  <td mat-cell *matCellDef="let p" class="cheque-num-cell">{{ p.chequeNumber ?? '—' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="bank">
+                  <th mat-header-cell *matHeaderCellDef>Bank</th>
+                  <td mat-cell *matCellDef="let p">
+                    {{ p.bankName ?? '—' }}
+                    <span *ngIf="p.branchName" class="branch-label">/ {{ p.branchName }}</span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="amount">
+                  <th mat-header-cell *matHeaderCellDef>Amount</th>
+                  <td mat-cell *matCellDef="let p" class="amount-cell">Rs {{ p.paymentAmount | number }}</td>
+                </ng-container>
+                <ng-container matColumnDef="billDate">
+                  <th mat-header-cell *matHeaderCellDef>Bill Date</th>
+                  <td mat-cell *matCellDef="let p">{{ p.billDate ? (p.billDate | date:'dd/MM/yyyy') : '—' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="chequeDate">
+                  <th mat-header-cell *matHeaderCellDef>Cheque Date</th>
+                  <td mat-cell *matCellDef="let p">{{ p.chequeDate ? (p.chequeDate | date:'dd/MM/yyyy') : '—' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="when">
+                  <th mat-header-cell *matHeaderCellDef>When</th>
+                  <td mat-cell *matCellDef="let p">
+                    <span class="when-tag" [class.when-future]="isFutureCheque(p)">{{ whenLabel(p) }}</span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="chequeAge">
+                  <th mat-header-cell *matHeaderCellDef matTooltip="Days from bill date to cheque date">Age</th>
+                  <td mat-cell *matCellDef="let p">
+                    <ng-container *ngIf="ageDays(p) as d; else noChequeAge">
+                      <span class="age-chip age-{{ ageBand(d) }}" [matTooltip]="ageTooltip(d)">{{ ageLabel(d) }}</span>
+                    </ng-container>
+                    <ng-template #noChequeAge><span class="muted">—</span></ng-template>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="status">
+                  <th mat-header-cell *matHeaderCellDef>Status</th>
+                  <td mat-cell *matCellDef="let p">
+                    <span class="badge badge-{{ p.status | lowercase }}">{{ p.status }}</span>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="chequeColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: chequeColumns"></tr>
+              </table>
+            </div>
+
+            <div class="empty-state" *ngIf="chequePayments.length === 0">
+              <mat-icon>event_available</mat-icon>
+              <p *ngIf="!futureCustomerQuery">No future-dated cheques pending.</p>
+              <p *ngIf="futureCustomerQuery">No cheques for "{{ futureCustomerQuery }}" in the last 3 months or ahead.</p>
+            </div>
+          </mat-card>
+        </ng-container>
+      </div>
+    </ng-template>
+  </mat-tab>
+  </mat-tab-group>
 </div>

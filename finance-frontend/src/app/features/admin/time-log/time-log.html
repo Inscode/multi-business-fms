@@ -310,7 +310,7 @@
           <label>Worker</label>
           <select class="tl-select" [(ngModel)]="mvWorkerId">
             <option [ngValue]="null">— Select worker —</option>
-            <option *ngFor="let w of allWorkers" [ngValue]="w.id">{{ w.fullName }}</option>
+            <option *ngFor="let w of workers" [ngValue]="w.id">{{ w.fullName }}</option>
           </select>
         </div>
         <button class="tl-btn tl-btn-primary" (click)="loadMonthlyView()" [disabled]="!mvWorkerId || !mvMonth">
@@ -321,13 +321,14 @@
       <div class="tl-loading" *ngIf="mvLoading"><mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner></div>
       <div class="tl-error-box" *ngIf="mvError">{{ mvError }}</div>
 
-      <ng-container *ngIf="!mvLoading && mvRecords.length > 0">
+      <ng-container *ngIf="!mvLoading && mvLoaded">
         <!-- Summary pills -->
         <div class="mv-summary">
           <span class="mv-pill mv-present"><mat-icon>check_circle</mat-icon>{{ mvTotalPresent }} Present</span>
           <span class="mv-pill mv-half"><mat-icon>access_time</mat-icon>{{ mvTotalHalf }} Half Day</span>
           <span class="mv-pill mv-absent"><mat-icon>cancel</mat-icon>{{ mvTotalAbsent }} Absent</span>
           <span class="mv-pill mv-holiday"><mat-icon>event_available</mat-icon>{{ mvTotalHoliday }} Informed Leave</span>
+          <span class="mv-pill mv-general-holiday"><mat-icon>celebration</mat-icon>{{ mvTotalGeneralHoliday }} General Holiday</span>
           <span class="mv-pill mv-hours"><mat-icon>schedule</mat-icon>{{ mvTotalHours | number:'1.1-1' }}h Total</span>
         </div>
 
@@ -351,12 +352,10 @@
                   <td class="td-num">{{ d | date:'d MMM' }}</td>
                   <td class="td-name" style="font-weight:500">{{ mvDayName(d) }}</td>
                   <td>
-                    <ng-container *ngIf="mvDayMap.get(d) as rec">
-                      <span class="mv-att-badge" [style.color]="mvAttColor(rec.attendanceType)">
-                        {{ rec.attendanceType === 'HALF_DAY' ? 'Half Day' : rec.attendanceType === 'HOLIDAY' ? 'Informed Leave' : (rec.attendanceType | titlecase) }}
-                      </span>
-                    </ng-container>
-                    <span class="muted" *ngIf="!mvDayMap.get(d)">—</span>
+                    <span class="mv-att-badge" *ngIf="mvHasEntry(d)" [style.color]="mvAttLabelColor(d)">
+                      {{ mvAttLabel(d) }}
+                    </span>
+                    <span class="muted" *ngIf="!mvHasEntry(d)">—</span>
                   </td>
                   <td class="td-num">
                     <ng-container *ngIf="(mvDayMap.get(d)?.hoursWorked ?? 0) > 0">
@@ -415,8 +414,8 @@
         </div>
       </ng-container>
 
-      <div class="tl-empty" *ngIf="!mvLoading && !mvError && mvRecords.length === 0 && mvWorkerId">
-        <mat-icon>calendar_month</mat-icon><p>No attendance records for this month</p>
+      <div class="tl-empty" *ngIf="!mvLoading && !mvError && !mvLoaded && mvWorkerId">
+        <mat-icon>calendar_month</mat-icon><p>Click Load to view this month</p>
       </div>
       <div class="tl-empty" *ngIf="!mvLoading && !mvWorkerId">
         <mat-icon>person_search</mat-icon><p>Select a worker and month, then click Load</p>
