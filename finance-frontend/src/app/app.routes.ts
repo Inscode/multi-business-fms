@@ -11,6 +11,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login/login').then(m => m.Login),
     canActivate: [loginGuard]
   },
+  // Invoice print lives OUTSIDE the main layout so window.print() captures
+  // only the invoice — no sidebar, no header.
+  {
+    path: 'invoicing/invoices/:id/print',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/invoicing/features/invoices/invoice-print/invoice-print.component')
+      .then(m => m.InvoicePrintComponent)
+  },
   {
     path: '',
     component: MainLayoutComponent,
@@ -51,6 +59,45 @@ export const routes: Routes = [
         path: 'bills/create',
         loadComponent: () => import('./features/bills/create-bill/create-bill')
           .then(m => m.CreateBill)
+      },
+      // ── Invoicing (new billing module, ported from ghanim-wholesale) ──
+      {
+        path: 'invoicing',
+        loadComponent: () => import('./features/invoicing/invoicing-shell')
+          .then(m => m.InvoicingShell),
+        children: [
+          { path: '', redirectTo: 'invoices', pathMatch: 'full' },
+          {
+            path: 'invoices',
+            loadComponent: () => import('./features/invoicing/features/invoices/invoice-list/invoice-list.component')
+              .then(m => m.InvoiceListComponent)
+          },
+          {
+            path: 'invoices/new',
+            loadComponent: () => import('./features/invoicing/features/invoices/invoice-form/invoice-form.component')
+              .then(m => m.InvoiceFormComponent)
+          },
+          {
+            path: 'invoices/:id',
+            loadComponent: () => import('./features/invoicing/features/invoices/invoice-detail/invoice-detail.component')
+              .then(m => m.InvoiceDetailComponent)
+          },
+          {
+            path: 'items',
+            loadComponent: () => import('./features/invoicing/features/items/item-list/item-list.component')
+              .then(m => m.ItemListComponent)
+          },
+          {
+            path: 'brands',
+            loadComponent: () => import('./features/invoicing/features/brands/brand-list/brand-list.component')
+              .then(m => m.BrandListComponent)
+          },
+          {
+            path: 'import',
+            loadComponent: () => import('./features/invoicing/features/import/import.component')
+              .then(m => m.ImportComponent)
+          },
+        ]
       },
       {
         path: 'bills/aging',

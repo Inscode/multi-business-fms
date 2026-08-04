@@ -82,6 +82,8 @@ public class CustomerServiceImpl {
                 .name(c.getName())
                 .phone(c.getPhone())
                 .area(c.getArea())
+                .customerCode(c.getCustomerCode())
+                .address(c.getAddress())
                 .tier(c.getTier())
                 .shopType(c.getShopType())
                 .active(c.getActive())

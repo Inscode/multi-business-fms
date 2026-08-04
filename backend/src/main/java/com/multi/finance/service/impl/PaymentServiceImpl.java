@@ -104,13 +104,18 @@ public class PaymentServiceImpl {
                     .orElseThrow(() -> new RuntimeException("Worker not found"));
         }
 
+        // An admin entering a payment is itself the confirmation — no second pass needed.
+        boolean autoConfirm = caller.getRole() == UserRole.ADMIN;
+
         Payment payment = Payment.builder()
                 .bill(bill)
                 .amount(request.getAmount())
                 .paymentType(request.getPaymentType())
-                .status(PaymentStatus.ENTERED)
+                .status(autoConfirm ? PaymentStatus.CONFIRMED : PaymentStatus.ENTERED)
+                .confirmedBy(autoConfirm ? caller : null)
+                .confirmedAt(autoConfirm ? LocalDateTime.now() : null)
                 .isPartial(isPartial)
-                .enteredBy(getCurrentUser())
+                .enteredBy(caller)
                 .paymentDate(
                         request.getPaymentDate() != null
                                 ? request.getPaymentDate()
@@ -144,6 +149,48 @@ public class PaymentServiceImpl {
         return toResponse(payment, bill);
     }
 
+    /**
+     * Turns an admin-recorded CASH collection straight into a confirmed payment, so the
+     * accountant does not have to re-enter it. The note is marked MATCHED by the caller.
+     */
+    @Transactional
+    public PaymentResponse recordConfirmedCollection(CollectionNote note) {
+        Bill bill = note.getBill();
+        User admin = note.getCollectedBy();
+
+        if (Boolean.TRUE.equals(bill.getFullyPaid())) {
+            throw new RuntimeException("Bill " + bill.getBillNumber() + " is already fully paid");
+        }
+        if (note.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
+            throw new RuntimeException("Collected amount exceeds remaining balance for bill "
+                    + bill.getBillNumber() + " (Rs " + bill.getBalanceRemaining().toPlainString() + ")");
+        }
+
+        boolean isPartial = note.getAmount().compareTo(bill.getBalanceRemaining()) < 0;
+        LocalDateTime now = LocalDateTime.now();
+
+        Payment payment = Payment.builder()
+                .bill(bill)
+                .amount(note.getAmount())
+                .paymentType(note.getPaymentType())
+                .status(PaymentStatus.CONFIRMED)
+                .isPartial(isPartial)
+                .enteredBy(admin)
+                .confirmedBy(admin)
+                .confirmedAt(now)
+                .paymentDate(note.getCollectedAt().toLocalDate())
+                .notes(note.getNotes())
+                .collectionNote(note)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        paymentRepository.save(payment);
+        applyBalanceDeduction(bill, payment.getAmount());
+
+        return toResponse(payment, bill);
+    }
+
     @Transactional
     public PaymentResponse confirmPayment(Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
@@ -162,6 +209,9 @@ public class PaymentServiceImpl {
         payment.setConfirmedAt(LocalDateTime.now());
         payment.setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
+
+        // This may have been the last unconfirmed payment — the bill can now complete.
+        syncCompletionStatus(payment.getBill());
 
         return toResponse(payment, payment.getBill());
     }
@@ -267,11 +317,9 @@ public class PaymentServiceImpl {
         bill.setBalanceRemaining(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
         bill.setAmountPaid(bill.getAmountPaid().add(amount));
         bill.setFullyPaid(bill.getBalanceRemaining().compareTo(BigDecimal.ZERO) <= 0);
-        if (Boolean.TRUE.equals(bill.getFullyPaid())) {
-            bill.setStatus(BillStatus.COMPLETED);
-        }
         bill.setUpdatedAt(LocalDateTime.now());
         billRepository.save(bill);
+        syncCompletionStatus(bill);
     }
 
     private void restoreBalance(Bill bill, BigDecimal amount) {
@@ -280,11 +328,45 @@ public class PaymentServiceImpl {
         bill.setBalanceRemaining(newBalance);
         bill.setAmountPaid(newPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newPaid);
         bill.setFullyPaid(false);
-        if (bill.getStatus() == BillStatus.COMPLETED) {
+        if (bill.getStatus() == BillStatus.COMPLETED
+                || bill.getStatus() == BillStatus.AWAITING_CONFIRMATION) {
             bill.setStatus(BillStatus.STORE_RECEIVED);
         }
         bill.setUpdatedAt(LocalDateTime.now());
         billRepository.save(bill);
+    }
+
+    /**
+     * A bill is only COMPLETED once it is fully paid AND every payment against it has been
+     * confirmed by an admin. Entering the final payment alone is no longer enough — until
+     * confirmation the bill sits in AWAITING_CONFIRMATION.
+     */
+    private void syncCompletionStatus(Bill bill) {
+        if (bill.getStatus() == BillStatus.CANCELLED) return;
+
+        boolean wasSettled = bill.getStatus() == BillStatus.COMPLETED
+                || bill.getStatus() == BillStatus.AWAITING_CONFIRMATION;
+
+        if (!Boolean.TRUE.equals(bill.getFullyPaid())) {
+            if (wasSettled) {
+                bill.setStatus(BillStatus.STORE_RECEIVED);
+                bill.setUpdatedAt(LocalDateTime.now());
+                billRepository.save(bill);
+            }
+            return;
+        }
+
+        boolean allConfirmed = paymentRepository.findByBillId(bill.getId()).stream()
+                .filter(p -> p.getStatus() != PaymentStatus.REJECTED
+                        && p.getStatus() != PaymentStatus.RETURNED)
+                .allMatch(p -> p.getStatus() == PaymentStatus.CONFIRMED);
+
+        BillStatus target = allConfirmed ? BillStatus.COMPLETED : BillStatus.AWAITING_CONFIRMATION;
+        if (bill.getStatus() != target) {
+            bill.setStatus(target);
+            bill.setUpdatedAt(LocalDateTime.now());
+            billRepository.save(bill);
+        }
     }
 
     private Payment getPaymentById(Long id) {
@@ -337,9 +419,9 @@ public class PaymentServiceImpl {
         bill.setBalanceRemaining(newBalance);
         bill.setAmountPaid(bill.getAmountPaid().add(diff));
         bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
-        if (Boolean.TRUE.equals(bill.getFullyPaid())) bill.setStatus(BillStatus.COMPLETED);
         bill.setUpdatedAt(LocalDateTime.now());
         billRepository.save(bill);
+        syncCompletionStatus(bill);
 
         payment.setAmount(request.getAmount());
         payment.setPaymentType(request.getPaymentType());
@@ -392,6 +474,7 @@ public class PaymentServiceImpl {
         }
 
         User currentUser = getCurrentUser();
+        boolean autoConfirm = currentUser.getRole() == UserRole.ADMIN;
         LocalDate paymentDate = request.getPaymentDate() != null
                 ? request.getPaymentDate() : LocalDate.now();
 
@@ -409,7 +492,9 @@ public class PaymentServiceImpl {
                 .paymentDate(paymentDate)
                 .totalAmount(totalAmount)
                 .notes(request.getNotes())
-                .status(PaymentStatus.ENTERED)
+                .status(autoConfirm ? PaymentStatus.CONFIRMED : PaymentStatus.ENTERED)
+                .confirmedBy(autoConfirm ? currentUser : null)
+                .confirmedAt(autoConfirm ? LocalDateTime.now() : null)
                 .enteredBy(currentUser)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -435,7 +520,9 @@ public class PaymentServiceImpl {
                     .group(group)
                     .amount(item.getAmount())
                     .paymentType(request.getPaymentType())
-                    .status(PaymentStatus.ENTERED)
+                    .status(autoConfirm ? PaymentStatus.CONFIRMED : PaymentStatus.ENTERED)
+                    .confirmedBy(autoConfirm ? currentUser : null)
+                    .confirmedAt(autoConfirm ? LocalDateTime.now() : null)
                     .isPartial(isPartial)
                     .enteredBy(currentUser)
                     .paymentDate(paymentDate)
@@ -486,6 +573,10 @@ public class PaymentServiceImpl {
         group.setConfirmedAt(LocalDateTime.now());
         group.setUpdatedAt(LocalDateTime.now());
         paymentGroupRepository.save(group);
+
+        for (Payment payment : payments) {
+            syncCompletionStatus(payment.getBill());
+        }
 
         return toGroupResponse(group, payments);
     }
@@ -605,6 +696,7 @@ public class PaymentServiceImpl {
                 .billId(bill.getId())
                 .groupId(payment.getGroup() != null ? payment.getGroup().getId() : null)
                 .billNumber(bill.getBillNumber())
+                .billDate(bill.getBillDate())
                 .isPartial(payment.getIsPartial())
                 .customerName(bill.getCustomerName())
                 .business(bill.getBusiness())

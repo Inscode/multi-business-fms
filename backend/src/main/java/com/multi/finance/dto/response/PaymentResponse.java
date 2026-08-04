@@ -33,6 +33,7 @@ public class PaymentResponse {
     private String referenceNumber;
     private String returnReason;
     private String billNumber;
+    private LocalDate billDate;
     private Boolean isPartial;
     private String enteredByName;
     private String confirmedByName;

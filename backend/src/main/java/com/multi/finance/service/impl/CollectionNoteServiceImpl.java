@@ -7,6 +7,8 @@ import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.CollectionNote;
 import com.multi.finance.entity.User;
 import com.multi.finance.enums.CollectionNoteStatus;
+import com.multi.finance.enums.PaymentType;
+import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.CollectionNoteRepository;
 import com.multi.finance.repository.UserRepository;
@@ -25,6 +27,22 @@ public class CollectionNoteServiceImpl {
     private final CollectionNoteRepository collectionNoteRepository;
     private final BillRepository billRepository;
     private final UserRepository userRepository;
+    private final PaymentServiceImpl paymentService;
+
+    /**
+     * Cash collected by an admin needs no second pair of eyes — it becomes a confirmed
+     * payment straight away instead of a PENDING note for the accountant to re-enter.
+     */
+    private boolean isSelfConfirming(User collector, PaymentType type) {
+        return collector.getRole() == UserRole.ADMIN && type == PaymentType.CASH;
+    }
+
+    private CollectionNote settleIfSelfConfirming(CollectionNote note) {
+        if (!isSelfConfirming(note.getCollectedBy(), note.getPaymentType())) return note;
+        paymentService.recordConfirmedCollection(note);
+        note.setStatus(CollectionNoteStatus.MATCHED);
+        return collectionNoteRepository.save(note);
+    }
 
     @Transactional
     public CollectionNoteResponse create(CollectionNoteRequest request) {
@@ -48,7 +66,7 @@ public class CollectionNoteServiceImpl {
                 .referenceNumber(request.getReferenceNumber())
                 .build();
 
-        return toResponse(collectionNoteRepository.save(note));
+        return toResponse(settleIfSelfConfirming(collectionNoteRepository.save(note)));
     }
 
     @Transactional
@@ -75,7 +93,7 @@ public class CollectionNoteServiceImpl {
                     .referenceNumber(request.getReferenceNumber())
                     .build();
 
-            return toResponse(collectionNoteRepository.save(note));
+            return toResponse(settleIfSelfConfirming(collectionNoteRepository.save(note)));
         }).toList();
     }
 

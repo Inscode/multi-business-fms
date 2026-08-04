@@ -191,7 +191,7 @@ public class BillServiceImpl {
         if (business == BusinessType.DEMO) return List.of();
         User caller = getCurrentUser();
         boolean doExclude = excludeCompleted && status == null;
-        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.CANCELLED);
+        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.AWAITING_CONFIRMATION, BillStatus.CANCELLED);
 
         // true = both from+to provided (BETWEEN), false = only to provided (BEFORE = overdue)
         boolean hasBoth = from != null && to != null;
@@ -252,7 +252,7 @@ public class BillServiceImpl {
     @Transactional(readOnly = true)
     public long countOverduePending(LocalDate cutoff) {
         User caller = getCurrentUser();
-        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.CANCELLED);
+        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.AWAITING_CONFIRMATION, BillStatus.CANCELLED);
         if (caller.getRole() == UserRole.SHOP_ACCOUNTANT) {
             return billRepository.countShopAccountantOverdueBills(cutoff);
         }
@@ -323,6 +323,7 @@ public class BillServiceImpl {
 
     private Bill assignBillInternal(Bill bill, Worker worker, User caller) {
         if (bill.getStatus() == BillStatus.COMPLETED ||
+                bill.getStatus() == BillStatus.AWAITING_CONFIRMATION ||
                 bill.getStatus() == BillStatus.CANCELLED) {
             throw new RuntimeException(
                     "Cannot assign bill " + bill.getBillNumber() + " — it is completed or cancelled");
@@ -372,6 +373,7 @@ public class BillServiceImpl {
 
     private Bill markShopReceivedInternal(Bill bill, User caller) {
         if (bill.getStatus() == BillStatus.COMPLETED ||
+                bill.getStatus() == BillStatus.AWAITING_CONFIRMATION ||
                 bill.getStatus() == BillStatus.CANCELLED) {
             throw new RuntimeException("Cannot change status of bill " + bill.getBillNumber() + " — it is completed or cancelled");
         }
@@ -433,8 +435,9 @@ public class BillServiceImpl {
         if (bill.getStatus() == BillStatus.CANCELLED) {
             throw new RuntimeException("Bill is already cancelled");
         }
-        if (bill.getStatus() == BillStatus.COMPLETED) {
-            throw new RuntimeException("Cannot cancel a completed bill");
+        if (bill.getStatus() == BillStatus.COMPLETED
+                || bill.getStatus() == BillStatus.AWAITING_CONFIRMATION) {
+            throw new RuntimeException("Cannot cancel a fully paid bill");
         }
         bill.setStatus(BillStatus.CANCELLED);
         bill.setUpdatedAt(LocalDateTime.now());
@@ -614,7 +617,7 @@ public class BillServiceImpl {
     @Transactional(readOnly = true)
     public AgingReportResponse getAgingReport(BusinessType business) {
         LocalDate today = LocalDate.now();
-        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.CANCELLED);
+        List<BillStatus> excluded = List.of(BillStatus.COMPLETED, BillStatus.AWAITING_CONFIRMATION, BillStatus.CANCELLED);
 
         List<Bill> bills = billRepository.findByBusinessAndStatusNotInOrderByCreatedAtDesc(business, excluded)
                 .stream()

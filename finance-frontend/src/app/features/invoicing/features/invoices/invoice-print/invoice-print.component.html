@@ -1,0 +1,178 @@
+@if (error) {
+  <div class="error-page">{{ error }}</div>
+}
+
+@if (!print && !error) {
+  <div class="loading-page">Preparing invoice…</div>
+}
+
+@if (print) {
+<div class="invoice-page">
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <div class="inv-header">
+    <div class="company-block">
+      <div class="company-name">{{ print.companyName }}</div>
+      <div class="company-sub">{{ print.companyAddress }}</div>
+      <div class="company-sub">{{ print.companyCity }}</div>
+      <div class="company-sub">TEL:{{ print.companyTel }}</div>
+      <div class="company-sub">{{ print.distributorLine }}</div>
+    </div>
+    <div class="header-right">
+      <div class="printed-on">Printed On : {{ today | date:'dd/MM/yyyy HH:mm' }}</div>
+      <div class="watermark-badge" [class.original]="print.watermark === 'ORIGINAL'"
+                                   [class.duplicate]="print.watermark === 'DUPLICATE'">
+        {{ print.watermark }}
+      </div>
+    </div>
+  </div>
+
+  <div class="inv-type-row">
+    <div class="inv-type-box">INVOICE</div>
+  </div>
+
+  <!-- ── Customer + Invoice meta ───────────────────────────────── -->
+  <div class="inv-meta">
+    <div class="meta-left">
+      <div class="meta-row"><span class="lbl">CUS. CODE</span><span class="sep">:</span><span>{{ print.customerCode }}</span></div>
+      <div class="meta-row"><span class="lbl">CUS. NAME</span><span class="sep">:</span><span>{{ print.customerName }}</span></div>
+      <div class="meta-row"><span class="lbl">ADDRESS</span><span class="sep">:</span><span>{{ print.customerAddress }}</span></div>
+      @if (print.customerPhone) {
+        <div class="meta-row"><span class="lbl"></span><span class="sep">&nbsp;</span><span>{{ print.customerPhone }}</span></div>
+      }
+    </div>
+    <div class="meta-right">
+      <div class="meta-row"><span class="lbl">INV. NO</span><span class="sep">:</span><span>{{ print.externalRef || print.invoiceNo }}</span></div>
+      <div class="meta-row"><span class="lbl">INV. DATE</span><span class="sep">:</span><span>{{ print.invoiceDate | date:'d/M/yyyy' }}</span></div>
+    </div>
+  </div>
+
+  <!-- ── Items table ───────────────────────────────────────────── -->
+  <table class="items-table">
+    <colgroup>
+      <col class="col-code">
+      <col class="col-desc">
+      <col class="col-qty">
+      <col class="col-mrp">
+      <col class="col-mgn">
+      <col class="col-wsp">
+      <col class="col-val">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="col-code">ITEM CODE</th>
+        <th class="col-desc">DESCRIPTION</th>
+        <th class="col-qty num">QTY.</th>
+        <th class="col-mrp num">MRP</th>
+        <th class="col-mgn num">MGN%</th>
+        <th class="col-wsp num">WSP</th>
+        <th class="col-val num">VALUE</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (group of print.brandGroups; track group.brandId) {
+
+        <!-- Brand section header -->
+        <tr class="brand-hdr">
+          <td colspan="7">{{ group.brandName }}</td>
+        </tr>
+
+        <!-- Item lines -->
+        @for (line of group.lines; track line.itemCode) {
+          <tr class="item-row">
+            <td>{{ line.itemCode }}</td>
+            <td class="desc-cell">{{ line.description }}</td>
+            <td class="num">
+              {{ line.qty }}
+              @if (line.freeIssueQty) { <span class="free-qty">+{{ line.freeIssueQty }}F</span> }
+            </td>
+            <td class="num">{{ line.mrp | number:'1.2-2' }}</td>
+            <td class="num">{{ line.marginPct | number:'1.2-2' }}</td>
+            <td class="num">{{ line.wsp | number:'1.2-2' }}</td>
+            <td class="num">{{ line.value | number:'1.2-2' }}</td>
+          </tr>
+        }
+
+        <!-- Brand subtotals -->
+        <tr class="subtotal-row first-sub">
+          <td colspan="6" class="sub-lbl">Total Value After Product Margin</td>
+          <td class="num">{{ group.brandTotalWsp | number:'1.2-2' }}</td>
+        </tr>
+        <tr class="subtotal-row">
+          <td colspan="4" class="sub-lbl">Total Brand Discount</td>
+          <td></td>
+          <td class="num">{{ group.brandDiscountPct | number:'1.2-2' }} %</td>
+          <td class="num">
+            @if (group.brandDiscountAmount > 0) {
+              ({{ group.brandDiscountAmount | number:'1.2-2' }})
+            } @else {
+              &mdash;
+            }
+          </td>
+        </tr>
+        <tr class="subtotal-row net-row">
+          <td colspan="6" class="sub-lbl">Total After Discount</td>
+          <td class="num">{{ group.brandNetTotal | number:'1.2-2' }}</td>
+        </tr>
+
+        <tr class="spacer-row"><td colspan="7"></td></tr>
+      }
+    </tbody>
+  </table>
+
+  <!-- ── Invoice totals ────────────────────────────────────────── -->
+  <div class="inv-totals">
+    <div class="total-row">
+      <span class="total-lbl">Invoice Value After Product Margin (WSP)</span>
+      <span class="total-val">{{ print.grossTotal | number:'1.2-2' }}</span>
+    </div>
+    <div class="total-row">
+      <span class="total-lbl">Total Slab Discount</span>
+      <span class="total-val">({{ print.totalSlabDiscount | number:'1.2-2' }})</span>
+    </div>
+    @if (print.cashDiscountPct) {
+      <div class="total-row">
+        <span class="total-lbl">Cash Discount</span>
+        <span class="total-val cash-pct">{{ print.cashDiscountPct | number:'1.2-2' }} %</span>
+        <span class="total-val">({{ print.cashDiscountAmount | number:'1.2-2' }})</span>
+      </div>
+    }
+    <div class="total-row net-total-row">
+      <span class="total-lbl">NET Invoice Value</span>
+      <span class="total-val">{{ print.netTotal | number:'1.2-2' }}</span>
+    </div>
+  </div>
+
+  <!-- ── Signatures ────────────────────────────────────────────── -->
+  <div class="signatures">
+    <div class="sig-left">
+      <div class="sig-dots">................................................</div>
+      <div class="sig-label">Customer Signature</div>
+    </div>
+    <div class="sig-right">
+      <div class="sig-dots">................................................</div>
+      <div class="sig-label">Date</div>
+    </div>
+  </div>
+
+  <!-- ── Collection details ────────────────────────────────────── -->
+  <div class="collection">
+    <div class="coll-title">COLLECTION DETAILS</div>
+    <table class="coll-table">
+      <thead>
+        <tr>
+          <th>PAYMENT MODE</th>
+          <th>REF NO.</th>
+          <th>VALUE</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>&nbsp;</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="end-of-report">*** End Of Report ***</div>
+
+</div>
+}

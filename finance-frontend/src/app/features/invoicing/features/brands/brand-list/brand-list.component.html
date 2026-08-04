@@ -1,0 +1,172 @@
+<div class="page">
+
+  <div class="page-header">
+    <div class="page-title">
+      <mat-icon>label</mat-icon>
+      Brands &amp; Discount Slabs
+    </div>
+    <button mat-flat-button color="primary" (click)="openNew()">
+      <mat-icon>add</mat-icon> New Brand
+    </button>
+  </div>
+
+  @if (showForm) {
+    <div class="form-panel card">
+      <div class="form-title">{{ editingId ? 'Edit Brand' : 'New Brand' }}</div>
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-grid">
+
+        <mat-form-field appearance="outline">
+          <mat-label>Brand Name *</mat-label>
+          <input matInput formControlName="name" placeholder="e.g. Rainco Umbrellas">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Brand Code</mat-label>
+          <input matInput formControlName="brandCode" placeholder="e.g. RC">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Category *</mat-label>
+          <mat-select formControlName="category">
+            <mat-option value="RAINCO">Rainco</mat-option>
+            <mat-option value="STATIONERY">Stationery</mat-option>
+            <mat-option value="PLASTIC">Plastic</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Discount Type *</mat-label>
+          <mat-select formControlName="discountType">
+            <mat-option value="SLAB">Slab (by invoice value)</mat-option>
+            <mat-option value="FIXED_PCT">Fixed %</mat-option>
+            <mat-option value="MANUAL">Manual</mat-option>
+            <mat-option value="NONE">None</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Default Margin %</mat-label>
+          <input matInput type="number" formControlName="defaultMarginPct" placeholder="e.g. 20">
+          <span matTextSuffix>%</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="active">
+            <mat-option [value]="true">Active</mat-option>
+            <mat-option [value]="false">Inactive</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="form-actions span-3">
+          <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving">
+            {{ saving ? 'Saving…' : (editingId ? 'Update' : 'Create') }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  }
+
+  <div class="toolbar">
+    <mat-form-field appearance="outline" class="cat-field">
+      <mat-label>Filter by category</mat-label>
+      <mat-select [(ngModel)]="category" (ngModelChange)="cdr.markForCheck()">
+        <mat-option value="">All Categories</mat-option>
+        <mat-option value="RAINCO">Rainco</mat-option>
+        <mat-option value="STATIONERY">Stationery</mat-option>
+        <mat-option value="PLASTIC">Plastic</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <div class="spacer"></div>
+    <span class="count-chip">{{ filtered.length }} brands</span>
+  </div>
+
+  <div class="card table-card">
+    @if (loading) {
+      <div class="state-center">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Loading…</span>
+      </div>
+    } @else if (filtered.length === 0) {
+      <div class="state-center">
+        <mat-icon>label_outline</mat-icon>
+        <p>No brands found</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Discount Type</th>
+              <th class="num">Default Margin</th>
+              <th>Slabs</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (b of filtered; track b.id) {
+              <tr [class.editing-row]="editingId === b.id">
+                <td class="mono">{{ b.brandCode || '—' }}</td>
+                <td class="fw6">{{ b.name }}</td>
+                <td><span class="badge" [ngClass]="categoryClass(b.category)">{{ b.category }}</span></td>
+                <td><span class="disc-type">{{ discountTypeLabel(b.discountType) }}</span></td>
+                <td class="num">{{ b.defaultMarginPct != null ? (b.defaultMarginPct + '%') : '—' }}</td>
+                <td>
+                  @if (b.slabs.length) {
+                    <button class="slab-toggle" (click)="toggleSlabs(b.id)">
+                      {{ b.slabs.length }} slab{{ b.slabs.length > 1 ? 's' : '' }}
+                      <mat-icon>{{ expandedId === b.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    </button>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td><span class="badge" [class.success]="b.active" [class.danger]="!b.active">{{ b.active ? 'Active' : 'Inactive' }}</span></td>
+                <td class="action-cell">
+                  <button mat-icon-button (click)="openEdit(b)" matTooltip="Edit">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                </td>
+              </tr>
+              @if (expandedId === b.id && b.slabs.length) {
+                <tr class="slab-row">
+                  <td colspan="8">
+                    <div class="slabs-wrap">
+                      <div class="slabs-title">Discount Slabs for {{ b.name }}</div>
+                      <table class="slab-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Min Value (LKR)</th>
+                            <th>Max Value (LKR)</th>
+                            <th>Discount %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (s of b.slabs; track s.id) {
+                            <tr>
+                              <td>{{ s.sortOrder ?? $index + 1 }}</td>
+                              <td>{{ s.minValue != null ? (s.minValue | number:'1.0-0') : '0' }}</td>
+                              <td>{{ s.maxValue != null ? (s.maxValue | number:'1.0-0') : '∞' }}</td>
+                              <td class="disc-pct">{{ s.discountPct }}%</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,191 @@
+.no-print-wrapper { padding: 24px; }
+
+/* ---- Action bar ---- */
+.action-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  button { display: flex; align-items: center; gap: 6px; }
+}
+
+/* ---- States ---- */
+.state-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 20px;
+  color: #aaa;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fce4ec;
+  border: 1px solid #ef9a9a;
+  border-radius: 10px;
+  padding: 14px 18px;
+  color: #c62828;
+  font-weight: 600;
+  mat-icon { font-size: 20px; }
+}
+
+/* ---- Invoice Document ---- */
+.invoice-doc {
+  max-width: 900px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 20px rgba(0,0,0,.1);
+  padding: 36px 40px;
+  margin: 0 auto;
+  font-size: 13px;
+}
+
+.doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e8eaf6;
+}
+
+.company-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1a237e;
+}
+.company-sub {
+  font-size: 12px;
+  color: #7986cb;
+  margin-top: 2px;
+}
+
+.invoice-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.inv-no {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a237e;
+  font-family: 'Courier New', monospace;
+}
+.inv-ref { font-size: 12px; color: #777; }
+.inv-date { font-size: 13px; color: #555; }
+
+.customer-block {
+  background: #f8f9ff;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+
+  .cust-label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #7986cb; margin-bottom: 4px; }
+  .cust-name  { font-size: 16px; font-weight: 700; color: #1a237e; }
+  .cust-addr  { font-size: 12px; color: #777; margin-top: 2px; }
+}
+
+/* ---- Invoice table ---- */
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+
+  th {
+    background: #1a237e;
+    color: rgba(255,255,255,.9);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 12.5px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+
+  .num  { text-align: right; }
+  .idx  { color: #ccc; width: 28px; }
+  .mono { font-family: 'Courier New', monospace; font-size: 11px; color: #666; }
+  .muted { color: #999; font-size: 11px; }
+  .fw6  { font-weight: 600; }
+  .disc { color: #c62828; }
+}
+
+/* ---- Totals ---- */
+.totals-block {
+  border-top: 2px solid #e8eaf6;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.total-row {
+  display: flex;
+  gap: 40px;
+  justify-content: flex-end;
+  font-size: 13px;
+  min-width: 300px;
+
+  span:first-child { color: #666; }
+  span:last-child  { min-width: 100px; text-align: right; font-weight: 600; }
+}
+
+.disc-row span { color: #c62828 !important; }
+
+.net-row {
+  font-size: 17px;
+  font-weight: 800;
+  color: #1a237e !important;
+  border-top: 1px solid #e8eaf6;
+  padding-top: 10px;
+  margin-top: 4px;
+  span { color: #1a237e !important; }
+}
+
+.variance-row span { color: #f57f17 !important; font-size: 12px; }
+
+/* ---- Footer ---- */
+.doc-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+  font-size: 11px;
+  color: #aaa;
+}
+
+/* ---- Print embed ----
+   Holds the actual formatted invoice (app-invoice-print) used for printing. Kept out of
+   the normal screen layout and only revealed by the print stylesheet below, so window.print()
+   renders the real invoice format instead of this page's on-screen preview. */
+.print-embed {
+  display: none;
+}
+
+/* ---- Print styles ---- */
+@media print {
+  .no-print { display: none !important; }
+  .no-print-wrapper { padding: 0; }
+
+  .invoice-doc {
+    display: none;
+  }
+
+  .print-embed {
+    display: block;
+  }
+}
