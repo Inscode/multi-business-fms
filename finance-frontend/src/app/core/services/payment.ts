@@ -7,6 +7,7 @@ export interface PaymentResponse {
   id: number;
   billId: number;
   billNumber: string;
+  billDate: string | null;
   customerName: string;
   business: string;
   billTotal: number;

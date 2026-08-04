@@ -12,7 +12,10 @@ import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel, chequeAgeTooltip } from '../../../core/utils/cheque-age';
+import { BANKS } from '../../../core/constants/payment-options';
 import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { Auth } from '../../../core/services/auth';
 import { Router, RouterLink } from '@angular/router';
@@ -41,6 +44,7 @@ import { of } from 'rxjs';
     MatProgressSpinnerModule,
     MatPaginatorModule,
     MatDialogModule,
+    MatTabsModule,
     MatTooltipModule,
     DecimalPipe,
     LowerCasePipe,
@@ -76,10 +80,28 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
   chequeSearchActive = false;
   private chequeSearch$ = new Subject<string>();
 
-  // ── Future cheques panel ───────────────────────────────────────
-  futureChequesPanelOpen = false;
+  // Cheque numbers repeat across banks, so a number alone can match several customers.
+  chequeBankFilter = '';
+  banks = BANKS;
+
+  get chequeSearchFiltered(): PaymentResponse[] {
+    if (!this.chequeBankFilter) return this.chequeSearchResults;
+    return this.chequeSearchResults.filter(p => p.bankName === this.chequeBankFilter);
+  }
+
+  /** Banks present in the current cheque-number results — the ones worth disambiguating. */
+  get chequeSearchBanks(): string[] {
+    return [...new Set(this.chequeSearchResults.map(p => p.bankName).filter((b): b is string => !!b))].sort();
+  }
+
+  // ── Cheque Payments tab ────────────────────────────────────────
+  // Default view is future-dated cheques only. A customer search widens the net to
+  // the previous 3 months as well, so past cheques from the same customer surface.
+  private static readonly RECENT_MONTHS = 3;
+
   private allFutureCheques: PaymentResponse[] = [];
-  futureCheques: PaymentResponse[] = [];
+  private recentCheques: PaymentResponse[] = [];   // last 3 months, loaded on first search
+  private recentLoaded = false;
   futureChequeLoading = false;
   futureChequeRefreshing = false;
   futureCustomerQuery = '';
@@ -99,7 +121,78 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
   statuses = ['', 'ENTERED', 'CONFIRMED', 'REJECTED', 'RETURNED'];
 
   displayedColumns = ['billNumber', 'customerName', 'amount',
-                      'type', 'enteredBy', 'date', 'status', 'actions'];
+                      'type', 'chequeAge', 'enteredBy', 'date', 'status', 'actions'];
+
+  chequeColumns = ['billNumber', 'customerName', 'chequeNumber', 'bank',
+                   'amount', 'billDate', 'chequeDate', 'when', 'chequeAge', 'status'];
+
+  // ── Cheque age (bill date → cheque date) ───────────────────────
+  chequeBandFilter: 'ALL' | ChequeAgeBand = 'ALL';
+
+  ageDays(p: PaymentResponse): number | null {
+    if (p.paymentType !== 'CHEQUE') return null;
+    return chequeAgeDays(p.billDate, p.chequeDate);
+  }
+
+  ageBand(days: number): ChequeAgeBand { return chequeAgeBand(days); }
+  ageLabel(days: number): string { return chequeAgeLabel(days); }
+  ageTooltip(days: number): string { return chequeAgeTooltip(days); }
+
+  /**
+   * Future-dated cheques, plus — while a customer search is active — that customer's
+   * cheques from the previous 3 months. Deduped, newest cheque date first.
+   */
+  private get chequeBase(): PaymentResponse[] {
+    const query = this.futureCustomerQuery.toLowerCase().trim();
+    if (!query) return this.allFutureCheques;
+
+    const matches = (p: PaymentResponse) => p.customerName.toLowerCase().includes(query);
+    const byId = new Map<number, PaymentResponse>();
+    this.allFutureCheques.filter(matches).forEach(p => byId.set(p.id, p));
+    this.recentCheques.filter(matches).forEach(p => { if (!byId.has(p.id)) byId.set(p.id, p); });
+
+    return [...byId.values()].sort((a, b) => (b.chequeDate ?? '').localeCompare(a.chequeDate ?? ''));
+  }
+
+  /** The cheque rows on screen, narrowed by the active age band. */
+  get chequePayments(): PaymentResponse[] {
+    const cheques = this.chequeBase;
+    if (this.chequeBandFilter === 'ALL') return cheques;
+    return cheques.filter(p => {
+      const days = this.ageDays(p);
+      return days !== null && chequeAgeBand(days) === this.chequeBandFilter;
+    });
+  }
+
+  bandCount(band: ChequeAgeBand): number {
+    return this.chequeBase.filter(p => {
+      const days = this.ageDays(p);
+      return days !== null && chequeAgeBand(days) === band;
+    }).length;
+  }
+
+  get chequeCount(): number { return this.chequeBase.length; }
+
+  get chequeTotal(): number {
+    return this.chequeBase.reduce((sum, p) => sum + p.paymentAmount, 0);
+  }
+
+  /** A cheque dated today or later is still to clear. */
+  isFutureCheque(p: PaymentResponse): boolean {
+    return !!p.chequeDate && this.daysUntil(p.chequeDate) >= 0;
+  }
+
+  whenLabel(p: PaymentResponse): string {
+    if (!p.chequeDate) return '—';
+    const days = this.daysUntil(p.chequeDate);
+    if (days === 0) return 'Today';
+    return days > 0 ? `In ${days}d` : `${Math.abs(days)}d ago`;
+  }
+
+  setBandFilter(band: 'ALL' | ChequeAgeBand): void {
+    this.chequeBandFilter = band;
+    this.cdr.detectChanges();
+  }
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
@@ -298,10 +391,6 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
     return this.canConfirm(payment) || this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment) || this.canReject(payment);
   }
 
-  get futureChequeTotal(): number {
-    return this.futureCheques.reduce((sum, p) => sum + p.paymentAmount, 0);
-  }
-
   daysUntil(dateStr: string): number {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const target = new Date(dateStr + 'T00:00:00');
@@ -320,12 +409,9 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
     this.chequeSearch$.next('');
   }
 
-  // ── Future cheques panel ─────────────────────────────────────────────────
-  toggleFutureCheques(): void {
-    this.futureChequesPanelOpen = !this.futureChequesPanelOpen;
-    if (this.futureChequesPanelOpen && this.allFutureCheques.length === 0) {
-      this.loadFutureCheques();
-    }
+  // ── Cheque Payments tab ──────────────────────────────────────────────────
+  onTabChange(index: number): void {
+    if (index === 1 && this.allFutureCheques.length === 0) this.loadFutureCheques();
   }
 
   loadFutureCheques(): void {
@@ -335,7 +421,6 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
     this.paymentService.getFutureCheques().subscribe({
       next: (res) => {
         this.allFutureCheques = res;
-        this.applyFutureFilter();
         this.futureChequeLoading = false;
         this.futureChequeRefreshing = false;
         this.cdr.detectChanges();
@@ -349,20 +434,27 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onFutureCustomerSearch(): void {
-    this.applyFutureFilter();
+    // Searching a customer widens the window to the last 3 months, fetched once.
+    if (this.futureCustomerQuery.trim() && !this.recentLoaded) this.loadRecentCheques();
+    this.cdr.detectChanges();
   }
 
   clearFutureCustomer(): void {
     this.futureCustomerQuery = '';
-    this.applyFutureFilter();
+    this.cdr.detectChanges();
   }
 
-  private applyFutureFilter(): void {
-    const q = this.futureCustomerQuery.toLowerCase().trim();
-    this.futureCheques = q
-      ? this.allFutureCheques.filter(p => p.customerName.toLowerCase().includes(q))
-      : this.allFutureCheques.slice();
-    this.cdr.detectChanges();
+  private loadRecentCheques(): void {
+    this.recentLoaded = true;
+    const from = new Date();
+    from.setMonth(from.getMonth() - PaymentList.RECENT_MONTHS);
+    this.paymentService.getAllPayments(undefined, localDateStr(from), this.today).subscribe({
+      next: (res) => {
+        this.recentCheques = res.filter(p => p.paymentType === 'CHEQUE');
+        this.cdr.detectChanges();
+      },
+      error: () => { this.recentLoaded = false; this.cdr.detectChanges(); },
+    });
   }
 
   deletePayment(payment: PaymentResponse): void {

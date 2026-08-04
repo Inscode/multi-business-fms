@@ -7,7 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { Worker as WorkerApi, WorkerResponse } from '../../../core/services/worker';
 import {
   TimeLogService, WorkerAverageHours, WorkerAttendanceRecord,
@@ -91,12 +92,22 @@ export class TimeLogPage implements OnInit {
     { value: 'HALF_DAY', label: 'Half Day',       icon: 'access_time',   color: '#ff9800' },
     { value: 'ABSENT',   label: 'Absent',         icon: 'cancel',        color: '#ef5350' },
     { value: 'HOLIDAY',  label: 'Informed Leave', icon: 'event_available', color: '#7b1fa2' },
+    { value: 'GENERAL_HOLIDAY', label: 'General Holiday', icon: 'celebration', color: '#0288d1' },
   ];
+
+  /** Attendance types that mean "no work done" — hours are forced to 0. */
+  private readonly nonWorkingTypes = ['ABSENT', 'HOLIDAY', 'GENERAL_HOLIDAY'];
+
+  attTypeLabel(type: string): string {
+    return this.attTypes.find(t => t.value === type)?.label ?? type;
+  }
 
   // ── Monthly View tab ─────────────────────────────────────────────────
   mvMonth    = new Date().toISOString().slice(0, 7);  // "2026-07"
   mvWorkerId: number | null = null;
   mvRecords: WorkerAttendanceRecord[] = [];
+  mvHolidays: CompanyHoliday[] = [];   // company holidays covering the selected worker
+  mvLoaded   = false;
   mvLoading  = false;
   mvError    = '';
 
@@ -113,6 +124,48 @@ export class TimeLogPage implements OnInit {
     const map = new Map<string, WorkerAttendanceRecord>();
     this.mvRecords.forEach(r => map.set(r.date, r));
     return map;
+  }
+
+  /** date → company holiday that applies to the selected worker. */
+  get mvHolidayMap(): Map<string, CompanyHoliday> {
+    const map = new Map<string, CompanyHoliday>();
+    this.mvHolidays.forEach(h => map.set(h.date, h));
+    return map;
+  }
+
+  mvHolidayName(date: string): string | null {
+    return this.mvHolidayMap.get(date)?.name ?? null;
+  }
+
+  /**
+   * What to show in the Attendance cell. A company holiday stands in as General Holiday
+   * on days with no explicit record, and annotates the day when a record does exist.
+   */
+  mvAttLabel(date: string): string {
+    const rec = this.mvDayMap.get(date);
+    const holidayName = this.mvHolidayName(date);
+    if (!rec) return holidayName ? `General Holiday (${holidayName})` : '';
+    const label = this.attTypeLabel(rec.attendanceType);
+    return holidayName ? `${label} (${holidayName})` : label;
+  }
+
+  mvAttLabelColor(date: string): string {
+    const rec = this.mvDayMap.get(date);
+    if (rec) return this.mvAttColor(rec.attendanceType);
+    return this.mvHolidayName(date) ? this.mvAttColor('GENERAL_HOLIDAY') : '#888';
+  }
+
+  /** True when the day has something to show — a record or a company holiday. */
+  mvHasEntry(date: string): boolean {
+    return !!this.mvDayMap.get(date) || !!this.mvHolidayName(date);
+  }
+
+  get mvTotalGeneralHoliday(): number {
+    const recordDates = new Set(
+      this.mvRecords.filter(r => r.attendanceType === 'GENERAL_HOLIDAY').map(r => r.date)
+    );
+    this.mvHolidays.forEach(h => recordDates.add(h.date));
+    return recordDates.size;
   }
 
   get mvTotalPresent(): number { return this.mvRecords.filter(r => r.attendanceType === 'PRESENT').length; }
@@ -137,7 +190,9 @@ export class TimeLogPage implements OnInit {
   mvStartEdit(date: string): void {
     const existing = this.mvDayMap.get(date);
     this.mvEditingDate = date;
-    this.mvEditType    = existing?.attendanceType ?? 'PRESENT';
+    // A declared company holiday pre-selects General Holiday so saving matches what's shown
+    this.mvEditType    = existing?.attendanceType
+      ?? (this.mvHolidayName(date) ? 'GENERAL_HOLIDAY' : 'PRESENT');
     this.mvEditHours   = existing?.hoursWorked   ?? (this.mvSelectedWorker?.normalWorkingHours ?? 8);
     this.mvEditError   = '';
     this.cdr.detectChanges();
@@ -150,7 +205,7 @@ export class TimeLogPage implements OnInit {
   }
 
   mvOnTypeChange(): void {
-    if (this.mvEditType === 'ABSENT' || this.mvEditType === 'HOLIDAY') {
+    if (this.nonWorkingTypes.includes(this.mvEditType)) {
       this.mvEditHours = 0;
     } else if (!this.mvEditHours) {
       this.mvEditHours = this.mvSelectedWorker?.normalWorkingHours ?? 8;
@@ -222,12 +277,27 @@ export class TimeLogPage implements OnInit {
     const from   = `${y}-${String(m).padStart(2, '0')}-01`;
     const lastDay = new Date(y, m, 0).getDate();
     const to     = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const workerId = this.mvWorkerId;
     this.mvLoading = true;
     this.mvError   = '';
     this.cdr.detectChanges();
-    this.timeLog.getWorkerAttendance(this.mvWorkerId, from, to).subscribe({
-      next: recs  => { this.mvRecords = recs; this.mvLoading = false; this.cdr.detectChanges(); },
-      error: ()   => { this.mvError = 'Failed to load.'; this.mvLoading = false; this.cdr.detectChanges(); },
+
+    // Attendance records and company holidays are separate stores — the monthly view
+    // overlays them so holidays declared in the Holidays tab show up here too.
+    forkJoin({
+      records:  this.timeLog.getWorkerAttendance(workerId, from, to),
+      holidays: this.timeLog.getHolidays(from, to).pipe(catchError(() => of([] as CompanyHoliday[]))),
+    }).subscribe({
+      next: ({ records, holidays }) => {
+        this.mvRecords  = records;
+        this.mvHolidays = holidays.filter(
+          h => h.appliesToAll || (h.workerIds ?? []).includes(workerId)
+        );
+        this.mvLoaded  = true;
+        this.mvLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.mvError = 'Failed to load.'; this.mvLoading = false; this.cdr.detectChanges(); },
     });
   }
 
@@ -236,7 +306,7 @@ export class TimeLogPage implements OnInit {
   }
 
   mvAttColor(type: string): string {
-    return ({ PRESENT: '#43a047', HALF_DAY: '#ff9800', ABSENT: '#ef5350', HOLIDAY: '#7b1fa2' } as Record<string, string>)[type] ?? '#888';
+    return this.attTypes.find(t => t.value === type)?.color ?? '#888';
   }
 
   constructor(
@@ -278,6 +348,13 @@ export class TimeLogPage implements OnInit {
         const idx = this.allWorkers.findIndex(w => w.id === updated.id);
         if (idx >= 0) this.allWorkers[idx] = updated;
         this.workers = this.allWorkers.filter(x => x.timeLogActive);
+        // The monthly-view picker only lists participants — drop a selection that just left
+        if (this.mvWorkerId === updated.id && !updated.timeLogActive) {
+          this.mvWorkerId = null;
+          this.mvRecords = [];
+          this.mvHolidays = [];
+          this.mvLoaded = false;
+        }
         this.participantTogglingId = null;
         this.cdr.detectChanges();
       },
@@ -462,8 +539,8 @@ export class TimeLogPage implements OnInit {
         list.push(entry);
         this.timeEntries.set(worker.id, list);
         this.recomputeTotalMins(worker.id);
-        // Auto-suggest PRESENT if worker was ABSENT/HOLIDAY
-        if (['ABSENT', 'HOLIDAY'].includes(this.getAttType(worker.id))) {
+        // Auto-suggest PRESENT if worker was marked as not working
+        if (this.nonWorkingTypes.includes(this.getAttType(worker.id))) {
           this.attDrafts.set(worker.id, 'PRESENT');
         }
         this.showNewEntry.set(worker.id, false);

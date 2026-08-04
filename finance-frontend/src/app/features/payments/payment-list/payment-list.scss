@@ -28,6 +28,14 @@
   }
 }
 
+// Tab body sits flush against the ink bar by default — the first filter row
+// collides with the tab labels without this breathing room.
+.payment-tabs {
+  ::ng-deep .mat-mdc-tab-body-wrapper { padding-top: 20px; }
+  ::ng-deep .mat-mdc-tab-body-content { overflow: visible; }
+  ::ng-deep .mat-mdc-tab-header { margin-bottom: 4px; }
+}
+
 .filters {
   display: flex;
   flex-direction: column;
@@ -224,6 +232,7 @@
 .cheque-number-field {
   min-width: 220px;
   max-width: 300px;
+  flex: 1;
 }
 
 .future-cheques-btn {
@@ -307,7 +316,7 @@
   max-width: 320px;
 }
 
-.customer-search-field { width: 100%; }
+.customer-search-field { width: 100%; min-width: 220px; max-width: 300px; flex: 1; }
 
 .future-loading {
   display: flex;
@@ -353,5 +362,104 @@
   padding: 12px 4px;
   font-size: 13px;
   color: #888;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+// ── Cheque age (bill date → cheque date) ─────────────────────────────
+.age-chip {
+  display: inline-block;
+  min-width: 38px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+.age-ok   { background: #e8f5e9; color: #2e7d32; }
+.age-warn { background: #fff8e1; color: #ef6c00; }
+.age-late { background: #ffebee; color: #c62828; }
+
+.muted { color: #aaa; }
+
+.cheque-tab { padding-top: 16px; }
+
+.band-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.band-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+
+  &:hover { background: #f5f5f5; }
+
+  .band-count {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: #eee;
+    color: #666;
+  }
+
+  &.active {
+    border-color: currentColor;
+    font-weight: 600;
+  }
+  &.band-ok.active   { background: #e8f5e9; color: #2e7d32; .band-count { background: #c8e6c9; color: #2e7d32; } }
+  &.band-warn.active { background: #fff8e1; color: #ef6c00; .band-count { background: #ffe0b2; color: #ef6c00; } }
+  &.band-late.active { background: #ffebee; color: #c62828; .band-count { background: #ffcdd2; color: #c62828; } }
+  &.active:not(.band-ok):not(.band-warn):not(.band-late) {
+    background: #e3f2fd; color: #1565c0;
+    .band-count { background: #bbdefb; color: #1565c0; }
+  }
+}
+
+.band-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #888;
+}
+
+// ── Cheque tab: when tag + bank disambiguation ───────────────────────
+.when-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #eceff1;
+  color: #607d8b;
+
+  &.when-future { background: #e3f2fd; color: #1565c0; }
+}
+
+.bank-filter-field { width: 200px; margin-left: auto; }
+
+.bank-clash-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff8e1;
+  color: #8d6e00;
+  font-size: 12.5px;
+
   mat-icon { font-size: 18px; width: 18px; height: 18px; }
 }

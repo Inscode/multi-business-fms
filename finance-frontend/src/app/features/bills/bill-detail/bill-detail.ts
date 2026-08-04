@@ -23,6 +23,7 @@ import { WorkerPortalService, WorkerPaymentEntry, CollectionNote } from '../../.
 import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-edit-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { BillStockStatus, ReturnProductResponse, StockService } from '../../../core/services/stock';
+import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel, chequeAgeTooltip } from '../../../core/utils/cheque-age';
 
 @Component({
   selector: 'app-bill-detail',
@@ -65,7 +66,17 @@ export class BillDetail implements OnInit {
   stockLoading = false;
   error = false;
 
-  paymentColumns = ['paymentDate', 'amount', 'type', 'status', 'enteredBy', 'actions'];
+  paymentColumns = ['paymentDate', 'amount', 'type', 'chequeAge', 'status', 'enteredBy', 'actions'];
+
+  /** Days from bill date to cheque date — how long the customer is taking to pay. */
+  ageDays(p: PaymentResponse): number | null {
+    if (p.paymentType !== 'CHEQUE') return null;
+    return chequeAgeDays(this.bill?.billDate ?? p.billDate, p.chequeDate);
+  }
+
+  ageBand(days: number): ChequeAgeBand { return chequeAgeBand(days); }
+  ageLabel(days: number): string { return chequeAgeLabel(days); }
+  ageTooltip(days: number): string { return chequeAgeTooltip(days); }
   stockItemColumns = ['productName', 'quantity', 'unitPrice', 'lineTotal'];
   comparisonColumns = ['productName', 'systemQty', 'childQty', 'diff'];
   returnItemColumns = ['itemName', 'quantityRequested', 'quantityReturned', 'unitPrice', 'lineTotal'];
