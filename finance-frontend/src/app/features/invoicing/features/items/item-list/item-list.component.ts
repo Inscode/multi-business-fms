@@ -12,6 +12,7 @@ import { catchError, of } from 'rxjs';
 import { ItemService } from '../../../core/services/item.service';
 import { BrandService } from '../../../core/services/brand.service';
 import { Item, Brand, CategoryType } from '../../../core/models/models';
+import { Auth } from '../../../../../core/services/auth';
 
 @Component({
   selector: 'app-item-list',
@@ -27,6 +28,9 @@ export class ItemListComponent implements OnInit {
   private svc   = inject(ItemService);
   private bsvc  = inject(BrandService);
   private cdr   = inject(ChangeDetectorRef);
+  private auth  = inject(Auth);
+
+  get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
   private fb    = inject(FormBuilder);
 
   items:    Item[]  = [];
