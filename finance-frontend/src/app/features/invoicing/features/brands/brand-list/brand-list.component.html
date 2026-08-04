@@ -129,9 +129,11 @@
                 </td>
                 <td><span class="badge" [class.success]="b.active" [class.danger]="!b.active">{{ b.active ? 'Active' : 'Inactive' }}</span></td>
                 <td class="action-cell">
-                  <button mat-icon-button (click)="openEdit(b)" matTooltip="Edit">
-                    <mat-icon>edit</mat-icon>
-                  </button>
+                  @if (isAdmin) {
+                    <button mat-icon-button (click)="openEdit(b)" matTooltip="Edit">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                  }
                 </td>
               </tr>
               @if (expandedId === b.id && b.slabs.length) {

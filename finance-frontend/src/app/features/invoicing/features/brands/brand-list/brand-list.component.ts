@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { catchError, of } from 'rxjs';
 import { BrandService } from '../../../core/services/brand.service';
 import { Brand, CategoryType } from '../../../core/models/models';
+import { Auth } from '../../../../../core/services/auth';
 
 @Component({
   selector: 'app-brand-list',
@@ -25,6 +26,9 @@ import { Brand, CategoryType } from '../../../core/models/models';
 export class BrandListComponent implements OnInit {
   private svc  = inject(BrandService);
   cdr  = inject(ChangeDetectorRef);
+  private auth = inject(Auth);
+
+  get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
   private fb   = inject(FormBuilder);
 
   brands:   Brand[] = [];

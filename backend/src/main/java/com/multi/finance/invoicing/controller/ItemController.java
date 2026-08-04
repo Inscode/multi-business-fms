@@ -52,6 +52,7 @@ public class ItemController {
     }
 
     @PutMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ItemResponse> update(@PathVariable Long id, @Valid @RequestBody ItemRequest req) {
         Item item = itemRepo.findById(id).orElseThrow(() -> new EntityNotFoundException("Item not found"));
         Brand brand = brandRepo.findById(req.getBrandId())
@@ -62,6 +63,7 @@ public class ItemController {
     }
 
     @PostMapping("/stock-adjust")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ResponseEntity<ItemResponse> adjustStock(@Valid @RequestBody StockAdjustRequest req) {
         itemRepo.adjustStock(req.getItemId(), req.getDelta());

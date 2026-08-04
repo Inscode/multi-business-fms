@@ -48,6 +48,7 @@ public class BrandController {
     }
 
     @PutMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ResponseEntity<BrandResponse> update(@PathVariable Long id, @Valid @RequestBody BrandRequest req) {
         Brand brand = brandRepo.findById(id).orElseThrow(() -> new EntityNotFoundException("Brand not found"));

@@ -167,12 +167,14 @@
                 <td class="num" [class.zero-stock]="i.stockQty <= 0">{{ i.stockQty }}</td>
                 <td><span class="badge" [class.success]="i.active" [class.danger]="!i.active">{{ i.active ? 'Active' : 'Inactive' }}</span></td>
                 <td class="action-cell">
-                  <button mat-icon-button (click)="openAdjust(i)" matTooltip="Adjust stock">
-                    <mat-icon>tune</mat-icon>
-                  </button>
-                  <button mat-icon-button (click)="openEdit(i)" matTooltip="Edit">
-                    <mat-icon>edit</mat-icon>
-                  </button>
+                  @if (isAdmin) {
+                    <button mat-icon-button (click)="openAdjust(i)" matTooltip="Adjust stock">
+                      <mat-icon>tune</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="openEdit(i)" matTooltip="Edit">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                  }
                 </td>
               </tr>
             }
