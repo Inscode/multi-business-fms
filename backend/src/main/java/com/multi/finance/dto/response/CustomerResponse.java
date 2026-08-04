@@ -12,6 +12,8 @@ public class CustomerResponse {
     private String name;
     private String phone;
     private String area;
+    private String customerCode;
+    private String address;
     private String tier;
     private String shopType;
     private Boolean active;

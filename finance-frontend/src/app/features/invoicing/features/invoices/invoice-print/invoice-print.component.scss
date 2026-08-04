@@ -1,0 +1,354 @@
+/* ── Page wrapper ───────────────────────────────────────────────────────── */
+.invoice-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 10mm 12mm;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 9pt;
+  font-weight: 700;
+  color: #000;
+  background: #fff;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-page, .error-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.inv-header {
+  position: relative;
+  text-align: center;
+  margin-bottom: 2mm;
+}
+
+.company-block {
+  text-align: center;
+  padding: 0 130px;
+}
+
+.company-name {
+  font-size: 14pt;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.company-sub {
+  font-size: 8.5pt;
+  line-height: 1.4;
+}
+
+.header-right {
+  position: absolute;
+  right: 0;
+  top: 0;
+  text-align: right;
+  font-size: 7.5pt;
+}
+
+.printed-on {
+  font-weight: 400;
+  color: #333;
+}
+
+.watermark-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1.5px solid #000;
+  font-weight: 700;
+  font-size: 9pt;
+  letter-spacing: 1px;
+
+  &.original  { border-color: #1a5c1a; color: #1a5c1a; }
+  &.duplicate { border-color: #b00000; color: #b00000; }
+}
+
+/* ── Invoice type box ───────────────────────────────────────────────────── */
+.inv-type-row {
+  text-align: center;
+  margin: 2mm 0;
+}
+
+.inv-type-box {
+  display: inline-block;
+  border: 1.5px solid #000;
+  padding: 1px 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  font-size: 9.5pt;
+}
+
+/* ── Customer + Invoice meta ────────────────────────────────────────────── */
+.inv-meta {
+  display: flex;
+  justify-content: space-between;
+  margin: 3mm 0;
+  font-size: 8.5pt;
+  gap: 4mm;
+}
+
+.meta-left { flex: 1.6; }
+.meta-right { flex: 1; }
+
+.meta-row {
+  display: flex;
+  gap: 2px;
+  line-height: 1.55;
+}
+
+.lbl {
+  white-space: nowrap;
+  min-width: 68px;
+}
+
+.sep { margin: 0 2px; }
+
+/* ── Items table ────────────────────────────────────────────────────────── */
+.items-table {
+  width: 100%;
+  table-layout: fixed;          /* KEY: forces browser to respect column widths */
+  border-collapse: collapse;
+  margin-top: 3mm;
+  font-size: 8.5pt;
+
+  th {
+    border-top: 1.5px solid #000;
+    border-bottom: 1.5px solid #000;
+    padding: 1.5px 3px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  td {
+    padding: 1.5px 3px;
+    vertical-align: top;
+    overflow: hidden;
+  }
+
+  /* Percentage widths — reliable across screen and print DPIs. Must sum to exactly 100%
+     (also mirrored on the <colgroup> below) or renderers distribute the remainder
+     inconsistently, causing header/data column drift. QTY gets extra room so it isn't
+     crowded against MRP, and VALUE gets extra room so it reaches the right edge. */
+  .col-code { width: 12%; }
+  .col-desc { width: 35%; }
+  .col-qty  { width: 8%;  }
+  .col-mrp  { width: 11%; }
+  .col-mgn  { width: 8%;  }
+  .col-wsp  { width: 12%; }
+  .col-val  { width: 14%; }
+}
+
+/* Numeric data is right-aligned so digits line up column-to-column. Headers are centered
+   over their column instead of right-aligned — a short label like "VALUE" right-aligned
+   next to a long number like "10,824.00" looks like it's floating away from the data even
+   though both share the same right edge, so centering reads as better-aligned. */
+th.col-qty, th.col-mrp, th.col-mgn, th.col-wsp, th.col-val {
+  text-align: center;
+}
+
+td.num {
+  text-align: right;
+  padding-left: 8px;
+}
+
+th.col-val, td.num:last-child {
+  padding-right: 2px;
+}
+
+/* Brand section header */
+.brand-hdr td {
+  padding-top: 3px;
+  padding-bottom: 1px;
+  font-size: 8.5pt;
+  border-bottom: 0.5px solid #999;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Item lines — NOT bold */
+.item-row td {
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+/* Description and item-code cells: truncate if too long */
+.desc-cell {
+  padding-left: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+th.col-desc { padding-left: 6px; }
+
+.item-row td:first-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.free-qty {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 7.5pt;
+}
+
+/* Brand subtotal rows */
+.subtotal-row td {
+  padding-top: 1px;
+  padding-bottom: 1px;
+  font-size: 8pt;
+}
+
+.first-sub td {
+  border-top: 0.5px solid #aaa;
+  padding-top: 2px;
+}
+
+.sub-lbl {
+  text-align: left;
+  padding-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.net-row td {
+  border-bottom: 1px solid #000;
+  padding-bottom: 2px;
+}
+
+.spacer-row td { height: 4px; }
+
+/* ── Invoice totals ─────────────────────────────────────────────────────── */
+.inv-totals {
+  margin-top: 3mm;
+  border-top: 1.5px solid #000;
+  padding-top: 2mm;
+  font-size: 8.5pt;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  line-height: 1.7;
+}
+
+.total-lbl { flex: 1; }
+.total-val { min-width: 70px; text-align: right; }
+.cash-pct  { min-width: 50px; }
+
+.net-total-row {
+  border-top: 1px solid #000;
+  border-bottom: 2px solid #000;
+  padding: 2px 0;
+  margin-top: 2px;
+
+  .total-lbl, .total-val { font-size: 9.5pt; }
+}
+
+/* ── Signatures — NOT bold ──────────────────────────────────────────────── */
+.signatures {
+  margin-top: 10mm;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8pt;
+  font-weight: 400;
+}
+
+.sig-left  { text-align: left;  width: 45%; }
+.sig-right { text-align: right; width: 45%; }
+
+.sig-dots  { font-weight: 400; letter-spacing: 0; }
+.sig-label { font-weight: 400; margin-top: 2px; }
+
+/* ── Collection details ─────────────────────────────────────────────────── */
+.collection {
+  margin-top: 5mm;
+}
+
+.coll-title {
+  font-size: 8.5pt;
+  font-weight: 700;
+  margin-bottom: 1mm;
+}
+
+.coll-table {
+  width: 50%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+
+  th, td {
+    border: 1px solid #000;
+    padding: 3px 6px;
+    height: 8mm;
+  }
+
+  tbody td {
+    height: 16mm;
+  }
+
+  th {
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  th:nth-child(1) { width: 40%; }
+  th:nth-child(2) { width: 30%; }
+  th:nth-child(3) { width: 30%; }
+}
+
+/* ── End of report ──────────────────────────────────────────────────────── */
+.end-of-report {
+  margin-top: auto;
+  padding-top: 8mm;
+  margin-bottom: 6mm;
+  text-align: center;
+  font-size: 8pt;
+  font-weight: 400;
+}
+
+/* ── Print media ────────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    background: #fff !important;
+  }
+
+  .invoice-page {
+    width: 100%;
+    padding: 10mm 12mm;
+    margin: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .loading-page, .error-page { display: none; }
+}
+
+/* ── Screen preview ─────────────────────────────────────────────────────── */
+@media screen {
+  body { background: #e0e0e0; }
+
+  .invoice-page {
+    box-shadow: 0 2px 16px rgba(0,0,0,.25);
+    margin: 20px auto;
+  }
+}

@@ -1,0 +1,103 @@
+<div class="page">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <mat-icon>receipt_long</mat-icon>
+      Invoices
+    </div>
+    <a mat-flat-button color="primary" routerLink="/invoicing/invoices/new" class="new-btn">
+      <mat-icon>add</mat-icon> New Invoice
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters card">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput placeholder="Search invoice no. or customer…"
+             [value]="search" (input)="onSearch($any($event.target).value)">
+      @if (search) {
+        <button matSuffix mat-icon-button (click)="onSearch('')">
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="method-field">
+      <mat-label>Method</mat-label>
+      <mat-select [(ngModel)]="method" (ngModelChange)="onMethodChange()">
+        <mat-option value="">All</mat-option>
+        <mat-option value="MIX">Mix (GD-MX)</mat-option>
+        <mat-option value="RAINCO_ONLY">Rainco Only (GD-RC)</mat-option>
+        <mat-option value="STATIONERY_ONLY">Stationery Only (GD-ST)</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <!-- Table -->
+  <div class="card table-card">
+    @if (loading) {
+      <div class="loader-wrap">
+        <mat-spinner diameter="40"></mat-spinner>
+      </div>
+    } @else if (invoices.length === 0) {
+      <div class="empty-state">
+        <mat-icon>receipt_long</mat-icon>
+        <p>No invoices found</p>
+      </div>
+    } @else {
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Invoice No.</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Method</th>
+            <th>Type</th>
+            <th class="right">Gross</th>
+            <th class="right">Discount</th>
+            <th class="right">Net Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (inv of invoices; track inv.id) {
+            <tr>
+              <td class="invoice-no">
+                {{ inv.invoiceNo }}
+                @if (inv.duplicatePrint) {
+                  <span class="badge danger dup">DUP</span>
+                }
+              </td>
+              <td>{{ inv.invoiceDate | date:'dd MMM yyyy' }}</td>
+              <td class="customer-name">{{ inv.customerName }}</td>
+              <td><span class="badge {{ methodClass(inv.method) }}">{{ methodLabel(inv.method) }}</span></td>
+              <td><span class="badge {{ typeClass(inv.invoiceType) }}">{{ inv.invoiceType }}</span></td>
+              <td class="right amount">{{ inv.grossTotal | number:'1.2-2' }}</td>
+              <td class="right amount amount-negative">{{ inv.totalDiscount | number:'1.2-2' }}</td>
+              <td class="right amount amount-positive">{{ inv.netTotal | number:'1.2-2' }}</td>
+              <td class="actions">
+                <a mat-icon-button [routerLink]="['/invoicing/invoices', inv.id]" matTooltip="View">
+                  <mat-icon>visibility</mat-icon>
+                </a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <span class="pg-info">{{ totalElements }} invoices &nbsp;·&nbsp; Page {{ page + 1 }} of {{ totalPages }}</span>
+        <div class="pg-btns">
+          <button mat-icon-button [disabled]="page === 0" (click)="prevPage()">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <button mat-icon-button [disabled]="page >= totalPages - 1" (click)="nextPage()">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

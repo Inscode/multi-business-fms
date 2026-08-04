@@ -232,7 +232,7 @@ public class TimeLogService {
                     case PRESENT  -> presentDays++;
                     case HALF_DAY -> halfDays++;
                     case ABSENT   -> absentDays++;
-                    case HOLIDAY  -> indivHolidays++;
+                    case HOLIDAY, GENERAL_HOLIDAY -> indivHolidays++;
                 }
             }
 
@@ -308,6 +308,8 @@ public class TimeLogService {
                 .name(h.getName())
                 .holidayType(h.getHolidayType().name())
                 .appliesToAll(h.getAppliesToAll())
+                .workerIds(h.getSpecificWorkers().stream()
+                        .map(Worker::getId).sorted().collect(Collectors.toList()))
                 .workerNames(h.getSpecificWorkers().stream()
                         .map(Worker::getFullName).sorted().collect(Collectors.toList()))
                 .createdAt(h.getCreatedAt().toString())

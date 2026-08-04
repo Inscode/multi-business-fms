@@ -95,3 +95,98 @@ body {
     }
   }
 }
+
+// Feature pages cap their width (.page { max-width: 1200px }) but were
+// left-anchored — collapsing the sidenav dumped all freed space on the right.
+// Centering distributes it evenly. Full-width pages are unaffected (auto = 0).
+.page {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// ── Invoicing module (ported from ghanim-wholesale) ─────────────────────────
+// The wholesale app styled its pages via global classes (.page/.card/.data-table…).
+// Scoped here to the invoicing shell + print page so they can't bleed into FMS pages.
+app-invoicing-shell,
+app-invoice-print {
+/* Page layout */
+.page { padding: 24px; }
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a237e;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Cards */
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  padding: 20px;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .3px;
+
+  &.success { background: #e8f5e9; color: #2e7d32; }
+  &.warn    { background: #fff8e1; color: #f57f17; }
+  &.danger  { background: #fce4ec; color: #c62828; }
+  &.info    { background: #e3f2fd; color: #1565c0; }
+}
+
+/* Amounts */
+.amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+.amount-positive { color: #2e7d32; }
+.amount-negative { color: #c62828; }
+
+/* Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    background: #f5f7ff;
+    color: #3949ab;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 2px solid #e8eaf6;
+  }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8f9ff; }
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  .spacer { flex: 1; }
+}
+
+/* Mat form field full width */
+.full-width { width: 100%; }
+
+}

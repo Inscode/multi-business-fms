@@ -22,7 +22,7 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     List<Bill> findByBusiness(BusinessType business);
 
-    @Query("SELECT b FROM Bill b WHERE b.business = :business " + "AND b.billDate = :date " + "AND b.status NOT IN ('COMPLETED', 'CANCELLED')")
+    @Query("SELECT b FROM Bill b WHERE b.business = :business " + "AND b.billDate = :date " + "AND b.status NOT IN ('COMPLETED', 'AWAITING_CONFIRMATION', 'CANCELLED')")
     List<Bill> findUnconfirmedByBusinessAndDate(
             @Param("business") BusinessType business,
             @Param("date") LocalDate date);
@@ -47,23 +47,23 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business " +
-            "AND b.status NOT IN ('CANCELLED', 'COMPLETED')")
+            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION')")
     BigDecimal sumOutstandingByBusiness(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business " +
-            "AND b.status NOT IN ('CANCELLED', 'COMPLETED') " +
+            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
             "AND (b.willBeLinked IS NULL OR b.willBeLinked = false)")
     BigDecimal sumOutstandingByBusinessExcludingLinking(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business AND b.billType = 'CASH' " +
-            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED')")
+            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION')")
     BigDecimal sumCashPendingByBusiness(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business AND b.billType = 'CASH' " +
-            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED') " +
+            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
             "AND b.billDate <= :cutoff")
     BigDecimal sumCashSeriousByBusiness(@Param("business") BusinessType business,
                                         @Param("cutoff") LocalDate cutoff);
@@ -147,7 +147,7 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findByBusinessInAndBillDateBetweenOrderByCreatedAtDesc(List<BusinessType> businesses, LocalDate from, LocalDate to);
     List<Bill> findByBusinessInAndStatusAndBillDateBetweenOrderByCreatedAtDesc(List<BusinessType> businesses, BillStatus status, LocalDate from, LocalDate to);
 
-    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND b.billDate BETWEEN :from AND :to ORDER BY b.createdAt DESC")
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'AWAITING_CONFIRMATION', 'CANCELLED') AND b.billDate BETWEEN :from AND :to ORDER BY b.createdAt DESC")
     List<Bill> findShopAccountantActiveBillsInDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.billDate BETWEEN :from AND :to ORDER BY b.createdAt DESC")
@@ -162,19 +162,19 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findByBusinessAndBillDateBeforeAndStatusNotInOrderByBillDateAsc(BusinessType business, LocalDate cutoff, List<BillStatus> statuses);
     List<Bill> findByBusinessInAndBillDateBeforeAndStatusNotInOrderByBillDateAsc(List<BusinessType> businesses, LocalDate cutoff, List<BillStatus> statuses);
 
-    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND b.billDate < :cutoff ORDER BY b.billDate ASC")
+    @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'AWAITING_CONFIRMATION', 'CANCELLED') AND b.billDate < :cutoff ORDER BY b.billDate ASC")
     List<Bill> findShopAccountantOverdueBills(@Param("cutoff") LocalDate cutoff);
 
     // ── Overdue count (for badge) ───────────────────────────────────
     long countByBillDateBeforeAndStatusNotIn(LocalDate cutoff, List<BillStatus> statuses);
     long countByBusinessInAndBillDateBeforeAndStatusNotIn(List<BusinessType> businesses, LocalDate cutoff, List<BillStatus> statuses);
 
-    @Query("SELECT COUNT(b) FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND b.billDate < :cutoff")
+    @Query("SELECT COUNT(b) FROM Bill b WHERE (b.business = 'RETAIL_SHOP' OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) AND b.status NOT IN ('COMPLETED', 'AWAITING_CONFIRMATION', 'CANCELLED') AND b.billDate < :cutoff")
     long countShopAccountantOverdueBills(@Param("cutoff") LocalDate cutoff);
 
     @Query("SELECT b FROM Bill b WHERE (b.business = 'RETAIL_SHOP' " +
            "OR b.status IN ('SHOP_RECEIVED', 'SHOP_WORKER_ASSIGNED')) " +
-           "AND b.status NOT IN ('COMPLETED', 'CANCELLED') " +
+           "AND b.status NOT IN ('COMPLETED', 'AWAITING_CONFIRMATION', 'CANCELLED') " +
            "ORDER BY b.createdAt DESC")
     List<Bill> findShopAccountantActiveBills();
 
@@ -188,7 +188,7 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     // Current outstanding grouped by customer name — used to enrich the risky-customers list
     @Query("SELECT b.customerName, COALESCE(SUM(b.balanceRemaining),0) FROM Bill b " +
-           "WHERE b.business = :business AND b.status NOT IN ('CANCELLED','COMPLETED') GROUP BY b.customerName")
+           "WHERE b.business = :business AND b.status NOT IN ('CANCELLED','COMPLETED','AWAITING_CONFIRMATION') GROUP BY b.customerName")
     List<Object[]> sumOutstandingGroupedByCustomerName(@Param("business") BusinessType business);
 
     // SYSTEM bills that ARE linked (have child bills)
@@ -200,7 +200,7 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findLinkedChildBills();
 
     // Active RAINCO bills eligible for backorder submission (any uncompleted, non-cancelled, non-linking bill)
-    @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.status NOT IN ('COMPLETED', 'CANCELLED') AND (b.willBeLinked IS NULL OR b.willBeLinked = false) ORDER BY b.billDate DESC")
+    @Query("SELECT b FROM Bill b WHERE b.business = 'RAINCO' AND b.status NOT IN ('COMPLETED', 'AWAITING_CONFIRMATION', 'CANCELLED') AND (b.willBeLinked IS NULL OR b.willBeLinked = false) ORDER BY b.billDate DESC")
     List<Bill> findActiveRaincoBillsForBackorder();
 
     // RAINCO own MANUAL bills (MAN- prefix, separate sequence)

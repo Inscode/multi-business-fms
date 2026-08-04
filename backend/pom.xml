@@ -116,6 +116,18 @@
 			<artifactId>loki-logback-appender</artifactId>
 			<version>1.5.2</version>
 		</dependency>
+
+		<!-- Excel parsing (invoicing module: Ventura XLS import) -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi</artifactId>
+			<version>5.2.5</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.2.5</version>
+		</dependency>
 	</dependencies>
 
 	<build>

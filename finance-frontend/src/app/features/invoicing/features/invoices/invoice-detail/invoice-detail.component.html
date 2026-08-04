@@ -1,0 +1,140 @@
+<div class="page no-print-wrapper">
+
+  <!-- Action bar (hidden on print) -->
+  <div class="action-bar no-print">
+    <button mat-stroked-button (click)="back()">
+      <mat-icon>arrow_back</mat-icon> Back to List
+    </button>
+    @if (invoice) {
+      <button mat-flat-button color="primary" (click)="print()">
+        <mat-icon>print</mat-icon> Print
+      </button>
+    }
+  </div>
+
+  @if (loading) {
+    <div class="state-center">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading invoice…</p>
+    </div>
+  } @else if (error) {
+    <div class="error-banner">
+      <mat-icon>error_outline</mat-icon>
+      {{ error }}
+    </div>
+  } @else if (invoice) {
+    <div class="invoice-doc">
+
+      <!-- Invoice header -->
+      <div class="doc-header">
+        <div class="company-block">
+          <div class="company-name">Ghanim Distributors</div>
+          <div class="company-sub">Wholesale Management System</div>
+        </div>
+        <div class="invoice-meta">
+          <div class="inv-no">{{ invoice.invoiceNo }}</div>
+          @if (invoice.externalRef) {
+            <div class="inv-ref">Ref: {{ invoice.externalRef }}</div>
+          }
+          <div class="inv-date">{{ invoice.invoiceDate | date:'dd/MM/yyyy' }}</div>
+          <span class="badge" [ngClass]="methodClass(invoice.method)">{{ methodLabel(invoice.method) }}</span>
+          <span class="badge" [class.success]="invoice.invoiceType === 'CASH'" [class.info]="invoice.invoiceType === 'CREDIT'">
+            {{ invoice.invoiceType }}
+          </span>
+          @if (invoice.duplicatePrint) {
+            <span class="badge danger">DUPLICATE</span>
+          }
+        </div>
+      </div>
+
+      <!-- Customer -->
+      <div class="customer-block">
+        <div class="cust-label">Bill To</div>
+        <div class="cust-name">{{ invoice.customerName }}</div>
+        @if (invoice.customerAddress) {
+          <div class="cust-addr">{{ invoice.customerAddress }}</div>
+        }
+      </div>
+
+      <!-- Line items -->
+      <table class="inv-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item Code</th>
+            <th>Description</th>
+            <th>Brand</th>
+            <th class="num">MRP</th>
+            <th class="num">WSP</th>
+            <th class="num">Disc %</th>
+            <th class="num">Qty</th>
+            <th class="num">Line Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of invoice.lines; track line.id; let i = $index) {
+            <tr>
+              <td class="idx">{{ i + 1 }}</td>
+              <td class="mono">{{ line.itemCode }}</td>
+              <td>{{ line.itemDescription }}</td>
+              <td class="muted">{{ line.brandName }}</td>
+              <td class="num">{{ line.mrp | number:'1.2-2' }}</td>
+              <td class="num">{{ line.wsp | number:'1.2-2' }}</td>
+              <td class="num disc">{{ line.appliedDiscountPct != null ? (line.appliedDiscountPct + '%') : '—' }}</td>
+              <td class="num">{{ line.qty }}</td>
+              <td class="num fw6">{{ line.value | number:'1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <!-- Totals -->
+      <div class="totals-block">
+        <div class="total-row">
+          <span>Gross Total</span>
+          <span>{{ invoice.grossTotal | number:'1.2-2' }}</span>
+        </div>
+        @if (invoice.totalSlabDiscount > 0) {
+          <div class="total-row disc-row">
+            <span>Slab Discount</span>
+            <span>({{ invoice.totalSlabDiscount | number:'1.2-2' }})</span>
+          </div>
+        }
+        @if (invoice.cashDiscountAmount > 0) {
+          <div class="total-row disc-row">
+            <span>Cash Discount ({{ invoice.cashDiscountPct }}%)</span>
+            <span>({{ invoice.cashDiscountAmount | number:'1.2-2' }})</span>
+          </div>
+        }
+        @if (invoice.plasticDiscountAmount && invoice.plasticDiscountAmount > 0) {
+          <div class="total-row disc-row">
+            <span>Plastic Discount</span>
+            <span>({{ invoice.plasticDiscountAmount | number:'1.2-2' }})</span>
+          </div>
+        }
+        <div class="total-row net-row">
+          <span>Net Total</span>
+          <span>LKR {{ invoice.netTotal | number:'1.2-2' }}</span>
+        </div>
+        @if (invoice.agentPrintedNet != null && invoice.variance != null && invoice.variance !== 0) {
+          <div class="total-row variance-row">
+            <span>Agent Net / Variance</span>
+            <span>{{ invoice.agentPrintedNet | number:'1.2-2' }} / {{ invoice.variance | number:'1.2-2' }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Footer -->
+      <div class="doc-footer">
+        <div>Printed by: {{ invoice.printedBy || '—' }}</div>
+        <div>Created: {{ invoice.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+      </div>
+    </div>
+
+    <!-- Hidden on screen; shown only in the print stylesheet so window.print() renders the
+         actual formatted invoice layout instead of this preview. -->
+    <div class="print-embed">
+      <app-invoice-print [invoiceId]="invoice.id" [autoPrint]="false" (ready)="onPrintReady()"></app-invoice-print>
+    </div>
+  }
+</div>

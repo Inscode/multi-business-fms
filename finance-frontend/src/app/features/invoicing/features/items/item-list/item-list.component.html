@@ -1,0 +1,184 @@
+<div class="page">
+
+  <div class="page-header">
+    <div class="page-title">
+      <mat-icon>inventory_2</mat-icon>
+      Items &amp; Stock
+    </div>
+    <button mat-flat-button color="primary" (click)="openNew()">
+      <mat-icon>add</mat-icon> New Item
+    </button>
+  </div>
+
+  <!-- Item Form Panel -->
+  @if (showForm) {
+    <div class="form-panel card">
+      <div class="form-title">{{ editingId ? 'Edit Item' : 'New Item' }}</div>
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-grid">
+
+        <mat-form-field appearance="outline">
+          <mat-label>Item Code *</mat-label>
+          <input matInput formControlName="itemCode" placeholder="e.g. 18600">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Description *</mat-label>
+          <input matInput formControlName="description" placeholder="Item description">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Category *</mat-label>
+          <mat-select formControlName="category">
+            <mat-option value="RAINCO">Rainco</mat-option>
+            <mat-option value="STATIONERY">Stationery</mat-option>
+            <mat-option value="PLASTIC">Plastic</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Brand *</mat-label>
+          <mat-select formControlName="brandId">
+            @for (b of brands; track b.id) {
+              <mat-option [value]="b.id">{{ b.name }} ({{ b.category }})</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>MRP</mat-label>
+          <input matInput type="number" formControlName="mrp" placeholder="Market retail price">
+          <span matTextSuffix>LKR</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Margin %</mat-label>
+          <input matInput type="number" formControlName="marginPct" placeholder="e.g. 20">
+          <span matTextSuffix>%</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Wholesale Price</mat-label>
+          <input matInput type="number" formControlName="wholesalePrice" placeholder="Direct wholesale price">
+          <span matTextSuffix>LKR</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="active">
+            <mat-option [value]="true">Active</mat-option>
+            <mat-option [value]="false">Inactive</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="form-actions span-3">
+          <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving">
+            {{ saving ? 'Saving…' : (editingId ? 'Update' : 'Create') }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  }
+
+  <!-- Stock Adjust Panel -->
+  @if (adjustingItem) {
+    <div class="form-panel card adjust-panel">
+      <div class="form-title">
+        <mat-icon>tune</mat-icon>
+        Stock Adjustment — <em>{{ adjustingItem.description }}</em>
+        <span class="current-stock">Current: {{ adjustingItem.stockQty }}</span>
+      </div>
+      <div class="adjust-row">
+        <mat-form-field appearance="outline" class="delta-field">
+          <mat-label>Quantity Change</mat-label>
+          <input matInput type="number" [(ngModel)]="stockDelta" placeholder="e.g. +50 or -5">
+          <mat-hint>Positive = add stock, Negative = remove stock</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="note-field">
+          <mat-label>Note (optional)</mat-label>
+          <input matInput [(ngModel)]="stockNote" placeholder="Reason for adjustment">
+        </mat-form-field>
+        <div class="adjust-actions">
+          <button mat-stroked-button (click)="cancelAdjust()">Cancel</button>
+          <button mat-flat-button color="accent" (click)="doAdjust()" [disabled]="stockDelta === 0 || adjusting">
+            {{ adjusting ? 'Saving…' : 'Apply Adjustment' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput [(ngModel)]="search" placeholder="Search by code or description…">
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="cat-field">
+      <mat-label>Category</mat-label>
+      <mat-select [(ngModel)]="category">
+        <mat-option value="">All</mat-option>
+        <mat-option value="RAINCO">Rainco</mat-option>
+        <mat-option value="STATIONERY">Stationery</mat-option>
+        <mat-option value="PLASTIC">Plastic</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <div class="spacer"></div>
+    <span class="count-chip">{{ filtered.length }} items</span>
+  </div>
+
+  <div class="card table-card">
+    @if (loading) {
+      <div class="state-center">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Loading…</span>
+      </div>
+    } @else if (filtered.length === 0) {
+      <div class="state-center">
+        <mat-icon>inventory_2</mat-icon>
+        <p>No items found</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Brand</th>
+              <th class="num">MRP</th>
+              <th class="num">WSP</th>
+              <th class="num">Stock</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of filtered; track i.id) {
+              <tr [class.low-stock]="i.stockQty <= 0">
+                <td class="mono">{{ i.itemCode }}</td>
+                <td class="fw6">{{ i.description }}</td>
+                <td><span class="badge" [ngClass]="categoryClass(i.category)">{{ categoryLabel(i.category) }}</span></td>
+                <td class="muted">{{ i.brandName }}</td>
+                <td class="num">{{ i.mrp != null ? (i.mrp | number:'1.2-2') : '—' }}</td>
+                <td class="num amount">{{ i.wsp != null ? (i.wsp | number:'1.2-2') : (i.wholesalePrice != null ? (i.wholesalePrice | number:'1.2-2') : '—') }}</td>
+                <td class="num" [class.zero-stock]="i.stockQty <= 0">{{ i.stockQty }}</td>
+                <td><span class="badge" [class.success]="i.active" [class.danger]="!i.active">{{ i.active ? 'Active' : 'Inactive' }}</span></td>
+                <td class="action-cell">
+                  <button mat-icon-button (click)="openAdjust(i)" matTooltip="Adjust stock">
+                    <mat-icon>tune</mat-icon>
+                  </button>
+                  <button mat-icon-button (click)="openEdit(i)" matTooltip="Edit">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

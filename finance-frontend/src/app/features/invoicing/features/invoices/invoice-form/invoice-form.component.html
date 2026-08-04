@@ -1,0 +1,210 @@
+<div class="form-page">
+
+  <!-- Sticky header -->
+  <div class="form-topbar">
+    <div class="form-topbar-left">
+      <button mat-icon-button (click)="cancel()" matTooltip="Discard & go back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <span class="form-title">New Invoice</span>
+    </div>
+    <div class="form-topbar-right">
+      <button mat-stroked-button (click)="cancel()">Cancel</button>
+      <button mat-flat-button color="primary" (click)="submit()"
+              [disabled]="form.invalid || lines.length === 0 || saving">
+        @if (saving) {
+          <mat-spinner diameter="18" color="accent"></mat-spinner>
+          <span>Creating…</span>
+        } @else {
+          <ng-container>
+            <mat-icon>save</mat-icon>
+            <span>Create Invoice</span>
+          </ng-container>
+        }
+      </button>
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="loading-overlay">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Loading data…</p>
+    </div>
+  } @else {
+    <div class="form-body">
+
+      <!-- Section: Invoice Header -->
+      <div class="card section-card">
+        <div class="section-title">
+          <mat-icon>info_outline</mat-icon>
+          Invoice Details
+        </div>
+
+        <form [formGroup]="form" class="header-grid">
+
+          <mat-form-field appearance="outline">
+            <mat-label>Invoice Method *</mat-label>
+            <mat-select formControlName="method">
+              <mat-option value="MIX">Mix (RAINCO + STATIONERY)</mat-option>
+              <mat-option value="RAINCO_ONLY">Rainco Only</mat-option>
+              <mat-option value="STATIONERY_ONLY">Stationery Only</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Payment Type *</mat-label>
+            <mat-select formControlName="invoiceType">
+              <mat-option value="CASH">Cash</mat-option>
+              <mat-option value="CREDIT">Credit</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Invoice Date *</mat-label>
+            <input matInput type="date" formControlName="invoiceDate">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="span-2">
+            <mat-label>Customer *</mat-label>
+            <input matInput
+                   [ngModel]="customerSearch"
+                   [ngModelOptions]="{standalone: true}"
+                   (ngModelChange)="filterCustomers($event)"
+                   placeholder="Type customer name or code…"
+                   [matAutocomplete]="customerAuto">
+            <mat-autocomplete #customerAuto="matAutocomplete" [displayWith]="customerDisplayFn" (optionSelected)="selectCustomer($event.option.value)">
+              @for (c of filteredCustomers; track c.id) {
+                <mat-option [value]="c">{{ c.name }}{{ c.customerCode ? ' — ' + c.customerCode : '' }}</mat-option>
+              }
+            </mat-autocomplete>
+          </mat-form-field>
+
+          @if (showAgentRef) {
+            <mat-form-field appearance="outline">
+              <mat-label>Agent Invoice No (External Ref)</mat-label>
+              <input matInput formControlName="externalRef" placeholder="e.g. GD-RC-00123">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Agent Printed Net (LKR)</mat-label>
+              <input matInput type="number" formControlName="agentPrintedNet" placeholder="0.00">
+              <mat-hint>Used for variance check only</mat-hint>
+            </mat-form-field>
+          }
+
+          @if (showPlastic) {
+            <mat-form-field appearance="outline">
+              <mat-label>Plastic Discount %</mat-label>
+              <input matInput type="number" formControlName="plasticDiscountPct" placeholder="e.g. 5">
+              <span matTextSuffix>%</span>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Plastic Discount Fixed (LKR)</mat-label>
+              <input matInput type="number" formControlName="plasticDiscountAmount" placeholder="0.00">
+              <mat-hint>Applied only if % is empty</mat-hint>
+            </mat-form-field>
+          }
+
+        </form>
+      </div>
+
+      <!-- Section: Line Items -->
+      <div class="card section-card">
+        <div class="section-title">
+          <mat-icon>list</mat-icon>
+          Line Items
+          <span class="line-count">{{ lines.length }} item(s)</span>
+        </div>
+
+        <!-- Item Search -->
+        <div class="item-search-row">
+          <mat-form-field appearance="outline" class="item-search-field">
+            <mat-icon matPrefix>search</mat-icon>
+            <input matInput
+                   [ngModel]="itemSearch"
+                   (ngModelChange)="filterItems($event)"
+                   placeholder="Type item code or name to add…"
+                   [matAutocomplete]="auto">
+            <mat-autocomplete #auto [displayWith]="itemDisplayFn" (optionSelected)="addLine($event.option.value)">
+              @for (item of filteredItems; track item.id) {
+                <mat-option [value]="item">
+                  <span class="ac-code">{{ item.itemCode }}</span>
+                  <span class="ac-desc">{{ item.description }}</span>
+                  <span class="ac-wsp">{{ (item.wsp ?? item.wholesalePrice ?? 0) | number:'1.2-2' }}</span>
+                </mat-option>
+              }
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        @if (lines.length === 0) {
+          <div class="no-lines">
+            <mat-icon>add_shopping_cart</mat-icon>
+            <p>Search and select items above to add lines</p>
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table lines-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Code</th>
+                  <th>Description</th>
+                  <th class="num">WSP</th>
+                  <th class="num">Qty</th>
+                  <th class="num">Line Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of lines; track line.item.id; let i = $index) {
+                  <tr>
+                    <td class="idx">{{ i + 1 }}</td>
+                    <td class="mono">{{ line.item.itemCode }}</td>
+                    <td class="fw6">{{ line.item.description }}</td>
+                    <td class="num">{{ lineWsp(line) | number:'1.2-2' }}</td>
+                    <td class="num qty-cell">
+                      <input class="qty-input" type="number" min="1" [(ngModel)]="line.qty"
+                             (change)="cdr.markForCheck()">
+                    </td>
+                    <td class="num fw6">{{ lineTotal(line) | number:'1.2-2' }}</td>
+                    <td class="action-cell">
+                      <button mat-icon-button color="warn" (click)="removeLine(i)" matTooltip="Remove">
+                        <mat-icon>remove_circle_outline</mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <!-- Section: Summary -->
+      <div class="card summary-card">
+        <div class="section-title">
+          <mat-icon>calculate</mat-icon>
+          Summary
+        </div>
+        <div class="summary-rows">
+          <div class="sum-row">
+            <span>Gross Total (before discounts)</span>
+            <span class="sum-value">LKR {{ grossTotal | number:'1.2-2' }}</span>
+          </div>
+          <div class="sum-note">
+            Slab discounts &amp; cash discounts will be calculated automatically by the system on save.
+          </div>
+        </div>
+      </div>
+
+      @if (error) {
+        <div class="error-banner">
+          <mat-icon>error_outline</mat-icon>
+          {{ error }}
+        </div>
+      }
+
+    </div>
+  }
+</div>

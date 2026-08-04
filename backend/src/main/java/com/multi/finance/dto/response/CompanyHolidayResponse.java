@@ -13,6 +13,7 @@ public class CompanyHolidayResponse {
     private String name;
     private String holidayType;
     private boolean appliesToAll;
+    private List<Long> workerIds;
     private List<String> workerNames;
     private String createdAt;
 }

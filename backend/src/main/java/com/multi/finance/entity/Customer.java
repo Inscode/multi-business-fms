@@ -26,6 +26,13 @@ public class Customer {
     @Column
     private String area;
 
+    // Wholesale/invoicing fields — the Ventura import resolves customers by code first
+    @Column(name = "customer_code", unique = true)
+    private String customerCode;
+
+    @Column
+    private String address;
+
     @Column
     private String tier;
 

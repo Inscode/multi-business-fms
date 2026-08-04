@@ -147,6 +147,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   get isAdminOrOwner(): boolean     { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
   get isShopAccountant(): boolean   { return this.currentRole === 'SHOP_ACCOUNTANT'; }
   get showBills(): boolean          { return !this.isShopAccountant; }
+  get showInvoicing(): boolean      { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showPayments(): boolean       { return !this.isShopAccountant; }
   get showStaff(): boolean          { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showUsers(): boolean          { return this.currentRole === 'ADMIN'; }

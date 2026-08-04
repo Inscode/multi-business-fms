@@ -1,0 +1,184 @@
+<div class="page">
+
+  <div class="page-title">
+    <mat-icon>upload_file</mat-icon>
+    @if (selectedCategory) {
+      Import {{ selectedCategory === 'RAINCO' ? 'Rainco' : 'Stationery' }} XLS
+    } @else {
+      Import Ventura XLS
+    }
+  </div>
+
+  <!-- Category selection — gates everything below; matching is restricted to this category -->
+  @if (!selectedCategory) {
+    <div class="category-select card">
+      <p class="cs-hint">Select which product type you're importing:</p>
+      <div class="cs-buttons">
+        <button mat-flat-button color="primary" (click)="chooseCategory('RAINCO')">
+          <mat-icon>beach_access</mat-icon>
+          Import Rainco
+        </button>
+        <button mat-flat-button color="primary" (click)="chooseCategory('STATIONERY')">
+          <mat-icon>edit</mat-icon>
+          Import Stationery
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (selectedCategory) {
+    <div class="category-badge">
+      <span>Importing: <strong>{{ selectedCategory === 'RAINCO' ? 'Rainco' : 'Stationery' }}</strong></span>
+      <button mat-button (click)="changeCategory()">
+        <mat-icon>swap_horiz</mat-icon> Change
+      </button>
+    </div>
+  }
+
+  <!-- Result Banner -->
+  @if (selectedCategory && importResult) {
+    <div class="result-card card">
+      <div class="result-icon success-icon">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <div class="result-info">
+        <div class="result-title">Import Complete</div>
+        <div class="result-stats">
+          <span class="stat created">{{ importResult.imported }} imported</span>
+          @if (importResult.errors.length) {
+            <span class="stat errored">{{ importResult.errors.length }} errors</span>
+          }
+          @if (importResult.warnings.length) {
+            <span class="stat skipped">{{ importResult.warnings.length }} warnings</span>
+          }
+        </div>
+        @if (importResult.errors.length) {
+          <ul class="error-list">
+            @for (e of importResult.errors; track e) {
+              <li>{{ e }}</li>
+            }
+          </ul>
+        }
+        @if (importResult.warnings.length) {
+          <ul class="error-list">
+            @for (w of importResult.warnings; track w) {
+              <li>{{ w }}</li>
+            }
+          </ul>
+        }
+      </div>
+      <button mat-stroked-button (click)="reset()">Import Another File</button>
+    </div>
+  }
+
+  @if (selectedCategory && !importResult) {
+
+    <!-- Drop Zone -->
+    <div class="drop-zone card"
+         [class.drag-over]="dragOver"
+         [class.has-file]="!!selectedFile"
+         (dragover)="onDragOver($event)"
+         (dragleave)="onDragLeave()"
+         (drop)="onDrop($event)">
+      @if (parsing) {
+        <mat-spinner diameter="40"></mat-spinner>
+        <p class="dz-text">Parsing file…</p>
+      } @else if (selectedFile) {
+        <mat-icon class="dz-icon file-icon">description</mat-icon>
+        <p class="dz-text fw6">{{ selectedFile.name }}</p>
+        <p class="dz-sub">{{ (selectedFile.size / 1024).toFixed(1) }} KB</p>
+        <button mat-stroked-button color="warn" (click)="reset()">
+          <mat-icon>close</mat-icon> Remove
+        </button>
+      } @else {
+        <mat-icon class="dz-icon">cloud_upload</mat-icon>
+        <p class="dz-text">Drag &amp; drop a Ventura XLS file here</p>
+        <p class="dz-sub">or click below to browse</p>
+        <label class="browse-btn mat-mdc-button">
+          <mat-icon>folder_open</mat-icon>
+          Browse File
+          <input type="file" accept=".xls,.xlsx" (change)="onFileChange($event)" hidden>
+        </label>
+      }
+    </div>
+
+    @if (error) {
+      <div class="error-banner">
+        <mat-icon>error_outline</mat-icon>
+        {{ error }}
+      </div>
+    }
+
+    @if (parseWarnings.length > 0 && !parsing) {
+      <div class="error-banner">
+        <mat-icon>warning_amber</mat-icon>
+        <ul class="error-list">
+          @for (w of parseWarnings; track w) {
+            <li>{{ w }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <!-- Preview -->
+    @if (parsed.length > 0 && !parsing) {
+      <div class="preview-section">
+        <div class="preview-header">
+          <div class="preview-title">
+            <mat-icon>preview</mat-icon>
+            Preview — {{ parsed.length }} invoice(s) detected, {{ totalLines() }} lines total
+          </div>
+          <button mat-flat-button color="primary" (click)="importAll()" [disabled]="importing">
+            @if (importing) {
+              <mat-spinner diameter="18" color="accent"></mat-spinner>
+              <span>Importing…</span>
+            } @else {
+              <ng-container>
+                <mat-icon>publish</mat-icon>
+                <span>Import All ({{ parsed.length }})</span>
+              </ng-container>
+            }
+          </button>
+        </div>
+
+        @for (inv of parsed; track inv.invoiceNo; let i = $index) {
+          <div class="card inv-preview">
+            <div class="inv-preview-header">
+              <span class="inv-num">{{ inv.invoiceNo || ('Invoice ' + (i + 1)) }}</span>
+              <span class="cust-name">{{ inv.customerName || 'Unknown Customer' }}</span>
+              @if (inv.invoiceDate) { <span class="inv-date">{{ inv.invoiceDate }}</span> }
+              @if (inv.netTotal != null) {
+                <span class="net-total">LKR {{ inv.netTotal | number:'1.2-2' }}</span>
+              }
+            </div>
+            <div class="table-wrap">
+              <table class="data-table sm-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Unit Price</th>
+                    <th class="num">Line Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of inv.lines; track $index) {
+                    <tr>
+                      <td class="mono">{{ line.itemCode || '—' }}</td>
+                      <td>{{ line.description || '—' }}</td>
+                      <td class="num">{{ line.qty }}</td>
+                      <td class="num">{{ line.unitPrice != null ? (line.unitPrice | number:'1.2-2') : '—' }}</td>
+                      <td class="num fw6">{{ line.lineTotal != null ? (line.lineTotal | number:'1.2-2') : '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+  }
+</div>
