@@ -1,0 +1,173 @@
+<div class="dispatch-tab">
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Business</mat-label>
+      <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
+        <mat-option value="">All businesses</mat-option>
+        <mat-option *ngFor="let b of businesses.slice(1)" [value]="b">{{ b }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Area</mat-label>
+      <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onFilterChange()">
+        <mat-option value="">All areas</mat-option>
+        <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-icon-button (click)="clearFilters()" matTooltip="Clear filters"
+            *ngIf="selectedBusiness || selectedArea">
+      <mat-icon>restart_alt</mat-icon>
+    </button>
+
+    <span class="spacer"></span>
+
+    <button mat-icon-button (click)="load()" matTooltip="Refresh">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <!-- Round summary -->
+  <div class="round-bar" *ngIf="!loading">
+    <div class="round-stat">
+      <span class="stat-value">{{ toDispatch.length }}</span>
+      <span class="stat-label">to hand over</span>
+    </div>
+    <div class="round-stat muted">
+      <span class="stat-value">{{ assigned.length }}</span>
+      <span class="stat-label">already assigned</span>
+    </div>
+    <div class="round-stat">
+      <span class="stat-value">Rs {{ toDispatchTotal | number }}</span>
+      <span class="stat-label">outstanding to collect</span>
+    </div>
+
+    <span class="spacer"></span>
+
+    <button mat-flat-button color="primary" (click)="assignSelected()"
+            [disabled]="selection.selected.length === 0">
+      <mat-icon>assignment_ind</mat-icon>
+      Assign {{ selection.selected.length || '' }}
+    </button>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>Failed to load bills.</p>
+    <button mat-stroked-button (click)="load()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+
+    <!-- Round complete -->
+    <div class="round-done" *ngIf="toDispatch.length === 0">
+      <mat-icon>task_alt</mat-icon>
+      <div>
+        <strong>Nothing left to hand over</strong>
+        <span>
+          Every pending bill{{ selectedArea ? ' in ' + selectedArea : '' }}{{ selectedBusiness ? ' for ' + selectedBusiness : '' }}
+          is already with a worker.
+        </span>
+      </div>
+    </div>
+
+    <!-- Working list -->
+    <div class="table-wrap" *ngIf="toDispatch.length > 0">
+      <table class="dispatch-table">
+        <thead>
+          <tr>
+            <th class="check-col">
+              <mat-checkbox [checked]="allSelected" [indeterminate]="someSelected"
+                            (change)="toggleAll()"></mat-checkbox>
+            </th>
+            <th>Bill No.</th>
+            <th>Date</th>
+            <th>Age</th>
+            <th>Customer</th>
+            <th>Area</th>
+            <th>Business</th>
+            <th class="r">Balance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let b of toDispatch" [class.row-selected]="isSelected(b)"
+              (click)="toggleRow(b)">
+            <td class="check-col" (click)="$event.stopPropagation()">
+              <mat-checkbox [checked]="isSelected(b)" (change)="toggleRow(b)"></mat-checkbox>
+            </td>
+            <td class="bold">{{ b.billNumber }}</td>
+            <td class="muted">{{ b.billDate | date: 'dd MMM yyyy' }}</td>
+            <td>
+              <span class="age-pill" [class.age-old]="ageDays(b) > 60" [class.age-warn]="ageDays(b) > 30 && ageDays(b) <= 60">
+                {{ ageDays(b) }}d
+              </span>
+            </td>
+            <td>{{ b.customerName }}</td>
+            <td class="muted">{{ b.area ?? '—' }}</td>
+            <td class="muted">{{ b.business }}</td>
+            <td class="r bold">Rs {{ b.balanceRemaining | number }}</td>
+            <td (click)="$event.stopPropagation()">
+              <button mat-icon-button (click)="assignOne(b)" matTooltip="Assign this bill">
+                <mat-icon>person_add</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Already assigned — visible so an older assignment is never missed -->
+    <div class="assigned-panel" *ngIf="assigned.length > 0">
+      <button class="assigned-toggle" (click)="toggleAssignedPanel()">
+        <mat-icon>{{ showAssigned ? 'expand_less' : 'expand_more' }}</mat-icon>
+        Already assigned ({{ assigned.length }})
+        <span class="hint">— out with a worker, not part of this round</span>
+      </button>
+
+      <div class="table-wrap" *ngIf="showAssigned">
+        <table class="dispatch-table assigned-table">
+          <thead>
+            <tr>
+              <th>Bill No.</th>
+              <th>Date</th>
+              <th>Age</th>
+              <th>Customer</th>
+              <th>Area</th>
+              <th>With</th>
+              <th class="r">Balance</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let b of assigned">
+              <td class="bold">{{ b.billNumber }}</td>
+              <td class="muted">{{ b.billDate | date: 'dd MMM yyyy' }}</td>
+              <td>
+                <span class="age-pill" [class.age-old]="ageDays(b) > 60" [class.age-warn]="ageDays(b) > 30 && ageDays(b) <= 60">
+                  {{ ageDays(b) }}d
+                </span>
+              </td>
+              <td>{{ b.customerName }}</td>
+              <td class="muted">{{ b.area ?? '—' }}</td>
+              <td><span class="worker-chip"><mat-icon>directions_bike</mat-icon>{{ b.workerName }}</span></td>
+              <td class="r bold">Rs {{ b.balanceRemaining | number }}</td>
+              <td>
+                <button mat-icon-button (click)="assignOne(b)" matTooltip="Reassign to another worker">
+                  <mat-icon>swap_horiz</mat-icon>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </ng-container>
+</div>
