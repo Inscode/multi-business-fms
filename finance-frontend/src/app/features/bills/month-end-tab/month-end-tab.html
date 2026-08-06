@@ -1,0 +1,181 @@
+<div class="month-end-tab">
+
+  <!-- Scope -->
+  <div class="scope-bar">
+    <mat-form-field appearance="outline" class="month-field">
+      <mat-label>Month</mat-label>
+      <input matInput type="month" [(ngModel)]="month" (ngModelChange)="onScopeChange()" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Business</mat-label>
+      <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onScopeChange()">
+        <mat-option value="">All businesses</mat-option>
+        <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Area</mat-label>
+      <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onScopeChange()">
+        <mat-option value="">All areas</mat-option>
+        <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <span class="spacer"></span>
+
+    <button mat-stroked-button (click)="closeSession()"
+            *ngIf="session && !session.closedAt && rows.length > 0">
+      <mat-icon>lock</mat-icon> Close check
+    </button>
+  </div>
+
+  <div class="closed-note" *ngIf="session?.closedAt">
+    <mat-icon>lock</mat-icon>
+    Closed on {{ session!.closedAt | date: 'dd MMM yyyy, HH:mm' }} — marks can still be changed.
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div class="error-state" *ngIf="error && !loading">
+    <p>{{ error }}</p>
+    <button mat-stroked-button (click)="startOrResume()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+
+    <!-- Progress -->
+    <div class="progress-card" *ngIf="rows.length > 0">
+      <div class="progress-head">
+        <span class="progress-title">{{ monthLabel }} check</span>
+        <span class="progress-pct">{{ progressPct }}% checked</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" [style.width.%]="progressPct"></div></div>
+      <div class="progress-hint">
+        Tick every bill you physically hold. What remains is either already paid but never
+        entered, or missing.
+      </div>
+    </div>
+
+    <!-- View tabs -->
+    <div class="view-tabs" *ngIf="rows.length > 0">
+      <button class="view-tab" [class.active]="view === 'TO_CHECK'" (click)="setView('TO_CHECK')">
+        To check <span class="count">{{ toCheck.length }}</span>
+      </button>
+      <button class="view-tab tab-paid" [class.active]="view === 'PAID_NOT_ENTERED'" (click)="setView('PAID_NOT_ENTERED')">
+        Paid — not entered <span class="count">{{ paidNotEntered.length }}</span>
+      </button>
+      <button class="view-tab tab-missing" [class.active]="view === 'MISSING'" (click)="setView('MISSING')">
+        Missing <span class="count">{{ missing.length }}</span>
+      </button>
+      <button class="view-tab tab-ok" [class.active]="view === 'IN_HAND'" (click)="setView('IN_HAND')">
+        In hand <span class="count">{{ inHand.length }}</span>
+      </button>
+
+      <span class="spacer"></span>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+        <mat-label>Search</mat-label>
+        <input matInput [(ngModel)]="search" placeholder="Bill no. or customer" />
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+    </div>
+
+    <!-- Nothing in scope -->
+    <div class="empty-state" *ngIf="rows.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <p>No outstanding bills for {{ monthLabel }} in this scope.</p>
+    </div>
+
+    <!-- All checked -->
+    <div class="round-done" *ngIf="rows.length > 0 && view === 'TO_CHECK' && toCheck.length === 0">
+      <mat-icon>task_alt</mat-icon>
+      <div>
+        <strong>Every bill checked</strong>
+        <span *ngIf="exceptionCount > 0">
+          {{ exceptionCount }} need{{ exceptionCount === 1 ? 's' : '' }} action — see the tabs above.
+        </span>
+        <span *ngIf="exceptionCount === 0">Nothing unaccounted for.</span>
+      </div>
+    </div>
+
+    <!-- Rows -->
+    <div class="table-wrap" *ngIf="visibleRows.length > 0">
+      <div class="list-total">
+        {{ visibleRows.length }} bill{{ visibleRows.length === 1 ? '' : 's' }}
+        · Rs {{ visibleTotal | number }}
+      </div>
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Bill No.</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Area</th>
+            <th>With</th>
+            <th class="r">Balance</th>
+            <th class="actions-col">Mark</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of visibleRows" [class.marking]="markingBillId === r.billId">
+            <td class="bold link" (click)="openBill(r)">{{ r.billNumber }}</td>
+            <td class="muted">{{ r.billDate | date: 'dd MMM yyyy' }}</td>
+            <td>{{ r.customerName }}</td>
+            <td class="muted">{{ r.area ?? '—' }}</td>
+            <td class="muted">{{ r.workerName ?? '—' }}</td>
+            <td class="r bold">Rs {{ r.balanceRemaining | number }}</td>
+            <td class="actions-col">
+
+              <!-- Unchecked: the three outcomes -->
+              <ng-container *ngIf="!r.markType">
+                <button mat-stroked-button class="mark-btn ok" (click)="mark(r, 'IN_HAND')"
+                        matTooltip="Bill is physically in the file">
+                  <mat-icon>check</mat-icon> In hand
+                </button>
+                <button mat-stroked-button class="mark-btn paid" (click)="mark(r, 'PAID_NOT_ENTERED')"
+                        matTooltip="Customer paid but it was never entered">
+                  <mat-icon>payments</mat-icon> Paid
+                </button>
+                <button mat-stroked-button class="mark-btn missing" (click)="mark(r, 'MISSING')"
+                        matTooltip="Not in the file and not known to be paid">
+                  <mat-icon>help_outline</mat-icon> Missing
+                </button>
+              </ng-container>
+
+              <!-- Marked: show outcome + next action -->
+              <ng-container *ngIf="r.markType">
+                <span class="mark-chip"
+                      [class.chip-ok]="r.markType === 'IN_HAND'"
+                      [class.chip-paid]="r.markType === 'PAID_NOT_ENTERED'"
+                      [class.chip-missing]="r.markType === 'MISSING'"
+                      [matTooltip]="(r.markedByName ?? '') + ' · ' + (r.markedAt | date: 'dd MMM HH:mm')">
+                  {{ r.markType === 'IN_HAND' ? 'In hand' : r.markType === 'PAID_NOT_ENTERED' ? 'Paid — not entered' : 'Missing' }}
+                </span>
+
+                <button mat-flat-button color="primary" class="mark-btn"
+                        *ngIf="r.markType === 'PAID_NOT_ENTERED'"
+                        (click)="enterPayment(r)">
+                  <mat-icon>add</mat-icon> Enter payment
+                </button>
+
+                <button mat-icon-button (click)="mark(r, null)" matTooltip="Undo">
+                  <mat-icon>undo</mat-icon>
+                </button>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="empty-state" *ngIf="rows.length > 0 && visibleRows.length === 0 && !(view === 'TO_CHECK' && toCheck.length === 0)">
+      <mat-icon>filter_alt_off</mat-icon>
+      <p>Nothing in this list{{ search ? ' matching "' + search + '"' : '' }}.</p>
+    </div>
+
+  </ng-container>
+</div>

@@ -232,4 +232,17 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.customer WHERE LOWER(b.customerName) LIKE LOWER(CONCAT('%', :name, '%')) OR (b.customer IS NOT NULL AND LOWER(b.customer.name) LIKE LOWER(CONCAT('%', :name, '%'))) ORDER BY b.createdAt DESC")
     List<Bill> findByCustomerNameContainingIgnoreCase(@Param("name") String name);
 
+    /**
+     * Every still-owing bill as of a cut-off date — the working set for a month-end
+     * reconciliation sweep. Status is deliberately ignored (except CANCELLED): a bill
+     * force-completed with money still owed must still appear here.
+     */
+    @Query("SELECT b FROM Bill b WHERE b.balanceRemaining > 0 " +
+           "AND b.status <> 'CANCELLED' AND b.billDate <= :cutoff " +
+           "AND (:business IS NULL OR b.business = :business) " +
+           "AND (:area IS NULL OR b.area = :area) " +
+           "ORDER BY b.area ASC, b.billDate ASC")
+    List<Bill> findPendingForAudit(@Param("cutoff") LocalDate cutoff,
+                                   @Param("business") BusinessType business,
+                                   @Param("area") String area);
 }

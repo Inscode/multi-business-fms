@@ -1,4 +1,4 @@
-﻿import { CommonModule, DecimalPipe, LowerCasePipe } from '@angular/common';
+import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
@@ -26,6 +26,8 @@ import { Bill, BillResponse, BillSequenceGap } from '../../../core/services/bill
 import { Auth } from '../../../core/services/auth';
 import { LinkingBillsTab } from '../linking-bills-tab/linking-bills-tab';
 import { ReviewBillsTab } from '../review-bills-tab/review-bills-tab';
+import { DispatchTab } from '../dispatch-tab/dispatch-tab';
+import { MonthEndTab } from '../month-end-tab/month-end-tab';
 import { BulkPaymentDialog } from '../../payments/bulk-payment-dialog/bulk-payment-dialog';
 import { BulkAssignDialog } from '../bulk-assign-dialog/bulk-assign-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
@@ -59,10 +61,13 @@ import { BillFilterState } from '../../../core/services/bill-filter-state';
     MatNativeDateModule,
     DecimalPipe,
     LowerCasePipe,
+    DatePipe,
     MatInput,
     MatTabsModule,
     LinkingBillsTab,
     ReviewBillsTab,
+    DispatchTab,
+    MonthEndTab,
   ],
   templateUrl: './bill-list.html',
   styleUrl: './bill-list.scss',
@@ -119,6 +124,11 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
   displayedColumns: string[];
 
   get isOwner(): boolean { return this.auth.getRole() === 'OWNER'; }
+
+  /** Accountants run the dispatch round and the month-end check alongside admins. */
+  get canUseCollectionTools(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
 
   get canEnterPayment(): boolean {
@@ -213,8 +223,8 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
       this.selectedBusiness = 'RETAIL_SHOP';
     }
     this.displayedColumns = this.canEnterPayment
-      ? ['select', 'billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions']
-      : ['billNumber', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'workerName', 'status', 'actions'];
+      ? ['select', 'billNumber', 'billDate', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'status', 'actions']
+      : ['billNumber', 'billDate', 'customerName', 'area', 'business', 'billType', 'totalAmount', 'balanceRemaining', 'status', 'actions'];
   }
 
   get today(): string { return localDateStr(); }
