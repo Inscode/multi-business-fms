@@ -2,38 +2,77 @@
 
   <!-- Scope -->
   <div class="scope-bar">
+    <mat-form-field appearance="outline" class="session-field" *ngIf="sessions.length > 0">
+      <mat-label>Check</mat-label>
+      <mat-select [ngModel]="session?.id" (ngModelChange)="selectSession($event)">
+        <mat-option *ngFor="let s of sessions" [value]="s.id">{{ sessionLabel(s) }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
     <mat-form-field appearance="outline" class="month-field">
       <mat-label>Month</mat-label>
-      <input matInput type="month" [(ngModel)]="month" (ngModelChange)="onScopeChange()" />
+      <input matInput type="month" [(ngModel)]="month" (ngModelChange)="onMonthChange()" />
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="filter-field">
       <mat-label>Business</mat-label>
-      <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onScopeChange()">
+      <mat-select [(ngModel)]="selectedBusiness" (ngModelChange)="onFilterChange()">
         <mat-option value="">All businesses</mat-option>
         <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="filter-field">
-      <mat-label>Area</mat-label>
-      <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onScopeChange()">
-        <mat-option value="">All areas</mat-option>
+      <mat-label>Areas</mat-label>
+      <mat-select [(ngModel)]="selectedAreas" (ngModelChange)="onFilterChange()" multiple>
         <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
       </mat-select>
+      <mat-hint *ngIf="selectedAreas.length === 0">All areas</mat-hint>
     </mat-form-field>
+
+    <button mat-icon-button (click)="clearFilters()" matTooltip="Show all businesses and areas"
+            *ngIf="isFiltered">
+      <mat-icon>filter_alt_off</mat-icon>
+    </button>
 
     <span class="spacer"></span>
 
+    <!-- Without this there is no way to begin your own sweep — you would only ever
+         land on someone else's, read-only. -->
+    <button mat-flat-button color="primary" (click)="startOrResume()"
+            *ngIf="!hasOwnSessionForMonth && !loading">
+      <mat-icon>playlist_add_check</mat-icon> Start my check for {{ monthLabel }}
+    </button>
+
     <button mat-stroked-button (click)="closeSession()"
-            *ngIf="session && !session.closedAt && rows.length > 0">
+            *ngIf="session && !session.closedAt && !readOnly && rows.length > 0">
       <mat-icon>lock</mat-icon> Close check
     </button>
+  </div>
+
+  <div class="readonly-note" *ngIf="readOnly">
+    <mat-icon>visibility</mat-icon>
+    <div>
+      <strong>Viewing {{ ownerLabel }}'s check</strong>
+      <span>
+        Marks are theirs to change. You can still open bills and enter payments from here —
+        or start your own check for this month with the button above.
+      </span>
+    </div>
   </div>
 
   <div class="closed-note" *ngIf="session?.closedAt">
     <mat-icon>lock</mat-icon>
     Closed on {{ session!.closedAt | date: 'dd MMM yyyy, HH:mm' }} — marks can still be changed.
+  </div>
+
+  <div class="empty-state" *ngIf="!loading && !session">
+    <mat-icon>fact_check</mat-icon>
+    <p *ngIf="sessions.length === 0">No month-end check started yet.</p>
+    <p *ngIf="sessions.length > 0">No check for {{ monthLabel }} yet.</p>
+    <button mat-flat-button color="primary" (click)="startOrResume()">
+      <mat-icon>playlist_add_check</mat-icon> Start my check for {{ monthLabel }}
+    </button>
   </div>
 
   <div class="loading-state" *ngIf="loading">
@@ -57,6 +96,13 @@
       <div class="progress-hint">
         Tick every bill you physically hold. What remains is either already paid but never
         entered, or missing.
+      </div>
+      <div class="filter-note" *ngIf="isFiltered">
+        <mat-icon>filter_alt</mat-icon>
+        Showing {{ scopedCount }} of {{ rows.length }} bills
+        <ng-container *ngIf="selectedBusiness"> · {{ selectedBusiness }}</ng-container>
+        <ng-container *ngIf="areaLabel"> · {{ areaLabel }}</ng-container>
+        — marks are kept for the whole month, filtering never clears them.
       </div>
     </div>
 
@@ -130,8 +176,8 @@
             <td class="r bold">Rs {{ r.balanceRemaining | number }}</td>
             <td class="actions-col">
 
-              <!-- Unchecked: the three outcomes -->
-              <ng-container *ngIf="!r.markType">
+              <!-- Unchecked: the three outcomes (owner only) -->
+              <ng-container *ngIf="!r.markType && !readOnly">
                 <button mat-stroked-button class="mark-btn ok" (click)="mark(r, 'IN_HAND')"
                         matTooltip="Bill is physically in the file">
                   <mat-icon>check</mat-icon> In hand
@@ -145,6 +191,9 @@
                   <mat-icon>help_outline</mat-icon> Missing
                 </button>
               </ng-container>
+
+              <!-- Read-only view of an unchecked row -->
+              <span class="mark-chip chip-none" *ngIf="!r.markType && readOnly">Not checked</span>
 
               <!-- Marked: show outcome + next action -->
               <ng-container *ngIf="r.markType">
@@ -162,7 +211,8 @@
                   <mat-icon>add</mat-icon> Enter payment
                 </button>
 
-                <button mat-icon-button (click)="mark(r, null)" matTooltip="Undo">
+                <button mat-icon-button (click)="mark(r, null)" matTooltip="Undo"
+                        *ngIf="r.markType && !readOnly">
                   <mat-icon>undo</mat-icon>
                 </button>
               </ng-container>

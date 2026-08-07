@@ -3,6 +3,11 @@
     <div>
       <h2 class="tab-title">Linking Bills</h2>
       <p class="tab-sub">SYSTEM bills used as references for stock linking</p>
+      <p class="readonly-hint" *ngIf="!isAdmin">
+        <mat-icon>visibility</mat-icon>
+        Reference only — these are kept out of the bills list and totals so their value
+        isn't counted twice. Admins handle reconciling and savings.
+      </p>
     </div>
     <button mat-stroked-button (click)="load()" [disabled]="loading">
       <mat-icon>refresh</mat-icon> Refresh

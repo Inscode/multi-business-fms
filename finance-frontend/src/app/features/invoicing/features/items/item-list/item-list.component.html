@@ -124,6 +124,16 @@
         <mat-option value="PLASTIC">Plastic</mat-option>
       </mat-select>
     </mat-form-field>
+
+    <mat-form-field appearance="outline" class="cat-field">
+      <mat-label>Status</mat-label>
+      <mat-select [ngModel]="statusFilter" (ngModelChange)="setStatusFilter($event)">
+        <mat-option value="ACTIVE">Active</mat-option>
+        <mat-option value="INACTIVE">Inactive ({{ inactiveCount }})</mat-option>
+        <mat-option value="ALL">All</mat-option>
+      </mat-select>
+    </mat-form-field>
+
     <div class="spacer"></div>
     <span class="count-chip">{{ filtered.length }} items</span>
   </div>
@@ -165,7 +175,19 @@
                 <td class="num">{{ i.mrp != null ? (i.mrp | number:'1.2-2') : '—' }}</td>
                 <td class="num amount">{{ i.wsp != null ? (i.wsp | number:'1.2-2') : (i.wholesalePrice != null ? (i.wholesalePrice | number:'1.2-2') : '—') }}</td>
                 <td class="num" [class.zero-stock]="i.stockQty <= 0">{{ i.stockQty }}</td>
-                <td><span class="badge" [class.success]="i.active" [class.danger]="!i.active">{{ i.active ? 'Active' : 'Inactive' }}</span></td>
+                <td>
+                  <button class="status-toggle" *ngIf="isAdmin" (click)="toggleActive(i)"
+                          [disabled]="togglingId === i.id"
+                          [matTooltip]="i.active ? 'Deactivate — hides it from invoices and GRNs' : 'Reactivate — makes it available again'">
+                    <span class="badge" [class.success]="i.active" [class.danger]="!i.active">
+                      {{ i.active ? 'Active' : 'Inactive' }}
+                    </span>
+                    <mat-icon class="toggle-icon">{{ i.active ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+                  </button>
+                  <span class="badge" *ngIf="!isAdmin" [class.success]="i.active" [class.danger]="!i.active">
+                    {{ i.active ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
                 <td class="action-cell">
                   @if (isAdmin) {
                     <button mat-icon-button (click)="openAdjust(i)" matTooltip="Adjust stock">

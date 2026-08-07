@@ -19,6 +19,45 @@
     </div>
   </div>
 
+  <!-- Print / download scope -->
+  <div class="export-bar" *ngIf="report && !loading">
+    <span class="export-label"><mat-icon>print</mat-icon> Print or download</span>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="export-field">
+      <mat-label>Area</mat-label>
+      <mat-select [(ngModel)]="exportArea">
+        <mat-option value="">All areas</mat-option>
+        <mat-option *ngFor="let a of exportAreas" [value]="a">{{ a }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="export-field">
+      <mat-label>Bill type</mat-label>
+      <mat-select [(ngModel)]="exportBillType">
+        <mat-option value="">Cash + Credit</mat-option>
+        <mat-option value="CREDIT">Credit only</mat-option>
+        <mat-option value="CASH">Cash only</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="export-field">
+      <mat-label>Order by</mat-label>
+      <mat-select [(ngModel)]="exportSort">
+        <mat-option value="AGE">Longest waiting first</mat-option>
+        <mat-option value="AMOUNT">Largest amount first</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-flat-button color="primary" (click)="printReport()">
+      <mat-icon>print</mat-icon> Print
+    </button>
+    <button mat-stroked-button (click)="downloadExcel()" [disabled]="downloading">
+      <mat-spinner diameter="16" *ngIf="downloading"></mat-spinner>
+      <mat-icon *ngIf="!downloading">download</mat-icon>
+      {{ downloading ? 'Preparing…' : 'Excel' }}
+    </button>
+  </div>
+
   <!-- Loading -->
   <div class="loading-state" *ngIf="loading">
     <mat-spinner diameter="36"></mat-spinner>

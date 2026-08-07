@@ -16,6 +16,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <a routerLink="/invoicing/invoices" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
         <mat-icon>receipt_long</mat-icon> Invoices
       </a>
+      <a routerLink="/invoicing/grn" routerLinkActive="active">
+        <mat-icon>move_to_inbox</mat-icon> Stock In
+      </a>
       <a routerLink="/invoicing/items" routerLinkActive="active">
         <mat-icon>inventory_2</mat-icon> Items
       </a>

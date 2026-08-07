@@ -1,0 +1,245 @@
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <mat-icon>move_to_inbox</mat-icon>
+      Stock In — Goods Received
+    </div>
+    <button mat-flat-button color="primary" (click)="openNew()" *ngIf="!showForm">
+      <mat-icon>add</mat-icon> New GRN
+    </button>
+  </div>
+
+  <div class="error-box" *ngIf="errorMsg">{{ errorMsg }}</div>
+
+  <!-- ── Create form ─────────────────────────────────────────────── -->
+  <div class="card form-card" *ngIf="showForm">
+    <div class="form-title">New Goods Received Note</div>
+
+    <div class="form-row">
+      <mat-form-field appearance="outline" class="cat-field">
+        <mat-label>Category</mat-label>
+        <mat-select [(ngModel)]="category" (ngModelChange)="onCategoryChange()">
+          <mat-option *ngFor="let c of categories" [value]="c">{{ c }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Supplier</mat-label>
+        <input matInput [(ngModel)]="supplierName" placeholder="Who it came from (optional)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>Received date</mat-label>
+        <input matInput type="date" [(ngModel)]="receivedDate" />
+      </mat-form-field>
+    </div>
+
+    <div class="cat-hint">
+      <mat-icon>info</mat-icon>
+      Showing {{ items.length }} active {{ category }} item{{ items.length === 1 ? '' : 's' }} —
+      only items in this category can be received on this note.
+    </div>
+
+    <!-- Lines -->
+    <div class="lines-head">
+      <span>Items received</span>
+      <mat-spinner diameter="16" *ngIf="itemsLoading"></mat-spinner>
+    </div>
+
+    <div class="line-row" *ngFor="let l of lines; let i = index">
+      <mat-form-field appearance="outline" class="item-field">
+        <mat-label>Item</mat-label>
+        <mat-select [(ngModel)]="l.itemId" (ngModelChange)="onItemChange(l)">
+          <mat-option *ngFor="let it of availableItems(l)" [value]="it.id">
+            {{ it.itemCode }} — {{ it.description }}
+            <span class="opt-meta">
+              · {{ it.brandName }}
+              · Rs {{ (it.wholesalePrice ?? it.wsp) | number:'1.2-2' }}
+            </span>
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="qty-field">
+        <mat-label>Qty</mat-label>
+        <input matInput type="number" min="1" [(ngModel)]="l.qty" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="cost-field">
+        <mat-label>Unit cost</mat-label>
+        <input matInput type="number" min="0" step="0.01" [(ngModel)]="l.unitCost" />
+      </mat-form-field>
+
+      <div class="line-total">
+        <span class="lt-label">Total</span>
+        <span class="lt-value">{{ lineTotal(l) != null ? ('Rs ' + (lineTotal(l) | number:'1.2-2')) : '—' }}</span>
+      </div>
+
+      <div class="line-stock" *ngIf="itemOf(l) as it">
+        <span class="ls-label">In stock</span>
+        <span class="ls-value">{{ it.stockQty }}</span>
+      </div>
+
+      <button mat-icon-button class="remove-btn" (click)="removeLine(i)"
+              [disabled]="lines.length === 1" matTooltip="Remove line">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <button mat-stroked-button class="add-line-btn" (click)="addLine()">
+      <mat-icon>add</mat-icon> Add item
+    </button>
+
+    <mat-form-field appearance="outline" class="notes-field">
+      <mat-label>Notes</mat-label>
+      <input matInput [(ngModel)]="notes" placeholder="Invoice no., vehicle, anything worth recording" />
+    </mat-form-field>
+
+    <div class="form-footer">
+      <div class="form-totals">
+        <span><strong>{{ formQty }}</strong> units</span>
+        <span><strong>Rs {{ formTotal | number:'1.2-2' }}</strong> total cost</span>
+      </div>
+      <div class="form-actions">
+        <button mat-button (click)="cancelForm()">Cancel</button>
+        <button mat-flat-button color="primary" (click)="submit()" [disabled]="!formValid || saving">
+          <mat-spinner diameter="16" *ngIf="saving"></mat-spinner>
+          {{ saving ? '' : 'Submit for approval' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="approval-note">
+      <mat-icon>schedule</mat-icon>
+      Stock is only added once an admin approves this note.
+    </div>
+  </div>
+
+  <!-- ── Status tabs ─────────────────────────────────────────────── -->
+  <div class="status-tabs">
+    <button class="status-tab" [class.active]="tab === 'PENDING'" (click)="setTab('PENDING')">
+      Pending <span class="count">{{ countByStatus('PENDING') }}</span>
+    </button>
+    <button class="status-tab tab-ok" [class.active]="tab === 'APPROVED'" (click)="setTab('APPROVED')">
+      Approved <span class="count">{{ countByStatus('APPROVED') }}</span>
+    </button>
+    <button class="status-tab tab-rejected" [class.active]="tab === 'REJECTED'" (click)="setTab('REJECTED')">
+      Rejected <span class="count">{{ countByStatus('REJECTED') }}</span>
+    </button>
+    <button class="status-tab" [class.active]="tab === 'ALL'" (click)="setTab('ALL')">
+      All <span class="count">{{ grns.length }}</span>
+    </button>
+  </div>
+
+  <!-- ── List ────────────────────────────────────────────────────── -->
+  <div class="card table-card">
+    <div class="loader-wrap" *ngIf="loading">
+      <mat-spinner diameter="30"></mat-spinner>
+    </div>
+
+    <div class="empty" *ngIf="!loading && filtered.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <p>No {{ tab === 'ALL' ? '' : tab.toLowerCase() }} goods received notes.</p>
+    </div>
+
+    <table class="data-table" *ngIf="!loading && filtered.length > 0">
+      <thead>
+        <tr>
+          <th>GRN No.</th>
+          <th>Category</th>
+          <th>Supplier</th>
+          <th>Received</th>
+          <th class="r">Units</th>
+          <th class="r">Cost</th>
+          <th>Status</th>
+          <th>Submitted by</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let g of filtered">
+          <tr>
+            <td class="bold">{{ g.grnNo }}</td>
+            <td><span class="badge" [ngClass]="categoryClass(g.category)">{{ g.category }}</span></td>
+            <td>{{ g.supplierName || '—' }}</td>
+            <td>{{ g.receivedDate | date:'dd MMM yyyy' }}</td>
+            <td class="r">{{ g.totalQty }}</td>
+            <td class="r amount">{{ g.totalCost ? ('Rs ' + (g.totalCost | number:'1.2-2')) : '—' }}</td>
+            <td><span class="badge" [ngClass]="statusClass(g.status)">{{ g.status }}</span></td>
+            <td class="muted">{{ g.submittedBy || '—' }}</td>
+            <td class="actions">
+              <button mat-icon-button (click)="toggleLines(g.id)"
+                      [matTooltip]="expandedId === g.id ? 'Hide items' : 'Show items'">
+                <mat-icon>{{ expandedId === g.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+
+              <ng-container *ngIf="isAdmin && g.status === 'PENDING'">
+                <button mat-icon-button class="approve-btn" (click)="approve(g)"
+                        [disabled]="processing" matTooltip="Approve — adds stock">
+                  <mat-icon>check_circle</mat-icon>
+                </button>
+                <button mat-icon-button class="reject-btn" (click)="startReject(g.id)"
+                        [disabled]="processing" matTooltip="Reject">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </ng-container>
+            </td>
+          </tr>
+
+          <!-- Reject reason -->
+          <tr *ngIf="rejectingId === g.id">
+            <td colspan="9" class="reject-row">
+              <mat-form-field appearance="outline" class="reject-field">
+                <mat-label>Reason for rejection</mat-label>
+                <input matInput [(ngModel)]="rejectReason" placeholder="Why is this being rejected?" />
+              </mat-form-field>
+              <button mat-flat-button color="warn" (click)="confirmReject()"
+                      [disabled]="!rejectReason.trim() || processing">Reject</button>
+              <button mat-button (click)="cancelReject()">Cancel</button>
+            </td>
+          </tr>
+
+          <!-- Lines -->
+          <tr *ngIf="expandedId === g.id">
+            <td colspan="9" class="lines-cell">
+              <div class="grn-note" *ngIf="g.notes"><strong>Notes:</strong> {{ g.notes }}</div>
+              <div class="grn-note reject-note" *ngIf="g.rejectionReason">
+                <strong>Rejected:</strong> {{ g.rejectionReason }}
+                <span class="muted"> — {{ g.reviewedBy }}, {{ g.reviewedAt | date:'dd MMM yyyy' }}</span>
+              </div>
+              <div class="grn-note approved-note" *ngIf="g.status === 'APPROVED'">
+                <mat-icon>check_circle</mat-icon>
+                Stock added by {{ g.reviewedBy }} on {{ g.reviewedAt | date:'dd MMM yyyy, HH:mm' }}
+              </div>
+
+              <table class="inner-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Brand</th>
+                    <th class="r">Qty</th>
+                    <th class="r">Unit cost</th>
+                    <th class="r">Line total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let l of g.lines">
+                    <td class="mono">{{ l.itemCode }}</td>
+                    <td>{{ l.itemDescription }}</td>
+                    <td class="muted">{{ l.brandName || '—' }}</td>
+                    <td class="r bold">{{ l.qty }}</td>
+                    <td class="r">{{ l.unitCost != null ? ('Rs ' + (l.unitCost | number:'1.2-2')) : '—' }}</td>
+                    <td class="r amount">{{ l.lineTotal != null ? ('Rs ' + (l.lineTotal | number:'1.2-2')) : '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
+  </div>
+</div>

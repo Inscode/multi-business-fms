@@ -127,24 +127,47 @@
           <div class="preview-title">
             <mat-icon>preview</mat-icon>
             Preview — {{ parsed.length }} invoice(s) detected, {{ totalLines() }} lines total
+            @if (blockedInvoices().length > 0) {
+              <span class="blocked-count">· {{ blockedInvoices().length }} blocked</span>
+            }
           </div>
-          <button mat-flat-button color="primary" (click)="importAll()" [disabled]="importing">
+          <button mat-flat-button color="primary" (click)="importAll()"
+                  [disabled]="importing || importable().length === 0">
             @if (importing) {
               <mat-spinner diameter="18" color="accent"></mat-spinner>
               <span>Importing…</span>
             } @else {
               <ng-container>
                 <mat-icon>publish</mat-icon>
-                <span>Import All ({{ parsed.length }})</span>
+                <span>Import ({{ importable().length }})</span>
               </ng-container>
             }
           </button>
         </div>
 
+        @if (blockedInvoices().length > 0) {
+          <div class="blocked-banner">
+            <mat-icon>block</mat-icon>
+            <div>
+              <strong>{{ blockedInvoices().length }} invoice(s) will not be imported</strong>
+              <span>
+                An item on each could not be matched to exactly one catalog item, so importing
+                would record the wrong value and move the wrong stock. Fix the item's code or
+                price in the catalog, then upload the file again.
+              </span>
+            </div>
+          </div>
+        }
+
         @for (inv of parsed; track inv.invoiceNo; let i = $index) {
-          <div class="card inv-preview">
+          <div class="card inv-preview" [class.inv-blocked]="inv.blocked">
             <div class="inv-preview-header">
               <span class="inv-num">{{ inv.invoiceNo || ('Invoice ' + (i + 1)) }}</span>
+              @if (inv.blocked) {
+                <span class="blocked-chip" [title]="inv.blockReason">
+                  <mat-icon>block</mat-icon> Blocked
+                </span>
+              }
               <span class="cust-name">{{ inv.customerName || 'Unknown Customer' }}</span>
               @if (inv.invoiceDate) { <span class="inv-date">{{ inv.invoiceDate }}</span> }
               @if (inv.netTotal != null) {
@@ -164,8 +187,16 @@
                 </thead>
                 <tbody>
                   @for (line of inv.lines; track $index) {
-                    <tr>
-                      <td class="mono">{{ line.itemCode || '—' }}</td>
+                    <tr [class.line-unmatched]="isUnmatched(inv, line.itemCode)">
+                      <td class="mono">
+                        {{ line.itemCode || '—' }}
+                        @if (isUnmatched(inv, line.itemCode)) {
+                          <mat-icon class="unmatched-icon"
+                                    matTooltip="No single catalog item matches this code and price">
+                            error_outline
+                          </mat-icon>
+                        }
+                      </td>
                       <td>{{ line.description || '—' }}</td>
                       <td class="num">{{ line.qty }}</td>
                       <td class="num">{{ line.unitPrice != null ? (line.unitPrice | number:'1.2-2') : '—' }}</td>

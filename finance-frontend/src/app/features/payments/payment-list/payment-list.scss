@@ -31,9 +31,18 @@
 // Tab body sits flush against the ink bar by default — the first filter row
 // collides with the tab labels without this breathing room.
 .payment-tabs {
-  ::ng-deep .mat-mdc-tab-body-wrapper { padding-top: 20px; }
-  ::ng-deep .mat-mdc-tab-body-content { overflow: visible; }
-  ::ng-deep .mat-mdc-tab-header { margin-bottom: 4px; }
+  // Space below the ink bar so the filter row is clearly separate from the tabs
+  ::ng-deep .mat-mdc-tab-header { margin-bottom: 12px; }
+  ::ng-deep .mat-mdc-tab-body-wrapper { padding-top: 28px; }
+
+  // Every tab layer clips its overflow by default. A floating label sits ABOVE the
+  // field's box, so any clipping ancestor slices its top half off — all three need
+  // to let it through.
+  ::ng-deep .mat-mdc-tab-body-wrapper,
+  ::ng-deep .mat-mdc-tab-body,
+  ::ng-deep .mat-mdc-tab-body-content {
+    overflow: visible !important;
+  }
 }
 
 .filters {

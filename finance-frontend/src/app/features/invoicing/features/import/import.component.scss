@@ -230,3 +230,55 @@
 .num  { text-align: right; }
 .mono { font-family: 'Courier New', monospace; font-size: 11px; color: #666; }
 .fw6  { font-weight: 600; }
+
+// ── Blocked invoices (an item could not be matched) ──────────────────
+.blocked-count { color: #c62828; font-weight: 600; margin-left: 4px; }
+
+.blocked-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: #fce4ec;
+  color: #c62828;
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; }
+
+  strong { display: block; font-size: 13px; margin-bottom: 2px; }
+  span   { font-size: 12px; line-height: 1.5; }
+}
+
+.inv-blocked {
+  border-left: 3px solid #e53935;
+  background: #fffafa;
+}
+
+.blocked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 9px;
+  border-radius: 11px;
+  background: #ffebee;
+  color: #c62828;
+  font-size: 11px;
+  font-weight: 700;
+
+  mat-icon { font-size: 13px; width: 13px; height: 13px; }
+}
+
+.line-unmatched {
+  background: #fff5f5;
+  td { color: #c62828; }
+}
+
+.unmatched-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: #e53935;
+  vertical-align: -2px;
+  margin-left: 3px;
+}
