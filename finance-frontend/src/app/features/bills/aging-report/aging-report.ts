@@ -46,6 +46,60 @@ export class AgingReport implements OnInit {
   selectedBusiness = 'RAINCO';
   expandedAreas = new Set<string>();
 
+  // ── Export scope (print / Excel) ────────────────────────────────
+  exportArea = '';
+  exportBillType: '' | 'CASH' | 'CREDIT' = '';
+  exportSort: 'AGE' | 'AMOUNT' = 'AGE';
+  downloading = false;
+
+  /** Areas present in the loaded report — what can actually be printed. */
+  get exportAreas(): string[] {
+    return (this.report?.byArea ?? [])
+      .map(a => a.area)
+      .filter(a => !!a && a !== 'Unknown')
+      .sort();
+  }
+
+  private exportParams(): Record<string, string> {
+    const params: Record<string, string> = { business: this.selectedBusiness };
+    if (this.exportArea) params['area'] = this.exportArea;
+    if (this.exportBillType) params['billType'] = this.exportBillType;
+    params['sort'] = this.exportSort;
+    return params;
+  }
+
+  /** Opens the print-only view in a new tab; it prints itself once rendered. */
+  printReport(): void {
+    const qs = new URLSearchParams(this.exportParams()).toString();
+    window.open(`/bills/aging/print?${qs}`, '_blank');
+  }
+
+  downloadExcel(): void {
+    this.downloading = true;
+    this.cdr.markForCheck();
+    this.billService.downloadAgingExcel(
+      this.selectedBusiness,
+      this.exportArea || undefined,
+      this.exportBillType || undefined,
+      this.exportSort,
+    ).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `aging-${this.selectedBusiness.toLowerCase()}`
+          + (this.exportArea ? `-${this.exportArea.toLowerCase().replace(/ /g, '-')}` : '')
+          + (this.exportBillType ? `-${this.exportBillType.toLowerCase()}` : '')
+          + `-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.downloading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => { this.downloading = false; this.cdr.markForCheck(); },
+    });
+  }
+
   get businesses(): string[] {
     return this.auth.isDemo ? ['DEMO'] : ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
   }

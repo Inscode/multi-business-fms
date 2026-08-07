@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { catchError, of } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
@@ -24,16 +25,24 @@ interface ParsedInvoice {
   invoiceDate?: string;
   netTotal?: number;
   lines: ImportedLine[];
+  /** Codes that could not be pinned to exactly one catalog item. */
+  unmatchedCodes?: string[];
+  /** True when this invoice will be refused — an unmatched item or unresolved customer. */
+  blocked?: boolean;
+  blockReason?: string;
 }
 
 interface PreviewResponse {
   invoiceCount: number;
+  blockedCount: number;
+  importableCount: number;
   warnings: string[];
   invoices: ParsedInvoice[];
 }
 
 interface ImportResponse {
   imported: number;
+  blocked: number;
   warnings: string[];
   errors: string[];
 }
@@ -46,7 +55,7 @@ type ImportCategory = 'RAINCO' | 'STATIONERY';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule,
             MatButtonModule, MatIconModule, MatProgressSpinnerModule,
-            MatSelectModule, MatFormFieldModule],
+            MatSelectModule, MatFormFieldModule, MatTooltipModule],
   templateUrl: './import.component.html',
   styleUrl: './import.component.scss'
 })
@@ -152,6 +161,19 @@ export class ImportComponent {
     this.importResult = null;
     this.error        = '';
     this.cdr.markForCheck();
+  }
+
+  /** Invoices that will actually import — blocked ones are refused by the server. */
+  importable(): ParsedInvoice[] {
+    return this.parsed.filter(i => !i.blocked);
+  }
+
+  blockedInvoices(): ParsedInvoice[] {
+    return this.parsed.filter(i => i.blocked);
+  }
+
+  isUnmatched(inv: ParsedInvoice, code?: string): boolean {
+    return !!code && !!inv.unmatchedCodes?.includes(code);
   }
 
   totalLines() { return this.parsed.reduce((s, p) => s + (p.lines?.length ?? 0), 0); }

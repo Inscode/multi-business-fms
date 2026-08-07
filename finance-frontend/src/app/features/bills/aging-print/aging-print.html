@@ -1,0 +1,133 @@
+<div class="loading-state" *ngIf="loading">
+  <mat-spinner diameter="32"></mat-spinner>
+  <span>Preparing report…</span>
+</div>
+
+<div class="error-state" *ngIf="error">
+  <p>Could not load the aging report.</p>
+</div>
+
+<div class="report" *ngIf="data && !loading">
+
+  <button class="print-btn no-print" (click)="print()">
+    <mat-icon>print</mat-icon> Print
+  </button>
+
+  <!-- Header -->
+  <div class="report-head">
+    <div class="head-left">
+      <h1>Aging Report</h1>
+      <div class="business">{{ data.business }}</div>
+      <div class="scope">{{ scopeLine }}</div>
+    </div>
+    <div class="head-right">
+      <div class="generated">Generated {{ data.generatedOn | date: 'dd MMM yyyy' }}</div>
+      <div class="grand">
+        <span class="g-label">Total outstanding</span>
+        <span class="g-value">Rs {{ data.totalOutstanding | number:'1.2-2' }}</span>
+      </div>
+      <div class="split">
+        {{ data.customerCount }} customers · {{ data.billCount }} bills
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Credit customers ────────────────────────────────────────── -->
+  <section class="section" *ngIf="data.creditCustomers.length > 0">
+    <h2>Credit Bills — Customer Summary</h2>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Area</th>
+          <th class="c">Bills</th>
+          <th>Oldest Bill</th>
+          <th>Last Payment</th>
+          <th class="r">0–30</th>
+          <th class="r">31–60</th>
+          <th class="r">61–90</th>
+          <th class="r">91+</th>
+          <th class="r">Overdue 45+</th>
+          <th class="r">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of data.creditCustomers">
+          <td class="bold">{{ c.customerName }}</td>
+          <td>{{ c.area ?? '—' }}</td>
+          <td class="c">{{ c.billCount }}</td>
+          <td>{{ c.oldestBillDate ? (c.oldestBillDate | date: 'dd MMM yy') : '—' }}</td>
+          <td>{{ c.lastPaymentDate ? (c.lastPaymentDate | date: 'dd MMM yy') : 'Never' }}</td>
+          <td class="r">{{ c.current ? (c.current | number:'1.0-0') : '—' }}</td>
+          <td class="r">{{ c.days31to60 ? (c.days31to60 | number:'1.0-0') : '—' }}</td>
+          <td class="r">{{ c.days61to90 ? (c.days61to90 | number:'1.0-0') : '—' }}</td>
+          <td class="r warn">{{ c.days91plus ? (c.days91plus | number:'1.0-0') : '—' }}</td>
+          <td class="r warn">{{ c.overdue ? (c.overdue | number:'1.0-0') : '—' }}</td>
+          <td class="r bold">{{ c.totalOutstanding | number:'1.0-0' }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2">TOTAL — {{ data.creditCustomers.length }} customers</td>
+          <td class="c">{{ billCountOf(data.creditCustomers) }}</td>
+          <td colspan="2"></td>
+          <td class="r">{{ totalOf(data.creditCustomers, 'current') | number:'1.0-0' }}</td>
+          <td class="r">{{ totalOf(data.creditCustomers, 'days31to60') | number:'1.0-0' }}</td>
+          <td class="r">{{ totalOf(data.creditCustomers, 'days61to90') | number:'1.0-0' }}</td>
+          <td class="r">{{ totalOf(data.creditCustomers, 'days91plus') | number:'1.0-0' }}</td>
+          <td class="r">{{ totalOf(data.creditCustomers, 'overdue') | number:'1.0-0' }}</td>
+          <td class="r">{{ data.totalCredit | number:'1.0-0' }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <!-- ── Cash customers ──────────────────────────────────────────── -->
+  <section class="section" *ngIf="data.cashCustomers.length > 0">
+    <h2>Cash Bills — Customer Summary</h2>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Area</th>
+          <th class="c">Bills</th>
+          <th>Oldest Bill</th>
+          <th>Last Payment</th>
+          <th class="r">Follow-up 1–7</th>
+          <th class="r">Urgent 8–14</th>
+          <th class="r">Serious 15+</th>
+          <th class="r">Cash Pending</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of data.cashCustomers">
+          <td class="bold">{{ c.customerName }}</td>
+          <td>{{ c.area ?? '—' }}</td>
+          <td class="c">{{ c.billCount }}</td>
+          <td>{{ c.oldestBillDate ? (c.oldestBillDate | date: 'dd MMM yy') : '—' }}</td>
+          <td>{{ c.lastPaymentDate ? (c.lastPaymentDate | date: 'dd MMM yy') : 'Never' }}</td>
+          <td class="r">{{ c.cashFollowUp ? (c.cashFollowUp | number:'1.0-0') : '—' }}</td>
+          <td class="r">{{ c.cashUrgent ? (c.cashUrgent | number:'1.0-0') : '—' }}</td>
+          <td class="r warn">{{ c.cashSerious ? (c.cashSerious | number:'1.0-0') : '—' }}</td>
+          <td class="r bold">{{ c.cashPending | number:'1.0-0' }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2">TOTAL — {{ data.cashCustomers.length }} customers</td>
+          <td class="c">{{ billCountOf(data.cashCustomers) }}</td>
+          <td colspan="2"></td>
+          <td class="r">{{ totalOf(data.cashCustomers, 'cashFollowUp') | number:'1.0-0' }}</td>
+          <td class="r">{{ totalOf(data.cashCustomers, 'cashUrgent') | number:'1.0-0' }}</td>
+          <td class="r">{{ totalOf(data.cashCustomers, 'cashSerious') | number:'1.0-0' }}</td>
+          <td class="r">{{ data.totalCash | number:'1.0-0' }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <div class="report-foot">
+    Amounts in Rs. Credit ages in 30-day bands; cash ages in days.
+    Overdue = credit 45+ days.
+  </div>
+</div>

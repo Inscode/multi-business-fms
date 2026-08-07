@@ -29,11 +29,11 @@ import { Auth } from '../../../core/services/auth';
           <ng-template mat-tab-label><mat-icon>rate_review</mat-icon>&nbsp;Review Returns</ng-template>
           <div class="tab-body"><app-review-returns [readonly]="isReadOnlyReturns" /></div>
         </mat-tab>
-        <mat-tab *ngIf="isAdmin">
+        <mat-tab *ngIf="canDispatch">
           <ng-template mat-tab-label><mat-icon>local_shipping</mat-icon>&nbsp;Send to Company</ng-template>
           <div class="tab-body"><app-submit-damage-dispatch /></div>
         </mat-tab>
-        <mat-tab *ngIf="isAdmin">
+        <mat-tab *ngIf="canDispatch">
           <ng-template mat-tab-label><mat-icon>history</mat-icon>&nbsp;Dispatch History</ng-template>
           <div class="tab-body"><app-view-damage-dispatches /></div>
         </mat-tab>
@@ -56,6 +56,8 @@ export class ReturnsMain {
   get role(): string { return this.auth.getRole() ?? ''; }
   get isAdmin():           boolean { return this.role === 'ADMIN'; }
   get canSubmit():         boolean { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
+  /** Accountants prepare dispatches; only admins approve them. */
+  get canDispatch():       boolean { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
   get canReview():         boolean { return ['ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }
   get isReadOnlyReturns(): boolean { return !['ADMIN', 'OWNER'].includes(this.role); }
   get canManageProducts(): boolean { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.role); }

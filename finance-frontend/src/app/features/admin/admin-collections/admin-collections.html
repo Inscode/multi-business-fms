@@ -6,6 +6,8 @@
     </button>
   </div>
 
+  <div class="error-box" *ngIf="errorMsg">{{ errorMsg }}</div>
+
   <div class="filter-bar">
     <mat-button-toggle-group [(ngModel)]="statusFilter" aria-label="Filter by status">
       <mat-button-toggle value="ALL">All ({{ notes.length }})</mat-button-toggle>
@@ -70,7 +72,9 @@
               <button mat-icon-button title="Edit" (click)="startEdit(n)">
                 <mat-icon>edit</mat-icon>
               </button>
-              <button mat-icon-button color="warn" title="Delete" (click)="remove(n.id)">
+              <button mat-icon-button color="warn"
+                      [title]="n.status === 'MATCHED' ? 'Delete — reverses the recorded payment' : 'Delete'"
+                      (click)="remove(n)">
                 <mat-icon>delete</mat-icon>
               </button>
             </ng-container>

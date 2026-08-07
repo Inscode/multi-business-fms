@@ -34,6 +34,7 @@ type ViewMode = 'TO_CHECK' | 'PAID_NOT_ENTERED' | 'MISSING' | 'IN_HAND';
 })
 export class MonthEndTab implements OnInit {
   session: BillAuditSession | null = null;
+  sessions: BillAuditSession[] = [];
   rows: BillAuditRow[] = [];
 
   loading = false;
@@ -43,7 +44,7 @@ export class MonthEndTab implements OnInit {
   // Scope — empty means everything
   month = new Date().toISOString().slice(0, 7);   // "2026-08"
   selectedBusiness = '';
-  selectedArea = '';
+  selectedAreas: string[] = [];
 
   businesses = ['RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
   areas: string[] = [];
@@ -58,9 +59,55 @@ export class MonthEndTab implements OnInit {
     private cdr: ChangeDetectorRef,
   ) {}
 
-  ngOnInit(): void { this.startOrResume(); }
+  ngOnInit(): void { this.loadSessions(true); }
 
-  // ── session ─────────────────────────────────────────────────────
+  // ── sessions ────────────────────────────────────────────────────
+
+  /** Everyone sees every check; only your own (or any, if admin) can be marked. */
+  loadSessions(selectMine = false): void {
+    this.audit.listSessions().subscribe({
+      next: (list) => {
+        this.sessions = list;
+        if (selectMine) {
+          const monthStart = `${this.month}-01`;
+          const mine = list.find(s => s.periodMonth === monthStart && s.mine && !s.closedAt);
+          const target = mine ?? list[0] ?? null;
+          if (target) this.selectSession(target.id);
+          else { this.loading = false; this.cdr.markForCheck(); }
+        } else {
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => { this.loading = false; this.cdr.markForCheck(); },
+    });
+  }
+
+  selectSession(sessionId: number): void {
+    const found = this.sessions.find(s => s.id === sessionId);
+    if (!found) return;
+    this.session = found;
+    this.month = found.periodMonth.slice(0, 7);
+    this.view = 'TO_CHECK';
+    this.loading = true;
+    this.error = '';
+    this.cdr.markForCheck();
+    this.loadRows();
+  }
+
+  /** True when the selected check is someone else's — marks are locked. */
+  get readOnly(): boolean { return !!this.session && !this.session.canEdit; }
+
+  get ownerLabel(): string {
+    return this.session?.openedByName ?? 'someone else';
+  }
+
+  sessionLabel(s: BillAuditSession): string {
+    const [y, m] = s.periodMonth.split('-').map(Number);
+    const month = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const owner = s.mine ? 'You' : (s.openedByName ?? 'Unknown');
+    const state = s.closedAt ? ' · closed' : '';
+    return `${month} — ${owner} · ${s.unchecked} left${state}`;
+  }
 
   startOrResume(): void {
     this.loading = true;
@@ -68,11 +115,14 @@ export class MonthEndTab implements OnInit {
     this.cdr.markForCheck();
 
     const monthStart = `${this.month}-01`;
-    this.audit.openSession(monthStart, this.selectedBusiness || undefined, this.selectedArea || undefined)
-      .subscribe({
-        next: (s) => { this.session = s; this.loadRows(); },
-        error: () => { this.error = 'Could not start the check.'; this.loading = false; this.cdr.markForCheck(); },
-      });
+    this.audit.openSession(monthStart).subscribe({
+      next: (s) => {
+        this.session = s;
+        this.loadSessions();   // refresh the picker so the new sweep appears
+        this.loadRows();
+      },
+      error: () => { this.error = 'Could not start the check.'; this.loading = false; this.cdr.markForCheck(); },
+    });
   }
 
   private loadRows(): void {
@@ -98,10 +148,20 @@ export class MonthEndTab implements OnInit {
       r.customerName.toLowerCase().includes(q));
   }
 
-  get toCheck(): BillAuditRow[]       { return this.rows.filter(r => !r.markType); }
-  get inHand(): BillAuditRow[]        { return this.rows.filter(r => r.markType === 'IN_HAND'); }
-  get paidNotEntered(): BillAuditRow[] { return this.rows.filter(r => r.markType === 'PAID_NOT_ENTERED'); }
-  get missing(): BillAuditRow[]       { return this.rows.filter(r => r.markType === 'MISSING'); }
+  /**
+   * Business/area narrow what's on screen only — the sweep itself always covers the
+   * whole month, so a bill marked with no filter stays marked once you filter.
+   */
+  private get scoped(): BillAuditRow[] {
+    return this.rows.filter(r =>
+      (!this.selectedBusiness || r.business === this.selectedBusiness) &&
+      (this.selectedAreas.length === 0 || (!!r.area && this.selectedAreas.includes(r.area))));
+  }
+
+  get toCheck(): BillAuditRow[]        { return this.scoped.filter(r => !r.markType); }
+  get inHand(): BillAuditRow[]         { return this.scoped.filter(r => r.markType === 'IN_HAND'); }
+  get paidNotEntered(): BillAuditRow[] { return this.scoped.filter(r => r.markType === 'PAID_NOT_ENTERED'); }
+  get missing(): BillAuditRow[]        { return this.scoped.filter(r => r.markType === 'MISSING'); }
 
   get visibleRows(): BillAuditRow[] {
     const source =
@@ -122,12 +182,43 @@ export class MonthEndTab implements OnInit {
 
   setView(view: ViewMode): void { this.view = view; this.cdr.markForCheck(); }
 
-  onScopeChange(): void { this.startOrResume(); }
+  /**
+   * Changing the month switches to your own sweep for it when you have one; otherwise
+   * it just re-points the view and the "Start my check" button appears.
+   */
+  onMonthChange(): void {
+    const monthStart = `${this.month}-01`;
+    const mine = this.sessions.find(s => s.periodMonth === monthStart && s.mine && !s.closedAt);
+    if (mine) { this.selectSession(mine.id); return; }
+
+    const other = this.sessions.find(s => s.periodMonth === monthStart);
+    if (other) { this.selectSession(other.id); return; }
+
+    this.session = null;
+    this.rows = [];
+    this.loading = false;
+    this.cdr.markForCheck();
+  }
+
+  /** Have you already got your own check open for the picked month? */
+  get hasOwnSessionForMonth(): boolean {
+    const monthStart = `${this.month}-01`;
+    return this.sessions.some(s => s.periodMonth === monthStart && s.mine && !s.closedAt);
+  }
+
+  /** Business/area only narrow the view — marks are untouched. */
+  onFilterChange(): void { this.cdr.markForCheck(); }
+
+  clearFilters(): void {
+    this.selectedBusiness = '';
+    this.selectedAreas = [];
+    this.cdr.markForCheck();
+  }
 
   // ── marking ─────────────────────────────────────────────────────
 
   mark(row: BillAuditRow, type: BillAuditMarkType | null): void {
-    if (!this.session) return;
+    if (!this.session || this.readOnly) return;
     this.markingBillId = row.billId;
     this.cdr.markForCheck();
 
@@ -137,9 +228,14 @@ export class MonthEndTab implements OnInit {
         if (i >= 0) this.rows[i] = updated;
         this.rows = [...this.rows];
         this.markingBillId = null;
+        this.loadSessions();   // keep the picker's "left" counts honest
         this.cdr.markForCheck();
       },
-      error: () => { this.markingBillId = null; this.cdr.markForCheck(); },
+      error: (e) => {
+        this.error = e?.error?.message ?? 'Could not save that mark.';
+        this.markingBillId = null;
+        this.cdr.markForCheck();
+      },
     });
   }
 
@@ -174,7 +270,7 @@ export class MonthEndTab implements OnInit {
     }).afterClosed().subscribe(result => {
       if (!result?.confirmed) return;
       this.audit.closeSession(this.session!.id).subscribe({
-        next: (s) => { this.session = s; this.cdr.markForCheck(); },
+        next: (s) => { this.session = s; this.loadSessions(); this.cdr.markForCheck(); },
       });
     });
   }
@@ -185,7 +281,22 @@ export class MonthEndTab implements OnInit {
   }
 
   get progressPct(): number {
-    if (this.rows.length === 0) return 0;
-    return Math.round(((this.rows.length - this.toCheck.length) / this.rows.length) * 100);
+    const total = this.scoped.length;
+    if (total === 0) return 0;
+    return Math.round(((total - this.toCheck.length) / total) * 100);
   }
+
+  /** True when a business/area filter is narrowing the month's full list. */
+  get isFiltered(): boolean {
+    return !!this.selectedBusiness || this.selectedAreas.length > 0;
+  }
+
+  /** Human-readable area scope for the filter note. */
+  get areaLabel(): string {
+    if (this.selectedAreas.length === 0) return '';
+    if (this.selectedAreas.length <= 2) return this.selectedAreas.join(', ');
+    return `${this.selectedAreas.length} areas`;
+  }
+
+  get scopedCount(): number { return this.scoped.length; }
 }

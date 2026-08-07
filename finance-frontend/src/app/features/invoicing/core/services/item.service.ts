@@ -9,10 +9,16 @@ export class ItemService {
   private base = `${environment.apiUrl}/invoicing/items`;
   constructor(private http: HttpClient) {}
 
-  list(category?: string): Observable<Item[]> {
+  /** Active items only unless includeInactive — pickers must not offer retired items. */
+  list(category?: string, includeInactive = false): Observable<Item[]> {
     let params = new HttpParams();
     if (category) params = params.set('category', category);
+    if (includeInactive) params = params.set('includeInactive', 'true');
     return this.http.get<Item[]>(this.base, { params });
+  }
+
+  toggleActive(id: number): Observable<Item> {
+    return this.http.patch<Item>(`${this.base}/${id}/toggle-active`, {});
   }
 
   create(req: any): Observable<Item> {

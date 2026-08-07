@@ -11,6 +11,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login/login').then(m => m.Login),
     canActivate: [loginGuard]
   },
+  // Aging report print — outside the layout so only the report prints
+  {
+    path: 'bills/aging/print',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/bills/aging-print/aging-print')
+      .then(m => m.AgingPrint)
+  },
   // Invoice print lives OUTSIDE the main layout so window.print() captures
   // only the invoice — no sidebar, no header.
   {
@@ -81,6 +88,11 @@ export const routes: Routes = [
             path: 'invoices/:id',
             loadComponent: () => import('./features/invoicing/features/invoices/invoice-detail/invoice-detail.component')
               .then(m => m.InvoiceDetailComponent)
+          },
+          {
+            path: 'grn',
+            loadComponent: () => import('./features/invoicing/features/grn/grn-list.component')
+              .then(m => m.GrnListComponent)
           },
           {
             path: 'items',

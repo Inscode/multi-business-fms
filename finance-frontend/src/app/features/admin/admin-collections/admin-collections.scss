@@ -17,3 +17,12 @@ tr:last-child td { border-bottom: none; }
 .status-chip.matched { background: #e8f5e9; color: #2e7d32; }
 .inline-input { width: 80px; border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; font-size: 13px; }
 .inline-select { border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; font-size: 13px; }
+
+.error-box {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: #fce4ec;
+  color: #c62828;
+  font-size: 13px;
+}

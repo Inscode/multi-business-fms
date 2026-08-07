@@ -11,15 +11,22 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="filter-field">
-      <mat-label>Area</mat-label>
-      <mat-select [(ngModel)]="selectedArea" (ngModelChange)="onFilterChange()">
-        <mat-option value="">All areas</mat-option>
+      <mat-label>Areas</mat-label>
+      <mat-select [(ngModel)]="selectedAreas" (ngModelChange)="onFilterChange()" multiple>
         <mat-option *ngFor="let a of areas" [value]="a">{{ a }}</mat-option>
       </mat-select>
+      <mat-hint *ngIf="selectedAreas.length === 0">All areas</mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="search-field" floatLabel="always">
+      <mat-label>Search</mat-label>
+      <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()"
+             placeholder="Bill no. or customer" />
+      <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
 
     <button mat-icon-button (click)="clearFilters()" matTooltip="Clear filters"
-            *ngIf="selectedBusiness || selectedArea">
+            *ngIf="isFiltered">
       <mat-icon>restart_alt</mat-icon>
     </button>
 
@@ -28,6 +35,23 @@
     <button mat-icon-button (click)="load()" matTooltip="Refresh">
       <mat-icon>refresh</mat-icon>
     </button>
+  </div>
+
+  <!-- Bill type -->
+  <div class="type-chips" *ngIf="!loading">
+    <button class="type-chip" [class.active]="billTypeFilter === 'ALL'" (click)="setTypeFilter('ALL')">
+      All <span class="tc">{{ typeCount('ALL') }}</span>
+    </button>
+    <button class="type-chip chip-cash" [class.active]="billTypeFilter === 'CASH'" (click)="setTypeFilter('CASH')">
+      <mat-icon class="flame">local_fire_department</mat-icon>
+      Cash <span class="tc">{{ typeCount('CASH') }}</span>
+    </button>
+    <button class="type-chip chip-credit" [class.active]="billTypeFilter === 'CREDIT'" (click)="setTypeFilter('CREDIT')">
+      Credit <span class="tc">{{ typeCount('CREDIT') }}</span>
+    </button>
+    <span class="band-hint">
+      Age is banded by bill type — cash 7/14 days, credit 30/60 days.
+    </span>
   </div>
 
   <!-- Round summary -->
@@ -71,7 +95,7 @@
       <div>
         <strong>Nothing left to hand over</strong>
         <span>
-          Every pending bill{{ selectedArea ? ' in ' + selectedArea : '' }}{{ selectedBusiness ? ' for ' + selectedBusiness : '' }}
+          Every pending {{ billTypeFilter === 'ALL' ? '' : billTypeFilter.toLowerCase() + ' ' }}bill{{ areaLabel ? ' in ' + areaLabel : '' }}{{ selectedBusiness ? ' for ' + selectedBusiness : '' }}
           is already with a worker.
         </span>
       </div>
@@ -102,10 +126,12 @@
             <td class="check-col" (click)="$event.stopPropagation()">
               <mat-checkbox [checked]="isSelected(b)" (change)="toggleRow(b)"></mat-checkbox>
             </td>
-            <td class="bold">{{ b.billNumber }}</td>
+            <td class="bold">
+              {{ b.billNumber }}<mat-icon class="cash-flame" *ngIf="isCash(b)" matTooltip="Cash bill — collect immediately">local_fire_department</mat-icon>
+            </td>
             <td class="muted">{{ b.billDate | date: 'dd MMM yyyy' }}</td>
             <td>
-              <span class="age-pill" [class.age-old]="ageDays(b) > 60" [class.age-warn]="ageDays(b) > 30 && ageDays(b) <= 60">
+              <span class="age-pill" [ngClass]="'age-' + ageBand(b)" [matTooltip]="ageTooltip(b)">
                 {{ ageDays(b) }}d
               </span>
             </td>
@@ -147,10 +173,12 @@
           </thead>
           <tbody>
             <tr *ngFor="let b of assigned">
-              <td class="bold">{{ b.billNumber }}</td>
+              <td class="bold">
+                {{ b.billNumber }}<mat-icon class="cash-flame" *ngIf="isCash(b)" matTooltip="Cash bill — collect immediately">local_fire_department</mat-icon>
+              </td>
               <td class="muted">{{ b.billDate | date: 'dd MMM yyyy' }}</td>
               <td>
-                <span class="age-pill" [class.age-old]="ageDays(b) > 60" [class.age-warn]="ageDays(b) > 30 && ageDays(b) <= 60">
+                <span class="age-pill" [ngClass]="'age-' + ageBand(b)" [matTooltip]="ageTooltip(b)">
                   {{ ageDays(b) }}d
                 </span>
               </td>

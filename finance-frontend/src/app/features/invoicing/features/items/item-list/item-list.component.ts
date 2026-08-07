@@ -38,6 +38,8 @@ export class ItemListComponent implements OnInit {
   loading   = true;
   search    = '';
   category: CategoryType | '' = '';
+  statusFilter: 'ALL' | 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
+  togglingId: number | null = null;
   showForm  = false;
   saving    = false;
   editingId: number | null = null;
@@ -70,12 +72,37 @@ export class ItemListComponent implements OnInit {
       (!this.search || i.itemCode.toLowerCase().includes(this.search.toLowerCase())
                     || i.description.toLowerCase().includes(this.search.toLowerCase()))
       && (!this.category || i.category === this.category)
+      && (this.statusFilter === 'ALL'
+          || (this.statusFilter === 'ACTIVE' ? i.active : !i.active))
     );
+  }
+
+  get inactiveCount(): number { return this.items.filter(i => !i.active).length; }
+
+  setStatusFilter(f: 'ALL' | 'ACTIVE' | 'INACTIVE'): void {
+    this.statusFilter = f;
+    this.cdr.markForCheck();
+  }
+
+  /** Retire an item, or bring a retired one back into circulation. */
+  toggleActive(item: Item): void {
+    this.togglingId = item.id;
+    this.cdr.markForCheck();
+    this.svc.toggleActive(item.id).pipe(catchError(() => of(null))).subscribe(updated => {
+      this.togglingId = null;
+      if (updated) {
+        const i = this.items.findIndex(x => x.id === updated.id);
+        if (i >= 0) this.items[i] = updated;
+        this.items = [...this.items];
+      }
+      this.cdr.markForCheck();
+    });
   }
 
   load() {
     this.loading = true;
-    this.svc.list().pipe(catchError(() => of([]))).subscribe(data => {
+    // includeInactive: this screen is where retired items are found and reactivated
+    this.svc.list(undefined, true).pipe(catchError(() => of([]))).subscribe(data => {
       this.items = data; this.loading = false; this.cdr.markForCheck();
     });
   }

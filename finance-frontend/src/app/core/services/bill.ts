@@ -212,6 +212,25 @@ export class Bill {
     });
   }
 
+  /** Printable aging data — area and billType optional (omit = all). */
+  getAgingExport(business: string, area?: string, billType?: string, sort?: string): Observable<AgingExport> {
+    let params = new HttpParams().set('business', business);
+    if (area) params = params.set('area', area);
+    if (billType) params = params.set('billType', billType);
+    if (sort) params = params.set('sort', sort);
+    return this.http.get<AgingExport>(`${this.apiUrl}/aging-report/export`, { params });
+  }
+
+  downloadAgingExcel(business: string, area?: string, billType?: string, sort?: string): Observable<Blob> {
+    let params = new HttpParams().set('business', business);
+    if (area) params = params.set('area', area);
+    if (billType) params = params.set('billType', billType);
+    if (sort) params = params.set('sort', sort);
+    return this.http.get(`${this.apiUrl}/aging-report/export.xlsx`, {
+      params, responseType: 'blob',
+    });
+  }
+
   findSequenceGaps(business: string = 'RAINCO'): Observable<BillSequenceGap[]> {
     return this.http.get<BillSequenceGap[]>(`${this.apiUrl}/sequence-gaps`, {
       params: { business },
@@ -235,4 +254,52 @@ export class Bill {
   markAllBillsReviewed(): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/review/mark-all`, {});
   }
+}
+
+export interface AgingExportBillRow {
+  billNumber: string;
+  billDate: string;
+  ageDays: number;
+  customerName: string;
+  area: string | null;
+  billType: string;
+  totalAmount: number;
+  amountPaid: number;
+  balance: number;
+  bucket: string;
+  workerName: string | null;
+  lastPaymentDate: string | null;
+}
+
+export interface AgingExportCustomer {
+  customerName: string;
+  area: string | null;
+  totalOutstanding: number;
+  overdue: number;
+  current: number;
+  days31to60: number;
+  days61to90: number;
+  days91plus: number;
+  cashPending: number;
+  cashFollowUp: number;
+  cashUrgent: number;
+  cashSerious: number;
+  billCount: number;
+  oldestBillDate: string | null;
+  lastPaymentDate: string | null;
+}
+
+export interface AgingExport {
+  business: string;
+  area: string | null;
+  billType: string | null;
+  generatedOn: string;
+  creditCustomers: AgingExportCustomer[];
+  cashCustomers: AgingExportCustomer[];
+  bills: AgingExportBillRow[];
+  totalCredit: number;
+  totalCash: number;
+  totalOutstanding: number;
+  customerCount: number;
+  billCount: number;
 }

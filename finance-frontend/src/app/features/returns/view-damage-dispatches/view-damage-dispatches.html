@@ -7,23 +7,43 @@
     </button>
   </div>
 
+  <div class="error-box" *ngIf="errorMsg">{{ errorMsg }}</div>
+
+  <div class="status-chips">
+    <button class="chip" [class.active]="statusFilter === 'ALL'" (click)="setFilter('ALL')">
+      All <span class="c">{{ dispatches.length }}</span>
+    </button>
+    <button class="chip chip-pending" [class.active]="statusFilter === 'PENDING'" (click)="setFilter('PENDING')">
+      Pending <span class="c">{{ countByStatus('PENDING') }}</span>
+    </button>
+    <button class="chip chip-approved" [class.active]="statusFilter === 'APPROVED'" (click)="setFilter('APPROVED')">
+      Approved <span class="c">{{ countByStatus('APPROVED') }}</span>
+    </button>
+    <button class="chip chip-rejected" [class.active]="statusFilter === 'REJECTED'" (click)="setFilter('REJECTED')">
+      Rejected <span class="c">{{ countByStatus('REJECTED') }}</span>
+    </button>
+  </div>
+
   <div class="loading" *ngIf="loading">
     <mat-spinner diameter="32"></mat-spinner>
   </div>
 
-  <div class="empty" *ngIf="!loading && dispatches.length === 0">
+  <div class="empty" *ngIf="!loading && filtered.length === 0">
     <mat-icon>local_shipping</mat-icon>
-    <p>No dispatches recorded yet.</p>
+    <p>No {{ statusFilter === 'ALL' ? '' : statusFilter.toLowerCase() }} dispatches.</p>
   </div>
 
-  <div class="batch-list" *ngIf="!loading && dispatches.length > 0">
-    <div class="batch-card" *ngFor="let d of dispatches">
+  <div class="batch-list" *ngIf="!loading && filtered.length > 0">
+    <div class="batch-card" *ngFor="let d of filtered" [class.card-pending]="d.status === 'PENDING'">
 
       <div class="batch-header" (click)="toggle(d)">
         <div class="batch-left">
           <mat-icon class="expand-icon">{{ expandedId === d.id ? 'expand_less' : 'expand_more' }}</mat-icon>
           <div class="batch-meta">
-            <span class="batch-id">Dispatch #{{ d.id }}</span>
+            <span class="batch-id">
+              Dispatch #{{ d.id }}
+              <span class="status-badge" [ngClass]="statusClass(d.status)">{{ d.status }}</span>
+            </span>
             <span class="batch-biz">{{ d.business }}</span>
           </div>
         </div>
@@ -35,6 +55,38 @@
       </div>
 
       <div class="batch-notes" *ngIf="d.notes">{{ d.notes }}</div>
+
+      <div class="review-line" *ngIf="d.status === 'APPROVED'">
+        <mat-icon>check_circle</mat-icon>
+        Stock deducted — approved by {{ d.reviewedByName }} on {{ d.reviewedAt | date:'dd MMM yyyy, HH:mm' }}
+      </div>
+      <div class="review-line rejected" *ngIf="d.status === 'REJECTED'">
+        <mat-icon>cancel</mat-icon>
+        Rejected by {{ d.reviewedByName }} — {{ d.rejectionReason }}
+      </div>
+      <div class="review-line pending" *ngIf="d.status === 'PENDING'">
+        <mat-icon>schedule</mat-icon>
+        Awaiting admin approval — no stock deducted yet
+      </div>
+
+      <div class="approve-bar" *ngIf="isAdmin && d.status === 'PENDING' && rejectingId !== d.id">
+        <button mat-flat-button color="primary" (click)="approve(d)" [disabled]="processing">
+          <mat-icon>check</mat-icon> Approve &amp; deduct stock
+        </button>
+        <button mat-stroked-button color="warn" (click)="startReject(d.id)" [disabled]="processing">
+          <mat-icon>close</mat-icon> Reject
+        </button>
+      </div>
+
+      <div class="reject-bar" *ngIf="rejectingId === d.id">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="reject-field">
+          <mat-label>Reason for rejection</mat-label>
+          <input matInput [(ngModel)]="rejectReason" placeholder="Why is this being rejected?" />
+        </mat-form-field>
+        <button mat-flat-button color="warn" (click)="confirmReject()"
+                [disabled]="!rejectReason.trim() || processing">Reject</button>
+        <button mat-button (click)="cancelReject()">Cancel</button>
+      </div>
 
       <div class="batch-detail" *ngIf="expandedId === d.id">
         <div class="detail-loading" *ngIf="loadingDetail === d.id">

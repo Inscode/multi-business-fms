@@ -190,3 +190,45 @@ app-invoice-print {
 .full-width { width: 100%; }
 
 }
+
+// ── Printing ─────────────────────────────────────────────────────────────────
+// Component stylesheets are scoped, so a page can hide its own content for print
+// but never the surrounding app shell. These global rules strip the chrome —
+// sidebar, navbar, mobile nav, banners — so only the document reaches the paper.
+@media print {
+  app-navbar,
+  mat-sidenav,
+  .app-sidenav,
+  .mat-drawer-backdrop,
+  .mob-nav,
+  .mob-nav-item,
+  .demo-banner,
+  .inv-nav,
+  .no-print {
+    display: none !important;
+  }
+
+  // The shell scrolls its content in a fixed-height box; printing needs it to flow
+  html, body,
+  mat-sidenav-container,
+  .mat-drawer-container,
+  mat-sidenav-content,
+  .mat-drawer-content,
+  .app-shell,
+  .layout-wrapper,
+  .page-body {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    transform: none !important;
+  }
+
+  // Material sets an inline margin-left on the content to clear the sidenav
+  .mat-drawer-content { margin-left: 0 !important; }
+}

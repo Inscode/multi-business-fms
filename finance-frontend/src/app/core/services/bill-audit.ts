@@ -10,7 +10,12 @@ export interface BillAuditSession {
   periodMonth: string;
   businessScope: string | null;
   areaScope: string | null;
+  openedById: number | null;
   openedByName: string | null;
+  /** True when the signed-in user may change this sweep's marks. */
+  canEdit: boolean;
+  /** True only when they opened it — admins can edit others' without owning them. */
+  mine: boolean;
   openedAt: string;
   closedAt: string | null;
   totalInScope: number;
@@ -43,11 +48,12 @@ export class BillAuditService {
 
   constructor(private http: HttpClient) {}
 
-  /** Opens the sweep for a month + scope, or returns the one already in progress. */
-  openSession(month: string, business?: string, area?: string): Observable<BillAuditSession> {
-    let params = new HttpParams().set('month', month);
-    if (business) params = params.set('business', business);
-    if (area) params = params.set('area', area);
+  /**
+   * Opens the month's sweep, or returns the one already in progress. One sweep covers
+   * every business and area — narrowing is a view filter, never a different sweep.
+   */
+  openSession(month: string): Observable<BillAuditSession> {
+    const params = new HttpParams().set('month', month);
     return this.http.post<BillAuditSession>(`${this.base}/sessions`, {}, { params });
   }
 

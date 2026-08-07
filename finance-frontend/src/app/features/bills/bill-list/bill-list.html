@@ -135,6 +135,13 @@
         <app-month-end-tab />
       </div>
     </mat-tab>
+    <mat-tab>
+      <ng-template mat-tab-label><mat-icon>link</mat-icon>&nbsp;Linking Bills</ng-template>
+      <div class="tab-body">
+        <!-- Reference only for accountants — view, no actions -->
+        <app-linking-bills-tab [isAdmin]="false" />
+      </div>
+    </mat-tab>
   </mat-tab-group>
 
   <!-- Everyone else (owner, shop accountant): bills content only, no tab chrome -->

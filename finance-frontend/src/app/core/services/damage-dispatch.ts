@@ -27,6 +27,10 @@ export interface DamageDispatchResponse {
   predictedValue: number | null;
   notes: string | null;
   enteredByName: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
   createdAt: string;
   items: DamageDispatchItemResponse[];
 }
@@ -55,6 +59,15 @@ export class DamageDispatchService {
 
   getAll(): Observable<DamageDispatchResponse[]> {
     return this.http.get<DamageDispatchResponse[]>(this.api);
+  }
+
+  /** Admin only — this is what actually deducts the damage stock. */
+  approve(id: number): Observable<DamageDispatchResponse> {
+    return this.http.patch<DamageDispatchResponse>(`${this.api}/${id}/approve`, {});
+  }
+
+  reject(id: number, reason: string): Observable<DamageDispatchResponse> {
+    return this.http.patch<DamageDispatchResponse>(`${this.api}/${id}/reject`, {}, { params: { reason } });
   }
 
   getById(id: number): Observable<DamageDispatchResponse> {

@@ -7,8 +7,9 @@
   flex-wrap: wrap;
   margin-bottom: 6px;
 
-  .month-field  { width: 170px; }
-  .filter-field { width: 185px; }
+  .session-field { width: 260px; }
+  .month-field   { width: 170px; }
+  .filter-field  { width: 185px; }
 }
 
 .spacer { flex: 1; }
@@ -63,6 +64,20 @@
   margin-top: 8px;
   font-size: 12px;
   color: #78909c;
+}
+
+.filter-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #e3f2fd;
+  font-size: 12px;
+  color: #1565c0;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
 }
 
 // ── View tabs ─────────────────────────────────────────────────────
@@ -195,6 +210,7 @@
   &.chip-ok      { background: #e8f5e9; color: #2e7d32; }
   &.chip-paid    { background: #fff8e1; color: #ef6c00; }
   &.chip-missing { background: #ffebee; color: #c62828; }
+  &.chip-none    { background: #eceff1; color: #90a4ae; }
 }
 
 // ── States ────────────────────────────────────────────────────────
@@ -212,6 +228,8 @@
   span   { font-size: 12.5px; color: #4a7a4d; }
 }
 
+.empty-state button { margin-top: 6px; }
+
 .empty-state,
 .loading-state,
 .error-state {
@@ -226,7 +244,24 @@
   p { font-size: 13.5px; margin: 0; }
 }
 
+.readonly-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  margin-bottom: 12px;
+  background: #e3f2fd;
+  border-radius: 8px;
+  color: #1565c0;
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; }
+
+  strong { display: block; font-size: 13px; }
+  span   { font-size: 12px; color: #1976d2; }
+}
+
 @media (max-width: 600px) {
+  .scope-bar .session-field,
   .scope-bar .month-field,
   .scope-bar .filter-field,
   .view-tabs .search-field { width: 100%; }
