@@ -45,9 +45,10 @@
           <mat-form-field appearance="outline">
             <mat-label>Invoice Method *</mat-label>
             <mat-select formControlName="method">
-              <mat-option value="MIX">Mix (RAINCO + STATIONERY)</mat-option>
+              <mat-option value="MIX">Mix (more than one category)</mat-option>
               <mat-option value="RAINCO_ONLY">Rainco Only</mat-option>
               <mat-option value="STATIONERY_ONLY">Stationery Only</mat-option>
+              <mat-option value="PLASTIC_ONLY">Plastic Only</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -74,15 +75,60 @@
                    [matAutocomplete]="customerAuto">
             <mat-autocomplete #customerAuto="matAutocomplete" [displayWith]="customerDisplayFn" (optionSelected)="selectCustomer($event.option.value)">
               @for (c of filteredCustomers; track c.id) {
-                <mat-option [value]="c">{{ c.name }}{{ c.customerCode ? ' — ' + c.customerCode : '' }}</mat-option>
+                <mat-option [value]="c">{{ c.name }}</mat-option>
               }
             </mat-autocomplete>
           </mat-form-field>
 
+          <!-- Bill type + number: the invoice number IS the bill number -->
+          <mat-form-field appearance="outline">
+            <mat-label>Bill Type *</mat-label>
+            <mat-select formControlName="billSource">
+              @for (s of billSources; track s) {
+                <mat-option [value]="s">{{ billSourceLabel(s) }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint>{{ business }} — decides the number's prefix</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Bill Number *</mat-label>
+            <mat-select formControlName="billNumber">
+              @if (loadingNumbers) { <mat-option disabled>Loading…</mat-option> }
+              @for (n of suggestedNumbers; track n.number) {
+                <mat-option [value]="n.number" [class.num-missing]="n.missing">
+                  {{ numberPrefix() }}{{ n.number }}
+                  @if (n.missing) { <span class="missing-tag">not entered</span> }
+                </mat-option>
+              }
+            </mat-select>
+            @if (!numberChosen && !loadingNumbers) {
+              <mat-hint class="pick-hint">Pick the number this invoice is written on</mat-hint>
+            }
+            @if (previewNumber()) {
+              <mat-hint>
+                Saves as <strong>{{ previewNumber() }}</strong>
+                @if (missingCount() > 0) {
+                  · <span class="missing-hint">{{ missingCount() }} never entered</span>
+                }
+              </mat-hint>
+            }
+            @if (form.get('billNumber')?.touched && form.get('billNumber')?.invalid) {
+              <mat-error>Bill number is required</mat-error>
+            }
+          </mat-form-field>
+
+          @if (!numberChosen && nextFreeNumber !== null) {
+            <button type="button" class="use-next-btn" (click)="useNextNumber()">
+              Use next free number — {{ numberPrefix() }}{{ nextFreeNumber }}
+            </button>
+          }
+
           @if (showAgentRef) {
             <mat-form-field appearance="outline">
               <mat-label>Agent Invoice No (External Ref)</mat-label>
-              <input matInput formControlName="externalRef" placeholder="e.g. GD-RC-00123">
+              <input matInput formControlName="externalRef" placeholder="e.g. BDSL/13271">
+              <mat-hint>Optional here — searchable alongside the bill number</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
@@ -135,7 +181,32 @@
               }
             </mat-autocomplete>
           </mat-form-field>
+
+          <!-- Prices and stock are read once when the form opens; this picks up
+               anything changed in Items since, without losing the lines so far. -->
+          <button type="button" class="refresh-items-btn"
+                  (click)="refreshItems()"
+                  [disabled]="refreshingItems"
+                  matTooltip="Reload items — picks up price, stock and new items changed since this invoice was started">
+            <mat-icon [class.spinning]="refreshingItems">refresh</mat-icon>
+            <span>{{ refreshingItems ? 'Refreshing…' : 'Refresh Items' }}</span>
+          </button>
         </div>
+
+        @if (itemsRefreshedAt) {
+          <div class="items-refreshed">
+            <mat-icon>check_circle</mat-icon>
+            Items reloaded at {{ itemsRefreshedAt | date:'h:mm:ss a' }} — {{ items.length }} in the catalogue.
+          </div>
+        }
+
+        @if (droppedItems.length > 0) {
+          <div class="items-dropped">
+            <mat-icon>warning</mat-icon>
+            Removed from this invoice — no longer in the catalogue:
+            <strong>{{ droppedItems.join(', ') }}</strong>
+          </div>
+        }
 
         @if (lines.length === 0) {
           <div class="no-lines">
@@ -152,6 +223,7 @@
                   <th>Description</th>
                   <th class="num">WSP</th>
                   <th class="num">Qty</th>
+                  @if (allowsFreeIssue) { <th class="num">Free Qty</th> }
                   <th class="num">Line Total</th>
                   <th></th>
                 </tr>
@@ -164,9 +236,29 @@
                     <td class="fw6">{{ line.item.description }}</td>
                     <td class="num">{{ lineWsp(line) | number:'1.2-2' }}</td>
                     <td class="num qty-cell">
-                      <input class="qty-input" type="number" min="1" [(ngModel)]="line.qty"
-                             (change)="cdr.markForCheck()">
+                      <input class="qty-input" type="number" min="0" [(ngModel)]="line.qty"
+                             (ngModelChange)="onQtyChanged(line)">
                     </td>
+                    @if (allowsFreeIssue) {
+                    <td class="num qty-cell">
+                      @if (allowsFreeOn(line)) {
+                      <input class="qty-input free-input" type="number" min="0"
+                             [(ngModel)]="line.freeQty" (ngModelChange)="onFreeQtyChanged(line)"
+                             matTooltip="What the rep gave free — no charge, but deducted from stock">
+                      }
+                      @if (hasAutoScheme(line)) {
+                        <div class="scheme-hint">
+                          {{ line.item.freeIssueBuyQty }}→{{ line.item.freeIssueFreeQty }}
+                          @if (line.freeTouched && line.freeQty !== autoFreeQty(line)) {
+                            <button class="reset-free" (click)="resetFreeQty(line)"
+                                    matTooltip="Back to the scheme">
+                              ({{ autoFreeQty(line) }})
+                            </button>
+                          }
+                        </div>
+                      }
+                    </td>
+                    }
                     <td class="num fw6">{{ lineTotal(line) | number:'1.2-2' }}</td>
                     <td class="action-cell">
                       <button mat-icon-button color="warn" (click)="removeLine(i)" matTooltip="Remove">
@@ -192,11 +284,140 @@
             <span>Gross Total (before discounts)</span>
             <span class="sum-value">LKR {{ grossTotal | number:'1.2-2' }}</span>
           </div>
-          <div class="sum-note">
-            Slab discounts &amp; cash discounts will be calculated automatically by the system on save.
-          </div>
+
+          @if (quoting) {
+            <div class="sum-note quoting">
+              <mat-spinner diameter="14"></mat-spinner> Working out the discount…
+            </div>
+          }
+
+          @if (quote) {
+            <!-- Per brand: the slab that applies, and how far off the next one is -->
+            @if (quote.brandGroups.length > 0) {
+              <div class="disc-table">
+                <div class="disc-head">
+                  <span>Brand</span>
+                  <span class="num">Value</span>
+                  <span class="num">Discount</span>
+                  <span class="num">After discount</span>
+                </div>
+                @for (g of quote.brandGroups; track g.brandId) {
+                  <div class="disc-row">
+                    <span class="dg-name">{{ g.brandName }}</span>
+                    <span class="num">{{ g.gross | number:'1.2-2' }}</span>
+                    <span class="num disc">
+                      @if (g.discountPct > 0) {
+                        {{ g.discountPct | number:'1.0-2' }}%
+                        <span class="disc-amt">({{ g.discountAmount | number:'1.2-2' }})</span>
+                      } @else { — }
+                    </span>
+                    <span class="num fw6">{{ g.net | number:'1.2-2' }}</span>
+                  </div>
+                  @if (g.amountToNextSlab) {
+                    <div class="next-slab">
+                      <mat-icon>trending_up</mat-icon>
+                      {{ g.amountToNextSlab | number:'1.2-2' }} more on {{ g.brandName }}
+                      reaches {{ g.nextSlabPct | number:'1.0-2' }}%
+                    </div>
+                  }
+                }
+              </div>
+            }
+
+            <div class="sum-row">
+              <span>Slab discount</span>
+              <span class="sum-value disc">− {{ quote.totalSlabDiscount | number:'1.2-2' }}</span>
+            </div>
+
+            @if (quote.cashDiscountAmount > 0) {
+              <div class="sum-row">
+                <span>Cash discount ({{ quote.cashDiscountPct | number:'1.0-2' }}%)</span>
+                <span class="sum-value disc">− {{ quote.cashDiscountAmount | number:'1.2-2' }}</span>
+              </div>
+            }
+
+            @if (quote.plasticDiscount > 0) {
+              <div class="sum-row">
+                <span>Plastic discount</span>
+                <span class="sum-value disc">− {{ quote.plasticDiscount | number:'1.2-2' }}</span>
+              </div>
+            }
+
+            <div class="sum-row total-disc">
+              <span>Total discount</span>
+              <span class="sum-value disc">− {{ quote.totalDiscount | number:'1.2-2' }}</span>
+            </div>
+
+            <div class="sum-row net-row">
+              <span>NET Invoice Value</span>
+              <span class="sum-value net">LKR {{ quote.netTotal | number:'1.2-2' }}</span>
+            </div>
+
+            @if (quote.totalFreeQty > 0) {
+              <div class="sum-row free-row">
+                <span>Free issue</span>
+                <span class="sum-value free">{{ quote.totalFreeQty }} unit(s) — no charge</span>
+              </div>
+            }
+            @if (freeUmbrellaQty > 0) {
+              <div class="sum-row free-row">
+                <span>K01047 umbrella</span>
+                <span class="sum-value free">{{ freeUmbrellaQty }} free — stock only</span>
+              </div>
+            }
+
+            <div class="sum-note">
+              Priced by the same calculation used on save, so this is what the invoice will come to.
+            </div>
+          } @else if (!quoting && lines.length > 0) {
+            <div class="sum-note">Add a quantity to see the discount.</div>
+          }
         </div>
       </div>
+
+      <!-- Asked after the total, because that is when the rep tells us. -->
+      @if (showUmbrellaBox) {
+        <div class="umbrella-card">
+          <div class="umb-head">
+            <mat-icon>umbrella</mat-icon>
+            <div>
+              <strong>Free issue — K01047 umbrella</strong>
+              <small>
+                Given free on some stationery bills. No charge on the invoice, but the
+                stock is reduced.
+              </small>
+            </div>
+          </div>
+
+          @if (umbrellaItem) {
+            <div class="umb-body">
+              <span class="umb-code">{{ umbrellaItem.itemCode }}</span>
+              <span class="umb-desc">{{ umbrellaItem.description }}</span>
+              <div class="umb-qty">
+                <label>Free qty</label>
+                <input type="number" min="0" class="qty-input"
+                       [ngModel]="umbrellaQty" [ngModelOptions]="{ standalone: true }"
+                       (ngModelChange)="setUmbrellaQty($event)"
+                       placeholder="0">
+              </div>
+              <span class="umb-stock">{{ umbrellaItem.stockQty }} in stock</span>
+            </div>
+            @if (umbrellaQty > 0) {
+              <div class="umb-confirm">
+                <mat-icon>check_circle</mat-icon>
+                {{ umbrellaQty }} umbrella(s) added free — LKR 0.00 on the invoice,
+                {{ umbrellaQty }} off stock.
+              </div>
+            }
+          } @else {
+            <div class="umb-missing">
+              <mat-icon>warning</mat-icon>
+              K01047 is not in the item catalogue, so it cannot be issued. Add it under
+              Items (code <strong>K01047</strong> or <strong>RC-K01047</strong>) first.
+            </div>
+          }
+        </div>
+      }
 
       @if (error) {
         <div class="error-banner">

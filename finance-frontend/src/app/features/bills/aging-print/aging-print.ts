@@ -6,8 +6,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AgingExport, AgingExportCustomer, Bill } from '../../../core/services/bill';
 
 /**
- * Print-only aging report. Lives outside the main layout so Ctrl+P (or Save as PDF)
- * captures the report alone — no sidebar, no header.
+ * The aging report as it will be printed. Lives outside the main layout so Ctrl+P (or
+ * Save as PDF) captures the report alone — no sidebar, no header.
+ *
+ * It opens for reading, not for printing: the page shows the finished sheet and prints
+ * only when the button is pressed.
  *
  * Cash and credit are printed as separate sections: they age on different scales,
  * so a single set of columns would misrepresent one of them.
@@ -21,6 +24,9 @@ import { AgingExport, AgingExportCustomer, Bill } from '../../../core/services/b
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AgingPrint implements OnInit {
+  /** Printed under the report title. Change here to change it on every copy. */
+  readonly companyName = 'Ghanim Enterprises';
+
   data: AgingExport | null = null;
   sort: 'AGE' | 'AMOUNT' = 'AGE';
   loading = true;
@@ -44,8 +50,9 @@ export class AgingPrint implements OnInit {
         this.data = d;
         this.loading = false;
         this.cdr.detectChanges();
-        // Let the tables lay out before the print dialog measures the page
-        setTimeout(() => window.print(), 400);
+        // Deliberately does not print itself. A dialog thrown up before the report has
+        // even been read gives no chance to check the scope, and is usually dismissed
+        // and then reopened. The Print button on the page does it when asked.
       },
       error: () => { this.error = true; this.loading = false; this.cdr.detectChanges(); },
     });
@@ -53,6 +60,10 @@ export class AgingPrint implements OnInit {
 
   print(): void { window.print(); }
 
+  /** Opened in its own tab, so closing it returns to the report that launched it. */
+  close(): void { window.close(); }
+
+  /** The report's scope. The business is printed alongside it, so it is not repeated here. */
   get scopeLine(): string {
     if (!this.data) return '';
     const area = this.data.area ?? 'All areas';

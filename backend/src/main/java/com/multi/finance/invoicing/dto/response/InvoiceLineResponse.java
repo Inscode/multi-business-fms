@@ -13,6 +13,8 @@ public class InvoiceLineResponse {
     private String brandName;
     private Long brandId;
     private Integer qty;
+    /** Given free — no value, but deducted from stock. */
+    private Integer freeQty;
     private BigDecimal mrp;
     private BigDecimal marginPct;
     private BigDecimal wsp;

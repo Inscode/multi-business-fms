@@ -43,9 +43,20 @@ public class Item {
 
     private boolean active = true;
 
-    // Current stock level (units)
+    // Current sellable stock level (units)
     @Column(name = "stock_qty", nullable = false)
     private Integer stockQty = 0;
+
+    /**
+     * Damaged units on hand, waiting to be dispatched to the agent and claimed.
+     *
+     * <p>Held apart from {@link #stockQty} because these must never be sold. Goods
+     * arriving back damaged were already deducted from sellable stock when the invoice
+     * was raised, so a damage return adds here and leaves {@code stockQty} alone — it
+     * moves between buckets rather than deducting twice.
+     */
+    @Column(name = "damage_qty", nullable = false)
+    private Integer damageQty = 0;
 
     // Free-issue scheme: buy freeIssueBuyQty → receive freeIssueFreeQty extra for free
     @Column(name = "free_issue_buy_qty")

@@ -34,12 +34,29 @@
         <mat-label>Received date</mat-label>
         <input matInput type="date" [(ngModel)]="receivedDate" />
       </mat-form-field>
+
+      <mat-form-field appearance="outline" class="date-field" *ngIf="!openingStock">
+        <mat-label>Pay in (days)</mat-label>
+        <input matInput type="number" min="0" [(ngModel)]="paymentTermsDays"
+               placeholder="e.g. 70" />
+        <mat-hint *ngIf="dueDatePreview">Due {{ dueDatePreview | date:'dd MMM yyyy' }}</mat-hint>
+      </mat-form-field>
     </div>
+
+    <label class="opening-toggle">
+      <input type="checkbox" [(ngModel)]="openingStock" />
+      <span>
+        <strong>Opening stock</strong> — goods already on the shelf. Nothing is owed for
+        this note, so it stays out of the cash-flow forecast.
+      </span>
+    </label>
 
     <div class="cat-hint">
       <mat-icon>info</mat-icon>
       Showing {{ items.length }} active {{ category }} item{{ items.length === 1 ? '' : 's' }} —
       only items in this category can be received on this note.
+      Prices come from the catalog and cannot be typed; supplier discount
+      {{ discountPct | number:'1.0-2' }}%.
     </div>
 
     <!-- Lines -->
@@ -51,15 +68,26 @@
     <div class="line-row" *ngFor="let l of lines; let i = index">
       <mat-form-field appearance="outline" class="item-field">
         <mat-label>Item</mat-label>
-        <mat-select [(ngModel)]="l.itemId" (ngModelChange)="onItemChange(l)">
-          <mat-option *ngFor="let it of availableItems(l)" [value]="it.id">
+        <input matInput
+               [(ngModel)]="l.search"
+               (ngModelChange)="onItemInput(l)"
+               [matAutocomplete]="itemAuto"
+               placeholder="Type a code or name…" />
+        <mat-icon matSuffix *ngIf="l.itemId" class="picked-icon">check_circle</mat-icon>
+        <mat-autocomplete #itemAuto="matAutocomplete"
+                          (optionSelected)="onItemSelected(l, $event.option.value)">
+          <mat-option *ngFor="let it of filteredItems(l)" [value]="it">
             {{ it.itemCode }} — {{ it.description }}
             <span class="opt-meta">
               · {{ it.brandName }}
-              · Rs {{ (it.wholesalePrice ?? it.wsp) | number:'1.2-2' }}
+              · Rs {{ itemPrice(it) | number:'1.2-2' }}
+              · stock {{ it.stockQty }}
             </span>
           </mat-option>
-        </mat-select>
+          <mat-option *ngIf="filteredItems(l).length === 0" disabled>
+            No {{ category }} item matches "{{ l.search }}"
+          </mat-option>
+        </mat-autocomplete>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="qty-field">
@@ -67,14 +95,19 @@
         <input matInput type="number" min="1" [(ngModel)]="l.qty" />
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="cost-field">
-        <mat-label>Unit cost</mat-label>
-        <input matInput type="number" min="0" step="0.01" [(ngModel)]="l.unitCost" />
-      </mat-form-field>
+      <div class="line-total">
+        <span class="lt-label">Unit cost</span>
+        <span class="ls-value">{{ unitCostOf(l) != null ? (unitCostOf(l) | number:'1.2-2') : '—' }}</span>
+      </div>
 
       <div class="line-total">
-        <span class="lt-label">Total</span>
-        <span class="lt-value">{{ lineTotal(l) != null ? ('Rs ' + (lineTotal(l) | number:'1.2-2')) : '—' }}</span>
+        <span class="lt-label">Gross</span>
+        <span class="ls-value">{{ lineTotal(l) != null ? (lineTotal(l) | number:'1.2-2') : '—' }}</span>
+      </div>
+
+      <div class="line-total">
+        <span class="lt-label">Less {{ discountPct | number:'1.0-2' }}%</span>
+        <span class="lt-value">{{ netOf(l) != null ? (netOf(l) | number:'1.2-2') : '—' }}</span>
       </div>
 
       <div class="line-stock" *ngIf="itemOf(l) as it">
@@ -100,7 +133,9 @@
     <div class="form-footer">
       <div class="form-totals">
         <span><strong>{{ formQty }}</strong> units</span>
-        <span><strong>Rs {{ formTotal | number:'1.2-2' }}</strong> total cost</span>
+        <span>Gross <strong>Rs {{ formTotal | number:'1.2-2' }}</strong></span>
+        <span class="disc">− {{ discountPct | number:'1.0-2' }}% ({{ formDiscountAmount | number:'1.2-2' }})</span>
+        <span class="net">Final <strong>Rs {{ formNetTotal | number:'1.2-2' }}</strong></span>
       </div>
       <div class="form-actions">
         <button mat-button (click)="cancelForm()">Cancel</button>
@@ -152,7 +187,10 @@
           <th>Supplier</th>
           <th>Received</th>
           <th class="r">Units</th>
-          <th class="r">Cost</th>
+          <th class="r">Gross</th>
+          <th class="c">Disc %</th>
+          <th class="r">Final Value</th>
+          <th>Pay by</th>
           <th>Status</th>
           <th>Submitted by</th>
           <th></th>
@@ -166,13 +204,30 @@
             <td>{{ g.supplierName || '—' }}</td>
             <td>{{ g.receivedDate | date:'dd MMM yyyy' }}</td>
             <td class="r">{{ g.totalQty }}</td>
-            <td class="r amount">{{ g.totalCost ? ('Rs ' + (g.totalCost | number:'1.2-2')) : '—' }}</td>
+            <td class="r">{{ g.totalCost ? (g.totalCost | number:'1.2-2') : '—' }}</td>
+            <td class="c muted">{{ g.discountPct | number:'1.0-2' }}%</td>
+            <td class="r amount">{{ g.netTotal ? ('Rs ' + (g.netTotal | number:'1.2-2')) : '—' }}</td>
+            <td>
+              <span *ngIf="!g.paymentRequired" class="badge info">Opening stock</span>
+              <span *ngIf="g.paymentRequired && g.dueDate">
+                {{ g.dueDate | date:'dd MMM yyyy' }}
+                <span class="muted small">({{ g.paymentTermsDays }}d)</span>
+              </span>
+              <span *ngIf="g.paymentRequired && !g.dueDate" class="muted">No terms set</span>
+            </td>
             <td><span class="badge" [ngClass]="statusClass(g.status)">{{ g.status }}</span></td>
             <td class="muted">{{ g.submittedBy || '—' }}</td>
             <td class="actions">
               <button mat-icon-button (click)="toggleLines(g.id)"
                       [matTooltip]="expandedId === g.id ? 'Hide items' : 'Show items'">
                 <mat-icon>{{ expandedId === g.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+
+              <button mat-icon-button *ngIf="isAdmin" (click)="togglePaymentRequired(g)"
+                      [disabled]="processing"
+                      [matTooltip]="g.paymentRequired ? 'Mark as opening stock — no payment due'
+                                                      : 'Mark as payable again'">
+                <mat-icon>{{ g.paymentRequired ? 'money_off' : 'paid' }}</mat-icon>
               </button>
 
               <ng-container *ngIf="isAdmin && g.status === 'PENDING'">
@@ -190,7 +245,7 @@
 
           <!-- Reject reason -->
           <tr *ngIf="rejectingId === g.id">
-            <td colspan="9" class="reject-row">
+            <td colspan="12" class="reject-row">
               <mat-form-field appearance="outline" class="reject-field">
                 <mat-label>Reason for rejection</mat-label>
                 <input matInput [(ngModel)]="rejectReason" placeholder="Why is this being rejected?" />
@@ -203,7 +258,7 @@
 
           <!-- Lines -->
           <tr *ngIf="expandedId === g.id">
-            <td colspan="9" class="lines-cell">
+            <td colspan="12" class="lines-cell">
               <div class="grn-note" *ngIf="g.notes"><strong>Notes:</strong> {{ g.notes }}</div>
               <div class="grn-note reject-note" *ngIf="g.rejectionReason">
                 <strong>Rejected:</strong> {{ g.rejectionReason }}
@@ -222,7 +277,10 @@
                     <th>Brand</th>
                     <th class="r">Qty</th>
                     <th class="r">Unit cost</th>
-                    <th class="r">Line total</th>
+                    <th class="r">Gross</th>
+                    <th class="c">Disc %</th>
+                    <th class="r">Value</th>
+                    <th *ngIf="canEditLines(g)"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -230,11 +288,49 @@
                     <td class="mono">{{ l.itemCode }}</td>
                     <td>{{ l.itemDescription }}</td>
                     <td class="muted">{{ l.brandName || '—' }}</td>
-                    <td class="r bold">{{ l.qty }}</td>
-                    <td class="r">{{ l.unitCost != null ? ('Rs ' + (l.unitCost | number:'1.2-2')) : '—' }}</td>
-                    <td class="r amount">{{ l.lineTotal != null ? ('Rs ' + (l.lineTotal | number:'1.2-2')) : '—' }}</td>
+
+                    <td class="r bold">
+                      <ng-container *ngIf="editingLineId !== l.id">{{ l.qty }}</ng-container>
+                      <input *ngIf="editingLineId === l.id" class="qty-input" type="number"
+                             min="1" [(ngModel)]="editQty" />
+                    </td>
+
+                    <td class="r">{{ l.unitCost != null ? (l.unitCost | number:'1.2-2') : '—' }}</td>
+                    <td class="r">{{ l.lineTotal != null ? (l.lineTotal | number:'1.2-2') : '—' }}</td>
+                    <td class="c muted">{{ g.discountPct | number:'1.0-2' }}%</td>
+                    <td class="r amount">{{ l.netTotal != null ? (l.netTotal | number:'1.2-2') : '—' }}</td>
+
+                    <td class="line-actions" *ngIf="canEditLines(g)">
+                      <ng-container *ngIf="editingLineId !== l.id">
+                        <button mat-icon-button (click)="startEditLine(l)" matTooltip="Change quantity">
+                          <mat-icon>edit</mat-icon>
+                        </button>
+                        <button mat-icon-button class="reject-btn" (click)="deleteGrnLine(g, l)"
+                                [disabled]="processing" matTooltip="Remove this item from the GRN">
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </ng-container>
+                      <ng-container *ngIf="editingLineId === l.id">
+                        <button mat-icon-button class="approve-btn" (click)="saveLineQty(g, l)"
+                                [disabled]="processing" matTooltip="Save">
+                          <mat-icon>check</mat-icon>
+                        </button>
+                        <button mat-icon-button (click)="cancelEditLine()" matTooltip="Cancel">
+                          <mat-icon>close</mat-icon>
+                        </button>
+                      </ng-container>
+                    </td>
                   </tr>
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="5" class="r">TOTAL</td>
+                    <td class="r bold">{{ g.totalCost | number:'1.2-2' }}</td>
+                    <td class="c muted">{{ g.discountPct | number:'1.0-2' }}%</td>
+                    <td class="r amount">{{ g.netTotal | number:'1.2-2' }}</td>
+                    <td *ngIf="canEditLines(g)"></td>
+                  </tr>
+                </tfoot>
               </table>
             </td>
           </tr>

@@ -7,116 +7,149 @@
   <p>Could not load the aging report.</p>
 </div>
 
+<!-- Screen only. The report below is exactly what comes out of the printer, so it
+     can be checked before any paper is used. -->
+<div class="view-toolbar no-print" *ngIf="data && !loading">
+  <span class="vt-hint">
+    <mat-icon>info</mat-icon>
+    This is the printed sheet, A4 landscape. Check the scope, then print.
+  </span>
+  <div class="vt-actions">
+    <button class="vt-btn ghost" (click)="close()">Close</button>
+    <button class="vt-btn primary" (click)="print()">
+      <mat-icon>print</mat-icon> Print
+    </button>
+  </div>
+</div>
+
 <div class="report" *ngIf="data && !loading">
 
-  <button class="print-btn no-print" (click)="print()">
-    <mat-icon>print</mat-icon> Print
-  </button>
 
-  <!-- Header -->
+  <!-- ── Header ──────────────────────────────────────────────────── -->
   <div class="report-head">
     <div class="head-left">
       <h1>Aging Report</h1>
-      <div class="business">{{ data.business }}</div>
-      <div class="scope">{{ scopeLine }}</div>
+      <div class="company">{{ companyName }}</div>
+      <div class="scope">{{ data.business }} &nbsp;·&nbsp; {{ scopeLine }}</div>
     </div>
-    <div class="head-right">
-      <div class="generated">Generated {{ data.generatedOn | date: 'dd MMM yyyy' }}</div>
-      <div class="grand">
-        <span class="g-label">Total outstanding</span>
-        <span class="g-value">Rs {{ data.totalOutstanding | number:'1.2-2' }}</span>
+
+    <!-- Boxed rather than tinted: a rule prints identically on every machine,
+         where a background depends on toner and driver settings. -->
+    <div class="summary-box">
+      <div class="s-label">Total Outstanding</div>
+      <div class="s-value">{{ data.totalOutstanding | number:'1.0-0' }}</div>
+      <div class="s-meta">
+        {{ data.customerCount | number }} customers &nbsp;·&nbsp;
+        {{ data.billCount | number }} bills
       </div>
-      <div class="split">
-        {{ data.customerCount }} customers · {{ data.billCount }} bills
-      </div>
+      <div class="s-date">As at {{ data.generatedOn | date: 'dd MMM yyyy' }}</div>
     </div>
   </div>
 
   <!-- ── Credit customers ────────────────────────────────────────── -->
   <section class="section" *ngIf="data.creditCustomers.length > 0">
     <h2>Credit Bills — Customer Summary</h2>
+
     <table class="rpt-table">
+      <colgroup>
+        <col class="col-cust">
+        <col class="col-area">
+        <col class="col-bills">
+        <col class="col-date">
+        <col class="col-money">
+        <col class="col-money">
+        <col class="col-money">
+        <col class="col-money">
+        <col class="col-money">
+      </colgroup>
       <thead>
         <tr>
           <th>Customer</th>
           <th>Area</th>
           <th class="c">Bills</th>
-          <th>Oldest Bill</th>
-          <th>Last Payment</th>
+          <th>Oldest</th>
           <th class="r">0–30</th>
           <th class="r">31–60</th>
           <th class="r">61–90</th>
           <th class="r">91+</th>
-          <th class="r">Overdue 45+</th>
           <th class="r">Total</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngFor="let c of data.creditCustomers">
-          <td class="bold">{{ c.customerName }}</td>
+          <td class="name">{{ c.customerName }}</td>
           <td>{{ c.area ?? '—' }}</td>
           <td class="c">{{ c.billCount }}</td>
           <td>{{ c.oldestBillDate ? (c.oldestBillDate | date: 'dd MMM yy') : '—' }}</td>
-          <td>{{ c.lastPaymentDate ? (c.lastPaymentDate | date: 'dd MMM yy') : 'Never' }}</td>
           <td class="r">{{ c.current ? (c.current | number:'1.0-0') : '—' }}</td>
           <td class="r">{{ c.days31to60 ? (c.days31to60 | number:'1.0-0') : '—' }}</td>
           <td class="r">{{ c.days61to90 ? (c.days61to90 | number:'1.0-0') : '—' }}</td>
-          <td class="r warn">{{ c.days91plus ? (c.days91plus | number:'1.0-0') : '—' }}</td>
-          <td class="r warn">{{ c.overdue ? (c.overdue | number:'1.0-0') : '—' }}</td>
-          <td class="r bold">{{ c.totalOutstanding | number:'1.0-0' }}</td>
+          <!-- Weight, not colour: this has to survive a photocopy. -->
+          <td class="r heavy">{{ c.days91plus ? (c.days91plus | number:'1.0-0') : '—' }}</td>
+          <td class="r heavy">{{ c.totalOutstanding | number:'1.0-0' }}</td>
         </tr>
       </tbody>
       <tfoot>
         <tr>
           <td colspan="2">TOTAL — {{ data.creditCustomers.length }} customers</td>
           <td class="c">{{ billCountOf(data.creditCustomers) }}</td>
-          <td colspan="2"></td>
+          <td></td>
           <td class="r">{{ totalOf(data.creditCustomers, 'current') | number:'1.0-0' }}</td>
           <td class="r">{{ totalOf(data.creditCustomers, 'days31to60') | number:'1.0-0' }}</td>
           <td class="r">{{ totalOf(data.creditCustomers, 'days61to90') | number:'1.0-0' }}</td>
           <td class="r">{{ totalOf(data.creditCustomers, 'days91plus') | number:'1.0-0' }}</td>
-          <td class="r">{{ totalOf(data.creditCustomers, 'overdue') | number:'1.0-0' }}</td>
           <td class="r">{{ data.totalCredit | number:'1.0-0' }}</td>
         </tr>
       </tfoot>
     </table>
+
+    <div class="table-note">Credit aging in days since the bill date. Amounts in Rs.</div>
   </section>
 
   <!-- ── Cash customers ──────────────────────────────────────────── -->
   <section class="section" *ngIf="data.cashCustomers.length > 0">
     <h2>Cash Bills — Customer Summary</h2>
+
     <table class="rpt-table">
+      <colgroup>
+        <col class="col-cust">
+        <col class="col-area">
+        <col class="col-bills">
+        <col class="col-date">
+        <col class="col-money">
+        <col class="col-money">
+        <col class="col-money">
+        <col class="col-money">
+      </colgroup>
       <thead>
         <tr>
           <th>Customer</th>
           <th>Area</th>
           <th class="c">Bills</th>
-          <th>Oldest Bill</th>
-          <th>Last Payment</th>
-          <th class="r">Follow-up 1–7</th>
-          <th class="r">Urgent 8–14</th>
-          <th class="r">Serious 15+</th>
-          <th class="r">Cash Pending</th>
+          <th>Oldest</th>
+          <th class="r">1–7</th>
+          <th class="r">8–14</th>
+          <th class="r">15+</th>
+          <th class="r">Pending</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngFor="let c of data.cashCustomers">
-          <td class="bold">{{ c.customerName }}</td>
+          <td class="name">{{ c.customerName }}</td>
           <td>{{ c.area ?? '—' }}</td>
           <td class="c">{{ c.billCount }}</td>
           <td>{{ c.oldestBillDate ? (c.oldestBillDate | date: 'dd MMM yy') : '—' }}</td>
-          <td>{{ c.lastPaymentDate ? (c.lastPaymentDate | date: 'dd MMM yy') : 'Never' }}</td>
           <td class="r">{{ c.cashFollowUp ? (c.cashFollowUp | number:'1.0-0') : '—' }}</td>
           <td class="r">{{ c.cashUrgent ? (c.cashUrgent | number:'1.0-0') : '—' }}</td>
-          <td class="r warn">{{ c.cashSerious ? (c.cashSerious | number:'1.0-0') : '—' }}</td>
-          <td class="r bold">{{ c.cashPending | number:'1.0-0' }}</td>
+          <td class="r heavy">{{ c.cashSerious ? (c.cashSerious | number:'1.0-0') : '—' }}</td>
+          <td class="r heavy">{{ c.cashPending | number:'1.0-0' }}</td>
         </tr>
       </tbody>
       <tfoot>
         <tr>
           <td colspan="2">TOTAL — {{ data.cashCustomers.length }} customers</td>
           <td class="c">{{ billCountOf(data.cashCustomers) }}</td>
-          <td colspan="2"></td>
+          <td></td>
           <td class="r">{{ totalOf(data.cashCustomers, 'cashFollowUp') | number:'1.0-0' }}</td>
           <td class="r">{{ totalOf(data.cashCustomers, 'cashUrgent') | number:'1.0-0' }}</td>
           <td class="r">{{ totalOf(data.cashCustomers, 'cashSerious') | number:'1.0-0' }}</td>
@@ -124,10 +157,26 @@
         </tr>
       </tfoot>
     </table>
+
+    <!-- The urgency wording lives here rather than in the headings, which keeps the
+         columns narrow and the numbers close together. -->
+    <div class="table-note">
+      Cash aging: 1–7 Follow-up &nbsp;·&nbsp; 8–14 Urgent &nbsp;·&nbsp; 15+ Serious
+    </div>
   </section>
 
+  <!-- Declared on the sheet: a figure quietly missing from a report people act on is
+       worse than one shown and explained. -->
+  <div class="excluded-note" *ngIf="data.excludedCount">
+    {{ data.excludedCount }} bill{{ data.excludedCount === 1 ? '' : 's' }}
+    totalling Rs {{ data.excludedAmount | number:'1.0-0' }}
+    {{ data.excludedCount === 1 ? 'is' : 'are' }} held off this report by an
+    administrator and {{ data.excludedCount === 1 ? 'is' : 'are' }} not included in
+    the totals above.
+  </div>
+
   <div class="report-foot">
-    Amounts in Rs. Credit ages in 30-day bands; cash ages in days.
-    Overdue = credit 45+ days.
+    <span>{{ companyName }} — Aging Report</span>
+    <span>As at {{ data.generatedOn | date: 'dd MMM yyyy' }}</span>
   </div>
 </div>

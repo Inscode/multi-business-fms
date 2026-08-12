@@ -46,7 +46,7 @@ export class RequestEditDialog implements OnInit {
   submitting = false;
   errorMsg = '';
 
-  businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
+  businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY', 'MIX'];
   billTypes    = ['CASH', 'CREDIT'];
   divisions    = ['STORE', 'SHOP'];
   paymentTypes = ['CASH', 'CHEQUE', 'BANK_TRANSFER'];

@@ -76,6 +76,14 @@
         Delete Bill
       </button>
 
+      <button mat-stroked-button *ngIf="isAdmin" (click)="toggleAgingVisibility()"
+              [matTooltip]="bill.excludedFromAging
+                ? 'Put this bill back on the aging report'
+                : 'Keep this bill off the aging report — the balance stays owed'">
+        <mat-icon>{{ bill.excludedFromAging ? 'visibility' : 'visibility_off' }}</mat-icon>
+        {{ bill.excludedFromAging ? 'Show on Aging' : 'Hide from Aging' }}
+      </button>
+
       <a mat-stroked-button routerLink="/returns" *ngIf="isAccountant || isMainAccountant || isAdmin">
         <mat-icon>assignment_return</mat-icon>
         Submit Return
@@ -127,6 +135,20 @@
         </div>
       </mat-card>
 
+      <div class="aging-hidden-banner" *ngIf="bill.excludedFromAging">
+        <mat-icon>visibility_off</mat-icon>
+        <div>
+          <strong>Not on the aging report</strong>
+          <span>
+            {{ bill.agingExclusionReason }}
+            <em *ngIf="bill.agingExcludedBy"> — {{ bill.agingExcludedBy }}</em>
+          </span>
+          <span class="ahb-note">
+            The balance is still owed; it is only left out of the aging report.
+          </span>
+        </div>
+      </div>
+
       <mat-card class="info-card">
         <div class="card-title">Financial Summary</div>
         <mat-divider></mat-divider>
@@ -136,12 +158,23 @@
             <span class="value">Rs {{ originalBillAmount | number }}</span>
           </div>
           <div class="info-row damage-row" *ngIf="approvedDamageTotal > 0">
-            <span class="label">Damage Return</span>
-            <span class="value damage-amount">− Rs {{ approvedDamageTotal | number }}</span>
+            <span class="label">
+              <mat-icon class="ret-ico">broken_image</mat-icon> Damage Return
+            </span>
+            <span class="value damage-amount">&minus; Rs {{ approvedDamageTotal | number }}</span>
           </div>
           <div class="info-row damage-row" *ngIf="approvedSalableTotal > 0">
-            <span class="label">Salable Return</span>
-            <span class="value damage-amount">− Rs {{ approvedSalableTotal | number }}</span>
+            <span class="label">
+              <mat-icon class="ret-ico">recycling</mat-icon> Salable Return
+            </span>
+            <span class="value damage-amount">&minus; Rs {{ approvedSalableTotal | number }}</span>
+          </div>
+          <!-- Invoiced less returns. The bill amount above is never rewritten, so
+               the two figures can always be told apart. -->
+          <div class="info-row payable-row"
+               *ngIf="approvedDamageTotal > 0 || approvedSalableTotal > 0">
+            <span class="label">Payable After Returns</span>
+            <span class="value payable-amount">Rs {{ payableAmount | number }}</span>
           </div>
           <div class="info-row">
             <span class="label">Amount Paid</span>
@@ -652,6 +685,25 @@
     <div class="section-header">
       <span class="section-title">Returns</span>
       <span class="return-count-badge" *ngIf="returns.length > 0">{{ returns.length }}</span>
+      <span class="open-returns-badge" *ngIf="openReturns.length > 0">
+        {{ openReturns.length }} open
+      </span>
+    </div>
+
+    <!-- The whole point of the goods gate: this is where it is explained. -->
+    <div class="returns-gate" *ngIf="openReturns.length > 0">
+      <mat-icon>gpp_maybe</mat-icon>
+      <div>
+        <strong>Payment is on hold for this bill</strong>
+        <span *ngIf="awaitingGoods.length > 0">
+          {{ awaitingGoods.length }} return(s) have no goods confirmation yet. Confirm what
+          came back below &mdash; what the customer owes depends on it.
+        </span>
+        <span *ngIf="awaitingGoods.length === 0">
+          The goods are confirmed and the admin has still to review. The payable amount
+          is not final until they do.
+        </span>
+      </div>
     </div>
 
     <div class="loading-state" *ngIf="returnsLoading">
@@ -677,9 +729,41 @@
             Rs {{ (r.approvedAmount ?? r.calculatedReturnAmount) | number:'1.2-2' }}
           </span>
           <span class="return-header-date">{{ r.submittedAt | date:'dd MMM yyyy' }}</span>
+          <span class="ret-status ret-{{ r.status | lowercase }}">
+            {{ returnStatusLabel(r.status) }}
+          </span>
         </div>
 
         <!-- Line items table -->
+        <!-- What the accountant found, once they have said. -->
+        <div class="ret-goods-note" *ngIf="r.goodsReceipt"
+             [class.short]="r.goodsReceipt !== 'ALL'">
+          <mat-icon>{{ r.goodsReceipt === 'ALL' ? 'inventory' : 'report_problem' }}</mat-icon>
+          <div>
+            <strong>
+              {{ r.goodsReceipt === 'ALL' ? 'All received'
+               : r.goodsReceipt === 'PARTIAL' ? 'Partly received' : 'Nothing received' }}
+              &mdash; {{ r.goodsConfirmedByName }}
+            </strong>
+            <span *ngIf="r.goodsConfirmedNote">"{{ r.goodsConfirmedNote }}"</span>
+          </div>
+        </div>
+
+        <!-- The accountant's gate, taken here rather than on a separate screen. -->
+        <div class="ret-confirm-strip"
+             *ngIf="r.status === 'PENDING' && (isAccountant || isMainAccountant || isAdmin)">
+          <span class="rc-ask">Did these goods come back?</span>
+          <button mat-flat-button color="primary" (click)="confirmGoods(r, 'ALL')">
+            <mat-icon>check</mat-icon> All received
+          </button>
+          <button mat-stroked-button (click)="confirmGoods(r, 'PARTIAL')">
+            <mat-icon>rule</mat-icon> Some missing
+          </button>
+          <button mat-stroked-button color="warn" (click)="confirmGoods(r, 'NONE')">
+            <mat-icon>close</mat-icon> Nothing came
+          </button>
+        </div>
+
         <div class="return-items-section">
           <table mat-table [dataSource]="r.items" class="return-items-table">
 

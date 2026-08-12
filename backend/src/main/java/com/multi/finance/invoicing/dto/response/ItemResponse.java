@@ -19,4 +19,10 @@ public class ItemResponse {
     private BigDecimal wholesalePrice;
     private boolean active;
     private Integer stockQty;
+    /** Damaged units on hand, awaiting dispatch to the agent. Not sellable. */
+    private Integer damageQty;
+
+    // Automatic free-issue scheme: buy this many → get this many free.
+    private Integer freeIssueBuyQty;
+    private Integer freeIssueFreeQty;
 }

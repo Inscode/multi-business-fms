@@ -33,31 +33,58 @@ public class ItemController {
     private final StockMovementRepository movementRepo;
     private final DiscountEngineService engine = new DiscountEngineService();
 
+    /**
+     * Active items only by default — pickers must never offer a retired item.
+     * The Items screen passes includeInactive=true so they can be seen and reactivated.
+     */
     @GetMapping
-    public List<ItemResponse> list(@RequestParam(required = false) CategoryType category) {
-        List<Item> items = category != null
-                ? itemRepo.findByCategoryWithBrand(category)
-                : itemRepo.findAllWithBrand();
+    public List<ItemResponse> list(@RequestParam(required = false) CategoryType category,
+                                   @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        List<Item> items;
+        if (category != null) {
+            items = includeInactive
+                    ? itemRepo.findByCategoryWithBrandIncludingInactive(category)
+                    : itemRepo.findByCategoryWithBrand(category);
+        } else {
+            items = itemRepo.findAllWithBrand();
+            if (!includeInactive) items = items.stream().filter(Item::isActive).toList();
+        }
         return items.stream().map(this::toResponse).toList();
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<ItemResponse> create(@Valid @RequestBody ItemRequest req) {
         Brand brand = brandRepo.findById(req.getBrandId())
                 .orElseThrow(() -> new EntityNotFoundException("Brand not found"));
         Item item = new Item();
         applyRequest(item, req, brand);
+        item.setActive(req.getActive() == null || req.getActive());
         itemRepo.save(item);
         return ResponseEntity.ok(toResponse(item));
     }
 
     @PutMapping("/{id}")
+    @Transactional
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ItemResponse> update(@PathVariable Long id, @Valid @RequestBody ItemRequest req) {
         Item item = itemRepo.findById(id).orElseThrow(() -> new EntityNotFoundException("Item not found"));
         Brand brand = brandRepo.findById(req.getBrandId())
                 .orElseThrow(() -> new EntityNotFoundException("Brand not found"));
         applyRequest(item, req, brand);
+        itemRepo.save(item);
+        return ResponseEntity.ok(toResponse(item));
+    }
+
+    /** Retire an item, or bring a retired one back. */
+    @PatchMapping("/{id}/toggle-active")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    // open-in-view is off, so the response mapper needs the session still open to read
+    // the item's brand — without this the toggle saves but the reply fails.
+    @Transactional
+    public ResponseEntity<ItemResponse> toggleActive(@PathVariable Long id) {
+        Item item = itemRepo.findById(id).orElseThrow(() -> new EntityNotFoundException("Item not found"));
+        item.setActive(!item.isActive());
         itemRepo.save(item);
         return ResponseEntity.ok(toResponse(item));
     }
@@ -86,6 +113,7 @@ public class ItemController {
         item.setMrp(req.getMrp());
         item.setMarginPct(req.getMarginPct());
         item.setWholesalePrice(req.getWholesalePrice());
+        if (req.getActive() != null) item.setActive(req.getActive());
     }
 
     private ItemResponse toResponse(Item item) {
@@ -106,6 +134,8 @@ public class ItemController {
         r.setWholesalePrice(item.getWholesalePrice());
         r.setActive(item.isActive());
         r.setStockQty(item.getStockQty());
+        r.setFreeIssueBuyQty(item.getFreeIssueBuyQty());
+        r.setFreeIssueFreeQty(item.getFreeIssueFreeQty());
         return r;
     }
 }

@@ -11,9 +11,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByBillId(Long billId);
+
+    /** The payment auto-created from an admin cash collection, if any. */
+    Optional<Payment> findByCollectionNoteId(Long collectionNoteId);
     boolean existsByBillIdAndStatus(Long billId, PaymentStatus status);
     List<Payment> findByGroupId(Long groupId);
     List<Payment> findByStatus(PaymentStatus status);

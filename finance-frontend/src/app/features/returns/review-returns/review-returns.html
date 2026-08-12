@@ -2,16 +2,26 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Return Requests</h1>
-      <p class="page-sub">{{ pendingCount }} pending review</p>
+      <p class="page-sub">
+        <span *ngIf="awaitingGoodsCount">
+          {{ awaitingGoodsCount }} awaiting goods confirmation
+        </span>
+        <span *ngIf="awaitingGoodsCount && awaitingReviewCount"> &middot; </span>
+        <span *ngIf="awaitingReviewCount">{{ awaitingReviewCount }} awaiting review</span>
+        <span *ngIf="!pendingCount">Nothing waiting</span>
+      </p>
     </div>
     <div class="header-filters">
       <mat-form-field appearance="outline" style="width: 140px">
         <mat-label>Status</mat-label>
         <mat-select [(ngModel)]="filterStatus">
           <mat-option value="">All</mat-option>
-          <mat-option value="PENDING">Pending</mat-option>
+          <mat-option value="PENDING">Awaiting goods</mat-option>
+          <mat-option value="GOODS_CONFIRMED">Awaiting review</mat-option>
           <mat-option value="APPROVED">Approved</mat-option>
           <mat-option value="REJECTED">Rejected</mat-option>
+          <mat-option value="NOT_RECEIVED">Not received</mat-option>
+          <mat-option value="CANCELLED">Cancelled</mat-option>
         </mat-select>
       </mat-form-field>
       <mat-form-field appearance="outline" style="width: 140px">
@@ -53,8 +63,11 @@
       <div class="return-card"
            *ngFor="let r of displayed"
            [class.pending]="r.status === 'PENDING'"
+           [class.confirmed]="r.status === 'GOODS_CONFIRMED'"
            [class.approved]="r.status === 'APPROVED'"
-           [class.rejected]="r.status === 'REJECTED'">
+           [class.rejected]="r.status === 'REJECTED' || r.status === 'NOT_RECEIVED'"
+           [class.cancelled]="r.status === 'CANCELLED'"
+           [class.stale]="isStale(r)">
 
         <div class="card-header" (click)="toggle(r.id)" style="cursor:pointer">
           <div class="card-header-left">
@@ -68,7 +81,18 @@
             </div>
           </div>
           <div class="card-header-right">
-            <span class="status-chip status-{{ r.status | lowercase }}">{{ r.status }}</span>
+            <!-- The accountant typed over a computed credit; worth a look. -->
+            <span class="edited-chip" *ngIf="r.amountEdited"
+                  matTooltip="An amount was typed over the calculation by {{ r.amountEditedBy }}">
+              <mat-icon>edit</mat-icon> edited
+            </span>
+            <span class="stale-chip" *ngIf="isStale(r)"
+                  matTooltip="Entered {{ ageInDays(r) }} days ago and still not settled">
+              <mat-icon>schedule</mat-icon> {{ ageInDays(r) }}d
+            </span>
+            <span class="status-chip status-{{ r.status | lowercase }}">
+              {{ statusLabel(r.status) }}
+            </span>
             <mat-icon class="expand-icon" [class.expanded]="expandedId === r.id">expand_more</mat-icon>
           </div>
         </div>
@@ -87,7 +111,7 @@
             <span class="amount-label">Claimed Total</span>
             <span class="amount-value">Rs {{ r.itemsTotal | number:'1.2-2' }}</span>
           </div>
-          <ng-container *ngIf="r.status === 'PENDING'">
+          <ng-container *ngIf="r.status === 'PENDING' || r.status === 'GOODS_CONFIRMED'">
             <div class="amount-pill highlight">
               <span class="amount-label">Will Deduct</span>
               <span class="amount-value">Rs {{ calcReceivedAmount(r) | number:'1.2-2' }}</span>
@@ -97,7 +121,7 @@
               <span class="amount-value">Rs {{ calcShortfall(r) | number:'1.2-2' }}</span>
             </div>
           </ng-container>
-          <ng-container *ngIf="r.status !== 'PENDING'">
+          <ng-container *ngIf="r.status !== 'PENDING' && r.status !== 'GOODS_CONFIRMED'">
             <div class="amount-pill highlight" *ngIf="r.approvedAmount">
               <span class="amount-label">Deducted</span>
               <span class="amount-value">Rs {{ r.approvedAmount | number:'1.2-2' }}</span>
@@ -151,6 +175,29 @@
           </div>
         </div>
 
+        <!-- What the accountant physically found. This is the note that tells the
+             admin whether the claim is worth approving in full. -->
+        <div class="goods-note"
+             *ngIf="r.goodsReceipt"
+             [class.short]="r.goodsReceipt !== 'ALL'">
+          <mat-icon>{{ r.goodsReceipt === 'ALL' ? 'inventory' : 'report_problem' }}</mat-icon>
+          <div>
+            <strong>
+              {{ receiptLabel(r.goodsReceipt) }} &mdash; confirmed by {{ r.goodsConfirmedByName }}
+              <span class="when">{{ r.goodsConfirmedAt | date:'dd MMM yyyy, h:mm a' }}</span>
+            </strong>
+            <span class="acc-note" *ngIf="r.goodsConfirmedNote">"{{ r.goodsConfirmedNote }}"</span>
+          </div>
+        </div>
+
+        <div class="awaiting-goods-note" *ngIf="r.status === 'PENDING'">
+          <mat-icon>hourglass_empty</mat-icon>
+          <span>
+            No goods confirmation yet. Payment on {{ r.billNumber }} is blocked until the
+            accountant says what came back.
+          </span>
+        </div>
+
         <div class="reviewed-note" *ngIf="r.status === 'APPROVED'">
           <mat-icon>check_circle</mat-icon>
           Approved by {{ r.reviewedByName }} on {{ r.reviewedAt | date:'dd MMM yyyy' }}
@@ -164,19 +211,46 @@
           <span *ngIf="r.rejectionReason">: {{ r.rejectionReason }}</span>
         </div>
 
-        <div class="card-actions" *ngIf="r.status === 'PENDING' && !readonly">
+        <div class="rejection-note" *ngIf="r.status === 'NOT_RECEIVED'">
+          <mat-icon>block</mat-icon>
+          Goods never received &mdash; closed by {{ r.reviewedByName }}. Nothing came off the bill.
+          <span *ngIf="r.rejectionReason">: {{ r.rejectionReason }}</span>
+        </div>
+
+        <div class="cancelled-note" *ngIf="r.status === 'CANCELLED'">
+          <mat-icon>undo</mat-icon>
+          Reversed by {{ r.cancelledByName }} on {{ r.cancelledAt | date:'dd MMM yyyy' }}
+          &mdash; the amount went back onto the bill.
+          <span *ngIf="r.cancelReason">: {{ r.cancelReason }}</span>
+        </div>
+
+        <div class="card-actions" *ngIf="isOpen(r) && !readonly">
           <button mat-flat-button color="primary" (click)="approve(r, 'CALCULATED')">
             <mat-icon>check</mat-icon> Approve Received
           </button>
-          <button mat-flat-button color="accent" *ngIf="r.predictedValue" (click)="approve(r, 'PREDICTED')">
-            <mat-icon>check</mat-icon> Approve Predicted (Rs {{ r.predictedValue | number:'1.0-0' }})
+          <button mat-flat-button color="accent" *ngIf="r.predictedValue"
+                  (click)="approve(r, 'PREDICTED')">
+            <mat-icon>check</mat-icon>
+            Approve Predicted (Rs {{ r.predictedValue | number:'1.0-0' }})
+          </button>
+          <button mat-stroked-button (click)="markNotReceived(r)">
+            <mat-icon>block</mat-icon> Not Received
           </button>
           <button mat-stroked-button color="warn" (click)="reject(r)">
             <mat-icon>close</mat-icon> Reject
           </button>
         </div>
-        <div class="readonly-note" *ngIf="r.status === 'PENDING' && readonly">
-          <mat-icon>visibility</mat-icon> View only — approval requires admin
+
+        <!-- Approved in error: put the money back rather than leaving it uncollected. -->
+        <div class="card-actions" *ngIf="r.status === 'APPROVED' && !readonly">
+          <button mat-stroked-button color="warn" (click)="cancel(r)"
+                  matTooltip="Reverse this return and put the amount back on the bill">
+            <mat-icon>undo</mat-icon> Cancel Return
+          </button>
+        </div>
+
+        <div class="readonly-note" *ngIf="isOpen(r) && readonly">
+          <mat-icon>visibility</mat-icon> View only &mdash; approval requires admin
         </div>
       </div>
     </div>

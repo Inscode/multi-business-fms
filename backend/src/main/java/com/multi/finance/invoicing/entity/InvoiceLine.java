@@ -27,8 +27,17 @@ public class InvoiceLine {
     @JoinColumn(name = "brand_id", nullable = false)
     private Brand brand;
 
+    /** Paid quantity. Zero on a free-only line, such as a free umbrella. */
     @Column(nullable = false)
     private Integer qty;
+
+    /**
+     * Quantity given free. Typed by the user — separate from the automatic buy-N-get-M
+     * scheme on the item, which is worked out at print time and never stored.
+     * Carries no value, but does leave the warehouse, so it is deducted from stock.
+     */
+    @Column(name = "free_qty", nullable = false)
+    private Integer freeQty = 0;
 
     // Snapshots at save time — never recalculated from live master data
     @Column(nullable = false, precision = 12, scale = 2)

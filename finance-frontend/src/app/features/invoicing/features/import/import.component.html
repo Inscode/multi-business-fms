@@ -29,6 +29,12 @@
   @if (selectedCategory) {
     <div class="category-badge">
       <span>Importing: <strong>{{ selectedCategory === 'RAINCO' ? 'Rainco' : 'Stationery' }}</strong></span>
+      @if (batchId) {
+        <span class="batch-badge" matTooltip="These files are summarised together">
+          <mat-icon>library_add_check</mat-icon>
+          Batch #{{ batchId }} · {{ batchFiles.length }} file(s)
+        </span>
+      }
       <button mat-button (click)="changeCategory()">
         <mat-icon>swap_horiz</mat-icon> Change
       </button>
@@ -45,6 +51,27 @@
         <div class="result-title">Import Complete</div>
         <div class="result-stats">
           <span class="stat created">{{ importResult.imported }} imported</span>
+          @if (importResult.stockOnly) {
+          <div class="dup-note stock-only-note">
+            <mat-icon>inventory_2</mat-icon>
+            <div>
+              <strong>{{ importResult.stockOnly }} invoice(s) attached to bills already entered</strong>
+              <span>
+                A bill with each of these numbers was already in the bills section, entered by
+                hand. Their stock has now been reduced and no second bill was raised, so nothing
+                is being collected twice.
+              </span>
+              <span class="dup-refs">{{ importResult.stockOnlyRefs.join(', ') }}</span>
+            </div>
+          </div>
+        }
+
+        @if (importResult.skipped) {
+            <span class="stat skipped">{{ importResult.skipped }} already in the system</span>
+          }
+          @if (importResult.stockOnly) {
+            <span class="stat stock-only">{{ importResult.stockOnly }} stock only</span>
+          }
           @if (importResult.errors.length) {
             <span class="stat errored">{{ importResult.errors.length }} errors</span>
           }
@@ -52,6 +79,33 @@
             <span class="stat skipped">{{ importResult.warnings.length }} warnings</span>
           }
         </div>
+        @if (importResult.stockOnly) {
+          <div class="dup-note stock-only-note">
+            <mat-icon>inventory_2</mat-icon>
+            <div>
+              <strong>{{ importResult.stockOnly }} invoice(s) attached to bills already entered</strong>
+              <span>
+                A bill with each of these numbers was already in the bills section, entered by
+                hand. Their stock has now been reduced and no second bill was raised, so nothing
+                is being collected twice.
+              </span>
+              <span class="dup-refs">{{ importResult.stockOnlyRefs.join(', ') }}</span>
+            </div>
+          </div>
+        }
+
+        @if (importResult.skipped) {
+          <div class="dup-note">
+            <mat-icon>info_outline</mat-icon>
+            <div>
+              <strong>{{ importResult.skipped }} invoice(s) were already imported</strong>
+              <span>
+                They were left exactly as they are — nothing was duplicated or overwritten.
+              </span>
+              <span class="dup-refs">{{ importResult.skippedRefs.join(', ') }}</span>
+            </div>
+          </div>
+        }
         @if (importResult.errors.length) {
           <ul class="error-list">
             @for (e of importResult.errors; track e) {
@@ -67,7 +121,17 @@
           </ul>
         }
       </div>
-      <button mat-stroked-button (click)="reset()">Import Another File</button>
+      <div class="result-actions">
+        <button mat-flat-button color="primary" (click)="importAnotherIntoBatch()">
+          <mat-icon>library_add</mat-icon> Add another file to this batch
+        </button>
+        <button mat-stroked-button (click)="startNewBatch()">
+          <mat-icon>restart_alt</mat-icon> Start a new batch
+        </button>
+        <a mat-button routerLink="/invoicing/batches">
+          <mat-icon>summarize</mat-icon> View batch summary
+        </a>
+      </div>
     </div>
   }
 
@@ -76,28 +140,47 @@
     <!-- Drop Zone -->
     <div class="drop-zone card"
          [class.drag-over]="dragOver"
-         [class.has-file]="!!selectedFile"
+         [class.has-file]="selectedFiles.length > 0"
          (dragover)="onDragOver($event)"
          (dragleave)="onDragLeave()"
          (drop)="onDrop($event)">
       @if (parsing) {
         <mat-spinner diameter="40"></mat-spinner>
-        <p class="dz-text">Parsing file…</p>
-      } @else if (selectedFile) {
-        <mat-icon class="dz-icon file-icon">description</mat-icon>
-        <p class="dz-text fw6">{{ selectedFile.name }}</p>
-        <p class="dz-sub">{{ (selectedFile.size / 1024).toFixed(1) }} KB</p>
-        <button mat-stroked-button color="warn" (click)="reset()">
-          <mat-icon>close</mat-icon> Remove
-        </button>
+        <p class="dz-text">Parsing {{ selectedFiles.length }} file(s)…</p>
+      } @else if (selectedFiles.length > 0) {
+        <div class="file-chips">
+          @for (f of selectedFiles; track f.name; let i = $index) {
+            <span class="file-chip">
+              <mat-icon>description</mat-icon>
+              <span class="fc-name">{{ f.name }}</span>
+              <span class="fc-size">{{ (f.size / 1024).toFixed(0) }} KB</span>
+              <button mat-icon-button (click)="removeFile(i)" matTooltip="Remove this file">
+                <mat-icon>close</mat-icon>
+              </button>
+            </span>
+          }
+        </div>
+        <p class="dz-sub">
+          {{ selectedFiles.length }} file(s) · {{ totalFileSizeKb().toFixed(1) }} KB — totalled together
+        </p>
+        <div class="dz-actions">
+          <label class="browse-btn mat-mdc-button">
+            <mat-icon>add</mat-icon>
+            Add more files
+            <input type="file" accept=".xls,.xlsx" multiple (change)="onFileChange($event)" hidden>
+          </label>
+          <button mat-stroked-button color="warn" (click)="reset()">
+            <mat-icon>close</mat-icon> Clear all
+          </button>
+        </div>
       } @else {
         <mat-icon class="dz-icon">cloud_upload</mat-icon>
-        <p class="dz-text">Drag &amp; drop a Ventura XLS file here</p>
-        <p class="dz-sub">or click below to browse</p>
+        <p class="dz-text">Drag &amp; drop Ventura XLS files here</p>
+        <p class="dz-sub">Several files can make up one summary load</p>
         <label class="browse-btn mat-mdc-button">
           <mat-icon>folder_open</mat-icon>
-          Browse File
-          <input type="file" accept=".xls,.xlsx" (change)="onFileChange($event)" hidden>
+          Browse Files
+          <input type="file" accept=".xls,.xlsx" multiple (change)="onFileChange($event)" hidden>
         </label>
       }
     </div>
@@ -126,9 +209,18 @@
         <div class="preview-header">
           <div class="preview-title">
             <mat-icon>preview</mat-icon>
-            Preview — {{ parsed.length }} invoice(s) detected, {{ totalLines() }} lines total
+            Preview — {{ parsed.length }} invoice(s) across {{ selectedFiles.length }} file(s), {{ totalLines() }} lines
             @if (blockedInvoices().length > 0) {
               <span class="blocked-count">· {{ blockedInvoices().length }} blocked</span>
+            }
+            @if (needsCustomer().length > 0) {
+              <span class="needs-cust-count">· {{ needsCustomer().length }} need a customer</span>
+            }
+            @if (missingNumberCount() > 0) {
+              <span class="needs-cust-count">· {{ missingNumberCount() }} need a number</span>
+            }
+            @if (duplicateInvoices().length > 0) {
+              <span class="dup-count">· {{ duplicateInvoices().length }} already imported</span>
             }
           </div>
           <button mat-flat-button color="primary" (click)="importAll()"
@@ -145,6 +237,102 @@
           </button>
         </div>
 
+        <!-- Product totals, before anything is saved -->
+        <div class="card summary-card">
+          <div class="summary-bar">
+            <button class="summary-head" (click)="toggleSummary()">
+              <mat-icon>{{ showSummary ? 'expand_less' : 'expand_more' }}</mat-icon>
+              <span class="sh-title">Product totals &mdash; check against the agent summary bill</span>
+              <span class="sh-stats">
+                {{ productSummary().length }} products &middot;
+                {{ summaryTotalQty() | number }} qty &middot;
+                <span class="free">{{ summaryTotalFree() | number }} free</span> &middot;
+                LKR {{ summaryTotalValue() | number:'1.2-2' }}
+              </span>
+            </button>
+
+            <!-- The per-bill breakdown, in the shape the agent's summary arrives in. -->
+            <button class="grid-view-btn" (click)="openContributionMatrix()"
+                    matTooltip="Item quantity by bill — the grid to check against the agent's summary">
+              <mat-icon>grid_on</mat-icon> Qty by Bill
+            </button>
+          </div>
+
+          @if (showSummary) {
+            <div class="table-wrap">
+              <table class="data-table sm-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Free</th>
+                    <th class="num">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of productSummary(); track p.code) {
+                    <tr>
+                      <td class="mono">{{ p.code }}</td>
+                      <td>{{ p.description }}</td>
+                      <td class="num fw6">{{ p.qty | number }}</td>
+                      <td class="num free-cell">{{ p.freeQty ? (p.freeQty | number) : '&mdash;' }}</td>
+                      <td class="num fw6">{{ p.value | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="2">TOTAL</td>
+                    <td class="num">{{ summaryTotalQty() | number }}</td>
+                    <td class="num free-cell">{{ summaryTotalFree() | number }}</td>
+                    <td class="num">{{ summaryTotalValue() | number:'1.2-2' }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p class="summary-note">
+              Covers every invoice still in the load. Removed ones drop straight out of these
+              figures. Nothing is saved until you press Import.
+            </p>
+          }
+        </div>
+
+        @if (excludedCount() > 0) {
+          <div class="excluded-bar">
+            <mat-icon>filter_alt</mat-icon>
+            <span>{{ excludedCount() }} invoice(s) removed from this load</span>
+            <span class="spacer"></span>
+            <button mat-button (click)="includeAllInvoices()">
+              <mat-icon>undo</mat-icon> Put them all back
+            </button>
+          </div>
+        }
+
+        @if (allDuplicates()) {
+          <div class="dup-banner all-dup">
+            <mat-icon>task_alt</mat-icon>
+            <div>
+              <strong>This file has already been imported</strong>
+              <span>
+                Every invoice in it is in the system. Nothing will be re-imported, so there is
+                no need to load it again.
+              </span>
+            </div>
+          </div>
+        } @else if (duplicateInvoices().length > 0) {
+          <div class="dup-banner">
+            <mat-icon>info_outline</mat-icon>
+            <div>
+              <strong>{{ duplicateInvoices().length }} invoice(s) are already in the system</strong>
+              <span>
+                They came in on an earlier upload and are skipped automatically. The remaining
+                {{ importable().length }} will import as normal.
+              </span>
+            </div>
+          </div>
+        }
+
         @if (blockedInvoices().length > 0) {
           <div class="blocked-banner">
             <mat-icon>block</mat-icon>
@@ -160,20 +348,118 @@
         }
 
         @for (inv of parsed; track inv.invoiceNo; let i = $index) {
-          <div class="card inv-preview" [class.inv-blocked]="inv.blocked">
+          <div class="card inv-preview"
+               [class.inv-blocked]="inv.blocked && !inv.alreadyImported && !inv.excluded"
+               [class.inv-duplicate]="inv.alreadyImported && !inv.excluded"
+               [class.inv-excluded]="inv.excluded">
             <div class="inv-preview-header">
               <span class="inv-num">{{ inv.invoiceNo || ('Invoice ' + (i + 1)) }}</span>
-              @if (inv.blocked) {
+              @if (isAdmin && !inv.excluded) {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="num-edit"
+                                [class.num-missing-field]="missingNumber(inv)">
+                  <mat-label>Invoice No</mat-label>
+                  <input matInput [(ngModel)]="inv.numberEdit" (ngModelChange)="onNumberChanged()"
+                         placeholder="SYS-13271" required>
+                </mat-form-field>
+                @if (missingNumber(inv)) {
+                  <span class="num-warn">
+                    <mat-icon>error_outline</mat-icon> Required
+                  </span>
+                }
+              } @else if (inv.billNumber) {
+                <span class="bill-num" matTooltip="The number it will carry in the bills section">
+                  <mat-icon>receipt</mat-icon> {{ inv.billNumber }}
+                </span>
+              }
+              @if (inv.alreadyImported) {
+                <span class="dup-chip" matTooltip="Imported on an earlier upload — it will be skipped">
+                  <mat-icon>done_all</mat-icon> Already imported
+                </span>
+              } @else if (inv.blocked) {
                 <span class="blocked-chip" [title]="inv.blockReason">
                   <mat-icon>block</mat-icon> Blocked
                 </span>
               }
-              <span class="cust-name">{{ inv.customerName || 'Unknown Customer' }}</span>
               @if (inv.invoiceDate) { <span class="inv-date">{{ inv.invoiceDate }}</span> }
               @if (inv.netTotal != null) {
                 <span class="net-total">LKR {{ inv.netTotal | number:'1.2-2' }}</span>
               }
+              <span class="head-spacer"></span>
+              @if (inv.excluded) {
+                <button mat-stroked-button class="restore-btn" (click)="toggleExcluded(inv)">
+                  <mat-icon>undo</mat-icon> Put back
+                </button>
+              } @else {
+                <button mat-icon-button color="warn" (click)="toggleExcluded(inv)"
+                        matTooltip="Remove this invoice from the load">
+                  <mat-icon>remove_circle_outline</mat-icon>
+                </button>
+              }
             </div>
+
+            <!-- Customer — invoices are often raised under a name that isn't the real buyer -->
+            @if (!inv.blocked && !inv.alreadyImported) {
+              @if (sheetFreeQty(inv) > 0) {
+                <div class="sheet-free">
+                  <mat-icon>redeem</mat-icon>
+                  {{ sheetFreeQty(inv) }} free item(s) already on the agent's sheet — read from
+                  the file, nothing to enter.
+                </div>
+              }
+
+              <div class="cust-row">
+                <div class="billed-as">
+                  <span class="ba-label">Billed as</span>
+                  <span class="ba-name">{{ inv.billedName || '—' }}</span>
+                </div>
+
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="cust-field">
+                  <mat-label>Actual customer</mat-label>
+                  <input matInput
+                         [value]="inv.customerSearch || ''"
+                         (input)="onCustomerInput(inv, $any($event.target).value)"
+                         [matAutocomplete]="auto"
+                         placeholder="Type a name or code">
+                  <mat-autocomplete #auto="matAutocomplete"
+                                    (optionSelected)="pickCustomer(inv, $event.option.value)"
+                                    [displayWith]="displayCustomer">
+                    @for (c of filteredCustomers(inv); track c.id) {
+                      <mat-option [value]="c">{{ c.name }}</mat-option>
+                    }
+                  </mat-autocomplete>
+                  @if (inv.chosenId) {
+                    <button matSuffix mat-icon-button type="button"
+                            (click)="clearCustomer(inv)" matTooltip="Clear">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  }
+                </mat-form-field>
+
+                @if (isStationery) {
+                  <div class="umbrella-field">
+                    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="umb-input">
+                      <mat-label>Free K01047</mat-label>
+                      <input matInput type="number" min="0" [(ngModel)]="inv.freeUmbrella"
+                             placeholder="0">
+                      <mat-hint>Umbrellas given free — no charge, stock still reduced</mat-hint>
+                    </mat-form-field>
+                  </div>
+                }
+
+                @if (inv.chosenId == null) {
+                  <span class="cust-warn">
+                    <mat-icon>person_search</mat-icon>
+                    @if (inv.customerName) { Pick a customer to import this }
+                    @else { No customer matched "{{ inv.billedName }}" — pick one }
+                  </span>
+                } @else if (isRedirected(inv)) {
+                  <span class="cust-changed" matTooltip="The admin sees this change on review">
+                    <mat-icon>swap_horiz</mat-icon>
+                    Changed{{ inv.customerName ? ' from ' + inv.customerName : '' }}
+                  </span>
+                }
+              </div>
+            }
             <div class="table-wrap">
               <table class="data-table sm-table">
                 <thead>
@@ -181,6 +467,7 @@
                     <th>Code</th>
                     <th>Description</th>
                     <th class="num">Qty</th>
+                    <th class="num">Free</th>
                     <th class="num">Unit Price</th>
                     <th class="num">Line Total</th>
                   </tr>
@@ -199,6 +486,7 @@
                       </td>
                       <td>{{ line.description || '—' }}</td>
                       <td class="num">{{ line.qty }}</td>
+                      <td class="num free-cell">{{ line.freeQty ? line.freeQty : '—' }}</td>
                       <td class="num">{{ line.unitPrice != null ? (line.unitPrice | number:'1.2-2') : '—' }}</td>
                       <td class="num fw6">{{ line.lineTotal != null ? (line.lineTotal | number:'1.2-2') : '—' }}</td>
                     </tr>

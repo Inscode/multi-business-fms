@@ -36,6 +36,8 @@ public class BrandController {
     }
 
     @PostMapping
+    // Brand and its slabs are one save: a slab failure must not leave a brand behind.
+    @Transactional
     public ResponseEntity<BrandResponse> create(@Valid @RequestBody BrandRequest req) {
         Brand brand = new Brand();
         applyRequest(brand, req);

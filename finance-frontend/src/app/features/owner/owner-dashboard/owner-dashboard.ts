@@ -55,7 +55,7 @@ export class OwnerDashboard implements OnInit {
   get businesses(): string[] {
     return this.auth.isDemo
       ? ['DEMO']
-      : ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
+      : ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY', 'MIX'];
   }
 
   get isDemo(): boolean { return this.auth.isDemo; }

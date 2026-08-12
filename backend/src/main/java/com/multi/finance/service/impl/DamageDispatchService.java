@@ -5,6 +5,7 @@ import com.multi.finance.dto.response.DamageDispatchResponse;
 import com.multi.finance.dto.response.DamageStockResponse;
 import com.multi.finance.entity.*;
 import com.multi.finance.enums.BusinessType;
+import com.multi.finance.enums.DispatchStatus;
 import com.multi.finance.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -102,8 +104,39 @@ public class DamageDispatchService {
         savedDispatch.setItems(dispatchItems);
         dispatch = dispatchRepository.save(savedDispatch);
 
-        // Create DAMAGE_TO_COMPANY shadow movements for each item
+        // No stock movement here — damage stock is only deducted when an admin approves.
+        return toResponse(dispatch);
+    }
+
+    /**
+     * Admin approval — this is where the damage stock actually leaves. Availability is
+     * re-checked at this moment, since other dispatches may have been approved since
+     * this one was submitted.
+     */
+    @Transactional
+    public DamageDispatchResponse approve(Long id) {
+        DamageDispatch dispatch = dispatchRepository.findByIdWithItems(id)
+                .orElseThrow(() -> new RuntimeException("Dispatch not found"));
+        if (dispatch.getStatus() != DispatchStatus.PENDING) {
+            throw new RuntimeException("Dispatch is already " + dispatch.getStatus());
+        }
+
+        Map<Long, Long> available = availableDamageStock(dispatch.getBusiness());
+        List<String> shortfalls = new ArrayList<>();
+        for (DamageDispatchItem item : dispatch.getItems()) {
+            long have = available.getOrDefault(item.getProduct().getId(), 0L);
+            if (item.getQuantity() > have) {
+                shortfalls.add(item.getProductName() + " — available " + have
+                        + ", dispatching " + item.getQuantity());
+            }
+        }
+        if (!shortfalls.isEmpty()) {
+            throw new RuntimeException("Not enough damage stock: " + String.join("; ", shortfalls));
+        }
+
+        User user = getCurrentUser();
         LocalDateTime now = LocalDateTime.now();
+
         for (DamageDispatchItem item : dispatch.getItems()) {
             ShadowStockMovement movement = ShadowStockMovement.builder()
                     .product(item.getProduct())
@@ -119,7 +152,33 @@ public class DamageDispatchService {
             shadowStockMovementRepository.save(movement);
         }
 
-        return toResponse(dispatch);
+        dispatch.setStatus(DispatchStatus.APPROVED);
+        dispatch.setReviewedBy(user);
+        dispatch.setReviewedAt(now);
+        return toResponse(dispatchRepository.save(dispatch));
+    }
+
+    @Transactional
+    public DamageDispatchResponse reject(Long id, String reason) {
+        DamageDispatch dispatch = dispatchRepository.findByIdWithItems(id)
+                .orElseThrow(() -> new RuntimeException("Dispatch not found"));
+        if (dispatch.getStatus() != DispatchStatus.PENDING) {
+            throw new RuntimeException("Dispatch is already " + dispatch.getStatus());
+        }
+        dispatch.setStatus(DispatchStatus.REJECTED);
+        dispatch.setRejectionReason(reason);
+        dispatch.setReviewedBy(getCurrentUser());
+        dispatch.setReviewedAt(LocalDateTime.now());
+        return toResponse(dispatchRepository.save(dispatch));
+    }
+
+    /** productId -> damage units currently on hand for this business. */
+    private Map<Long, Long> availableDamageStock(BusinessType business) {
+        return shadowStockMovementRepository.getDamageStockByBusiness(business)
+                .stream()
+                .collect(Collectors.toMap(
+                        r -> (Long) r[0],
+                        r -> ((Number) r[1]).longValue()));
     }
 
     @Transactional(readOnly = true)
@@ -135,6 +194,10 @@ public class DamageDispatchService {
                             .predictedValue(d.getPredictedValue())
                             .notes(d.getNotes())
                             .enteredByName(d.getEnteredBy() != null ? d.getEnteredBy().getFullName() : null)
+                            .status(d.getStatus() != null ? d.getStatus().name() : null)
+                            .rejectionReason(d.getRejectionReason())
+                            .reviewedByName(d.getReviewedBy() != null ? d.getReviewedBy().getFullName() : null)
+                            .reviewedAt(d.getReviewedAt())
                             .createdAt(d.getCreatedAt())
                             .items(List.of())
                             .build();
@@ -167,6 +230,10 @@ public class DamageDispatchService {
                 .predictedValue(d.getPredictedValue())
                 .notes(d.getNotes())
                 .enteredByName(d.getEnteredBy() != null ? d.getEnteredBy().getFullName() : null)
+                .status(d.getStatus() != null ? d.getStatus().name() : null)
+                .rejectionReason(d.getRejectionReason())
+                .reviewedByName(d.getReviewedBy() != null ? d.getReviewedBy().getFullName() : null)
+                .reviewedAt(d.getReviewedAt())
                 .createdAt(d.getCreatedAt())
                 .items(itemResponses)
                 .build();

@@ -1,5 +1,6 @@
 package com.multi.finance.invoicing.service;
 
+import java.util.Set;
 import com.multi.finance.invoicing.entity.Brand;
 import com.multi.finance.invoicing.entity.DiscountSlab;
 import com.multi.finance.invoicing.entity.Item;
@@ -94,42 +95,73 @@ public class DiscountEngineService {
      * @param plasticDiscountAmt null if not applicable; only one of the two applied (pct first)
      * @param plasticGross       gross plastic lines total (for pct calc)
      */
+    /**
+     * Discounts compound: each one comes off what is left after the one before it,
+     * never off the starting gross.
+     *
+     * <p>So a Rainco cash discount is taken on the Rainco value <em>after</em> its slab
+     * discount, and a plastic discount on the plastic value after its own slab. Charging
+     * both against the gross would hand back more than the sum of the two rates, and the
+     * further apart the rates the wider that gap grows.
+     *
+     * <p>The group keys are passed in rather than the pre-summed totals, so the engine
+     * works out both the gross and the after-slab base itself. Callers cannot then get
+     * the order wrong, which is what happened when each of them summed its own base.
+     *
+     * @param raincoGroupKeys  brand-group keys belonging to Rainco; the cash discount
+     *                         applies to these and nothing else
+     * @param plasticGroupKey  the key plastic lines are collapsed under, or null
+     */
     public InvoiceTotals computeInvoiceTotals(
             Map<Long, BigDecimal> brandGroupValues,
             Map<Long, BigDecimal> brandSlabPcts,
             InvoiceType invoiceType,
-            BigDecimal raincoGross,
+            Set<Long> raincoGroupKeys,
+            Long plasticGroupKey,
             BigDecimal rainCoCashDiscPct,
             BigDecimal plasticDiscountPct,
-            BigDecimal plasticDiscountAmt,
-            BigDecimal plasticGross
+            BigDecimal plasticDiscountAmt
     ) {
         InvoiceTotals t = new InvoiceTotals();
 
-        // 1. Gross total
-        for (BigDecimal v : brandGroupValues.values()) {
-            t.grossTotal = t.grossTotal.add(v);
-        }
+        Set<Long> raincoKeys = raincoGroupKeys == null ? Set.of() : raincoGroupKeys;
 
-        // 2. Slab discounts (sum across all brand groups)
+        // 1 & 2. Gross, and the slab discount per group. The after-slab value of each
+        // group is kept, because that is what any later discount works from.
+        BigDecimal raincoAfterSlab  = BigDecimal.ZERO;
+        BigDecimal plasticAfterSlab = BigDecimal.ZERO;
+
         for (Map.Entry<Long, BigDecimal> e : brandGroupValues.entrySet()) {
+            BigDecimal value = e.getValue() == null ? BigDecimal.ZERO : e.getValue();
+            t.grossTotal = t.grossTotal.add(value);
+
             BigDecimal pct = brandSlabPcts.getOrDefault(e.getKey(), BigDecimal.ZERO);
-            BigDecimal disc = e.getValue().multiply(pct).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            BigDecimal disc = value.multiply(pct)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
             t.totalSlabDiscount = t.totalSlabDiscount.add(disc);
+
+            BigDecimal afterSlab = value.subtract(disc);
+            if (raincoKeys.contains(e.getKey())) {
+                raincoAfterSlab = raincoAfterSlab.add(afterSlab);
+            }
+            if (plasticGroupKey != null && plasticGroupKey.equals(e.getKey())) {
+                plasticAfterSlab = plasticAfterSlab.add(afterSlab);
+            }
         }
 
-        // 3. Rainco cash discount (on gross Rainco, before slab reduction — matches Ventura behaviour)
-        if (invoiceType == InvoiceType.CASH && rainCoCashDiscPct != null && raincoGross != null
-                && raincoGross.compareTo(BigDecimal.ZERO) > 0) {
-            t.cashDiscountAmount = raincoGross
+        // 3. Rainco cash discount — on the Rainco value net of its slab discount.
+        if (invoiceType == InvoiceType.CASH && rainCoCashDiscPct != null
+                && raincoAfterSlab.compareTo(BigDecimal.ZERO) > 0) {
+            t.cashDiscountAmount = raincoAfterSlab
                     .multiply(rainCoCashDiscPct)
                     .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
         }
 
-        // 4. Plastic discount (pct preferred over fixed)
-        if (plasticGross != null && plasticGross.compareTo(BigDecimal.ZERO) > 0) {
+        // 4. Plastic discount, likewise on the plastic value after its own slab.
+        // A percentage is preferred over a fixed amount; a fixed amount is what it says.
+        if (plasticAfterSlab.compareTo(BigDecimal.ZERO) > 0) {
             if (plasticDiscountPct != null && plasticDiscountPct.compareTo(BigDecimal.ZERO) > 0) {
-                t.plasticDiscount = plasticGross
+                t.plasticDiscount = plasticAfterSlab
                         .multiply(plasticDiscountPct)
                         .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
             } else if (plasticDiscountAmt != null && plasticDiscountAmt.compareTo(BigDecimal.ZERO) > 0) {

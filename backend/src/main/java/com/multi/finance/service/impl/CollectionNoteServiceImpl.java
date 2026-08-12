@@ -142,9 +142,15 @@ public class CollectionNoteServiceImpl {
     }
 
     @Transactional
+    /**
+     * An admin cash collection creates a confirmed payment straight away, so deleting the
+     * note has to undo that too — the payment is reversed and the bill's balance restored
+     * before the note goes. Without this the delete fails on the payment's foreign key.
+     */
     public void delete(Long id) {
         collectionNoteRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Collection note not found"));
+        paymentService.reversePaymentForCollectionNote(id);
         collectionNoteRepository.deleteById(id);
     }
 

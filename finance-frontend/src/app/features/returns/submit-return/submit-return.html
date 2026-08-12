@@ -79,7 +79,103 @@
   <div class="form-card" *ngIf="selectedBill && returnType">
     <div class="section-title">3. Items</div>
 
-    <div class="product-search-wrap" *ngIf="!isPlastic && products.length > 0">
+    <!-- Where the goods came from. Off this bill the discount is known; off an
+         older bill it has to be typed. -->
+    <div class="source-toggle" *ngIf="canPickFromBill">
+      <button type="button" class="source-btn" [class.on]="sourceMode === 'BILL'"
+              (click)="setSourceMode('BILL')">
+        <mat-icon>receipt_long</mat-icon>
+        <span>
+          <strong>From this bill</strong>
+          <small>Price and discount as charged</small>
+        </span>
+      </button>
+      <button type="button" class="source-btn" [class.on]="sourceMode === 'CATALOGUE'"
+              (click)="setSourceMode('CATALOGUE')">
+        <mat-icon>inventory_2</mat-icon>
+        <span>
+          <strong>From a previous bill</strong>
+          <small>Pick the item and type the discount</small>
+        </span>
+      </button>
+    </div>
+
+    <div class="no-lines-note" *ngIf="!loadingLines && !canPickFromBill">
+      <mat-icon>info</mat-icon>
+      <span>
+        This bill has no invoice behind it, so its lines cannot be listed. Pick the
+        items from the catalogue and type the discount that was given.
+      </span>
+    </div>
+
+    <!-- Cash is only asked when it cannot be read off the bill. -->
+    <div class="cash-toggle" *ngIf="cashOffered && !fromSameBill">
+      <span class="cash-label">This sale was</span>
+      <button type="button" class="chip" [class.on]="!cashSale"
+              (click)="cashSale = false; recalcAll()">Credit</button>
+      <button type="button" class="chip cash" [class.on]="cashSale"
+              (click)="cashSale = true; recalcAll()">Cash &minus;{{ cashPct || 5 }}%</button>
+    </div>
+
+    <div class="cash-note" *ngIf="fromSameBill && cashApplies">
+      <mat-icon>payments</mat-icon>
+      <span>
+        Cash sale &mdash; {{ cashPct }}% comes off the credit on Rainco items, as it did
+        at purchase. Stationery and plastic never carried it.
+      </span>
+    </div>
+
+    <div class="plastic-note" *ngIf="isPlastic">
+      <mat-icon>info</mat-icon>
+      <span>
+        Plastic is sold at flat WSP, so it is credited at flat WSP with no discount.
+        Type over any amount that should differ &mdash; the admin is shown that it was edited.
+      </span>
+    </div>
+
+    <!-- Prices and quantities are read once when the bill is chosen; this picks up
+         anything changed in Items since, without losing what has been entered. -->
+    <div class="refresh-row">
+      <button type="button" class="refresh-btn" (click)="refreshProducts()"
+              [disabled]="refreshing"
+              matTooltip="Reload items — picks up price and quantity changes made since this return was started">
+        <mat-icon [class.spinning]="refreshing">refresh</mat-icon>
+        <span>{{ refreshing ? 'Refreshing…' : 'Refresh Items' }}</span>
+      </button>
+      <span class="refresh-note" *ngIf="refreshedAt">
+        Reloaded at {{ refreshedAt | date:'h:mm:ss a' }}
+      </span>
+    </div>
+
+    <div class="items-dropped" *ngIf="droppedItems.length > 0">
+      <mat-icon>warning</mat-icon>
+      Removed — no longer available to return:
+      <strong>{{ droppedItems.join(', ') }}</strong>
+    </div>
+
+    <!-- The bill's own lines. -->
+    <div class="bill-lines" *ngIf="fromSameBill">
+      <div class="bill-lines-head">Items on this bill</div>
+      <div class="bill-line" *ngFor="let l of returnableLines"
+           [class.exhausted]="l.qtyAvailable <= 0"
+           [class.added]="isLineAdded(l)"
+           (click)="addBillLine(l)">
+        <div class="bl-main">
+          <span class="bl-code">{{ l.itemCode }}</span>
+          <span class="bl-desc">{{ l.description }}</span>
+        </div>
+        <div class="bl-meta">
+          <span class="bl-qty">
+            {{ l.qtyAvailable }} of {{ l.qtySold }} left
+          </span>
+          <span class="bl-price">Rs {{ l.wsp | number:'1.2-2' }}</span>
+          <span class="bl-disc" *ngIf="l.appliedDiscountPct">&minus;{{ l.appliedDiscountPct }}%</span>
+          <mat-icon class="bl-add" *ngIf="l.qtyAvailable > 0">add_circle_outline</mat-icon>
+        </div>
+      </div>
+    </div>
+
+    <div class="product-search-wrap" *ngIf="!fromSameBill && !isPlastic && products.length > 0">
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Search catalog ({{ products.length }} products)</mat-label>
         <input matInput
@@ -97,38 +193,61 @@
       </div>
     </div>
 
-    <button mat-stroked-button (click)="addManualItem()" class="add-manual-btn">
+    <button mat-stroked-button (click)="addManualItem()" class="add-manual-btn"
+            *ngIf="!fromSameBill">
       <mat-icon>add</mat-icon> Add Item Manually
     </button>
 
     <div class="items-table" *ngIf="items.length > 0">
       <div class="items-header">
         <span class="col-name">Item</span>
-        <span class="col-price">Unit Price</span>
-        <span class="col-qty">Qty Requested</span>
-        <span class="col-total">Total</span>
+        <span class="col-price">WSP</span>
+        <span class="col-qty">Qty</span>
+        <span class="col-disc">Disc %</span>
+        <span class="col-total">Credit</span>
         <span class="col-action"></span>
       </div>
 
-      <div class="item-row" *ngFor="let item of items; let i = index">
+      <div class="item-row" *ngFor="let item of items; let i = index"
+           [class.edited]="item.creditOverride != null">
         <div class="col-name">
           <input class="item-input" [(ngModel)]="item.itemName"
-                 [readonly]="!!item.productId"
+                 [readonly]="!!item.productId || !!item.invoiceLineId"
                  placeholder="Item name"
                  (change)="updateLineTotal(item)">
+          <span class="line-src" *ngIf="item.invoiceLineId">on this bill</span>
         </div>
         <div class="col-price">
           <input class="item-input num-input" type="number" [(ngModel)]="item.unitPrice"
-                 [readonly]="!!item.productId"
+                 [readonly]="!!item.productId || !!item.invoiceLineId"
                  placeholder="0.00"
                  (ngModelChange)="updateLineTotal(item)">
         </div>
         <div class="col-qty">
           <input class="item-input num-input" type="number" [(ngModel)]="item.quantityRequested"
-                 min="1" placeholder="1"
+                 min="1" [max]="item.qtyAvailable ?? null" placeholder="1"
+                 (ngModelChange)="updateLineTotal(item)">
+          <span class="qty-cap" *ngIf="item.qtyAvailable != null">/ {{ item.qtyAvailable }}</span>
+        </div>
+        <div class="col-disc">
+          <!-- Read off the invoice line for a same-bill return, so not editable there. -->
+          <input class="item-input num-input" type="number" [(ngModel)]="item.slabDiscountPct"
+                 [readonly]="!!item.invoiceLineId || isPlastic"
+                 min="0" max="100" placeholder="0"
                  (ngModelChange)="updateLineTotal(item)">
         </div>
-        <div class="col-total">Rs {{ item.lineTotal | number:'1.2-2' }}</div>
+        <div class="col-total">
+          <input class="item-input num-input credit-input"
+                 type="number"
+                 [ngModel]="item.creditOverride != null ? item.creditOverride : item.computedCredit"
+                 (ngModelChange)="item.creditOverride = $event; updateLineTotal(item)"
+                 min="0">
+          <button type="button" class="undo-edit" *ngIf="item.creditOverride != null"
+                  (click)="resetOverride(item)"
+                  title="Back to the calculated Rs {{ item.computedCredit | number:'1.2-2' }}">
+            <mat-icon>undo</mat-icon>
+          </button>
+        </div>
         <div class="col-action">
           <button mat-icon-button color="warn" (click)="removeItem(i)">
             <mat-icon>delete_outline</mat-icon>
@@ -136,21 +255,37 @@
         </div>
       </div>
 
-      <div class="items-footer">
-        <span>Items Total</span>
-        <span>Rs {{ itemsTotal | number:'1.2-2' }}</span>
+      <div class="credit-working">
+        <div class="cw-row">
+          <span>Gross (WSP &times; qty)</span>
+          <span>Rs {{ itemsTotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="cw-row" *ngIf="slabTotal > 0">
+          <span>Less item discount</span>
+          <span>&minus; Rs {{ slabTotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="cw-row" *ngIf="cashTotal > 0">
+          <span>Less cash discount ({{ cashPct }}%)</span>
+          <span>&minus; Rs {{ cashTotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="cw-row cw-total">
+          <span>Return credit</span>
+          <span>Rs {{ creditTotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="cw-edited" *ngIf="anyEdited">
+          <mat-icon>edit</mat-icon>
+          An amount was typed over the calculation. The admin sees this on review.
+        </div>
       </div>
     </div>
   </div>
 
   <div class="form-card" *ngIf="selectedBill && returnType && items.length > 0 && isSalable">
-    <div class="section-title">4. Discount (optional)</div>
+    <div class="section-title">4. Further discount (optional)</div>
+    <p class="card-hint">
+      A flat amount off the whole return, on top of the per-item working above.
+    </p>
     <div class="discount-row">
-      <mat-form-field appearance="outline">
-        <mat-label>Discount %</mat-label>
-        <input matInput type="number" [(ngModel)]="discountPercentage" min="0" max="100" placeholder="0">
-        <span matSuffix>%</span>
-      </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>Fixed Discount</mat-label>
         <input matInput type="number" [(ngModel)]="discountFixed" min="0" placeholder="0.00">
@@ -189,12 +324,16 @@
 
     <div class="summary-box">
       <div class="summary-row">
-        <span>Items Total</span>
+        <span>Gross (WSP &times; qty)</span>
         <span>Rs {{ itemsTotal | number:'1.2-2' }}</span>
       </div>
-      <div class="summary-row" *ngIf="discountPercentage">
-        <span>Discount ({{ discountPercentage }}%)</span>
-        <span>- Rs {{ (itemsTotal * discountPercentage / 100) | number:'1.2-2' }}</span>
+      <div class="summary-row" *ngIf="slabTotal > 0">
+        <span>Less item discount</span>
+        <span>- Rs {{ slabTotal | number:'1.2-2' }}</span>
+      </div>
+      <div class="summary-row" *ngIf="cashTotal > 0">
+        <span>Less cash discount ({{ cashPct }}%)</span>
+        <span>- Rs {{ cashTotal | number:'1.2-2' }}</span>
       </div>
       <div class="summary-row" *ngIf="discountFixed">
         <span>Fixed Discount</span>

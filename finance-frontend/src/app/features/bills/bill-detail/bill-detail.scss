@@ -810,3 +810,135 @@
 .age-warn { background: #fff8e1; color: #ef6c00; }
 .age-late { background: #ffebee; color: #c62828; }
 .muted    { color: #aaa; }
+
+
+// ── Returns on the bill ─────────────────────────────────────────────
+.info-row .ret-ico {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  vertical-align: -3px;
+  margin-right: 4px;
+  opacity: .7;
+}
+
+// Invoiced less returns - the figure collection should actually work from.
+.payable-row {
+  border-top: 1px dashed #d7dde3;
+  padding-top: 8px;
+
+  .label { font-weight: 600; }
+}
+
+.payable-amount {
+  font-weight: 700;
+  color: #00695c;
+}
+
+// A return nobody has answered means the payable amount is not yet known.
+.returns-gate {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: #fff3e0;
+  color: #a34700;
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; flex-shrink: 0; }
+  strong { display: block; font-size: 13px; margin-bottom: 2px; }
+  span   { font-size: 12px; line-height: 1.5; }
+}
+
+.open-returns-badge {
+  margin-left: 8px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #fff3e0;
+  color: #a34700;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ret-status {
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  background: rgba(0, 0, 0, .06);
+  color: #546e7a;
+
+  &.ret-pending         { background: #fff3e0; color: #a34700; }
+  &.ret-goods_confirmed { background: #e3f2fd; color: #1565c0; }
+  &.ret-approved        { background: #e8f5e9; color: #1b5e20; }
+  &.ret-rejected,
+  &.ret-not_received    { background: #eceff1; color: #546e7a; }
+  &.ret-cancelled       { background: #f3e5f5; color: #6a1b9a; }
+}
+
+.ret-goods-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 14px 10px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  background: #e8f5e9;
+  color: #1b5e20;
+
+  &.short { background: #fff3e0; color: #a34700; }
+
+  mat-icon { font-size: 17px; width: 17px; height: 17px; flex-shrink: 0; }
+  strong { display: block; }
+  span { display: block; font-style: italic; margin-top: 2px; }
+}
+
+// The accountant answers here, on the bill they are already looking at.
+.ret-confirm-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 14px 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f5f7f9;
+  border: 1px dashed #cfd8dc;
+
+  .rc-ask {
+    font-size: 12px;
+    font-weight: 600;
+    color: #455a64;
+    margin-right: 4px;
+  }
+
+  button { font-size: 12px; }
+}
+
+
+// Hidden from the aging report — said plainly, because a bill missing from a report
+// people act on should never be a surprise to whoever opens it.
+.aging-hidden-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: #eceff1;
+  border-left: 3px solid #607d8b;
+  color: #37474f;
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; flex-shrink: 0; }
+  strong { display: block; font-size: 13px; margin-bottom: 2px; }
+  span   { display: block; font-size: 12px; line-height: 1.5; }
+  em     { font-style: normal; opacity: .75; }
+
+  .ahb-note { margin-top: 3px; font-size: 11px; opacity: .8; }
+}

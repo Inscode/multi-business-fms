@@ -19,6 +19,10 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     @Query("SELECT i FROM Item i JOIN FETCH i.brand WHERE i.category = :category AND i.active = true ORDER BY i.brand.name, i.description")
     List<Item> findByCategoryWithBrand(@Param("category") CategoryType category);
 
+    /** Includes inactive items — the Items screen manages them, pickers filter them out. */
+    @Query("SELECT i FROM Item i JOIN FETCH i.brand WHERE i.category = :category ORDER BY i.brand.name, i.description")
+    List<Item> findByCategoryWithBrandIncludingInactive(@Param("category") CategoryType category);
+
     // FMS runs with open-in-view=false, so the brand must be fetched eagerly for list mapping
     @Query("SELECT i FROM Item i JOIN FETCH i.brand ORDER BY i.brand.name, i.description")
     List<Item> findAllWithBrand();
@@ -26,4 +30,9 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     @Modifying
     @Query("UPDATE Item i SET i.stockQty = i.stockQty + :delta WHERE i.id = :id")
     void adjustStock(@Param("id") Long id, @Param("delta") int delta);
+
+    /** Moves damaged units in or out of the damage bucket; never touches sellable stock. */
+    @Modifying
+    @Query("UPDATE Item i SET i.damageQty = i.damageQty + :delta WHERE i.id = :id")
+    void adjustDamageStock(@Param("id") Long id, @Param("delta") int delta);
 }

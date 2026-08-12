@@ -49,7 +49,7 @@ export class DispatchTab implements OnInit {
   billTypeFilter: 'ALL' | 'CASH' | 'CREDIT' = 'ALL';
   showAssigned = false;
 
-  businesses = ['', 'RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+  businesses = ['', 'RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE', 'MIX'];
 
   selection = new SelectionModel<BillResponse>(true, []);
 

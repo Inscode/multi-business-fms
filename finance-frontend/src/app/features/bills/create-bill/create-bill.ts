@@ -12,7 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Router } from '@angular/router';
-import { Bill } from '../../../core/services/bill';
+import { Bill, BillNumberOption } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { CustomerService } from '../../../core/services/customer';
 import { localDateStr } from '../../../core/utils/date-utils';
@@ -61,7 +61,12 @@ export class CreateBill implements OnInit{
     return ['SYSTEM', 'MANUAL', 'DRAFT'];
   }
 
-  suggestedBillNumbers: number[] = [];
+  suggestedBillNumbers: BillNumberOption[] = [];
+
+  missingCount(): number { return this.suggestedBillNumbers.filter(n => n.missing).length; }
+  firstNewNumber(): number | null {
+    return this.suggestedBillNumbers.find(n => !n.missing)?.number ?? null;
+  }
   loadingNumbers = false;
   readonly String = String;
 
@@ -237,8 +242,11 @@ export class CreateBill implements OnInit{
         this.billService.getNextBillNumbers(business, billSource).subscribe({
           next: (nums) => {
             this.suggestedBillNumbers = nums;
-            if (nums.length > 0 && !this.form.get('billNumber')?.value && !this.isAdmin) {
-              this.form.get('billNumber')?.setValue(String(nums[0]));
+            // Default to the next fresh number, never to a gap — a missing number is a
+            // question for someone to answer, not something to assign by accident.
+            const firstNew = nums.find(n => !n.missing);
+            if (firstNew && !this.form.get('billNumber')?.value && !this.isAdmin) {
+              this.form.get('billNumber')?.setValue(String(firstNew.number));
             }
             this.loadingNumbers = false;
             this.cdr.markForCheck();

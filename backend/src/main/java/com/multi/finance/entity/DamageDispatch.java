@@ -1,6 +1,7 @@
 package com.multi.finance.entity;
 
 import com.multi.finance.enums.BusinessType;
+import com.multi.finance.enums.DispatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,6 +37,25 @@ public class DamageDispatch {
 
     @Column
     private String notes;
+
+    /**
+     * Damage stock is only deducted when this reaches APPROVED — a pending dispatch
+     * records the intent without moving anything.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private DispatchStatus status = DispatchStatus.PENDING;
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by", nullable = false)

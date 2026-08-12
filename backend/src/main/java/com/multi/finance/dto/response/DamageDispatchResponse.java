@@ -18,6 +18,10 @@ public class DamageDispatchResponse {
     private BigDecimal predictedValue;
     private String notes;
     private String enteredByName;
+    private String status;
+    private String rejectionReason;
+    private String reviewedByName;
+    private LocalDateTime reviewedAt;
     private LocalDateTime createdAt;
     private List<ItemResponse> items;
 

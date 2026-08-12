@@ -13,7 +13,12 @@ public class BillAuditSessionResponse {
     private LocalDate periodMonth;
     private String businessScope;
     private String areaScope;
+    private Long openedById;
     private String openedByName;
+    /** True when the caller owns this sweep, or is an admin. */
+    private boolean canEdit;
+    /** True only when the caller opened it — admins can edit others' but don't own them. */
+    private boolean mine;
     private LocalDateTime openedAt;
     private LocalDateTime closedAt;
 

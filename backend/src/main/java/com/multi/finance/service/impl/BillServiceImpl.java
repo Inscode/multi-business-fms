@@ -1,5 +1,6 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.service.BillBalance;
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.request.BulkAssignBillRequest;
@@ -50,6 +51,8 @@ import java.util.stream.Collectors;
 public class BillServiceImpl {
 
     private final BillRepository billRepository;
+    private final com.multi.finance.repository.CollectionNoteRepository collectionNoteRepository;
+    private final com.multi.finance.repository.WorkerPaymentEntryRepository workerPaymentEntryRepository;
     private final WorkerRepository workerRepository;
     private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
@@ -57,6 +60,7 @@ public class BillServiceImpl {
     private final BillReviewRepository billReviewRepository;
     private final BillNumberSkipRepository billNumberSkipRepository;
     private final BillReturnRepository billReturnRepository;
+    private final com.multi.finance.invoicing.repository.SystemSettingsRepository settingsRepository;
 
     public BillResponse createBill(BillRequest request) {
         User currentUser = getCurrentUser();
@@ -73,6 +77,9 @@ public class BillServiceImpl {
         }
 
         String billNumber = switch (request.getBillSource()) {
+            // Raised by the invoicing module, never typed in here.
+            case INVOICE -> throw new RuntimeException(
+                    "Invoice bills are created from the invoicing module, not entered by hand");
             case DRAFT  -> generateDraftNumber(request.getBusiness());
             case SYSTEM -> {
                 String num = "SYS-" + stripLeadingZeros(request.getBillNumber());
@@ -502,9 +509,7 @@ public class BillServiceImpl {
         }
         if (request.getTotalAmount() != null) {
             bill.setTotalAmount(request.getTotalAmount());
-            BigDecimal newBalance = request.getTotalAmount().subtract(bill.getAmountPaid());
-            bill.setBalanceRemaining(newBalance.max(BigDecimal.ZERO));
-            bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
+            BillBalance.recompute(bill);
         }
         if (request.getWorkerId() != null) {
             Worker worker = workerRepository.findById(request.getWorkerId())
@@ -516,17 +521,89 @@ public class BillServiceImpl {
         return toResponse(billRepository.save(bill));
     }
 
+    /**
+     * Deletes a bill entered in error, along with its own paperwork.
+     *
+     * <p>The paperwork goes by database cascade rather than by clearing table after
+     * table here: about fifteen tables hang off a bill, and enumerating them in Java is
+     * what caused deletes to fail on whichever one was forgotten.
+     *
+     * <p>What is refused is anything representing money that has already moved or work
+     * somebody else has done — a confirmed payment, a worker's collection, a collection
+     * note. Those must be unwound deliberately, not swept away by deleting the bill
+     * they happen to point at. The reasons are gathered and reported together, so the
+     * accountant learns everything blocking them in one go.
+     */
+    /**
+     * Hides a bill from the aging report, or puts it back.
+     *
+     * <p>Admin only, and never a delete: the balance stays owed and stays on the bill.
+     * All this says is that it is not chaseable debt worth reporting, so the aging
+     * report stops overstating what can actually be collected. Who did it and why are
+     * kept, so the decision can be explained months later or simply undone.
+     */
+    @Transactional
+    public BillResponse setAgingVisibility(Long id, boolean excluded, String reason, String by) {
+        Bill bill = findBillById(id);
+
+        if (excluded && (reason == null || reason.isBlank())) {
+            throw new RuntimeException(
+                    "Give a reason for keeping this bill off the aging report — it stays owed, "
+                  + "so somebody will ask why it is missing.");
+        }
+
+        bill.setExcludedFromAging(excluded);
+        bill.setAgingExclusionReason(excluded ? reason : null);
+        bill.setAgingExcludedBy(excluded ? by : null);
+        bill.setAgingExcludedAt(excluded ? LocalDateTime.now() : null);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    /** Bills currently hidden from the aging report, so they can be reviewed and restored. */
+    @Transactional(readOnly = true)
+    public List<BillResponse> getAgingExcludedBills(com.multi.finance.enums.BusinessType business) {
+        return billRepository.findExcludedFromAging(business)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
     @Transactional
     public void deleteBill(Long id) {
         Bill bill = findBillById(id);
 
-        boolean hasConfirmed = paymentRepository.existsByBillIdAndStatus(bill.getId(), com.multi.finance.enums.PaymentStatus.CONFIRMED);
-        if (hasConfirmed) {
-            throw new RuntimeException("Cannot delete a bill that has confirmed payments");
+        List<String> blockers = new ArrayList<>();
+
+        if (paymentRepository.existsByBillIdAndStatus(
+                bill.getId(), com.multi.finance.enums.PaymentStatus.CONFIRMED)) {
+            blockers.add("it has confirmed payments");
+        }
+        int workerEntries = workerPaymentEntryRepository.findByBillId(bill.getId()).size();
+        if (workerEntries > 0) {
+            blockers.add(workerEntries + " worker collection entr"
+                    + (workerEntries == 1 ? "y is" : "ies are") + " recorded against it");
+        }
+        int notes = collectionNoteRepository.findByBillId(bill.getId()).size();
+        if (notes > 0) {
+            blockers.add(notes + " collection note" + (notes == 1 ? " is" : "s are") + " linked to it");
+        }
+        boolean creditedReturn = billReturnRepository
+                .findByBillIdOrderBySubmittedAtDesc(bill.getId()).stream()
+                .anyMatch(r -> r.getStatus() == com.multi.finance.enums.ReturnStatus.APPROVED);
+        if (creditedReturn) {
+            blockers.add("an approved return has already credited it and moved stock");
         }
 
+        if (!blockers.isEmpty()) {
+            throw new RuntimeException(
+                    "This bill cannot be deleted because " + String.join(", and ", blockers)
+                  + ". Reverse those first if the bill really should go.");
+        }
+
+        // Unconfirmed payments and open returns are the bill's own and go with it. The
+        // rest of its records follow by cascade.
         paymentRepository.deleteAll(paymentRepository.findByBillId(bill.getId()));
-        billReturnRepository.deleteAll(billReturnRepository.findByBillIdOrderBySubmittedAtDesc(bill.getId()));
+        billReturnRepository.deleteAll(
+                billReturnRepository.findByBillIdOrderBySubmittedAtDesc(bill.getId()));
         billRepository.delete(bill);
     }
 
@@ -573,23 +650,23 @@ public class BillServiceImpl {
     // Returns next 5 suggested bill numbers for the given business+source combo.
     // Shared physical book (BK- prefix): PLASTIC MANUAL + STATIONERY MANUAL + RAINCO MANUAL_BOOK.
     // Takes GREATEST across bills table and skip table so continuation pages don't re-appear.
-    public List<Integer> getNextBillNumbers(BusinessType business, BillSource billSource) {
-        int maxInBills;
-        int maxInSkips;
-
+    public List<BillNumberOption> getNextBillNumbers(BusinessType business, BillSource billSource) {
         boolean isSharedBook = billSource == BillSource.MANUAL_BOOK
                 || (billSource == BillSource.MANUAL
                     && (business == BusinessType.PLASTIC || business == BusinessType.STATIONERY));
 
+        List<Integer> used;
+        List<Integer> approvedSkips;
+
         if (isSharedBook) {
-            maxInBills = coalesce(billRepository.findMaxSharedBookBillNumber());
-            maxInSkips = coalesce(billNumberSkipRepository.findMaxSharedBookSkippedNumber());
+            used = billRepository.findUsedSharedBookBillNumbers();
+            approvedSkips = billNumberSkipRepository.findApprovedSharedBookSkippedNumbers();
         } else if (billSource == BillSource.MANUAL) {
-            maxInBills = coalesce(billRepository.findMaxManualBillNumber(business.name()));
-            maxInSkips = coalesce(billNumberSkipRepository.findMaxSkippedNumber(business.name()));
+            used = billRepository.findUsedManualBillNumbers(business.name());
+            approvedSkips = billNumberSkipRepository.findApprovedSkippedNumbers(business.name());
         } else {
-            maxInBills = coalesce(billRepository.findMaxSystemBillNumber(business.name()));
-            maxInSkips = 0; // skips only apply to MANUAL/MANUAL_BOOK bills
+            used = billRepository.findUsedSystemBillNumbers(business.name());
+            approvedSkips = List.of(); // skips only apply to MANUAL/MANUAL_BOOK bills
         }
 
         int count;
@@ -602,11 +679,56 @@ public class BillServiceImpl {
             count = 5; // RAINCO MANUAL and all other combos
         }
 
-        int next = Math.max(maxInBills, maxInSkips) + 1;
-        List<Integer> options = new ArrayList<>();
-        for (int i = 0; i < count; i++) options.add(next + i);
+        java.util.Set<Integer> taken = new java.util.HashSet<>(used);
+        taken.addAll(approvedSkips);
+
+        int max = taken.stream().mapToInt(Integer::intValue).max().orElse(0);
+
+        // Where this run actually begins. Numbers below it predate the books in use and
+        // are not worth reporting as missing.
+        int floor = sequenceFloor(business, billSource, isSharedBook);
+
+        List<BillNumberOption> options = new ArrayList<>();
+
+        // Holes at or above the floor. Previously the list started above the maximum, so a
+        // number nobody entered vanished for good and no one could tell it had been missed.
+        // They are listed first, and flagged, because a gap is a question to answer rather
+        // than simply the next number to take.
+        int lowest = Math.max(floor, taken.stream().mapToInt(Integer::intValue).min().orElse(floor));
+        for (int n = lowest; n < max; n++) {
+            if (!taken.contains(n)) options.add(new BillNumberOption(n, true));
+        }
+
+        // A run with nothing in it yet still starts at its floor rather than at 1.
+        int next = Math.max(max, floor - 1);
+        for (int i = 1; i <= count; i++) options.add(new BillNumberOption(next + i, false));
         return options;
     }
+
+    /**
+     * The first number worth tracking for a run, from {@code bill_seq_floor_*} in settings.
+     * Zero when nothing is configured, which keeps the old behaviour of reporting every gap.
+     */
+    private int sequenceFloor(BusinessType business, BillSource billSource, boolean isSharedBook) {
+        String key = isSharedBook
+                ? "bill_seq_floor_SHARED_BOOK"
+                : "bill_seq_floor_" + business.name() + "_"
+                  + (billSource == BillSource.MANUAL ? "MANUAL" : "SYSTEM");
+        return settingsRepository.findByKey(key)
+                .map(setting -> {
+                    try { return Integer.parseInt(setting.getValue().trim()); }
+                    catch (NumberFormatException e) { return 0; }
+                })
+                .orElse(0);
+    }
+
+    /**
+     * A number offered in the create-bill dropdown.
+     *
+     * @param missing true when it sits in a hole below the highest number used — never
+     *                entered and not an approved continuation-page skip
+     */
+    public record BillNumberOption(int number, boolean missing) {}
 
     private int coalesce(Integer value) {
         return value == null ? 0 : value;
@@ -624,6 +746,12 @@ public class BillServiceImpl {
                 .filter(b -> b.getBalanceRemaining() != null
                         && b.getBalanceRemaining().compareTo(BigDecimal.ZERO) > 0
                         && !Boolean.TRUE.equals(b.getWillBeLinked()))
+                // Paid off is paid off, whatever the status happens to say. A return
+                // credit can settle a bill without anything moving it to COMPLETED.
+                .filter(b -> !Boolean.TRUE.equals(b.getFullyPaid()))
+                // Hidden by an admin. The printable export already honoured this; the
+                // on-screen report did not, so the two disagreed.
+                .filter(b -> !Boolean.TRUE.equals(b.getExcludedFromAging()))
                 .collect(Collectors.toList());
 
         // Bulk-fetch last confirmed payment dates — single query, no N+1

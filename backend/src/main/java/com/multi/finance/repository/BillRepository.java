@@ -80,6 +80,9 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     boolean existsByBillNumberAndBusiness(String billNumber, BusinessType business);
 
+    /** Lets invoicing attach to a bill already entered by hand instead of raising a second one. */
+    java.util.Optional<Bill> findByBillNumberAndBusiness(String billNumber, BusinessType business);
+
     List<Bill> findAllByOrderByCreatedAtDesc();
     List<Bill> findByBusinessOrderByCreatedAtDesc(BusinessType business);
     List<Bill> findByStatusOrderByCreatedAtDesc(BillStatus status);
@@ -110,18 +113,23 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findUnassignedSystemBills();
 
     // DRAFT/MANUAL bills not yet linked to any system bill via BillStockLink (all businesses)
+    // Settled and cancelled bills are left out of every month-end view: they are
+    // closed, and listing them only buries the ones still needing work.
     @Query("SELECT b FROM Bill b WHERE b.billSource IN ('DRAFT', 'MANUAL') " +
+           "AND b.status NOT IN ('COMPLETED', 'CANCELLED') " +
            "AND NOT EXISTS (SELECT l FROM BillStockLink l WHERE l.childBill = b) " +
            "ORDER BY b.billDate DESC")
     List<Bill> findUnlinkedDraftManualBills();
 
     // All DRAFT/MANUAL bills — for the unlinked dashboard
-    @Query("SELECT b FROM Bill b WHERE b.billSource IN ('DRAFT', 'MANUAL') ORDER BY b.billDate DESC")
+    @Query("SELECT b FROM Bill b WHERE b.billSource IN ('DRAFT', 'MANUAL') " +
+           "AND b.status NOT IN ('COMPLETED', 'CANCELLED') ORDER BY b.billDate DESC")
     List<Bill> findAllDraftManualBills();
 
     // SYSTEM bills available for linking: willBeLinked=true AND not yet used as parent
     @Query("SELECT b FROM Bill b WHERE b.billSource = 'SYSTEM' " +
            "AND b.willBeLinked = true " +
+           "AND b.status NOT IN ('COMPLETED', 'CANCELLED') " +
            "AND NOT EXISTS (SELECT l FROM BillStockLink l WHERE l.systemBill = b) " +
            "ORDER BY b.billDate DESC")
     List<Bill> findAvailableSystemBillsForLinking();
@@ -179,6 +187,9 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findShopAccountantActiveBills();
 
     // All SYSTEM bills flagged as willBeLinked=true (linking bills tab)
+    /** Month-end linking list. Closed bills are excluded — nothing left to link. */
+    @Query("SELECT b FROM Bill b WHERE b.willBeLinked = true " +
+           "AND b.status NOT IN ('COMPLETED', 'CANCELLED') ORDER BY b.billDate DESC")
     List<Bill> findByWillBeLinkedTrueOrderByBillDateDesc();
 
     // Settled CREDIT bills since cutoff — feeds the DSO-proxy trend on the Collection Health dashboard
@@ -220,6 +231,21 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
                    "WHERE bill_number ~ '^BK-[0-9]+$'", nativeQuery = true)
     Integer findMaxSharedBookBillNumber();
 
+    // ── Every number used, not just the highest ──────────────────────────────
+    // The suggestion list needs the gaps, and a MAX() can't show a hole in the middle.
+
+    @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 5) AS INTEGER) FROM bills " +
+                   "WHERE business = :business AND bill_number ~ '^MAN-[0-9]+$'", nativeQuery = true)
+    List<Integer> findUsedManualBillNumbers(@Param("business") String business);
+
+    @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 5) AS INTEGER) FROM bills " +
+                   "WHERE business = :business AND bill_number ~ '^SYS-[0-9]+$'", nativeQuery = true)
+    List<Integer> findUsedSystemBillNumbers(@Param("business") String business);
+
+    @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 4) AS INTEGER) FROM bills " +
+                   "WHERE bill_number ~ '^BK-[0-9]+$'", nativeQuery = true)
+    List<Integer> findUsedSharedBookBillNumbers();
+
     // Global full-table search across all statuses/dates — excludes DEMO business
     @Query("SELECT b FROM Bill b WHERE b.business <> 'DEMO' AND (LOWER(b.billNumber) LIKE LOWER(CONCAT('%',:q,'%')) OR LOWER(b.customerName) LIKE LOWER(CONCAT('%',:q,'%'))) ORDER BY b.billDate DESC")
     List<Bill> globalSearch(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
@@ -239,10 +265,19 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
      */
     @Query("SELECT b FROM Bill b WHERE b.balanceRemaining > 0 " +
            "AND b.status <> 'CANCELLED' AND b.billDate <= :cutoff " +
+           "AND (b.willBeLinked IS NULL OR b.willBeLinked = false) " +
            "AND (:business IS NULL OR b.business = :business) " +
            "AND (:area IS NULL OR b.area = :area) " +
            "ORDER BY b.area ASC, b.billDate ASC")
     List<Bill> findPendingForAudit(@Param("cutoff") LocalDate cutoff,
                                    @Param("business") BusinessType business,
                                    @Param("area") String area);
+
+    /** Bills the admin has hidden from the aging report, so they can be reviewed. */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT b FROM Bill b WHERE b.business = :business AND b.excludedFromAging = true "
+      + "ORDER BY b.billDate DESC")
+    List<Bill> findExcludedFromAging(
+        @org.springframework.data.repository.query.Param("business")
+        com.multi.finance.enums.BusinessType business);
 }

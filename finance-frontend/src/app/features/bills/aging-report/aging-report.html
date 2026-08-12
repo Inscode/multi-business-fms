@@ -21,15 +21,23 @@
 
   <!-- Print / download scope -->
   <div class="export-bar" *ngIf="report && !loading">
-    <span class="export-label"><mat-icon>print</mat-icon> Print or download</span>
+    <span class="export-label"><mat-icon>description</mat-icon> View or download</span>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="export-field">
-      <mat-label>Area</mat-label>
-      <mat-select [(ngModel)]="exportArea">
-        <mat-option value="">All areas</mat-option>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="export-field area-field">
+      <mat-label>Areas</mat-label>
+      <mat-select [(ngModel)]="exportSelectedAreas" multiple
+                  panelClass="area-multi-panel">
+        <mat-select-trigger>{{ areaScopeLabel }}</mat-select-trigger>
         <mat-option *ngFor="let a of exportAreas" [value]="a">{{ a }}</mat-option>
       </mat-select>
+      <mat-hint *ngIf="exportSelectedAreas.length === 0">All areas</mat-hint>
     </mat-form-field>
+
+    <button type="button" class="clear-areas" *ngIf="exportSelectedAreas.length > 0"
+            (click)="selectAllAreas()"
+            matTooltip="Back to every area">
+      <mat-icon>clear</mat-icon>
+    </button>
 
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="export-field">
       <mat-label>Bill type</mat-label>
@@ -48,8 +56,9 @@
       </mat-select>
     </mat-form-field>
 
-    <button mat-flat-button color="primary" (click)="printReport()">
-      <mat-icon>print</mat-icon> Print
+    <button mat-flat-button color="primary" (click)="printReport()"
+            matTooltip="Opens the report to read; print it from there when you are ready">
+      <mat-icon>visibility</mat-icon> View Report
     </button>
     <button mat-stroked-button (click)="downloadExcel()" [disabled]="downloading">
       <mat-spinner diameter="16" *ngIf="downloading"></mat-spinner>

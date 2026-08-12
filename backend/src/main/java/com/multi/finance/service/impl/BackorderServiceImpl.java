@@ -1,5 +1,6 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.service.BillBalance;
 import com.multi.finance.dto.request.BackorderItemRequest;
 import com.multi.finance.dto.request.BackorderSubmitRequest;
 import com.multi.finance.dto.response.BackorderReqItemResponse;
@@ -135,8 +136,7 @@ public class BackorderServiceImpl {
 
         if (totalToAdd.compareTo(BigDecimal.ZERO) > 0) {
             bill.setTotalAmount(bill.getTotalAmount().add(totalToAdd));
-            bill.setBalanceRemaining(bill.getTotalAmount().subtract(bill.getAmountPaid()));
-            bill.setUpdatedAt(LocalDateTime.now());
+            BillBalance.recompute(bill);
             billRepository.save(bill);
         }
 

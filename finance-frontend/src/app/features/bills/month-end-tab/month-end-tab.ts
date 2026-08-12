@@ -46,7 +46,7 @@ export class MonthEndTab implements OnInit {
   selectedBusiness = '';
   selectedAreas: string[] = [];
 
-  businesses = ['RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+  businesses = ['RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE', 'MIX'];
   areas: string[] = [];
 
   view: ViewMode = 'TO_CHECK';

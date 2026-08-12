@@ -1,6 +1,7 @@
 package com.multi.finance.service.impl;
 
 
+import com.multi.finance.service.BillBalance;
 import com.multi.finance.dto.request.BulkPaymentRequest;
 import com.multi.finance.dto.request.PaymentRequest;
 import com.multi.finance.dto.response.PaymentGroupResponse;
@@ -42,6 +43,35 @@ public class PaymentServiceImpl {
     private final PaymentGroupRepository paymentGroupRepository;
     private final CollectionNoteRepository collectionNoteRepository;
     private final WorkerRepository workerRepository;
+    private final com.multi.finance.repository.BillReturnRepository billReturnRepository;
+
+    /** Returns nobody has confirmed or reviewed yet; these hold up a payment. */
+    private static final List<com.multi.finance.enums.ReturnStatus> UNSETTLED_RETURNS =
+            List.of(com.multi.finance.enums.ReturnStatus.PENDING,
+                    com.multi.finance.enums.ReturnStatus.GOODS_CONFIRMED);
+
+    /**
+     * Refuses a payment while a return on the bill is still unanswered.
+     *
+     * <p>This is the check that stops returns being missed. A return entered but never
+     * confirmed means goods may be sitting with the customer uncredited, or credited
+     * for stock that never came back — either way the amount being collected is wrong.
+     * Putting the block at payment entry catches it at the one moment somebody is
+     * certain to be looking at the bill.
+     */
+    private void guardOpenReturns(Bill bill) {
+        List<com.multi.finance.entity.BillReturn> open =
+                billReturnRepository.findByBillIdAndStatusIn(bill.getId(), UNSETTLED_RETURNS);
+        if (open.isEmpty()) return;
+
+        boolean awaitingGoods = open.stream()
+                .anyMatch(r -> r.getStatus() == com.multi.finance.enums.ReturnStatus.PENDING);
+        throw new RuntimeException(awaitingGoods
+                ? "This bill has " + open.size() + " return(s) with no goods confirmation. "
+                + "Confirm what came back before entering a payment — the amount owed depends on it."
+                : "This bill has " + open.size() + " confirmed return(s) still awaiting admin review. "
+                + "The payable amount is not final until they are reviewed.");
+    }
 
     @Transactional
     public PaymentResponse enterPayment(
@@ -71,6 +101,8 @@ public class PaymentServiceImpl {
                         "Shop accountant can only enter payments for bills with status: ASSIGNED, SHOP_RECEIVED or SHOP_WORKER_ASSIGNED");
             }
         }
+
+        guardOpenReturns(bill);
 
         // Balance is deducted immediately at entry time.
         // balanceRemaining already reflects all previously entered payments.
@@ -191,6 +223,28 @@ public class PaymentServiceImpl {
         return toResponse(payment, bill);
     }
 
+    /**
+     * Reverses the payment auto-created from an admin cash collection, so the note can be
+     * deleted when it was entered wrongly. Unlike deletePayment this accepts a CONFIRMED
+     * payment — self-confirmed collections are always confirmed at creation, and the admin
+     * deleting the note is the same authority that confirmed it.
+     */
+    @Transactional
+    public void reversePaymentForCollectionNote(Long collectionNoteId) {
+        paymentRepository.findByCollectionNoteId(collectionNoteId).ifPresent(payment -> {
+            if (payment.getStatus() == PaymentStatus.RETURNED
+                    || payment.getStatus() == PaymentStatus.REJECTED) {
+                // Balance was already restored when it was returned/rejected
+                paymentRepository.delete(payment);
+                return;
+            }
+            Bill bill = payment.getBill();
+            restoreBalance(bill, payment.getAmount());
+            paymentRepository.delete(payment);
+            syncCompletionStatus(bill);
+        });
+    }
+
     @Transactional
     public PaymentResponse confirmPayment(Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
@@ -283,14 +337,8 @@ public class PaymentServiceImpl {
         }
 
         Bill bill = payment.getBill();
-        BigDecimal restored = bill.getAmountPaid().subtract(payment.getAmount());
-        BigDecimal newBalance = bill.getTotalAmount().subtract(restored);
-
-        bill.setAmountPaid(restored);
-        bill.setBalanceRemaining(newBalance);
-        bill.setFullyPaid(false);
+        BillBalance.reversePayment(bill, payment.getAmount());
         bill.setStatus(BillStatus.STORE_RECEIVED);
-        bill.setUpdatedAt(LocalDateTime.now());
         billRepository.save(bill);
 
         payment.setStatus(PaymentStatus.RETURNED);
@@ -313,26 +361,14 @@ public class PaymentServiceImpl {
     }
 
     private void applyBalanceDeduction(Bill bill, BigDecimal amount) {
-        BigDecimal newBalance = bill.getBalanceRemaining().subtract(amount);
-        bill.setBalanceRemaining(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
-        bill.setAmountPaid(bill.getAmountPaid().add(amount));
-        bill.setFullyPaid(bill.getBalanceRemaining().compareTo(BigDecimal.ZERO) <= 0);
-        bill.setUpdatedAt(LocalDateTime.now());
+        BillBalance.applyPayment(bill, amount);
         billRepository.save(bill);
         syncCompletionStatus(bill);
     }
 
     private void restoreBalance(Bill bill, BigDecimal amount) {
-        BigDecimal newBalance = bill.getBalanceRemaining().add(amount);
-        BigDecimal newPaid = bill.getAmountPaid().subtract(amount);
-        bill.setBalanceRemaining(newBalance);
-        bill.setAmountPaid(newPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newPaid);
-        bill.setFullyPaid(false);
-        if (bill.getStatus() == BillStatus.COMPLETED
-                || bill.getStatus() == BillStatus.AWAITING_CONFIRMATION) {
-            bill.setStatus(BillStatus.STORE_RECEIVED);
-        }
-        bill.setUpdatedAt(LocalDateTime.now());
+        BillBalance.reversePayment(bill, amount);
+        BillBalance.reopenIfClosed(bill, BillStatus.STORE_RECEIVED);
         billRepository.save(bill);
     }
 
@@ -412,14 +448,10 @@ public class PaymentServiceImpl {
         // Adjust balance for amount change — applies to all payment types.
         BigDecimal diff = request.getAmount().subtract(payment.getAmount());
         Bill bill = payment.getBill();
-        BigDecimal newBalance = bill.getBalanceRemaining().subtract(diff);
-        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+        if (bill.getBalanceRemaining().subtract(diff).compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("Updated amount exceeds remaining balance");
         }
-        bill.setBalanceRemaining(newBalance);
-        bill.setAmountPaid(bill.getAmountPaid().add(diff));
-        bill.setFullyPaid(newBalance.compareTo(BigDecimal.ZERO) <= 0);
-        bill.setUpdatedAt(LocalDateTime.now());
+        BillBalance.applyPayment(bill, diff);
         billRepository.save(bill);
         syncCompletionStatus(bill);
 
@@ -509,6 +541,7 @@ public class PaymentServiceImpl {
             if (bill.getFullyPaid()) {
                 throw new RuntimeException("Bill " + item.getBillId() + " is already fully paid");
             }
+            guardOpenReturns(bill);
             if (item.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
                 throw new RuntimeException("Amount exceeds balance for bill: " + bill.getBillNumber());
             }
@@ -595,14 +628,8 @@ public class PaymentServiceImpl {
         for (Payment payment : payments) {
             Bill bill = payment.getBill();
 
-            BigDecimal restored   = bill.getAmountPaid().subtract(payment.getAmount());
-            BigDecimal newBalance = bill.getTotalAmount().subtract(restored);
-
-            bill.setAmountPaid(restored);
-            bill.setBalanceRemaining(newBalance);
-            bill.setFullyPaid(false);
+            BillBalance.reversePayment(bill, payment.getAmount());
             bill.setStatus(BillStatus.STORE_RECEIVED);
-            bill.setUpdatedAt(LocalDateTime.now());
             billRepository.save(bill);
 
             payment.setStatus(PaymentStatus.RETURNED);

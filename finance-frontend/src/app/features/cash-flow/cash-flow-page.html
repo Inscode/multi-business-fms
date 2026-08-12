@@ -1,0 +1,310 @@
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Cash Flow</h1>
+      <p class="page-sub">
+        Money still to come against money falling due — cash already banked isn't counted
+      </p>
+    </div>
+    <div class="header-actions">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="horizon-field">
+        <mat-label>Next</mat-label>
+        <mat-select [(ngModel)]="horizonDays" (ngModelChange)="onHorizonChange()">
+          <mat-option *ngFor="let h of horizons" [value]="h">{{ h }} days</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button mat-icon-button (click)="load()" matTooltip="Refresh" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="error-box" *ngIf="error">{{ error }}</div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="34"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="forecast && !loading">
+
+    <!-- Headline -->
+    <div class="headline">
+      <div class="hl-card in">
+        <span class="hl-label">Coming in</span>
+        <span class="hl-value">Rs {{ forecast.totalIncoming | number:'1.0-0' }}</span>
+        <span class="hl-note">cheques dated within {{ forecast.horizonDays }} days</span>
+      </div>
+      <div class="hl-op">−</div>
+      <div class="hl-card out">
+        <span class="hl-label">Falling due</span>
+        <span class="hl-value">Rs {{ forecast.totalOutgoing | number:'1.0-0' }}</span>
+        <span class="hl-note">GRN dues + recorded commitments</span>
+      </div>
+      <div class="hl-op">=</div>
+      <div class="hl-card net" [ngClass]="netClass(forecast.totalNet)">
+        <span class="hl-label">Net position</span>
+        <span class="hl-value">Rs {{ forecast.totalNet | number:'1.0-0' }}</span>
+        <span class="hl-note">
+          {{ forecast.totalNet >= 0 ? 'Going forward' : 'Short — collections must improve' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="context-row">
+      <span class="ctx">
+        <mat-icon>schedule</mat-icon>
+        {{ forecast.from | date:'dd MMM' }} → {{ forecast.to | date:'dd MMM yyyy' }}
+      </span>
+      <span class="ctx" *ngIf="forecast.totalOverdueOutgoing > 0">
+        <mat-icon class="warn-icon">error_outline</mat-icon>
+        Rs {{ forecast.totalOverdueOutgoing | number:'1.0-0' }} already past its date
+      </span>
+      <span class="ctx needs-terms" *ngIf="forecast.untermedCount > 0">
+        <mat-icon>report_problem</mat-icon>
+        {{ forecast.untermedCount }} GRN{{ forecast.untermedCount === 1 ? '' : 's' }}
+        (Rs {{ forecast.totalUntermed | number:'1.0-0' }}) have no payment terms —
+        owed, but not counted. Set "Pay in (days)" on them.
+      </span>
+      <span class="ctx muted">
+        <mat-icon>help_outline</mat-icon>
+        Rs {{ forecast.totalUndatedReceivable | number:'1.0-0' }} owed by customers with no
+        collection date — not counted above
+      </span>
+    </div>
+
+    <mat-tab-group animationDuration="0ms" class="cf-tabs">
+
+      <!-- ── Per business ─────────────────────────────────────────── -->
+      <mat-tab label="By Business">
+        <div class="tab-body">
+          <div class="table-wrap">
+            <table class="cf-table">
+              <thead>
+                <tr>
+                  <th>Business</th>
+                  <th class="r">Cheques in hand</th>
+                  <th class="r">GRN dues</th>
+                  <th class="r">Other commitments</th>
+                  <th class="r">Total out</th>
+                  <th class="r">Net</th>
+                  <th class="r">No terms</th>
+                  <th class="r">Receivable (undated)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let b of forecast.businesses">
+                  <td class="bold">{{ b.business }}</td>
+                  <td class="r">
+                    {{ b.chequesIncoming | number:'1.0-0' }}
+                    <span class="muted small">({{ b.chequeCount }})</span>
+                  </td>
+                  <td class="r">{{ b.purchasesDue | number:'1.0-0' }}</td>
+                  <td class="r">{{ b.payablesDue | number:'1.0-0' }}</td>
+                  <td class="r">{{ b.totalOutgoing | number:'1.0-0' }}</td>
+                  <td class="r bold" [ngClass]="netClass(b.net)">{{ b.net | number:'1.0-0' }}</td>
+                  <td class="r" [class.needs-terms]="b.untermedCount > 0">
+                    {{ b.untermed ? (b.untermed | number:'1.0-0') : '—' }}
+                    <span class="muted small" *ngIf="b.untermedCount > 0">({{ b.untermedCount }})</span>
+                  </td>
+                  <td class="r muted">{{ b.undatedReceivable | number:'1.0-0' }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>TOTAL</td>
+                  <td class="r">{{ forecast.totalIncoming | number:'1.0-0' }}</td>
+                  <td colspan="2"></td>
+                  <td class="r">{{ forecast.totalOutgoing | number:'1.0-0' }}</td>
+                  <td class="r" [ngClass]="netClass(forecast.totalNet)">
+                    {{ forecast.totalNet | number:'1.0-0' }}
+                  </td>
+                  <td class="r">{{ forecast.totalUntermed | number:'1.0-0' }}</td>
+                  <td class="r muted">{{ forecast.totalUndatedReceivable | number:'1.0-0' }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <p class="foot-note">
+            Net = cheques in hand − everything falling due. A negative figure means that
+            business can't meet its commitments from cheques alone and needs cash collections
+            to close the gap.
+          </p>
+        </div>
+      </mat-tab>
+
+      <!-- ── Timeline ─────────────────────────────────────────────── -->
+      <mat-tab label="Timeline">
+        <div class="tab-body">
+          <div class="empty-state" *ngIf="visibleEntries.length === 0">
+            <mat-icon>event_busy</mat-icon>
+            <p>Nothing dated in the next {{ horizonDays }} days.</p>
+          </div>
+
+          <div class="table-wrap" *ngIf="visibleEntries.length > 0">
+            <table class="cf-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Business</th>
+                  <th>Type</th>
+                  <th>Reference</th>
+                  <th>Party</th>
+                  <th class="r">In</th>
+                  <th class="r">Out</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let e of visibleEntries" [class.overdue-row]="e.overdue">
+                  <td>
+                    {{ e.date | date:'dd MMM yyyy' }}
+                    <span class="chip-overdue" *ngIf="e.overdue">overdue</span>
+                  </td>
+                  <td class="muted">{{ e.business }}</td>
+                  <td><span class="src-chip" [ngClass]="e.source.toLowerCase()">{{ e.source }}</span></td>
+                  <td class="mono">{{ e.reference ?? '—' }}</td>
+                  <td>{{ e.party ?? '—' }}</td>
+                  <td class="r pos">{{ e.direction === 'IN' ? (e.amount | number:'1.0-0') : '' }}</td>
+                  <td class="r neg">{{ e.direction === 'OUT' ? (e.amount | number:'1.0-0') : '' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- ── Commitments with no GRN ──────────────────────────────── -->
+      <mat-tab label="Commitments">
+        <div class="tab-body">
+
+          <div class="commit-intro">
+            <mat-icon>info</mat-icon>
+            <div>
+              <strong>Cheques you've already written for older purchases</strong>
+              <span>
+                Anything the principal will present that has no GRN here — including
+                obligations from before this system. Without them the forecast looks
+                healthier than it is. Details you don't have can be left blank; the
+                amount and date are what matter.
+              </span>
+            </div>
+          </div>
+
+          <div class="commit-bar">
+            <button mat-flat-button color="primary" (click)="openPayableForm()" *ngIf="!showPayableForm">
+              <mat-icon>add</mat-icon> Add commitment
+            </button>
+            <span class="spacer"></span>
+            <span class="commit-total">
+              Outstanding: <strong>Rs {{ unsettledTotal | number:'1.0-0' }}</strong>
+            </span>
+            <button mat-stroked-button (click)="showSettled = !showSettled">
+              {{ showSettled ? 'Hide settled' : 'Show settled' }}
+            </button>
+          </div>
+
+          <!-- Entry form -->
+          <div class="commit-form card" *ngIf="showPayableForm">
+            <div class="cf-row">
+              <mat-form-field appearance="outline" class="biz-field">
+                <mat-label>Business</mat-label>
+                <mat-select [(ngModel)]="newPayable.business">
+                  <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Description *</mat-label>
+                <input matInput [(ngModel)]="newPayable.description"
+                       placeholder="e.g. Cheque for July load" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="amt-field">
+                <mat-label>Amount *</mat-label>
+                <input matInput type="number" min="0" [(ngModel)]="newPayable.amount" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="date-field">
+                <mat-label>Due / cheque date *</mat-label>
+                <input matInput type="date" [(ngModel)]="newPayable.dueDate" />
+              </mat-form-field>
+            </div>
+
+            <div class="cf-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Supplier</mat-label>
+                <input matInput [(ngModel)]="newPayable.supplierName" placeholder="Optional" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Cheque no.</mat-label>
+                <input matInput [(ngModel)]="newPayable.chequeNumber" placeholder="Optional" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Bank</mat-label>
+                <input matInput [(ngModel)]="newPayable.bankName" placeholder="Optional" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Notes</mat-label>
+                <input matInput [(ngModel)]="newPayable.notes" placeholder="Optional" />
+              </mat-form-field>
+            </div>
+
+            <div class="form-actions">
+              <button mat-button (click)="cancelPayableForm()">Cancel</button>
+              <button mat-flat-button color="primary" (click)="savePayable()"
+                      [disabled]="!payableValid || saving">
+                {{ saving ? 'Saving…' : 'Save commitment' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="empty-state" *ngIf="visiblePayables.length === 0">
+            <mat-icon>fact_check</mat-icon>
+            <p>No commitments recorded.</p>
+          </div>
+
+          <div class="table-wrap" *ngIf="visiblePayables.length > 0">
+            <table class="cf-table">
+              <thead>
+                <tr>
+                  <th>Due</th>
+                  <th>Business</th>
+                  <th>Description</th>
+                  <th>Supplier</th>
+                  <th>Cheque</th>
+                  <th class="r">Amount</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of visiblePayables" [class.settled-row]="p.settled">
+                  <td [ngClass]="dueClass(p.daysUntilDue)">
+                    {{ p.dueDate | date:'dd MMM yyyy' }}
+                    <span class="muted small" *ngIf="!p.settled">
+                      ({{ p.daysUntilDue >= 0 ? p.daysUntilDue + 'd' : (-p.daysUntilDue) + 'd ago' }})
+                    </span>
+                  </td>
+                  <td class="muted">{{ p.business }}</td>
+                  <td>{{ p.description }}</td>
+                  <td class="muted">{{ p.supplierName ?? '—' }}</td>
+                  <td class="mono">{{ p.chequeNumber ?? '—' }}</td>
+                  <td class="r bold">{{ p.amount | number:'1.0-0' }}</td>
+                  <td class="actions">
+                    <button mat-icon-button (click)="toggleSettled(p)"
+                            [matTooltip]="p.settled ? 'Mark as still owed' : 'Mark as paid'">
+                      <mat-icon>{{ p.settled ? 'undo' : 'check_circle' }}</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="deletePayable(p)" matTooltip="Delete">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </ng-container>
+</div>

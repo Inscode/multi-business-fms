@@ -107,8 +107,8 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
     const role = this.auth.getRole();
     if (role === 'SHOP_ACCOUNTANT') return ['RETAIL_SHOP'];
     if (role === 'ACCOUNTANT' || role === 'MAIN_ACCOUNTANT')
-      return ['', 'RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
-    return ['', 'RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE']; // ADMIN / OWNER
+      return ['', 'RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE', 'MIX'];
+    return ['', 'RAINCO', 'RETAIL_SHOP', 'STATIONERY', 'PLASTIC', 'HARDWARE', 'MIX']; // ADMIN / OWNER
   }
 
   get isShopAccountant(): boolean { return this.auth.getRole() === 'SHOP_ACCOUNTANT'; }

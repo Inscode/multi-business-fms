@@ -36,5 +36,11 @@ public class InvoiceResponse {
     private LocalDateTime createdAt;
     private boolean duplicatePrint;
 
+    /** The bill raised in the bills section, where payments are collected. */
+    private Long billId;
+
+    /** Attached to a bill that already existed — this invoice only moved the stock. */
+    private boolean billLinkedExisting;
+
     private List<InvoiceLineResponse> lines;
 }

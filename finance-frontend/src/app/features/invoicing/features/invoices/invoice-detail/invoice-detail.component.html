@@ -10,6 +10,18 @@
         <mat-icon>print</mat-icon> Print
       </button>
     }
+    @if (invoice && isAdmin) {
+      <a mat-stroked-button [routerLink]="['/invoicing/invoices', invoice.id, 'edit']"
+         matTooltip="Change items, quantities, free issue or discounts">
+        <mat-icon>edit</mat-icon> Edit
+      </a>
+    }
+    @if (invoice?.billId) {
+      <a mat-stroked-button [routerLink]="['/bills', invoice!.billId]"
+         matTooltip="Payments for this invoice are collected on its bill">
+        <mat-icon>receipt</mat-icon> Open bill for payment
+      </a>
+    }
   </div>
 
   @if (loading) {
@@ -23,6 +35,19 @@
       {{ error }}
     </div>
   } @else if (invoice) {
+    @if (invoice.billLinkedExisting) {
+      <div class="linked-banner no-print">
+        <mat-icon>inventory_2</mat-icon>
+        <div>
+          <strong>Stock only — no second bill was raised</strong>
+          <span>
+            A bill numbered {{ invoice.invoiceNo }} was already in the bills section, entered
+            by hand. This invoice attached to it and moved the stock; the money is collected
+            on that bill, and editing this invoice will not change its amount.
+          </span>
+        </div>
+      </div>
+    }
     <div class="invoice-doc">
 
       <!-- Invoice header -->

@@ -47,7 +47,11 @@ export class AgingReport implements OnInit {
   expandedAreas = new Set<string>();
 
   // ── Export scope (print / Excel) ────────────────────────────────
-  exportArea = '';
+  /**
+    * Areas to print. Empty means every area — a rep's round rarely maps onto one area,
+    * and printing a sheet per area to staple together helps nobody.
+    */
+  exportSelectedAreas: string[] = [];
   exportBillType: '' | 'CASH' | 'CREDIT' = '';
   exportSort: 'AGE' | 'AMOUNT' = 'AGE';
   downloading = false;
@@ -60,9 +64,26 @@ export class AgingReport implements OnInit {
       .sort();
   }
 
+  /** What the scope reads as on screen, before anything is printed. */
+  get areaScopeLabel(): string {
+    const n = this.exportSelectedAreas.length;
+    if (n === 0) return 'All areas';
+    if (n === 1) return this.exportSelectedAreas[0];
+    if (n <= 3) return this.exportSelectedAreas.join(', ');
+    return `${n} areas`;
+  }
+
+  selectAllAreas(): void {
+    this.exportSelectedAreas = [];
+    this.cdr.markForCheck();
+  }
+
   private exportParams(): Record<string, string> {
     const params: Record<string, string> = { business: this.selectedBusiness };
-    if (this.exportArea) params['area'] = this.exportArea;
+    // Joined rather than repeated, so the same parameter serves one area or many.
+    if (this.exportSelectedAreas.length) {
+      params['area'] = this.exportSelectedAreas.join(',');
+    }
     if (this.exportBillType) params['billType'] = this.exportBillType;
     params['sort'] = this.exportSort;
     return params;
@@ -79,7 +100,7 @@ export class AgingReport implements OnInit {
     this.cdr.markForCheck();
     this.billService.downloadAgingExcel(
       this.selectedBusiness,
-      this.exportArea || undefined,
+      this.exportSelectedAreas.length ? this.exportSelectedAreas.join(',') : undefined,
       this.exportBillType || undefined,
       this.exportSort,
     ).subscribe({
@@ -88,7 +109,11 @@ export class AgingReport implements OnInit {
         const a = document.createElement('a');
         a.href = url;
         a.download = `aging-${this.selectedBusiness.toLowerCase()}`
-          + (this.exportArea ? `-${this.exportArea.toLowerCase().replace(/ /g, '-')}` : '')
+          + (this.exportSelectedAreas.length === 1
+              ? `-${this.exportSelectedAreas[0].toLowerCase().replace(/ /g, '-')}`
+              : this.exportSelectedAreas.length > 1
+                ? `-${this.exportSelectedAreas.length}-areas`
+                : '')
           + (this.exportBillType ? `-${this.exportBillType.toLowerCase()}` : '')
           + `-${new Date().toISOString().slice(0, 10)}.xlsx`;
         a.click();
@@ -101,7 +126,7 @@ export class AgingReport implements OnInit {
   }
 
   get businesses(): string[] {
-    return this.auth.isDemo ? ['DEMO'] : ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+    return this.auth.isDemo ? ['DEMO'] : ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE', 'MIX'];
   }
 
   get isDemo(): boolean { return this.auth.isDemo; }

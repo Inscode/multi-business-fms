@@ -35,4 +35,29 @@ public class BillReturnResponse {
     private String reviewedByName;
     private LocalDateTime reviewedAt;
     private BigDecimal shortfallAmount;
+
+    /** Items came off this bill's own invoice lines. */
+    private Boolean fromSameBill;
+    private Boolean cashSale;
+    private BigDecimal cashDiscountPct;
+
+    // Accountant's goods-received confirmation, read by the admin on review
+    private String goodsReceipt;
+    private String goodsConfirmedByName;
+    private LocalDateTime goodsConfirmedAt;
+    private String goodsConfirmedNote;
+
+    /** A line credit was typed over — the admin should look at it. */
+    private Boolean amountEdited;
+    private String amountEditedBy;
+
+    private Boolean stockApplied;
+
+    // Admin reversal
+    private String cancelledByName;
+    private LocalDateTime cancelledAt;
+    private String cancelReason;
+
+    /** Still awaiting a confirmation or a review, and therefore blocking payment. */
+    private Boolean open;
 }

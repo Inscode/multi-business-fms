@@ -282,3 +282,357 @@
   vertical-align: -2px;
   margin-left: 3px;
 }
+
+
+// ── Customer picker on each previewed invoice ──────────────────────────
+.cust-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f4f8;
+  background: #fafbfd;
+}
+
+.billed-as {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+
+  .ba-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: #90a4ae; }
+  .ba-name  { font-size: 13px; font-weight: 600; color: #37474f; }
+}
+
+.cust-field { width: 280px; }
+
+.opt-code {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #90a4ae;
+  font-family: monospace;
+}
+
+.cust-warn,
+.cust-changed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+.cust-warn    { color: #ef6c00; }
+.cust-changed { color: #1565c0; }
+
+.needs-cust-count {
+  margin-left: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ef6c00;
+}
+
+@media (max-width: 700px) {
+  .cust-field { width: 100%; }
+}
+
+
+// ── Already-imported invoices ──────────────────────────────────────────
+// Skipping a re-upload is the expected outcome, not a failure, so these read
+// as neutral information rather than as errors.
+.dup-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: #eceff1;
+  color: #37474f;
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; color: #607d8b; }
+  strong { display: block; font-size: 13px; margin-bottom: 2px; }
+  span   { font-size: 12px; line-height: 1.5; }
+
+  &.all-dup {
+    background: #e8f5e9;
+    color: #1b5e20;
+    mat-icon { color: #2e7d32; }
+  }
+}
+
+.dup-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #eceff1;
+  color: #37474f;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; color: #607d8b; }
+  strong { display: block; font-size: 12.5px; margin-bottom: 2px; }
+  span   { font-size: 12px; line-height: 1.5; }
+
+  .dup-refs {
+    display: block;
+    margin-top: 3px;
+    font-family: monospace;
+    font-size: 11.5px;
+    color: #78909c;
+    word-break: break-all;
+  }
+}
+
+.dup-count {
+  margin-left: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #607d8b;
+}
+
+.inv-duplicate {
+  border-left: 3px solid #b0bec5;
+  background: #fafafa;
+  opacity: .72;
+}
+
+.dup-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 9px;
+  border-radius: 11px;
+  background: #eceff1;
+  color: #546e7a;
+  font-size: 11px;
+  font-weight: 700;
+
+  mat-icon { font-size: 13px; width: 13px; height: 13px; }
+}
+
+
+// The number the invoice will carry in the bills section, shown before importing.
+.bill-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 11px;
+  background: #e8f0fe;
+  color: #1565c0;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: monospace;
+
+  mat-icon { font-size: 13px; width: 13px; height: 13px; }
+}
+
+
+// Free issue that came off the sheet, versus the umbrella typed here.
+.free-cell { color: #e65100; font-weight: 600; }
+
+.sheet-free {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #fff8e1;
+  color: #e65100;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #f1f4f8;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+.umbrella-field .umb-input { width: 190px; }
+
+
+// Several files can feed one batch, so their products total against one summary bill.
+.batch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  padding: 3px 10px;
+  border-radius: 11px;
+  background: #ede7f6;
+  color: #5e35b1;
+  font-size: 11.5px;
+  font-weight: 700;
+
+  mat-icon { font-size: 15px; width: 15px; height: 15px; }
+}
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+
+// ── Several files feeding one load ────────────────────────────────────
+.file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 11px;
+  border-radius: 16px;
+  background: #eef2f7;
+  color: #37474f;
+  font-size: 12.5px;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; color: #607d8b; }
+  .fc-name { font-weight: 600; max-width: 240px; overflow: hidden;
+             text-overflow: ellipsis; white-space: nowrap; }
+  .fc-size { color: #90a4ae; font-size: 11px; }
+
+  button { width: 24px; height: 24px; line-height: 24px; }
+  button mat-icon { font-size: 15px; width: 15px; height: 15px; }
+}
+
+.dz-actions { display: flex; gap: 8px; align-items: center; justify-content: center; }
+
+// ── Product totals before importing ───────────────────────────────────
+.summary-card { margin-bottom: 14px; overflow: hidden; }
+
+.summary-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: #f7f9fc;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover { background: #eef2f7; }
+
+  mat-icon { color: #607d8b; }
+  .sh-title { font-size: 13px; font-weight: 700; color: #37474f; }
+  .sh-stats { margin-left: auto; font-size: 12px; color: #607d8b; font-weight: 600; }
+  .free { color: #e65100; }
+}
+
+.summary-note {
+  margin: 0;
+  padding: 9px 14px;
+  font-size: 11.5px;
+  color: #90a4ae;
+  border-top: 1px solid #f1f4f8;
+}
+
+// ── Invoices dropped from the load ────────────────────────────────────
+.excluded-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: #eceff1;
+  color: #546e7a;
+  font-size: 12.5px;
+  font-weight: 600;
+
+  .spacer { flex: 1; }
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+// Kept visible rather than hidden, so it is obvious what was left out and
+// putting it back is one click away.
+.inv-excluded {
+  border-left: 3px solid #b0bec5;
+  background: #fafafa;
+  opacity: .55;
+
+  .inv-num { text-decoration: line-through; }
+}
+
+.head-spacer { flex: 1; }
+
+.restore-btn {
+  font-size: 12px;
+  line-height: 28px;
+  min-height: 28px;
+}
+
+
+// The invoice number, editable by an admin on import. It is also the bill number,
+// so it is never allowed to be empty.
+.num-edit {
+  width: 165px;
+
+  ::ng-deep input { font-family: monospace; font-weight: 600; }
+}
+
+.num-missing-field ::ng-deep .mdc-notched-outline__leading,
+.num-missing-field ::ng-deep .mdc-notched-outline__notch,
+.num-missing-field ::ng-deep .mdc-notched-outline__trailing {
+  border-color: #e53935 !important;
+}
+
+.num-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #c62828;
+  font-size: 11.5px;
+  font-weight: 700;
+
+  mat-icon { font-size: 15px; width: 15px; height: 15px; }
+}
+
+
+// Attached to a bill already entered by hand — stock moved, money untouched.
+.stock-only-note {
+  background: #e0f2f1;
+  color: #00695c;
+
+  mat-icon { color: #00897b; }
+}
+
+.stat.stock-only { color: #00695c; font-weight: 700; }
+
+
+// The totals header and the grid button share a row.
+.summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .summary-head { flex: 1; }
+}
+
+.grid-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-right: 12px;
+  padding: 7px 14px;
+  border: 1px solid #cfd8dc;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #37474f;
+  cursor: pointer;
+
+  &:hover { border-color: #1e88e5; background: #e3f2fd; color: #1565c0; }
+  mat-icon { font-size: 17px; width: 17px; height: 17px; }
+}

@@ -68,6 +68,12 @@ export interface BillFilter {
 }
 
 export interface BillResponse {
+  /** Kept off the aging report by an admin. The balance is still owed. */
+  excludedFromAging?: boolean;
+  agingExclusionReason?: string;
+  agingExcludedBy?: string;
+  agingExcludedAt?: string;
+
   id: number;
   billNumber: string;
   business: string;
@@ -104,6 +110,13 @@ export interface SkipReviewResponse {
   submittedAt: string;
 }
 
+/** A number offered in the create-bill dropdown. */
+export interface BillNumberOption {
+  number: number;
+  /** Sits in a hole below the highest number used — never entered, and not an approved skip. */
+  missing: boolean;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -116,8 +129,9 @@ export class Bill {
     return this.http.get<BillResponse[]>(`${this.apiUrl}/search`, { params: { q } });
   }
 
-  getNextBillNumbers(business: string, billSource: string): Observable<number[]> {
-    return this.http.get<number[]>(`${this.apiUrl}/next-numbers`, { params: { business, billSource } });
+  getNextBillNumbers(business: string, billSource: string): Observable<BillNumberOption[]> {
+    return this.http.get<BillNumberOption[]>(`${this.apiUrl}/next-numbers`,
+      { params: { business, billSource } });
   }
 
   getPendingSkips(): Observable<SkipReviewResponse[]> {
@@ -254,6 +268,21 @@ export class Bill {
   markAllBillsReviewed(): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/review/mark-all`, {});
   }
+
+  /**
+   * Hides a bill from the aging report, or puts it back. Admin only. Never a delete —
+   * the balance stays owed, it just stops being reported as chaseable.
+   */
+  setAgingVisibility(billId: number, excluded: boolean, reason?: string): Observable<BillResponse> {
+    return this.http.patch<BillResponse>(
+      `${this.apiUrl}/${billId}/aging-visibility`, { excluded, reason });
+  }
+
+  /** Bills currently hidden, so an exclusion cannot be quietly forgotten. */
+  getAgingExcluded(business: string): Observable<BillResponse[]> {
+    return this.http.get<BillResponse[]>(`${this.apiUrl}/aging-report/excluded`,
+      { params: new HttpParams().set('business', business) });
+  }
 }
 
 export interface AgingExportBillRow {
@@ -302,4 +331,8 @@ export interface AgingExport {
   totalOutstanding: number;
   customerCount: number;
   billCount: number;
+
+  /** Bills an admin kept off this report, and what they come to. */
+  excludedCount?: number;
+  excludedAmount?: number;
 }

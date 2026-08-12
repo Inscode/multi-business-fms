@@ -5,6 +5,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
+import { Auth } from '../../../../../core/services/auth';
 import { catchError, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { InvoiceService } from '../../../core/services/invoice.service';
@@ -15,7 +17,7 @@ import { InvoicePrintComponent } from '../invoice-print/invoice-print.component'
   selector: 'app-invoice-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule,
+  imports: [CommonModule, RouterLink,
             MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule,
             InvoicePrintComponent],
   templateUrl: './invoice-detail.component.html',
@@ -26,6 +28,9 @@ export class InvoiceDetailComponent implements OnInit {
   private svc    = inject(InvoiceService);
   private router = inject(Router);
   private cdr    = inject(ChangeDetectorRef);
+  private auth   = inject(Auth);
+
+  get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
 
   invoice: Invoice | null = null;
   loading = true;

@@ -116,3 +116,25 @@
     }
   }
 }
+
+
+// ── Numbers that were never entered ────────────────────────────────────
+// A hole in the sequence is a question to answer, not just another option,
+// so it reads differently from the fresh numbers below it.
+::ng-deep .num-missing {
+  background: #fff8e1;
+
+  .mdc-list-item__primary-text { color: #e65100 !important; font-weight: 600; }
+}
+
+::ng-deep .missing-tag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #ffe0b2;
+  color: #e65100;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.missing-hint { color: #e65100; font-weight: 600; }

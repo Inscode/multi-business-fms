@@ -232,3 +232,41 @@ app-invoice-print {
   // Material sets an inline margin-left on the content to clear the sidenav
   .mat-drawer-content { margin-left: 0 !important; }
 }
+
+
+/* Printing a dialog.
+ *
+ * A dialog renders in the CDK overlay, which is a sibling of the app root rather than a
+ * child of it. Calling window.print() from inside one therefore prints the screen behind
+ * it as well. The class is put on <body> only for the duration of the print, so nothing
+ * else in the app is affected by it.
+ */
+@media print {
+  body.matrix-print > *:not(.cdk-overlay-container) { display: none !important; }
+
+  body.matrix-print .cdk-overlay-backdrop { display: none !important; }
+
+  /* The overlay positions itself for the screen; on paper it just needs to be a
+     normal block that flows down the page. */
+  body.matrix-print .cdk-overlay-container,
+  body.matrix-print .cdk-global-overlay-wrapper,
+  body.matrix-print .cdk-overlay-pane {
+    position: static !important;
+    display: block !important;
+    max-width: none !important;
+    max-height: none !important;
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
+    overflow: visible !important;
+  }
+
+  body.matrix-print .mat-mdc-dialog-container,
+  body.matrix-print .mat-mdc-dialog-surface {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}

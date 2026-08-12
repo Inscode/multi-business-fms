@@ -510,3 +510,21 @@ $tbl-cols: 26px 180px 1fr 1fr 1fr 1fr 1fr 150px 46px 82px;
 @media (max-width: 600px) {
   .export-bar .export-field { width: 100%; }
 }
+
+
+// Several areas at once — a round rarely maps onto exactly one.
+.export-field.area-field { min-width: 190px; }
+
+.clear-areas {
+  align-self: center;
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #78909c;
+  cursor: pointer;
+
+  &:hover { background: #eceff1; color: #37474f; }
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
