@@ -1,5 +1,7 @@
 package com.multi.finance.invoicing.controller;
 
+import com.multi.finance.invoicing.dto.request.QuoteRequest;
+import java.util.HashMap;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multi.finance.invoicing.dto.response.InvoiceResponse;
@@ -77,15 +79,165 @@ public class ImportController {
         long duplicates = all.stream().filter(VenturaExcelParser.ParsedInvoice::alreadyImported).count();
         long importable = all.stream().filter(p -> !p.blocked() && !p.alreadyImported()).count();
 
-        return ResponseEntity.ok(Map.of(
-                "fileCount", files.length,
-                "invoiceCount", all.size(),
-                "blockedCount", blocked,
-                "duplicateCount", duplicates,
-                "importableCount", importable,
-                "warnings", warnings,
-                "invoices", all.stream().map(VenturaExcelParser.ParsedInvoice::preview).toList()
-        ));
+        // What each invoice comes to under this system's own prices and slabs, worked
+        // out by the same engine that will price it on save. The sheet's printed net is
+        // the agent's figure; showing both is what makes a wrong slab or a stale item
+        // price visible before anything is imported rather than after.
+        List<Map<String, Object>> priced = new ArrayList<>();
+        for (var p : all) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("invoiceNo", p.request().getExternalRef());
+            try {
+                QuoteRequest q = new QuoteRequest();
+                q.setInvoiceType(p.request().getInvoiceType());
+                q.setPlasticDiscountPct(p.request().getPlasticDiscountPct());
+                q.setPlasticDiscountAmount(p.request().getPlasticDiscountAmount());
+                q.setLines(p.request().getLines());
+                var quote = invoiceService.quote(q);
+
+                row.put("systemGross", quote.getGrossTotal());
+                row.put("systemDiscount", quote.getTotalDiscount());
+                row.put("systemNet", quote.getNetTotal());
+                row.put("agentNet", p.preview().netTotal());
+                if (p.preview().netTotal() != null && quote.getNetTotal() != null) {
+                    row.put("variance", p.preview().netTotal().subtract(quote.getNetTotal()));
+                }
+            } catch (RuntimeException e) {
+                // A blocked invoice cannot be priced — an unmatched item has no price to
+                // work from. Reported as unpriceable rather than as a zero.
+                row.put("priceError", e.getMessage());
+            }
+            priced.add(row);
+        }
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("fileCount", files.length);
+        body.put("invoiceCount", all.size());
+        body.put("blockedCount", blocked);
+        body.put("duplicateCount", duplicates);
+        body.put("importableCount", importable);
+        body.put("warnings", warnings);
+        body.put("issues", classifyIssues(all, warnings));
+        body.put("priced", priced);
+        body.put("invoices", all.stream().map(VenturaExcelParser.ParsedInvoice::preview).toList());
+        return ResponseEntity.ok(body);
+    }
+
+    /**
+     * Splits what went wrong into kinds the UI can colour separately.
+     *
+     * <p>A missing customer and a missing item are fixed by different people in
+     * different screens, so running them together in one list makes both harder to
+     * act on. Item problems name the code and the invoice it came from, because that
+     * is what has to be looked up to fix it.
+     */
+    private List<Map<String, Object>> classifyIssues(List<VenturaExcelParser.ParsedInvoice> all,
+                                                     List<String> parseWarnings) {
+        List<Map<String, Object>> issues = new ArrayList<>();
+
+        for (var p : all) {
+            String ref = p.request().getExternalRef();
+
+            // Items the catalogue could not pin down. One entry per code, so a long
+            // invoice does not collapse into a single unreadable line.
+            for (String code : p.unmatchedCodes()) {
+                Map<String, Object> issue = new HashMap<>();
+                issue.put("kind", "ITEM");
+                issue.put("invoiceNo", ref == null ? "" : ref);
+                issue.put("code", code);
+                issue.put("message", "Item " + code + " is not in the catalogue (invoice "
+                                   + (ref == null ? "?" : ref) + ")");
+                issues.add(issue);
+            }
+
+            // No customer resolved from the printed name — someone has to say who it is.
+            if (p.preview().customerId() == null) {
+                issues.add(Map.of(
+                        "kind", "CUSTOMER",
+                        "invoiceNo", ref == null ? "" : ref,
+                        "billedName", p.preview().billedName() == null ? "" : p.preview().billedName(),
+                        "message", "No customer matched \""
+                                 + (p.preview().billedName() == null ? "" : p.preview().billedName())
+                                 + "\" (invoice " + (ref == null ? "?" : ref) + ")"));
+            }
+
+            if (p.missingRef()) {
+                issues.add(Map.of(
+                        "kind", "OTHER",
+                        "invoiceNo", "",
+                        "message", "An invoice on the sheet has no reference number."));
+            }
+        }
+
+        // The parser's own warnings are routed to where they belong rather than
+        // appended wholesale. Most of them restate a fact already carried above — the
+        // customer that did not resolve, the invoice blocked for an unmatched line —
+        // and repeating it in a second list only makes the real ones harder to find.
+        for (String w : parseWarnings) {
+            if (restatesKnownProblem(w)) continue;
+
+            String code = codeMentionedIn(w);
+
+            // Why a code could not be matched belongs on the item it explains.
+            if (code != null && w.contains("the right one is unknown")) {
+                attachReason(issues, code, w);
+                continue;
+            }
+
+            // A catalogue price that disagrees with the sheet is its own problem: the
+            // invoice imports fine and then totals differently from the agent's copy.
+            if (w.contains("does not match the imported price")) {
+                Map<String, Object> issue = new HashMap<>();
+                issue.put("kind", "PRICE");
+                issue.put("invoiceNo", "");
+                issue.put("code", code == null ? "" : code);
+                issue.put("message", stripFilePrefix(w));
+                issues.add(issue);
+                continue;
+            }
+
+            issues.add(Map.of("kind", "OTHER", "invoiceNo", "", "message", stripFilePrefix(w)));
+        }
+        return issues;
+    }
+
+    /** True when a warning only repeats something already listed as its own issue. */
+    private boolean restatesKnownProblem(String w) {
+        return w.contains("no customer matching")
+            || w.contains("customer not resolved")
+            || w.contains("BLOCKED");
+    }
+
+    /** The item code a warning is about, when it names one. */
+    private String codeMentionedIn(String w) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\\b(?:Code|Item)\\s+([A-Za-z0-9][A-Za-z0-9._/-]*)")
+                .matcher(w);
+        return m.find() ? m.group(1) : null;
+    }
+
+    /** Hangs the explanation on the item issue it belongs to. */
+    private void attachReason(List<Map<String, Object>> issues, String code, String warning) {
+        boolean attached = false;
+        for (int i = 0; i < issues.size(); i++) {
+            Map<String, Object> issue = issues.get(i);
+            if ("ITEM".equals(issue.get("kind")) && code.equals(issue.get("code"))) {
+                Map<String, Object> copy = new HashMap<>(issue);
+                copy.put("reason", stripFilePrefix(warning));
+                issues.set(i, copy);
+                attached = true;
+            }
+        }
+        if (!attached) {
+            issues.add(Map.of("kind", "OTHER", "invoiceNo", "",
+                              "message", stripFilePrefix(warning)));
+        }
+    }
+
+    /** Drops the leading "file.xls: " — the file is already named on screen. */
+    private String stripFilePrefix(String w) {
+        int i = w.indexOf(".xls: ");
+        return i >= 0 ? w.substring(i + 6) : w;
     }
 
     /**

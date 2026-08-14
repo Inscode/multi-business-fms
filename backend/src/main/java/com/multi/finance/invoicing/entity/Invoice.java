@@ -127,6 +127,20 @@ public class Invoice {
     @Column(name = "free_issue_added_at")
     private LocalDateTime freeIssueAddedAt;
 
+    /**
+     * A flat discount an admin set for this invoice, replacing the slab rate. Used for
+     * promotions, which are not expressible as value bands. Held here for the record;
+     * the rate itself is snapshotted onto each line like any other.
+     */
+    @Column(name = "discount_override_pct", precision = 5, scale = 2)
+    private BigDecimal discountOverridePct;
+
+    @Column(name = "discount_override_by", length = 100)
+    private String discountOverrideBy;
+
+    @Column(name = "discount_override_at")
+    private LocalDateTime discountOverrideAt;
+
     @Column(name = "edited_by")
     private String editedBy;
 

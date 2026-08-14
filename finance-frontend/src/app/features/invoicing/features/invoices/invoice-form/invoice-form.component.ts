@@ -10,12 +10,16 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { localDateStr } from '../../../../../core/utils/date-utils';
 import { catchError, of } from 'rxjs';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { ItemService } from '../../../core/services/item.service';
 import { CustomerService } from '../../../core/services/customer.service';
 import { Item, Customer, InvoiceMethod, InvoiceType, Quote } from '../../../core/models/models';
 import { Bill, BillNumberOption } from '../../../../../core/services/bill';
+import { Auth } from '../../../../../core/services/auth';
 
 interface LineEntry {
   item: Item;
@@ -32,12 +36,17 @@ interface LineEntry {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule, ReactiveFormsModule,
             MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
-            MatSelectModule, MatProgressSpinnerModule, MatTooltipModule, MatAutocompleteModule],
+            MatSelectModule, MatProgressSpinnerModule, MatTooltipModule, MatAutocompleteModule,
+            MatDatepickerModule, MatNativeDateModule],
   templateUrl: './invoice-form.component.html',
   styleUrl: './invoice-form.component.scss'
 })
 export class InvoiceFormComponent implements OnInit {
   private billApi = inject(Bill);
+  private auth = inject(Auth);
+
+  /** The promotional discount is an admin decision, not a clerical one. */
+  get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
 
   suggestedNumbers: BillNumberOption[] = [];
   loadingNumbers = false;
@@ -78,13 +87,17 @@ export class InvoiceFormComponent implements OnInit {
     method:              ['MIX' as InvoiceMethod, Validators.required],
     invoiceType:         ['CREDIT' as InvoiceType, Validators.required],
     customerId:          [null as number | null,   Validators.required],
-    invoiceDate:         [this.today,              Validators.required],
+    // A Date rather than a string: the picker works in Date, and the value is
+    // formatted back to YYYY-MM-DD on save.
+    invoiceDate:         [new Date() as Date | null,  Validators.required],
     externalRef:         [''],
     billSource:          ['SYSTEM', Validators.required],
     billNumber:          ['', Validators.required],
     agentPrintedNet:     [null as number | null],
     plasticDiscountPct:  [null as number | null],
-    plasticDiscountAmount: [null as number | null]
+    plasticDiscountAmount: [null as number | null],
+    // Admin only: a flat rate replacing the slab, for promotions.
+    discountOverridePct: [null as number | null]
   });
 
   ngOnInit() {
@@ -108,6 +121,7 @@ export class InvoiceFormComponent implements OnInit {
     this.form.get('invoiceType')!.valueChanges.subscribe(() => this.refreshQuote());
     this.form.get('plasticDiscountPct')!.valueChanges.subscribe(() => this.refreshQuote());
     this.form.get('plasticDiscountAmount')!.valueChanges.subscribe(() => this.refreshQuote());
+    this.form.get('discountOverridePct')!.valueChanges.subscribe(() => this.refreshQuote());
 
     this.form.get('billSource')!.valueChanges.subscribe(() => {
       this.form.get('billNumber')!.setValue('');
@@ -143,15 +157,18 @@ export class InvoiceFormComponent implements OnInit {
   private loadForEdit(id: number) {
     this.svc.getById(id).pipe(catchError(() => of(null))).subscribe(inv => {
       if (!inv) { this.error = 'Could not load the invoice'; this.cdr.markForCheck(); return; }
+      // Imported invoices carry the agent's number; typed ones no longer ask for it.
+      this.hasExternalRef = !!(inv.externalRef ?? '').trim();
       this.form.patchValue({
         method: inv.method,
         invoiceType: inv.invoiceType,
         customerId: inv.customerId,
-        invoiceDate: String(inv.invoiceDate).slice(0, 10),
+        invoiceDate: inv.invoiceDate ? new Date(String(inv.invoiceDate).slice(0, 10)) : null,
         externalRef: inv.externalRef ?? '',
         agentPrintedNet: inv.agentPrintedNet ?? null,
         plasticDiscountPct: inv.plasticDiscountPct ?? null,
         plasticDiscountAmount: inv.plasticDiscountAmount ?? null,
+        discountOverridePct: inv.discountOverridePct ?? null,
       }, { emitEvent: false });
       this.form.get('method')!.disable({ emitEvent: false });
       this.form.get('billSource')!.disable({ emitEvent: false });
@@ -326,6 +343,7 @@ export class InvoiceFormComponent implements OnInit {
         invoiceType: v.invoiceType,
         plasticDiscountPct: v.plasticDiscountPct || undefined,
         plasticDiscountAmount: v.plasticDiscountAmount || undefined,
+        discountOverridePct: v.discountOverridePct ?? undefined,
         lines: this.lines.map(l => ({ itemId: l.item.id, qty: l.qty, freeQty: l.freeQty || 0 })),
       }).pipe(catchError(() => of(null))).subscribe(res => {
         if (seq !== this.quoteSeq) return;   // a newer quote already came back
@@ -352,6 +370,220 @@ export class InvoiceFormComponent implements OnInit {
 
   private itemsForMethod(): Item[] {
     return this.items.filter(i => this.itemAllowed(i));
+  }
+
+  // ── Pasting lines instead of typing them ────────────────────────────
+  // The lines come off a photo of the agent's invoice, read by an LLM into
+  // "code,qty,price". Only the code and quantity are used to build the invoice: the
+  // price is a check, not an input. Matching on the code and then verifying the price
+  // means a mistyped code is caught, rather than a misread price quietly selecting a
+  // different item.
+
+  /**
+   * The inline adder sitting under the last line, so another item can be added where
+   * the eye already is rather than by scrolling back to the search at the top.
+   * It offers only items of the chosen bill category, the same list the search uses.
+   */
+  showInlineAdd = false;
+  inlineSearch = '';
+  inlineFiltered: Item[] = [];
+
+  toggleInlineAdd() {
+    this.showInlineAdd = !this.showInlineAdd;
+    this.inlineSearch = '';
+    this.inlineFiltered = this.itemsForMethod().slice(0, 25);
+    this.cdr.markForCheck();
+  }
+
+  filterInline(q: string) {
+    this.inlineSearch = q;
+    const scoped = this.itemsForMethod();
+    const lq = (q ?? '').toLowerCase().trim();
+    this.inlineFiltered = (!lq ? scoped : scoped.filter(i =>
+      i.itemCode.toLowerCase().includes(lq) || i.description.toLowerCase().includes(lq)
+    )).slice(0, 25);
+    this.cdr.markForCheck();
+  }
+
+  /** Adds the picked item and stays open, so several can be added in a row. */
+  addInline(item: Item) {
+    this.addLine(item);
+    this.inlineSearch = '';
+    this.inlineFiltered = this.itemsForMethod().slice(0, 25);
+    this.cdr.markForCheck();
+  }
+
+  // ── Re-reading the customer list mid-invoice ────────────────────────
+  // Customers are loaded once when the form opens, so one added in another tab is
+  // invisible to an invoice already started. Reloading the page would lose the lines.
+
+  refreshingCustomers = false;
+  customersRefreshedAt: Date | null = null;
+
+  refreshCustomers() {
+    if (this.refreshingCustomers) return;
+    this.refreshingCustomers = true;
+    this.cdr.markForCheck();
+
+    this.custSvc.list().pipe(catchError(() => of([] as Customer[]))).subscribe(list => {
+      this.customers = list ?? [];
+
+      // Keep whoever is already chosen selected, and keep their name in the box —
+      // a reload that silently cleared the customer would be worse than not reloading.
+      const chosenId = this.form.value.customerId;
+      const stillThere = this.customers.find(c => c.id === chosenId);
+      if (chosenId != null && !stillThere) {
+        this.form.get('customerId')!.setValue(null);
+        this.customerSearch = '';
+      } else if (stillThere) {
+        this.customerSearch = stillThere.name;
+      }
+
+      this.filteredCustomers = this.customers;
+      this.refreshingCustomers = false;
+      this.customersRefreshedAt = new Date();
+      this.cdr.markForCheck();
+    });
+  }
+
+  showPaste = false;
+  showPastePrompt = false;
+  promptCopied = false;
+  pasteText = '';
+
+  /**
+   * The instruction to hand an AI along with a photo of the agent's invoice.
+   *
+   * <p>Kept here rather than in a note somewhere, so the wording the parser expects and
+   * the wording the user actually sends can never drift apart. UNREADABLE is asked for
+   * deliberately: a guessed digit is worse than a gap somebody gets asked about.
+   */
+  readonly aiPrompt = [
+    'Read this invoice image. Output ONLY CSV, no explanation, no code fences.',
+    '',
+    'First line exactly:',
+    'code,qty,price',
+    '',
+    'Then one row per item line:',
+    '- code: the item code exactly as printed, no spaces added or removed',
+    '- qty: the quantity as a plain number',
+    '- price: the unit price as a plain number, no thousands separators (2050.00)',
+    '',
+    'Rules:',
+    '- Transcribe codes and prices exactly. Do not round, correct or guess.',
+    '- If a value is unreadable, write UNREADABLE rather than guessing.',
+    '- Skip subtotal, discount and total lines. Item rows only.',
+  ].join('\n');
+
+  togglePastePrompt() {
+    this.showPastePrompt = !this.showPastePrompt;
+    this.cdr.markForCheck();
+  }
+
+  copyPrompt() {
+    navigator.clipboard.writeText(this.aiPrompt).then(() => {
+      this.promptCopied = true;
+      this.cdr.markForCheck();
+      setTimeout(() => { this.promptCopied = false; this.cdr.markForCheck(); }, 2000);
+    }).catch(() => {
+      // Clipboard is blocked on insecure origins; the prompt is on screen to select.
+      this.showPastePrompt = true;
+      this.cdr.markForCheck();
+    });
+  }
+  pasteResult: {
+    added: number;
+    unknown: string[];
+    ambiguous: string[];
+    mismatched: { code: string; pasted: number; catalog: number }[];
+  } | null = null;
+
+  togglePaste() {
+    this.showPaste = !this.showPaste;
+    if (!this.showPaste) { this.pasteText = ''; this.pasteResult = null; }
+    this.cdr.markForCheck();
+  }
+
+  /** Digits only, leading zeros dropped — K01047 and 1047 compare equal. */
+  private codeDigits(code: string): string {
+    return (code.match(/\d+/g) ?? []).join('').replace(/^0+/, '');
+  }
+
+  private findByCode(code: string): { item?: Item; ambiguous?: boolean } {
+    const wanted = code.trim().toUpperCase();
+    const exact = this.items.filter(i => (i.itemCode ?? '').trim().toUpperCase() === wanted);
+    if (exact.length === 1) return { item: exact[0] };
+    if (exact.length > 1) return { ambiguous: true };
+
+    // Fall back to the digits, which is how the agent's sheet and the catalogue often
+    // differ (K01047 against 1047). Only accepted when it lands on exactly one item.
+    const digits = this.codeDigits(code);
+    if (!digits) return {};
+    const byDigits = this.items.filter(i => this.codeDigits(i.itemCode ?? '') === digits);
+    if (byDigits.length === 1) return { item: byDigits[0] };
+    if (byDigits.length > 1) return { ambiguous: true };
+    return {};
+  }
+
+  /**
+   * Reads the pasted block and adds a line per row.
+   *
+   * <p>Accepts comma, tab or spaces between the fields, and ignores a header row, so
+   * whatever the LLM emits can go straight in without tidying.
+   */
+  applyPaste() {
+    const unknown: string[] = [];
+    const ambiguous: string[] = [];
+    const mismatched: { code: string; pasted: number; catalog: number }[] = [];
+    let added = 0;
+
+    for (const raw of this.pasteText.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      // A header row, or a note the model added despite being told not to.
+      if (/^code\b/i.test(line)) continue;
+
+      const parts = line.split(/[,\t]+|\s{2,}|\s+/).map(t => t.trim()).filter(Boolean);
+      if (parts.length < 2) continue;
+
+      const code = parts[0];
+      const qty = Number(parts[1]);
+      const price = parts.length > 2 ? Number(parts[2]) : NaN;
+      if (!Number.isFinite(qty) || qty <= 0) continue;
+
+      const found = this.findByCode(code);
+      if (found.ambiguous) { ambiguous.push(code); continue; }
+      if (!found.item)     { unknown.push(code);   continue; }
+
+      const item = found.item;
+      if (!this.itemAllowed(item)) { unknown.push(code + ' (wrong category)'); continue; }
+
+      // The price is only ever a check on the code. A disagreement is reported and the
+      // catalogue's own figure is used, because that is what the invoice is priced on.
+      if (Number.isFinite(price) && price > 0) {
+        const catalog = Number(item.wsp ?? item.wholesalePrice ?? 0);
+        if (catalog > 0 && Math.abs(catalog - price) > 0.5) {
+          mismatched.push({ code: item.itemCode, pasted: price, catalog });
+        }
+      }
+
+      const existing = this.lines.find(l => l.item.id === item.id);
+      if (existing) {
+        existing.qty += qty;
+        if (!existing.freeTouched) existing.freeQty = this.autoFreeQty(existing);
+      } else {
+        const entry: LineEntry = { item, qty, freeQty: 0 };
+        entry.freeQty = this.autoFreeQty(entry);
+        this.lines.push(entry);
+      }
+      added++;
+    }
+
+    this.pasteResult = { added, unknown, ambiguous, mismatched };
+    if (added > 0) this.pasteText = '';
+    this.filteredItems = this.itemsForMethod();
+    this.refreshQuote();
+    this.cdr.markForCheck();
   }
 
   // ── Re-reading the item master mid-invoice ──────────────────────────
@@ -474,12 +706,24 @@ export class InvoiceFormComponent implements OnInit {
 
   get method(): InvoiceMethod { return this.form.value.method as InvoiceMethod; }
 
+  /**
+   * Only invoices that can carry plastic lines. A Rainco-only or Stationery-only
+   * invoice has no plastic on it, so a plastic discount box is a field that can only
+   * ever be filled in by mistake.
+   */
   get showPlastic() {
-    return this.method === 'MIX' || this.method === 'RAINCO_ONLY' || this.method === 'PLASTIC_ONLY';
+    return this.method === 'MIX' || this.method === 'PLASTIC_ONLY';
   }
 
-  /** Optional when typed here — the number comes from the book, not the agent's copy. */
-  get showAgentRef() { return true; }
+  /** True when this invoice was imported and carries the agent's own reference. */
+  hasExternalRef = false;
+
+  /**
+   * The agent reference is no longer asked for when typing an invoice: the bill number
+   * IS the reference now, so a second field for it only invited them to disagree. It
+   * still shows when editing an imported invoice, which does carry the agent's number.
+   */
+  get showAgentRef() { return this.hasExternalRef; }
 
   // ── Bill number, exactly as the bills section does it ────────────────
   // The invoice number IS the bill number, so the type and number are picked here
@@ -575,13 +819,21 @@ export class InvoiceFormComponent implements OnInit {
       method:                v.method,
       invoiceType:           v.invoiceType,
       customerId:            v.customerId,
-      invoiceDate:           v.invoiceDate,
-      externalRef:           (v.externalRef || '').trim() || undefined,
+      // localDateStr, never toISOString: the latter shifts by the timezone offset and
+      // would file an evening invoice under the following day.
+      invoiceDate:           v.invoiceDate ? localDateStr(new Date(v.invoiceDate)) : localDateStr(),
+      // Not sent when typing: the bill number is the reference. On an edit the server
+      // leaves the stored value alone when this is absent, so an imported invoice keeps
+      // the agent's number.
+      externalRef:           this.hasExternalRef
+                               ? ((v.externalRef || '').trim() || undefined)
+                               : undefined,
       billSource:            v.billSource,
       billNumber:            String(v.billNumber || '').trim(),
       agentPrintedNet:       v.agentPrintedNet || undefined,
       plasticDiscountPct:    v.plasticDiscountPct || undefined,
       plasticDiscountAmount: v.plasticDiscountAmount || undefined,
+      discountOverridePct:   v.discountOverridePct ?? undefined,
       lines: this.lines.map(l => ({ itemId: l.item.id, qty: l.qty, freeQty: l.freeQty || 0 }))
     };
     const call = this.editingId

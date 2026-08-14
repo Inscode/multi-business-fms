@@ -58,6 +58,12 @@ public class InvoiceRequest {
     BigDecimal plasticDiscountPct;
     BigDecimal plasticDiscountAmount;
 
+    /**
+     * Admin only. Replaces the slab rate on every line of this invoice — a promotional
+     * rate, which the value-banded slabs cannot express.
+     */
+    BigDecimal discountOverridePct;
+
     @Valid
     @NotNull
     List<InvoiceLineRequest> lines;

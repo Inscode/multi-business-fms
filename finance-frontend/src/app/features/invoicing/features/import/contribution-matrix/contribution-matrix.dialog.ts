@@ -75,15 +75,31 @@ export class ContributionMatrixDialog {
       }
     });
 
-    // Heaviest items first: a discrepancy in a big line is what matters, and it puts
-    // the numbers worth checking at the top of the page.
+    // Item-code order, the way the codes are read and the way the agent's summary
+    // lists them — 1040, 1045, 2563, 3830, then the lettered codes K01040, K01047.
+    // Checking a printed sheet against another means finding a code, which sorting by
+    // quantity makes into a hunt.
     this.rows = [...byCode.entries()]
       .map(([code, cells]) => ({ code, cells, total: cells.reduce((s, n) => s + n, 0) }))
-      .sort((a, b) => b.total - a.total || a.code.localeCompare(b.code));
+      .sort((a, b) => ContributionMatrixDialog.compareCodes(a.code, b.code));
 
     this.columnTotals = this.columns.map((_, col) =>
       this.rows.reduce((s, r) => s + r.cells[col], 0));
     this.grandTotal = this.columnTotals.reduce((s, n) => s + n, 0);
+  }
+
+  /**
+   * Orders item codes the way a person reads them: plain numbers first in numeric
+   * order, then the lettered codes.
+   *
+   * <p>Plain string sorting would put "1077" before "203" and scatter the numbers;
+   * numeric collation keeps 1040 < 1045 < 9080-1 and CP9000 < K01040 < K01047.
+   */
+  private static compareCodes(a: string, b: string): number {
+    const aLettered = /^[A-Za-z]/.test(a);
+    const bLettered = /^[A-Za-z]/.test(b);
+    if (aLettered !== bLettered) return aLettered ? 1 : -1;
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   }
 
   /** Strips the agent's prefix so the rotated headings stay narrow. */

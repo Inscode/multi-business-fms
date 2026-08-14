@@ -83,7 +83,7 @@ public class BillServiceImpl {
             case DRAFT  -> generateDraftNumber(request.getBusiness());
             case SYSTEM -> {
                 String num = "SYS-" + stripLeadingZeros(request.getBillNumber());
-                if (billRepository.existsByBillNumberAndBusiness(num, request.getBusiness()))
+                if (billRepository.existsActiveByBillNumberAndBusiness(num, request.getBusiness()))
                     throw new RuntimeException("Bill number " + num + " already exists in this business");
                 yield num;
             }
@@ -92,14 +92,14 @@ public class BillServiceImpl {
                 boolean sharedBook = request.getBusiness() == BusinessType.PLASTIC
                                   || request.getBusiness() == BusinessType.STATIONERY;
                 String num = (sharedBook ? "BK-" : "MAN-") + stripLeadingZeros(request.getBillNumber());
-                if (billRepository.existsByBillNumberAndBusiness(num, request.getBusiness()))
+                if (billRepository.existsActiveByBillNumberAndBusiness(num, request.getBusiness()))
                     throw new RuntimeException("Bill number " + num + " already exists in this business");
                 yield num;
             }
             case MANUAL_BOOK -> {
                 // RAINCO uses the shared physical book (BK- prefix)
                 String num = "BK-" + stripLeadingZeros(request.getBillNumber());
-                if (billRepository.existsByBillNumberAndBusiness(num, request.getBusiness()))
+                if (billRepository.existsActiveByBillNumberAndBusiness(num, request.getBusiness()))
                     throw new RuntimeException("Bill number " + num + " already exists in this business");
                 yield num;
             }
@@ -502,7 +502,7 @@ public class BillServiceImpl {
             String newNum = request.getBillNumber().trim();
             // Only update if actually changed — skip duplicate check for same value
             if (!newNum.equals(bill.getBillNumber())) {
-                if (billRepository.existsByBillNumberAndBusiness(newNum, bill.getBusiness()))
+                if (billRepository.existsActiveByBillNumberAndBusiness(newNum, bill.getBusiness()))
                     throw new RuntimeException("Bill number " + newNum + " already exists in this business");
                 bill.setBillNumber(newNum);
             }
@@ -1053,7 +1053,7 @@ public class BillServiceImpl {
         String candidate;
         do {
             candidate = String.format("DFT-%d", next++);
-        } while (billRepository.existsByBillNumberAndBusiness(candidate, business));
+        } while (billRepository.existsActiveByBillNumberAndBusiness(candidate, business));
         return candidate;
     }
 

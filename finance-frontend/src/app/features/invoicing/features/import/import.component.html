@@ -164,7 +164,7 @@
           {{ selectedFiles.length }} file(s) · {{ totalFileSizeKb().toFixed(1) }} KB — totalled together
         </p>
         <div class="dz-actions">
-          <label class="browse-btn mat-mdc-button">
+          <label class="browse-btn">
             <mat-icon>add</mat-icon>
             Add more files
             <input type="file" accept=".xls,.xlsx" multiple (change)="onFileChange($event)" hidden>
@@ -177,7 +177,7 @@
         <mat-icon class="dz-icon">cloud_upload</mat-icon>
         <p class="dz-text">Drag &amp; drop Ventura XLS files here</p>
         <p class="dz-sub">Several files can make up one summary load</p>
-        <label class="browse-btn mat-mdc-button">
+        <label class="browse-btn">
           <mat-icon>folder_open</mat-icon>
           Browse Files
           <input type="file" accept=".xls,.xlsx" multiple (change)="onFileChange($event)" hidden>
@@ -192,12 +192,78 @@
       </div>
     }
 
-    @if (parseWarnings.length > 0 && !parsing) {
-      <div class="error-banner">
+    <!-- Split by who fixes them and where: a missing customer is picked on the row
+         below, a missing item has to be added to the catalogue first. -->
+    @if (customerIssues().length > 0 && !parsing) {
+      <div class="issue-banner customer-issue">
+        <mat-icon>person_off</mat-icon>
+        <div>
+          <strong>{{ customerIssues().length }} invoice(s) with no matching customer</strong>
+          <span class="issue-hint">Pick the customer on each invoice below before importing.</span>
+          <ul class="issue-list">
+            @for (i of customerIssues(); track i.message) {
+              <li>
+                <span class="issue-ref">{{ i.invoiceNo }}</span>
+                billed to &ldquo;{{ i.billedName }}&rdquo;
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
+    @if (itemIssues().length > 0 && !parsing) {
+      <div class="issue-banner item-issue">
+        <mat-icon>inventory_2</mat-icon>
+        <div>
+          <strong>{{ missingItems().length }} item(s) not in the catalogue</strong>
+          <span class="issue-hint">
+            Add these under Items, then press Refresh. Invoices using them cannot be
+            imported or priced until they exist.
+          </span>
+          <ul class="issue-list">
+            @for (m of missingItems(); track m.code) {
+              <li>
+                <span class="issue-code">{{ m.code }}</span>
+                <span class="issue-invoices">
+                  on {{ m.invoices.length }} invoice(s): {{ m.invoices.join(', ') }}
+                </span>
+                <!-- Why it could not be matched, where the parser could tell. -->
+                @if (m.reason) {
+                  <span class="issue-reason">{{ m.reason }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
+    <!-- Not a blocker: these import, then total differently from the agent's copy. -->
+    @if (priceIssues().length > 0 && !parsing) {
+      <div class="issue-banner price-issue">
+        <mat-icon>price_change</mat-icon>
+        <div>
+          <strong>{{ priceIssues().length }} item(s) priced differently here</strong>
+          <span class="issue-hint">
+            These will import, but the system total will differ from the agent's printed
+            net. Correct the price under Items if the sheet is right.
+          </span>
+          <ul class="issue-list">
+            @for (i of priceIssues(); track i.message) {
+              <li>{{ i.message }}</li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
+    @if (otherIssues().length > 0 && !parsing) {
+      <div class="issue-banner other-issue">
         <mat-icon>warning_amber</mat-icon>
-        <ul class="error-list">
-          @for (w of parseWarnings; track w) {
-            <li>{{ w }}</li>
+        <ul class="issue-list">
+          @for (i of otherIssues(); track i.message) {
+            <li>{{ i.message }}</li>
           }
         </ul>
       </div>
@@ -381,8 +447,31 @@
                 </span>
               }
               @if (inv.invoiceDate) { <span class="inv-date">{{ inv.invoiceDate }}</span> }
+              <!-- The agent's printed net, and what this system makes of the same
+                   lines. They should agree; where they do not, the slab or the item
+                   price is wrong and can be fixed before importing. -->
               @if (inv.netTotal != null) {
-                <span class="net-total">LKR {{ inv.netTotal | number:'1.2-2' }}</span>
+                <span class="net-total agent" matTooltip="Net printed on the agent's sheet">
+                  Agent {{ inv.netTotal | number:'1.2-2' }}
+                </span>
+              }
+              @if (pricedFor(inv)?.systemNet != null) {
+                <span class="net-total system"
+                      [class.mismatch]="hasVariance(inv)"
+                      matTooltip="Worked out from this system's prices and slabs">
+                  System {{ pricedFor(inv)!.systemNet | number:'1.2-2' }}
+                </span>
+              }
+              @if (hasVariance(inv)) {
+                <span class="variance-chip"
+                      matTooltip="Agent minus system — check the slab and the item prices">
+                  {{ pricedFor(inv)!.variance! > 0 ? '+' : '' }}{{ pricedFor(inv)!.variance | number:'1.2-2' }}
+                </span>
+              }
+              @if (pricedFor(inv)?.priceError) {
+                <span class="variance-chip unpriced" matTooltip="{{ pricedFor(inv)!.priceError }}">
+                  not priced
+                </span>
               }
               <span class="head-spacer"></span>
               @if (inv.excluded) {

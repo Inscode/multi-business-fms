@@ -222,5 +222,12 @@ $stripe: #f7f7f7;
   .mx-table .c-item { position: static; }
 
   thead { display: table-header-group; }
+
+  /* A <tfoot> repeats on every page by default, the same way <thead> does — which
+     printed the grand total at the foot of page one as though the load ended there.
+     table-row-group makes it flow as an ordinary row group, so it appears once, after
+     the last item. */
+  tfoot { display: table-row-group; }
+
   tr { break-inside: avoid; }
 }

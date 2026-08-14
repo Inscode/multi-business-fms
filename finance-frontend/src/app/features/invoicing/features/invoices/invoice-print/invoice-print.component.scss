@@ -149,12 +149,15 @@
   .col-val  { width: 14%; }
 }
 
-/* Numeric data is right-aligned so digits line up column-to-column. Headers are centered
-   over their column instead of right-aligned — a short label like "VALUE" right-aligned
-   next to a long number like "10,824.00" looks like it's floating away from the data even
-   though both share the same right edge, so centering reads as better-aligned. */
+/* Numeric headers sit on the same right edge as their figures. Both th and td carry
+   the same horizontal padding (1.5px 3px, and 2px on the last column), so right-aligning
+   the label puts it exactly over the digits below it rather than near them.
+
+   These were centred before. Centring keeps a short label like QTY. visually near the
+   middle of a wide column, which drifts left of a right-aligned number — over a narrow
+   column like QTY. that reads as a header belonging to the column to its left. */
 th.col-qty, th.col-mrp, th.col-mgn, th.col-wsp, th.col-val {
-  text-align: center;
+  text-align: right;
 }
 
 td.num {

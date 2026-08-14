@@ -43,7 +43,10 @@ public class InvoiceBillBridge {
         String billNumber = invoice.getInvoiceNo();
         BusinessType business = numbering.businessFor(invoice.getMethod());
 
-        Bill existing = billRepository.findByBillNumberAndBusiness(billNumber, business).orElse(null);
+        // A cancelled bill on this number is not something to attach to — it is void,
+        // and the number has been handed back to the run.
+        Bill existing = billRepository
+                .findActiveByBillNumberAndBusiness(billNumber, business).orElse(null);
         if (existing != null) {
             // Raised by invoicing already — that is a real duplicate, not a hand-typed bill
             // waiting for its stock.

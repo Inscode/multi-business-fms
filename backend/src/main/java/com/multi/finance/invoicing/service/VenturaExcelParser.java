@@ -1,5 +1,7 @@
 package com.multi.finance.invoicing.service;
 
+import org.apache.poi.ss.usermodel.Workbook;
+import java.util.Locale;
 import com.multi.finance.invoicing.dto.request.InvoiceLineRequest;
 import com.multi.finance.invoicing.dto.request.InvoiceRequest;
 import com.multi.finance.entity.Customer;
@@ -11,7 +13,7 @@ import com.multi.finance.repository.CustomerRepository;
 import com.multi.finance.invoicing.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,7 +99,12 @@ public class VenturaExcelParser {
             itemsByDigits.computeIfAbsent(digitsOf(item.getItemCode()), k -> new ArrayList<>()).add(item);
         }
 
-        try (var wb = new HSSFWorkbook(file.getInputStream())) {
+        guardSpreadsheet(file);
+
+        // WorkbookFactory picks the reader from the file's own contents rather than its
+        // name: .xls is the old binary format, .xlsx a zip, and anyone who opens the
+        // agent's export in Excel and saves it hands back the latter.
+        try (var wb = openWorkbook(file)) {
             Sheet sheet = wb.getSheetAt(0);
             int lastRow = sheet.getLastRowNum();
 
@@ -523,4 +530,42 @@ public class VenturaExcelParser {
             return invoices.stream().map(ParsedInvoice::preview).toList();
         }
     }
+
+    /** Spreadsheet formats this parser can actually read. */
+    private static final List<String> ACCEPTED_EXTENSIONS = List.of(".xls", ".xlsx");
+
+    /**
+     * Refuses anything that is not a spreadsheet, before Apache POI is handed it.
+     *
+     * <p>POI's own failure on a PDF is a message about OLE2 headers, which tells the
+     * accountant nothing. The check is on the name only — what the file actually is
+     * gets decided by {@link #openWorkbook}, which reads its contents.
+     */
+    private void guardSpreadsheet(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        String lower = name == null ? "" : name.toLowerCase(Locale.ROOT);
+        boolean ok = ACCEPTED_EXTENSIONS.stream().anyMatch(lower::endsWith);
+        if (!ok) {
+            throw new IllegalArgumentException(
+                    "\"" + (name == null || name.isBlank() ? "This file" : name)
+                  + "\" is not an Excel file. The import reads the agent's Ventura export, "
+                  + "which is a .xls or .xlsx spreadsheet — a PDF or a scan cannot be read.");
+        }
+    }
+
+    /**
+     * Opens the workbook whatever Excel format it is in, turning POI's internal
+     * complaints into something the person who uploaded it can act on.
+     */
+    private Workbook openWorkbook(MultipartFile file) throws IOException {
+        try {
+            return WorkbookFactory.create(file.getInputStream());
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalArgumentException(
+                    "\"" + file.getOriginalFilename() + "\" could not be opened as a "
+                  + "spreadsheet. It may be renamed, corrupted, or password protected — "
+                  + "try opening it in Excel and saving it again.", e);
+        }
+    }
+
 }

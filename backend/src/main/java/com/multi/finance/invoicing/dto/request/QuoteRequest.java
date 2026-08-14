@@ -22,6 +22,9 @@ public class QuoteRequest {
     BigDecimal plasticDiscountPct;
     BigDecimal plasticDiscountAmount;
 
+    /** Admin promotional rate, so the preview shows what will actually be charged. */
+    BigDecimal discountOverridePct;
+
     @Valid
     @NotNull
     List<InvoiceLineRequest> lines;

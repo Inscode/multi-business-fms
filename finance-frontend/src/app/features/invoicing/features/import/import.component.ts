@@ -62,7 +62,34 @@ interface ParsedInvoice {
   numberEdit?: string;
 }
 
+/** What an invoice comes to under this system's own prices and slabs. */
+interface PricedInvoice {
+  invoiceNo?: string;
+  systemGross?: number;
+  systemDiscount?: number;
+  systemNet?: number;
+  /** The net printed on the agent's sheet. */
+  agentNet?: number;
+  /** agentNet - systemNet. Non-zero means the two disagree. */
+  variance?: number;
+  /** Set when the invoice could not be priced, e.g. an unmatched item. */
+  priceError?: string;
+}
+
+/** A problem found while parsing, split by who fixes it and where. */
+interface ImportIssue {
+  kind: 'CUSTOMER' | 'ITEM' | 'PRICE' | 'OTHER';
+  invoiceNo?: string;
+  code?: string;
+  billedName?: string;
+  message: string;
+  /** Why an item could not be matched, when the parser could say. */
+  reason?: string;
+}
+
 interface PreviewResponse {
+  priced?: PricedInvoice[];
+  issues?: ImportIssue[];
   fileCount: number;
   invoiceCount: number;
   blockedCount: number;
@@ -179,8 +206,13 @@ export class ImportComponent implements OnInit {
   /** Files accumulate, so a second pick adds to the load rather than replacing it. */
   addFiles(files: File[]) {
     const valid = files.filter(f => /\.(xls|xlsx)$/i.test(f.name));
-    if (valid.length !== files.length) {
-      this.error = 'Only Excel files (.xls / .xlsx) can be imported — others were ignored.';
+    const rejected = files.filter(f => !/\.(xls|xlsx)$/i.test(f.name));
+    if (rejected.length) {
+      // Named, not just counted: "others were ignored" leaves you guessing which of
+      // five files did not make it into the load.
+      this.error = `Not an Excel file, so left out: ${rejected.map(f => f.name).join(', ')}. `
+                 + `The import reads the agent's Ventura export (.xls or .xlsx) — `
+                 + `a PDF or a scan cannot be read.`;
     } else {
       this.error = '';
     }
@@ -193,6 +225,8 @@ export class ImportComponent implements OnInit {
 
     this.parsed = [];
     this.parseWarnings = [];
+    this.priced.clear();
+    this.issues = [];
     this.importResult = null;
     this.cdr.markForCheck();
     this.parse();
@@ -202,6 +236,8 @@ export class ImportComponent implements OnInit {
     this.selectedFiles.splice(idx, 1);
     this.parsed = [];
     this.parseWarnings = [];
+    this.priced.clear();
+    this.issues = [];
     this.cdr.markForCheck();
     if (this.selectedFiles.length) this.parse();
   }
@@ -227,6 +263,15 @@ export class ImportComponent implements OnInit {
           numberEdit: inv.billNumber ?? '',
         }));
         this.parseWarnings = res?.warnings ?? [];
+
+        // What the system makes of each invoice, priced by the same engine that will
+        // price it on save — so a wrong slab or a stale item price shows up here
+        // rather than after the load is in.
+        this.priced = new Map((res?.priced ?? [])
+          .filter(p => !!p.invoiceNo)
+          .map(p => [p.invoiceNo!, p] as [string, PricedInvoice]));
+        this.issues = res?.issues ?? [];
+
         this.parsing = false;
         this.cdr.markForCheck();
       });
@@ -452,6 +497,54 @@ export class ImportComponent implements OnInit {
   summaryTotalQty()   { return this.productSummary().reduce((s, p) => s + p.qty, 0); }
   summaryTotalFree()  { return this.productSummary().reduce((s, p) => s + p.freeQty, 0); }
   summaryTotalValue() { return this.productSummary().reduce((s, p) => s + p.value, 0); }
+
+  /** System-computed totals per invoice, keyed by the agent's reference. */
+  priced = new Map<string, PricedInvoice>();
+  issues: ImportIssue[] = [];
+
+  pricedFor(inv: ParsedInvoice): PricedInvoice | undefined {
+    return inv.invoiceNo ? this.priced.get(inv.invoiceNo) : undefined;
+  }
+
+  /** A disagreement worth looking at, rather than a rounding tail. */
+  hasVariance(inv: ParsedInvoice): boolean {
+    const v = this.pricedFor(inv)?.variance;
+    return v != null && Math.abs(v) >= 1;
+  }
+
+  customerIssues(): ImportIssue[] { return this.issues.filter(i => i.kind === 'CUSTOMER'); }
+  itemIssues():     ImportIssue[] { return this.issues.filter(i => i.kind === 'ITEM'); }
+  otherIssues():    ImportIssue[] { return this.issues.filter(i => i.kind === 'OTHER'); }
+
+  /**
+   * Catalogue prices that disagree with the sheet. These import fine and then total
+   * differently from the agent's copy, so they explain a variance rather than block.
+   */
+  priceIssues(): ImportIssue[] { return this.issues.filter(i => i.kind === 'PRICE'); }
+
+  /** Distinct item codes missing from the catalogue, each with the invoices needing it. */
+  missingItems(): { code: string; invoices: string[]; reason?: string }[] {
+    const map = new Map<string, { invoices: Set<string>; reason?: string }>();
+    for (const i of this.itemIssues()) {
+      if (!i.code) continue;
+      const row = map.get(i.code) ?? { invoices: new Set<string>() };
+      if (i.invoiceNo) row.invoices.add(i.invoiceNo);
+      if (i.reason) row.reason = i.reason;
+      map.set(i.code, row);
+    }
+    return [...map.entries()]
+      .map(([code, r]) => ({ code, invoices: [...r.invoices].sort(), reason: r.reason }))
+      .sort((a, b) => b.invoices.length - a.invoices.length || a.code.localeCompare(b.code));
+  }
+
+  /** What the whole load comes to under this system, for the agent summary check. */
+  systemNetTotal(): number {
+    return this.kept().reduce((s, i) => s + (this.pricedFor(i)?.systemNet ?? 0), 0);
+  }
+
+  agentNetTotal(): number {
+    return this.kept().reduce((s, i) => s + (i.netTotal ?? 0), 0);
+  }
 
   showSummary = true;
   toggleSummary() { this.showSummary = !this.showSummary; this.cdr.markForCheck(); }

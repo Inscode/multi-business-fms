@@ -21,6 +21,10 @@ public class InvoiceSummaryResponse {
     private BigDecimal grossTotal;
     private BigDecimal totalDiscount;
     private BigDecimal cashDiscountAmount;
+
+    /** Set when an admin replaced the slab rate — surfaced on review. */
+    private BigDecimal discountOverridePct;
+    private String discountOverrideBy;
     private BigDecimal netTotal;
     private boolean duplicatePrint;
 

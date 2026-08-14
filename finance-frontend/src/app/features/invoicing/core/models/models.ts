@@ -90,6 +90,9 @@ export interface Invoice {
   cashDiscountPct?: number;
   cashDiscountAmount: number;
   plasticDiscountPct?: number;
+  /** Flat admin rate replacing the slab, for promotions. */
+  discountOverridePct?: number | null;
+  discountOverrideBy?: string;
   plasticDiscountAmount?: number;
   netTotal: number;
   agentPrintedNet?: number;

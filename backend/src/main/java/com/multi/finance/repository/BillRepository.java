@@ -80,6 +80,22 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     boolean existsByBillNumberAndBusiness(String billNumber, BusinessType business);
 
+    /**
+     * Whether a live bill already holds this number. A cancelled bill does not: its
+     * number goes back into the run, because the page it stands for is still there to
+     * be written on.
+     */
+    @Query("SELECT COUNT(b) > 0 FROM Bill b WHERE b.billNumber = :billNumber "
+         + "AND b.business = :business AND b.status <> com.multi.finance.enums.BillStatus.CANCELLED")
+    boolean existsActiveByBillNumberAndBusiness(@Param("billNumber") String billNumber,
+                                                @Param("business") BusinessType business);
+
+    /** The live bill on this number, ignoring any cancelled one that used to hold it. */
+    @Query("SELECT b FROM Bill b WHERE b.billNumber = :billNumber AND b.business = :business "
+         + "AND b.status <> com.multi.finance.enums.BillStatus.CANCELLED")
+    java.util.Optional<Bill> findActiveByBillNumberAndBusiness(
+            @Param("billNumber") String billNumber, @Param("business") BusinessType business);
+
     /** Lets invoicing attach to a bill already entered by hand instead of raising a second one. */
     java.util.Optional<Bill> findByBillNumberAndBusiness(String billNumber, BusinessType business);
 
@@ -234,16 +250,21 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     // ── Every number used, not just the highest ──────────────────────────────
     // The suggestion list needs the gaps, and a MAX() can't show a hole in the middle.
 
+    // Cancelled bills are excluded throughout: their numbers are free again, so they
+    // must be offered rather than counted as used or reported as an un-entered gap.
     @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 5) AS INTEGER) FROM bills " +
-                   "WHERE business = :business AND bill_number ~ '^MAN-[0-9]+$'", nativeQuery = true)
+                   "WHERE business = :business AND bill_number ~ '^MAN-[0-9]+$' " +
+                   "AND status <> 'CANCELLED'", nativeQuery = true)
     List<Integer> findUsedManualBillNumbers(@Param("business") String business);
 
     @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 5) AS INTEGER) FROM bills " +
-                   "WHERE business = :business AND bill_number ~ '^SYS-[0-9]+$'", nativeQuery = true)
+                   "WHERE business = :business AND bill_number ~ '^SYS-[0-9]+$' " +
+                   "AND status <> 'CANCELLED'", nativeQuery = true)
     List<Integer> findUsedSystemBillNumbers(@Param("business") String business);
 
     @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 4) AS INTEGER) FROM bills " +
-                   "WHERE bill_number ~ '^BK-[0-9]+$'", nativeQuery = true)
+                   "WHERE bill_number ~ '^BK-[0-9]+$' AND status <> 'CANCELLED'",
+           nativeQuery = true)
     List<Integer> findUsedSharedBookBillNumbers();
 
     // Global full-table search across all statuses/dates — excludes DEMO business

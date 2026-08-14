@@ -138,6 +138,10 @@
   margin: 0;
 }
 
+/* A styled <label> wrapping a hidden file input, not a Material button. It used to
+   carry .mat-mdc-button as well, which brought the theme's own label colour with it —
+   dark blue text on this indigo fill, effectively invisible. The typography Material
+   was providing is set here instead. */
 .browse-btn {
   display: inline-flex;
   align-items: center;
@@ -147,12 +151,27 @@
   color: #fff;
   border: none;
   border-radius: 8px;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-transform: none;
   cursor: pointer;
   transition: background .15s;
-  mat-icon { font-size: 18px; }
+  user-select: none;
+
+  /* The icon has its own colour rules; make it follow the label. */
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: inherit;
+  }
+
   &:hover { background: #283593; }
+  &:active { background: #1a237e; }
+  &:focus-visible { outline: 2px solid #7986cb; outline-offset: 2px; }
 }
 
 /* ---- Error Banner ---- */
@@ -635,4 +654,108 @@
 
   &:hover { border-color: #1e88e5; background: #e3f2fd; color: #1565c0; }
   mat-icon { font-size: 17px; width: 17px; height: 17px; }
+}
+
+
+// ── Problems, coloured by who fixes them ────────────────────────────
+// A missing customer and a missing item are different jobs in different screens, so
+// they are never run together in one list.
+.issue-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border-left: 3px solid;
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; flex-shrink: 0; }
+  strong { display: block; font-size: 13px; }
+
+  .issue-hint {
+    display: block;
+    font-size: 11.5px;
+    opacity: .85;
+    margin: 2px 0 6px;
+  }
+
+  .issue-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+}
+
+// Customer — resolved on the invoice row itself.
+.customer-issue {
+  background: #ede7f6;
+  border-left-color: #5e35b1;
+  color: #4527a0;
+
+  mat-icon { color: #5e35b1; }
+  .issue-ref { font-weight: 700; }
+}
+
+// Item — has to be added to the catalogue before the invoice can even be priced.
+.item-issue {
+  background: #fff3e0;
+  border-left-color: #ef6c00;
+  color: #a34700;
+
+  mat-icon { color: #ef6c00; }
+
+  .issue-code {
+    font-family: monospace;
+    font-weight: 700;
+    margin-right: 6px;
+  }
+
+  .issue-invoices { opacity: .85; }
+}
+
+.other-issue {
+  background: #eceff1;
+  border-left-color: #78909c;
+  color: #455a64;
+
+  mat-icon { color: #78909c; }
+}
+
+// ── Agent figure versus ours ────────────────────────────────────────
+.net-total {
+  &.agent  { color: #607d8b; }
+  &.system { font-weight: 700; color: #1b5e20; }
+
+  // The two disagree: the slab or an item price needs looking at.
+  &.system.mismatch { color: #c62828; }
+}
+
+.variance-chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #ffebee;
+  color: #c62828;
+  font-size: 11px;
+  font-weight: 700;
+
+  &.unpriced { background: #eceff1; color: #546e7a; }
+}
+
+
+// Price disagreement — imports, but explains a variance against the agent's net.
+.price-issue {
+  background: #e0f2f1;
+  border-left-color: #00897b;
+  color: #00695c;
+
+  mat-icon { color: #00897b; }
+}
+
+// Why an item could not be matched, sat under the code it explains.
+.issue-reason {
+  display: block;
+  font-size: 11px;
+  opacity: .8;
+  margin-top: 1px;
 }

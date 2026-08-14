@@ -1,5 +1,6 @@
 package com.multi.finance.invoicing.service;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 import com.multi.finance.invoicing.dto.request.InvoiceRequest;
 import com.multi.finance.invoicing.dto.request.QuoteRequest;
@@ -111,6 +112,11 @@ public class InvoiceService {
                     .orElse(BigDecimal.ZERO);
             invoice.setCashDiscountPct(rainCoCashDiscPct);
         }
+        if (req.getDiscountOverridePct() != null) {
+            invoice.setDiscountOverridePct(req.getDiscountOverridePct());
+            invoice.setDiscountOverrideBy(createdBy);
+            invoice.setDiscountOverrideAt(LocalDateTime.now());
+        }
 
         // Load and validate items before building any lines — block the whole invoice if any
         // line would oversell stock, rather than partially deducting then failing mid-way.
@@ -170,6 +176,12 @@ public class InvoiceService {
             slabPcts.put(e.getKey(), engine.findSlabDiscountPct(slabs, e.getValue()));
         }
 
+        // The override has to land before the lines snapshot their rate, not after:
+        // every later view recomputes the invoice from those snapshots, so a line
+        // holding the slab rate would show the slab discount for good, whatever the
+        // totals said at save time.
+        applyDiscountOverride(slabPcts, req.getDiscountOverridePct());
+
         // Stamp applied discount pct onto each line
         for (InvoiceLine line : lines) {
             line.setAppliedDiscountPct(slabPcts.getOrDefault(groupKey(line.getBrand()), BigDecimal.ZERO));
@@ -177,6 +189,7 @@ public class InvoiceService {
 
         // Which groups are Rainco. The engine works the cash discount out from these
         // itself, on the value left after their slab discount.
+
         Set<Long> raincoKeys = raincoGroupKeys(brandGroupValues, allBrands);
 
         DiscountEngineService.InvoiceTotals totals = engine.computeInvoiceTotals(
@@ -405,6 +418,7 @@ public class InvoiceService {
                     .orElse(BigDecimal.ZERO);
         }
 
+        applyDiscountOverride(slabPcts, req.getDiscountOverridePct());
         Set<Long> raincoKeys = raincoGroupKeys(groupValues, allBrands);
 
         DiscountEngineService.InvoiceTotals totals = engine.computeInvoiceTotals(
@@ -570,6 +584,9 @@ public class InvoiceService {
             slabPcts.put(e.getKey(),
                     engine.findSlabDiscountPct(brandSlabs.getOrDefault(e.getKey(), List.of()), e.getValue()));
         }
+        // Same ordering as create: the snapshot is what every later read works from.
+        applyDiscountOverride(slabPcts, req.getDiscountOverridePct());
+
         for (InvoiceLine line : lines) {
             line.setAppliedDiscountPct(slabPcts.getOrDefault(groupKey(line.getBrand()), BigDecimal.ZERO));
         }
@@ -705,6 +722,19 @@ public class InvoiceService {
         return brands.stream().anyMatch(b -> b.getId().equals(brandId) && b.getCategory() == CategoryType.RAINCO);
     }
 
+    /**
+     * Replaces every group's slab rate with a flat admin rate, when one was given.
+     *
+     * <p>Applied to the rate map before the engine runs, so the override flows through
+     * the totals and onto each line's {@code appliedDiscountPct} exactly as a slab
+     * would. Nothing downstream — returns, the variance check, a later recompute —
+     * needs to know it was an override rather than a band.
+     */
+    private void applyDiscountOverride(Map<Long, BigDecimal> slabPcts, BigDecimal overridePct) {
+        if (overridePct == null || overridePct.compareTo(BigDecimal.ZERO) < 0) return;
+        slabPcts.replaceAll((k, v) -> overridePct);
+    }
+
     /** The brand-group keys the cash discount applies to. */
     private Set<Long> raincoGroupKeys(Map<Long, BigDecimal> groupValues, List<Brand> brands) {
         return groupValues.keySet().stream()
@@ -749,6 +779,8 @@ public class InvoiceService {
         r.setInvoiceType(inv.getInvoiceType());
         r.setGrossTotal(t.grossTotal);
         r.setTotalSlabDiscount(t.totalSlabDiscount);
+        r.setDiscountOverridePct(inv.getDiscountOverridePct());
+        r.setDiscountOverrideBy(inv.getDiscountOverrideBy());
         r.setCashDiscountPct(inv.getCashDiscountPct());
         r.setCashDiscountAmount(t.cashDiscountAmount);
         r.setPlasticDiscountPct(inv.getPlasticDiscountPct());
@@ -800,6 +832,8 @@ public class InvoiceService {
         s.setGrossTotal(t.grossTotal);
         s.setTotalDiscount(t.totalSlabDiscount.add(t.cashDiscountAmount).add(t.plasticDiscount));
         s.setCashDiscountAmount(t.cashDiscountAmount);
+        s.setDiscountOverridePct(inv.getDiscountOverridePct());
+        s.setDiscountOverrideBy(inv.getDiscountOverrideBy());
         s.setNetTotal(t.netTotal);
         s.setDuplicatePrint(inv.isDuplicatePrint());
         s.setFreeUmbrellaQty(inv.getLines().stream()

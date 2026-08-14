@@ -62,7 +62,9 @@
 
           <mat-form-field appearance="outline">
             <mat-label>Invoice Date *</mat-label>
-            <input matInput type="date" formControlName="invoiceDate">
+            <input matInput [matDatepicker]="invPicker" formControlName="invoiceDate">
+            <mat-datepicker-toggle matSuffix [for]="invPicker"></mat-datepicker-toggle>
+            <mat-datepicker #invPicker></mat-datepicker>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="span-2">
@@ -73,11 +75,25 @@
                    (ngModelChange)="filterCustomers($event)"
                    placeholder="Type customer name or code…"
                    [matAutocomplete]="customerAuto">
+            <!-- Picks up a customer added in another tab, without losing the lines
+                 already entered here. -->
+            <button matSuffix mat-icon-button type="button"
+                    (click)="refreshCustomers()"
+                    [disabled]="refreshingCustomers"
+                    matTooltip="Reload customers — picks up anyone added since this invoice was started">
+              <mat-icon [class.spinning]="refreshingCustomers">refresh</mat-icon>
+            </button>
             <mat-autocomplete #customerAuto="matAutocomplete" [displayWith]="customerDisplayFn" (optionSelected)="selectCustomer($event.option.value)">
               @for (c of filteredCustomers; track c.id) {
                 <mat-option [value]="c">{{ c.name }}</mat-option>
               }
             </mat-autocomplete>
+            @if (customersRefreshedAt) {
+              <mat-hint>
+                {{ customers.length }} customers, reloaded at
+                {{ customersRefreshedAt | date:'h:mm:ss a' }}
+              </mat-hint>
+            }
           </mat-form-field>
 
           <!-- Bill type + number: the invoice number IS the bill number -->
@@ -124,17 +140,31 @@
             </button>
           }
 
+          <!-- Only on an imported invoice. A typed one uses its bill number as the
+               reference, so asking for a second one only invites the two to disagree. -->
           @if (showAgentRef) {
             <mat-form-field appearance="outline">
               <mat-label>Agent Invoice No (External Ref)</mat-label>
               <input matInput formControlName="externalRef" placeholder="e.g. BDSL/13271">
-              <mat-hint>Optional here — searchable alongside the bill number</mat-hint>
+              <mat-hint>From the agent's sheet — searchable alongside the bill number</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>Agent Printed Net (LKR)</mat-label>
               <input matInput type="number" formControlName="agentPrintedNet" placeholder="0.00">
               <mat-hint>Used for variance check only</mat-hint>
+            </mat-form-field>
+          }
+
+          <!-- Promotions are flat, and the slabs are value bands, so a promotional
+               rate cannot be expressed as a band. Admin only. -->
+          @if (isAdmin) {
+            <mat-form-field appearance="outline">
+              <mat-label>Discount Override %</mat-label>
+              <input matInput type="number" formControlName="discountOverridePct"
+                     min="0" max="100" placeholder="e.g. 50">
+              <span matTextSuffix>%</span>
+              <mat-hint>Replaces the slab rate on every line — leave empty to use the slabs</mat-hint>
             </mat-form-field>
           }
 
@@ -185,6 +215,14 @@
           <!-- Prices and stock are read once when the form opens; this picks up
                anything changed in Items since, without losing the lines so far. -->
           <button type="button" class="refresh-items-btn"
+                  (click)="togglePaste()"
+                  [class.on]="showPaste"
+                  matTooltip="Paste code, qty and price read off the agent's invoice">
+            <mat-icon>content_paste</mat-icon>
+            <span>Paste Lines</span>
+          </button>
+
+          <button type="button" class="refresh-items-btn"
                   (click)="refreshItems()"
                   [disabled]="refreshingItems"
                   matTooltip="Reload items — picks up price, stock and new items changed since this invoice was started">
@@ -192,6 +230,109 @@
             <span>{{ refreshingItems ? 'Refreshing…' : 'Refresh Items' }}</span>
           </button>
         </div>
+
+        <!-- Lines read off a photo of the agent's invoice. The price is a check on the
+             code, never the price the invoice is raised at. -->
+        @if (showPaste) {
+          <div class="paste-panel">
+            <div class="paste-head">
+              <strong>Paste lines</strong>
+              <span>One per row: <code>code, qty, price</code> — price optional, used only to confirm the item</span>
+            </div>
+
+            <!-- What to send an AI along with a photo of the invoice, and what comes
+                 back. Shown here so the wording never has to be remembered. -->
+            <div class="prompt-hint">
+              <div class="ph-bar">
+                <button type="button" class="ph-toggle" (click)="togglePastePrompt()">
+                  <mat-icon>{{ showPastePrompt ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  Reading lines off a photo?
+                </button>
+                <button type="button" class="ph-copy" (click)="copyPrompt()">
+                  <mat-icon>{{ promptCopied ? 'check' : 'content_copy' }}</mat-icon>
+                  {{ promptCopied ? 'Copied' : 'Copy AI prompt' }}
+                </button>
+              </div>
+
+              @if (showPastePrompt) {
+                <div class="ph-body">
+                  <p class="ph-step">
+                    <strong>1.</strong> Send the photo to an AI with this prompt:
+                  </p>
+                  <pre class="ph-code">{{ aiPrompt }}</pre>
+
+                  <p class="ph-step">
+                    <strong>2.</strong> It replies with rows like this — paste them below:
+                  </p>
+                  <pre class="ph-code sample">code,qty,price
+1040,10,340.00
+1045,5,120.50
+3830,12,2050.00
+K01047,2,0</pre>
+
+                  <p class="ph-note">
+                    The price is only used to confirm the code found the right item —
+                    the invoice is always priced from the catalogue. Anything the AI
+                    marks <code>UNREADABLE</code> is skipped and listed, so nothing is
+                    guessed into the invoice.
+                  </p>
+                </div>
+              }
+            </div>
+            <textarea class="paste-box" rows="7"
+                      [(ngModel)]="pasteText"
+                      [ngModelOptions]="{ standalone: true }"
+                      placeholder="code,qty,price&#10;1040,10,340.00&#10;1045,5,120.50&#10;K01047,2"></textarea>
+            <div class="paste-actions">
+              <button type="button" class="paste-add" (click)="applyPaste()" [disabled]="!pasteText.trim()">
+                <mat-icon>playlist_add</mat-icon> Add to Invoice
+              </button>
+              <button type="button" class="paste-cancel" (click)="togglePaste()">Close</button>
+            </div>
+
+            @if (pasteResult) {
+              <div class="paste-result">
+                @if (pasteResult.added > 0) {
+                  <div class="pr-ok">
+                    <mat-icon>check_circle</mat-icon>
+                    {{ pasteResult.added }} line(s) added.
+                  </div>
+                }
+                @if (pasteResult.unknown.length) {
+                  <div class="pr-bad">
+                    <mat-icon>error_outline</mat-icon>
+                    Not in the catalogue, so skipped:
+                    <strong>{{ pasteResult.unknown.join(', ') }}</strong>
+                  </div>
+                }
+                @if (pasteResult.ambiguous.length) {
+                  <div class="pr-bad">
+                    <mat-icon>help_outline</mat-icon>
+                    More than one item matches, so skipped:
+                    <strong>{{ pasteResult.ambiguous.join(', ') }}</strong>
+                  </div>
+                }
+                <!-- The code found an item but the price disagrees — usually a mistyped
+                     code, occasionally a stale catalogue price. -->
+                @if (pasteResult.mismatched.length) {
+                  <div class="pr-warn">
+                    <mat-icon>price_change</mat-icon>
+                    <div>
+                      <strong>Price does not match — check the code is right</strong>
+                      @for (m of pasteResult.mismatched; track m.code) {
+                        <span class="pr-line">
+                          {{ m.code }}: pasted {{ m.pasted | number:'1.2-2' }},
+                          catalogue {{ m.catalog | number:'1.2-2' }}
+                        </span>
+                      }
+                      <span class="pr-note">The catalogue price is what the invoice uses.</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
 
         @if (itemsRefreshedAt) {
           <div class="items-refreshed">
@@ -268,6 +409,46 @@
                   </tr>
                 }
               </tbody>
+
+              <!-- Add another item where the last line is, rather than scrolling back
+                   to the search box. Restricted to the chosen bill category. -->
+              <tfoot>
+                <tr class="add-row">
+                  <td class="idx">
+                    <button type="button" class="add-line-btn" (click)="toggleInlineAdd()"
+                            [matTooltip]="showInlineAdd ? 'Close' : 'Add another ' + business + ' item'">
+                      <mat-icon>{{ showInlineAdd ? 'close' : 'add_circle' }}</mat-icon>
+                    </button>
+                  </td>
+                  <td [attr.colspan]="allowsFreeIssue ? 7 : 6">
+                    @if (showInlineAdd) {
+                      <mat-form-field appearance="outline" class="inline-add-field" subscriptSizing="dynamic">
+                        <mat-icon matPrefix>search</mat-icon>
+                        <input matInput
+                               [ngModel]="inlineSearch"
+                               [ngModelOptions]="{ standalone: true }"
+                               (ngModelChange)="filterInline($event)"
+                               placeholder="Add {{ business }} item — code or name…"
+                               [matAutocomplete]="inlineAuto">
+                        <mat-autocomplete #inlineAuto [displayWith]="itemDisplayFn"
+                                          (optionSelected)="addInline($event.option.value)">
+                          @for (item of inlineFiltered; track item.id) {
+                            <mat-option [value]="item">
+                              <span class="ac-code">{{ item.itemCode }}</span>
+                              <span class="ac-desc">{{ item.description }}</span>
+                              <span class="ac-wsp">{{ (item.wsp ?? item.wholesalePrice ?? 0) | number:'1.2-2' }}</span>
+                            </mat-option>
+                          }
+                        </mat-autocomplete>
+                      </mat-form-field>
+                    } @else {
+                      <button type="button" class="add-line-text" (click)="toggleInlineAdd()">
+                        Add another item
+                      </button>
+                    }
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         }
