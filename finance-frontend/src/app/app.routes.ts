@@ -85,9 +85,19 @@ export const routes: Routes = [
               .then(m => m.InvoiceFormComponent)
           },
           {
+            path: 'invoices/:id/edit',
+            loadComponent: () => import('./features/invoicing/features/invoices/invoice-form/invoice-form.component')
+              .then(m => m.InvoiceFormComponent)
+          },
+          {
             path: 'invoices/:id',
             loadComponent: () => import('./features/invoicing/features/invoices/invoice-detail/invoice-detail.component')
               .then(m => m.InvoiceDetailComponent)
+          },
+          {
+            path: 'batches',
+            loadComponent: () => import('./features/invoicing/features/batches/import-batches.component')
+              .then(m => m.ImportBatchesComponent)
           },
           {
             path: 'grn',
@@ -105,11 +115,24 @@ export const routes: Routes = [
               .then(m => m.BrandListComponent)
           },
           {
+            // Admin only. Hiding the nav link alone would leave the URL open, and an
+            // import writes invoices, bills and stock in one press.
             path: 'import',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/import/import.component')
               .then(m => m.ImportComponent)
           },
+          {
+            path: 'review',
+            loadComponent: () => import('./features/invoicing/features/review/invoice-review.component')
+              .then(m => m.InvoiceReviewComponent)
+          },
         ]
+      },
+      {
+        path: 'cash-flow',
+        loadComponent: () => import('./features/cash-flow/cash-flow-page')
+          .then(m => m.CashFlowPage)
       },
       {
         path: 'bills/aging',

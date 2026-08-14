@@ -1,0 +1,74 @@
+<div class="matrix-dialog">
+
+  <!-- Screen only — the sheet below is what reaches the paper. -->
+  <div class="mx-toolbar no-print">
+    <div class="mx-toolbar-left">
+      <mat-icon>grid_on</mat-icon>
+      <div>
+        <strong>Item Qty Contribution by Bill</strong>
+        <small>{{ rows.length }} items across {{ columns.length }} bills · {{ grandTotal | number }} units</small>
+      </div>
+    </div>
+    <div class="mx-toolbar-actions">
+      <button class="mx-btn ghost" (click)="downloadCsv()">
+        <mat-icon>download</mat-icon> CSV
+      </button>
+      <button class="mx-btn primary" (click)="print()">
+        <mat-icon>print</mat-icon> Print
+      </button>
+      <button class="mx-btn icon" (click)="close()" aria-label="Close">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── The sheet ─────────────────────────────────────────────────── -->
+  <div class="mx-sheet">
+   <div class="mx-inner">
+    <div class="mx-title">
+      {{ data.companyName }} — Item Qty Contribution by Bill<span *ngIf="data.scope"> ({{ data.scope }})</span>
+    </div>
+
+    <div class="mx-scroll">
+      <table class="mx-table" *ngIf="rows.length > 0">
+        <thead>
+          <tr>
+            <th class="h-item">Item</th>
+            <!-- Rotated so twenty-odd bills fit across one sheet without shrinking
+                 the figures to something unreadable. -->
+            <th class="h-bill" *ngFor="let c of columns; let i = index">
+              <span class="rot">
+                <span class="ref">{{ shortRef(c) }}</span>
+                <span class="cust" *ngIf="columnNames[i]">{{ columnNames[i] }}</span>
+              </span>
+            </th>
+            <th class="h-total">Total</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let r of rows">
+            <td class="c-item">{{ r.code }}</td>
+            <!-- A zero is printed but muted: the grid stays intact to read along,
+                 while only the quantities that exist carry any weight. -->
+            <td class="c-qty" *ngFor="let n of r.cells" [class.zero]="n === 0">{{ n }}</td>
+            <td class="c-total">{{ r.total | number }}</td>
+          </tr>
+        </tbody>
+
+        <tfoot>
+          <tr>
+            <td class="c-item">Total</td>
+            <td class="c-qty" *ngFor="let n of columnTotals" [class.zero]="n === 0">{{ n }}</td>
+            <td class="c-total">{{ grandTotal | number }}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="mx-empty" *ngIf="rows.length === 0">
+        Nothing to show — no invoice in this load carries a quantity.
+      </div>
+    </div>
+   </div>
+  </div>
+</div>

@@ -18,9 +18,11 @@ import { Bill, BillResponse } from '../../../core/services/bill';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
 import { Payment, PaymentResponse } from '../../../core/services/payment';
-import { BillReturnResponse, BillReturnService } from '../../../core/services/bill-return';
+import { BillReturnResponse, BillReturnService, BillReturnSummary }
+  from '../../../core/services/bill-return';
 import { WorkerPortalService, WorkerPaymentEntry, CollectionNote } from '../../../core/services/worker-portal';
 import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-edit-dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { BillStockStatus, ReturnProductResponse, StockService } from '../../../core/services/stock';
 import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel, chequeAgeTooltip } from '../../../core/utils/cheque-age';
@@ -56,6 +58,8 @@ export class BillDetail implements OnInit {
   bill: BillResponse | null = null;
   payments: PaymentResponse[] = [];
   returns: BillReturnResponse[] = [];
+  /** Server-side working, so the panel never re-derives the discount rules. */
+  returnSummary: BillReturnSummary | null = null;
   workers: WorkerResponse[] = [];
   stockStatus: BillStockStatus | null = null;
   pendingWorkerEntries: WorkerPaymentEntry[] = [];
@@ -94,20 +98,134 @@ export class BillDetail implements OnInit {
   reconcileError = '';
 
   get approvedDamageTotal(): number {
+    if (this.returnSummary) return this.returnSummary.damageTotal;
     return this.returns
       .filter(r => r.returnType === 'DAMAGE' && r.status === 'APPROVED')
       .reduce((sum, r) => sum + (r.approvedAmount ?? r.calculatedReturnAmount), 0);
   }
 
   get approvedSalableTotal(): number {
+    if (this.returnSummary) return this.returnSummary.salableTotal;
     return this.returns
       .filter(r => r.returnType === 'SALABLE' && r.status === 'APPROVED')
       .reduce((sum, r) => sum + (r.approvedAmount ?? r.calculatedReturnAmount), 0);
   }
 
+  /**
+   * What the bill was invoiced for. Returns no longer reduce this figure - they
+   * accumulate separately - so it is read straight off the bill rather than
+   * reconstructed by adding the returns back on.
+   */
   get originalBillAmount(): number {
-    if (!this.bill) return 0;
-    return (this.bill.totalAmount as unknown as number) + this.approvedDamageTotal + this.approvedSalableTotal;
+    if (this.returnSummary) return this.returnSummary.billTotal;
+    return this.bill ? (this.bill.totalAmount as unknown as number) : 0;
+  }
+
+  /** Invoiced less returns: what the customer actually owes. */
+  get payableAmount(): number {
+    if (this.returnSummary) return this.returnSummary.payable;
+    return this.originalBillAmount - this.approvedDamageTotal - this.approvedSalableTotal;
+  }
+
+  /** Returns nobody has confirmed or reviewed - these block payment on this bill. */
+  get openReturns(): BillReturnResponse[] {
+    return this.returns.filter(r => r.status === 'PENDING' || r.status === 'GOODS_CONFIRMED');
+  }
+
+  get awaitingGoods(): BillReturnResponse[] {
+    return this.returns.filter(r => r.status === 'PENDING');
+  }
+
+  /**
+   * Hides this bill from the aging report, or puts it back. Admin only, and a reason
+   * is required to hide: the balance stays owed, so somebody will eventually ask why
+   * it is missing from the report.
+   */
+  toggleAgingVisibility(): void {
+    if (!this.bill) return;
+    const hiding = !this.bill.excludedFromAging;
+
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: hiding ? 'Hide from Aging Report' : 'Show on Aging Report',
+        message: hiding
+          ? 'This bill stops appearing on the aging report. The balance stays owed and '
+            + 'nothing is deleted — it simply stops being counted as chaseable debt.'
+          : 'This bill goes back onto the aging report and counts as chaseable again.',
+        confirmText: hiding ? 'Hide from report' : 'Show on report',
+        confirmColor: hiding ? 'warn' : 'primary',
+        showInput: hiding,
+        inputLabel: hiding ? 'Reason (required)' : undefined,
+      },
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      if (hiding && !String(result.inputValue ?? '').trim()) {
+        this.snackBar.open('A reason is needed to hide a bill from the report.',
+                           'OK', { duration: 4000 });
+        return;
+      }
+      this.billService.setAgingVisibility(this.bill!.id, hiding, result.inputValue ?? '')
+        .subscribe({
+          next: (updated) => {
+            this.bill = updated;
+            this.snackBar.open(
+              hiding ? 'Hidden from the aging report.' : 'Back on the aging report.',
+              'OK', { duration: 3000 });
+            this.cdr.markForCheck();
+          },
+          error: (err) => this.snackBar.open(
+            err?.error?.message ?? 'Could not update.', 'OK', { duration: 5000 }),
+        });
+    });
+  }
+
+  returnStatusLabel(status: string): string {
+    switch (status) {
+      case 'PENDING':         return 'Awaiting goods';
+      case 'GOODS_CONFIRMED': return 'Awaiting review';
+      case 'APPROVED':        return 'Approved';
+      case 'REJECTED':        return 'Rejected';
+      case 'NOT_RECEIVED':    return 'Not received';
+      case 'CANCELLED':       return 'Cancelled';
+      default:                return status;
+    }
+  }
+
+  /**
+   * The accountant recording what physically came back. Until this is answered the
+   * bill cannot take a payment, which is what stops a return being missed.
+   */
+  confirmGoods(r: BillReturnResponse, receipt: 'ALL' | 'PARTIAL' | 'NONE'): void {
+    const needsNote = receipt !== 'ALL';
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: receipt === 'ALL' ? 'Confirm All Received'
+             : receipt === 'NONE' ? 'Confirm Nothing Received'
+             : 'Confirm Partly Received',
+        message: receipt === 'ALL'
+          ? `Everything claimed on this ${r.returnType.toLowerCase()} return came back?`
+          : 'Note what is missing so the admin can chase it. '
+            + 'Only what actually arrived will come off the bill.',
+        confirmText: 'Confirm',
+        confirmColor: 'primary',
+        showInput: needsNote,
+        inputLabel: needsNote ? 'What was missing' : undefined,
+      },
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.billReturnService.confirmGoods(r.id, {
+        receipt,
+        note: result.inputValue ?? '',
+      }).subscribe({
+        next: () => {
+          this.snackBar.open('Goods confirmed. The admin can now review this return.',
+                             'OK', { duration: 4000 });
+          if (this.bill) this.reloadBillAndReturns(this.bill.id);
+        },
+        error: (err) => this.snackBar.open(
+          err?.error?.message ?? 'Failed to confirm.', 'OK', { duration: 6000 }),
+      });
+    });
   }
 
   get isAccountant(): boolean { return this.auth.getRole() === 'ACCOUNTANT'; }
@@ -175,6 +293,7 @@ export class BillDetail implements OnInit {
     private workerPortalService: WorkerPortalService,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
+    private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit(): void {
@@ -286,17 +405,36 @@ export class BillDetail implements OnInit {
 
   private loadReturns(billId: number): void {
     this.returnsLoading = true;
-    this.billReturnService.getForBill(billId).subscribe({
-      next: (r) => {
-        this.returns = r;
+    // The summary carries the server's own working, so the panel shows the same
+    // damage and salable figures the balance was computed from.
+    this.billReturnService.getSummary(billId).subscribe({
+      next: (sum) => {
+        this.returnSummary = sum;
+        this.returns = sum.returns;
         this.returnsLoading = false;
         this.cdr.detectChanges();
       },
       error: () => {
-        this.returnsLoading = false;
-        this.cdr.detectChanges();
+        // Fall back to the plain list rather than showing nothing.
+        this.billReturnService.getForBill(billId).subscribe({
+          next: (r) => {
+            this.returns = r;
+            this.returnsLoading = false;
+            this.cdr.detectChanges();
+          },
+          error: () => {
+            this.returnsLoading = false;
+            this.cdr.detectChanges();
+          },
+        });
       },
     });
+  }
+
+  /** After a confirmation the balance may have moved, so refetch both. */
+  private reloadBillAndReturns(billId: number): void {
+    this.load(billId);
+    this.loadReturns(billId);
   }
 
   private loadStockStatus(billId: number): void {

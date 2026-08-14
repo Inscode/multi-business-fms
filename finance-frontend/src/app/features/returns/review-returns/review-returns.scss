@@ -283,3 +283,67 @@
   flex-wrap: wrap;
   margin-top: 4px;
 }
+
+// ── What the accountant actually found ──────────────────────────────
+.goods-note,
+.awaiting-goods-note,
+.cancelled-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
+  strong { display: block; font-weight: 600; }
+  .when { font-weight: 400; opacity: .75; margin-left: 6px; }
+}
+
+.goods-note {
+  background: #e8f5e9;
+  color: #1b5e20;
+
+  // Something was missing - the admin should not approve the full claim blind.
+  &.short { background: #fff3e0; color: #a34700; }
+
+  .acc-note {
+    display: block;
+    margin-top: 3px;
+    font-style: italic;
+  }
+}
+
+.awaiting-goods-note { background: #eceff1; color: #546e7a; }
+.cancelled-note      { background: #f3e5f5; color: #6a1b9a; }
+
+// ── Chips ───────────────────────────────────────────────────────────
+.edited-chip,
+.stale-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+
+  mat-icon { font-size: 12px; width: 12px; height: 12px; }
+}
+
+.edited-chip { background: #fff8e1; color: #8d6e00; }
+.stale-chip  { background: #ffebee; color: #c62828; }
+
+.status-chip.status-goods_confirmed { background: #e3f2fd; color: #1565c0; }
+.status-chip.status-not_received    { background: #eceff1; color: #546e7a; }
+.status-chip.status-cancelled       { background: #f3e5f5; color: #6a1b9a; }
+
+.return-card.confirmed { border-left: 3px solid #1e88e5; }
+.return-card.cancelled { opacity: .75; }
+
+// Old and still unsettled - the thing most likely to be forgotten.
+.return-card.stale { border-left: 3px solid #e53935; }

@@ -43,7 +43,7 @@ export class CollectionHealth implements OnInit {
   selectedBusiness = 'RAINCO';
 
   get businesses(): string[] {
-    return this.auth.isDemo ? ['DEMO'] : ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE'];
+    return this.auth.isDemo ? ['DEMO'] : ['RAINCO', 'STATIONERY', 'PLASTIC', 'HARDWARE', 'MIX'];
   }
 
   get isDemo(): boolean { return this.auth.isDemo; }

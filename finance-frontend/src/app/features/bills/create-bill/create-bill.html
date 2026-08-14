@@ -60,7 +60,11 @@
           <mat-label>Bill Number</mat-label>
           <mat-select formControlName="billNumber">
             <mat-option *ngIf="loadingNumbers" disabled>Loading...</mat-option>
-            <mat-option *ngFor="let n of suggestedBillNumbers" [value]="String(n)">{{ n }}</mat-option>
+            <mat-option *ngFor="let n of suggestedBillNumbers" [value]="String(n.number)"
+                        [class.num-missing]="n.missing">
+              {{ n.number }}
+              <span class="missing-tag" *ngIf="n.missing">not entered</span>
+            </mat-option>
           </mat-select>
           <mat-error *ngIf="form.get('billNumber')?.hasError('required')">Required</mat-error>
           <mat-error *ngIf="form.get('billNumber')?.hasError('duplicate')">This bill number already exists — use a different number</mat-error>
@@ -76,10 +80,17 @@
                  placeholder="Type any number or pick from sequence" />
           <mat-spinner matSuffix diameter="16" *ngIf="loadingNumbers" style="margin-right:8px"></mat-spinner>
           <mat-autocomplete #billNumAuto="matAutocomplete">
-            <mat-option *ngFor="let n of suggestedBillNumbers" [value]="String(n)">{{ n }}</mat-option>
+            <mat-option *ngFor="let n of suggestedBillNumbers" [value]="String(n.number)"
+                        [class.num-missing]="n.missing">
+              {{ n.number }}
+              <span class="missing-tag" *ngIf="n.missing">not entered</span>
+            </mat-option>
           </mat-autocomplete>
           <mat-hint *ngIf="suggestedBillNumbers.length > 0 && !loadingNumbers">
-            Next in sequence: {{ suggestedBillNumbers[0] }}
+            <span *ngIf="missingCount() > 0" class="missing-hint">
+              {{ missingCount() }} number(s) never entered — shown at the top of the list.
+            </span>
+            <span *ngIf="missingCount() === 0">Next in sequence: {{ firstNewNumber() }}</span>
           </mat-hint>
           <mat-error *ngIf="form.get('billNumber')?.hasError('required')">Required</mat-error>
           <mat-error *ngIf="form.get('billNumber')?.hasError('duplicate')">This bill number already exists — use a different number</mat-error>

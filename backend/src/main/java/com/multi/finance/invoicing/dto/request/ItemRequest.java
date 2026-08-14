@@ -16,4 +16,6 @@ public class ItemRequest {
     BigDecimal mrp;
     BigDecimal marginPct;
     BigDecimal wholesalePrice;
+    /** Null on create means active. */
+    Boolean active;
 }

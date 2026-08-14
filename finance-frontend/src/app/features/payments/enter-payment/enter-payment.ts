@@ -46,7 +46,7 @@ export class EnterPayment implements OnInit {
 
   workers: WorkerResponse[] = [];
 
-  businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
+  businesses   = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY', 'MIX'];
   paymentTypes = ['CASH', 'CHEQUE', 'BANK_TRANSFER'];
   banks = BANKS;
   areas = AREAS;

@@ -88,6 +88,16 @@ public class Bill {
     @Column(name = "balance_remaining", nullable = false)
     private BigDecimal balanceRemaining;
 
+    /**
+     * Everything the customer has sent back on this bill, damage and salable together.
+     * Held apart from {@link #totalAmount} so the invoiced figure survives a return and
+     * an admin reversal is a recompute rather than a compensating entry.
+     * Always go through {@code BillBalance} rather than reading this directly.
+     */
+    @Column(name = "returns_total", nullable = false)
+    @Builder.Default
+    private BigDecimal returnsTotal = BigDecimal.ZERO;
+
     @Column(name = "fully_paid", nullable = false)
     private Boolean fullyPaid;
 
@@ -118,6 +128,24 @@ public class Bill {
     @Column(name = "stock_cleared", nullable = false)
     @Builder.Default
     private Boolean stockCleared = false;
+
+    /**
+     * Kept off the aging report. The balance is still owed and still on the bill —
+     * this only says it is not chaseable debt worth reporting, so the report does not
+     * overstate what can actually be collected.
+     */
+    @Column(name = "excluded_from_aging", nullable = false)
+    @Builder.Default
+    private Boolean excludedFromAging = false;
+
+    @Column(name = "aging_exclusion_reason", length = 300)
+    private String agingExclusionReason;
+
+    @Column(name = "aging_excluded_by", length = 100)
+    private String agingExcludedBy;
+
+    @Column(name = "aging_excluded_at")
+    private LocalDateTime agingExcludedAt;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

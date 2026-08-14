@@ -1,5 +1,5 @@
 export type CategoryType = 'RAINCO' | 'STATIONERY' | 'PLASTIC';
-export type InvoiceMethod = 'MIX' | 'RAINCO_ONLY' | 'STATIONERY_ONLY';
+export type InvoiceMethod = 'MIX' | 'RAINCO_ONLY' | 'STATIONERY_ONLY' | 'PLASTIC_ONLY';
 export type InvoiceType = 'CASH' | 'CREDIT';
 export type ReturnType = 'DAMAGE' | 'SALABLE';
 export type ReturnStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -52,6 +52,9 @@ export interface Item {
   wholesalePrice?: number;
   active: boolean;
   stockQty: number;
+  /** Automatic scheme: buy this many, get freeIssueFreeQty free. */
+  freeIssueBuyQty?: number;
+  freeIssueFreeQty?: number;
 }
 
 export interface InvoiceLine {
@@ -62,6 +65,8 @@ export interface InvoiceLine {
   brandId: number;
   brandName: string;
   qty: number;
+  /** Given free — no value, but deducted from stock. */
+  freeQty?: number;
   mrp: number;
   marginPct?: number;
   wsp: number;
@@ -85,6 +90,9 @@ export interface Invoice {
   cashDiscountPct?: number;
   cashDiscountAmount: number;
   plasticDiscountPct?: number;
+  /** Flat admin rate replacing the slab, for promotions. */
+  discountOverridePct?: number | null;
+  discountOverrideBy?: string;
   plasticDiscountAmount?: number;
   netTotal: number;
   agentPrintedNet?: number;
@@ -92,6 +100,10 @@ export interface Invoice {
   printedBy?: string;
   createdAt: string;
   duplicatePrint: boolean;
+  /** Bill raised in the bills section, where payments are collected. */
+  billId?: number | null;
+  /** Attached to a bill already entered by hand — stock moved, no second bill. */
+  billLinkedExisting?: boolean;
   lines: InvoiceLine[];
 }
 
@@ -108,6 +120,10 @@ export interface InvoiceSummary {
   cashDiscountAmount: number;
   netTotal: number;
   duplicatePrint: boolean;
+  /** Bill raised in the bills section, where payments are collected. */
+  billId?: number | null;
+  /** Attached to a bill already entered by hand — stock moved, no second bill. */
+  billLinkedExisting?: boolean;
 }
 
 export interface ReturnItem {
@@ -235,4 +251,31 @@ export interface Page<T> {
   totalPages: number;
   size: number;
   number: number;
+}
+
+
+/** What a draft invoice would come to, priced by the server before anything is saved. */
+export interface QuoteBrandGroup {
+  brandId: number;
+  brandName: string;
+  gross: number;
+  discountPct: number;
+  discountAmount: number;
+  net: number;
+  /** The next slab up, when a better rate is within reach. */
+  nextSlabAt?: number | null;
+  nextSlabPct?: number | null;
+  amountToNextSlab?: number | null;
+}
+
+export interface Quote {
+  brandGroups: QuoteBrandGroup[];
+  grossTotal: number;
+  totalSlabDiscount: number;
+  cashDiscountPct?: number | null;
+  cashDiscountAmount: number;
+  plasticDiscount: number;
+  netTotal: number;
+  totalDiscount: number;
+  totalFreeQty: number;
 }

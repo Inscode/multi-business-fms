@@ -1,0 +1,155 @@
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title"><mat-icon>summarize</mat-icon> Import Batches</div>
+      <p class="page-sub">
+        Product totals for one upload, to check against the agent's summary bill.
+        Untick an invoice to leave it out of the totals — nothing is changed by doing so.
+      </p>
+    </div>
+    <button mat-icon-button (click)="loadBatches()" matTooltip="Refresh" [disabled]="loading">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  @if (error) {
+    <div class="error-banner"><mat-icon>error_outline</mat-icon> {{ error }}</div>
+  }
+
+  @if (loading) {
+    <div class="state-center"><mat-spinner diameter="34"></mat-spinner></div>
+  } @else if (batches.length === 0) {
+    <div class="state-center">
+      <mat-icon>inbox</mat-icon>
+      <p>No imports yet. Batches appear here once a file has been imported.</p>
+    </div>
+  } @else {
+
+    <div class="batch-layout">
+
+      <!-- Runs -->
+      <div class="batch-list card">
+        @for (b of batches; track b.id) {
+          <button class="batch-row" [class.active]="isSelected(b)" (click)="open(b)">
+            <div class="br-top">
+              <span class="br-cat">{{ b.category }}</span>
+              <span class="br-count">{{ b.invoiceCount }} inv</span>
+            </div>
+            <div class="br-file">{{ b.fileName || 'Batch #' + b.id }}</div>
+            <div class="br-meta">{{ b.importedAt | date:'dd MMM yyyy, HH:mm' }} · {{ b.importedBy }}</div>
+          </button>
+        }
+      </div>
+
+      <!-- Summary -->
+      <div class="batch-detail">
+        @if (loadingSummary) {
+          <div class="state-center"><mat-spinner diameter="30"></mat-spinner></div>
+        } @else if (selected) {
+
+          <div class="totals-bar card">
+            <div class="tot">
+              <span class="tot-label">Invoices counted</span>
+              <span class="tot-value">{{ includedCount() }} / {{ selected.invoices?.length || 0 }}</span>
+            </div>
+            <div class="tot">
+              <span class="tot-label">Total qty</span>
+              <span class="tot-value">{{ selected.totalQty | number }}</span>
+            </div>
+            <div class="tot">
+              <span class="tot-label">Free qty</span>
+              <span class="tot-value free">{{ selected.totalFreeQty | number }}</span>
+            </div>
+            <div class="tot">
+              <span class="tot-label">Total value</span>
+              <span class="tot-value">{{ selected.totalValue | number:'1.2-2' }}</span>
+            </div>
+            <span class="spacer"></span>
+            <button mat-stroked-button (click)="includeAll()" [disabled]="excluded.size === 0">
+              <mat-icon>select_all</mat-icon> Include all
+            </button>
+          </div>
+
+          <!-- Invoices in the run -->
+          <div class="card sub-card">
+            <div class="sub-title">Invoices in this batch</div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="chk"></th>
+                    <th>Invoice</th>
+                    <th>Agent Ref</th>
+                    <th>Customer</th>
+                    <th class="num">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (inv of selected.invoices; track inv.id) {
+                    <tr [class.row-excluded]="!inv.included">
+                      <td class="chk">
+                        <mat-checkbox [checked]="inv.included"
+                                      (change)="toggleInvoice(inv, $event.checked)"></mat-checkbox>
+                      </td>
+                      <td class="fw6">{{ inv.invoiceNo }}</td>
+                      <td class="mono">{{ inv.externalRef || '—' }}</td>
+                      <td>{{ inv.customerName }}</td>
+                      <td class="num">{{ inv.netTotal | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Product totals -->
+          <div class="card sub-card">
+            <div class="sub-title">Product totals</div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Brand</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Free</th>
+                    <th class="num">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of selected.products; track p.itemId) {
+                    <tr>
+                      <td class="mono">{{ p.itemCode }}</td>
+                      <td>{{ p.description }}</td>
+                      <td class="muted">{{ p.brandName }}</td>
+                      <td class="num fw6">{{ p.qty | number }}</td>
+                      <td class="num free">{{ p.freeQty ? (p.freeQty | number) : '—' }}</td>
+                      <td class="num fw6">{{ p.value | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                  @if ((selected.products?.length || 0) === 0) {
+                    <tr>
+                      <td colspan="6" class="muted center">
+                        Nothing counted — every invoice is unticked.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3">TOTAL</td>
+                    <td class="num">{{ selected.totalQty | number }}</td>
+                    <td class="num free">{{ selected.totalFreeQty | number }}</td>
+                    <td class="num">{{ selected.totalValue | number:'1.2-2' }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

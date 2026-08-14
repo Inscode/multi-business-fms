@@ -24,6 +24,10 @@ public class InvoiceResponse {
     // Financials computed by DiscountEngine
     private BigDecimal grossTotal;             // Σ line values before any discount
     private BigDecimal totalSlabDiscount;      // Σ slab discounts across all brand groups
+    /** Set when an admin replaced the slab rate for this invoice. */
+    private BigDecimal discountOverridePct;
+    private String discountOverrideBy;
+
     private BigDecimal cashDiscountPct;
     private BigDecimal cashDiscountAmount;
     private BigDecimal plasticDiscountPct;
@@ -35,6 +39,12 @@ public class InvoiceResponse {
     private String printedBy;
     private LocalDateTime createdAt;
     private boolean duplicatePrint;
+
+    /** The bill raised in the bills section, where payments are collected. */
+    private Long billId;
+
+    /** Attached to a bill that already existed — this invoice only moved the stock. */
+    private boolean billLinkedExisting;
 
     private List<InvoiceLineResponse> lines;
 }

@@ -1,0 +1,208 @@
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">
+        <mat-icon>fact_check</mat-icon>
+        Review Invoices
+      </div>
+      <p class="page-sub">
+        Invoices entered by the accountants. A flag here means the invoice was pointed at a
+        different customer than the name it was billed under.
+      </p>
+    </div>
+    <button mat-icon-button (click)="load()" matTooltip="Refresh" [disabled]="loading">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar card">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-status">
+      <mat-label>Status</mat-label>
+      <mat-select [(ngModel)]="status" (ngModelChange)="onFilterChange()">
+        <mat-option value="PENDING">Not reviewed</mat-option>
+        <mat-option value="REVIEWED">Reviewed</mat-option>
+        <mat-option value="ALL">All</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-source">
+      <mat-label>Entered via</mat-label>
+      <mat-select [(ngModel)]="source" (ngModelChange)="onFilterChange()">
+        <mat-option [value]="null">Any</mat-option>
+        <mat-option value="IMPORT">Import</mat-option>
+        <mat-option value="MANUAL">Typed in</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-search">
+      <mat-label>Search</mat-label>
+      <input matInput [(ngModel)]="search" (keyup.enter)="onFilterChange()"
+             placeholder="Invoice no, customer or billed name">
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-checkbox [(ngModel)]="changedOnly" (ngModelChange)="onFilterChange()">
+      Customer changed only
+    </mat-checkbox>
+
+    <span class="spacer"></span>
+    <button mat-button (click)="clearFilters()">
+      <mat-icon>filter_alt_off</mat-icon> Clear
+    </button>
+  </div>
+
+  @if (error) {
+    <div class="error-banner">
+      <mat-icon>error_outline</mat-icon> {{ error }}
+    </div>
+  }
+
+  <!-- Bulk bar -->
+  @if (selected.size > 0) {
+    <div class="bulk-bar">
+      <span>{{ selected.size }} selected</span>
+      <span class="spacer"></span>
+      @if (status !== 'REVIEWED') {
+        <button mat-flat-button color="primary" (click)="markSelected(true)">
+          <mat-icon>done_all</mat-icon> Mark reviewed
+        </button>
+      }
+      @if (status !== 'PENDING') {
+        <button mat-stroked-button (click)="markSelected(false)">
+          <mat-icon>undo</mat-icon> Reopen
+        </button>
+      }
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading-state"><mat-spinner diameter="34"></mat-spinner></div>
+  } @else if (rows.length === 0) {
+    <div class="empty-state">
+      <mat-icon>inbox</mat-icon>
+      <p>
+        @if (status === 'PENDING') { Nothing waiting — every invoice has been reviewed. }
+        @else { No invoices match these filters. }
+      </p>
+    </div>
+  } @else {
+
+    @if (changedCount() > 0) {
+      <div class="changed-banner">
+        <mat-icon>swap_horiz</mat-icon>
+        <div>
+          <strong>{{ changedCount() }} on this page had their customer changed</strong>
+          <span>
+            The invoice was raised under one name and recorded against another. The row shows
+            what it was billed as and who it now sits against.
+          </span>
+        </div>
+      </div>
+    }
+
+    <div class="table-wrap card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="chk">
+              <mat-checkbox [checked]="allSelected()" [indeterminate]="someSelected()"
+                            (change)="toggleAll($event.checked)"></mat-checkbox>
+            </th>
+            <th>Invoice</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Entered</th>
+            <th class="num">Net</th>
+            <th class="actions">Review</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows; track r.id) {
+            <tr [class.row-changed]="r.customerChanged" [class.row-reviewed]="r.reviewed">
+              <td class="chk">
+                <mat-checkbox [checked]="isSelected(r.id)"
+                              (change)="toggle(r.id, $event.checked)"></mat-checkbox>
+              </td>
+
+              <td>
+                <a class="inv-link" [routerLink]="['/invoicing/invoices', r.id]">{{ r.invoiceNo }}</a>
+                @if (r.externalRef) { <span class="ext-ref">{{ r.externalRef }}</span> }
+                <span class="type-chip" [class.cash]="r.invoiceType === 'CASH'">{{ r.invoiceType }}</span>
+              </td>
+
+              <td class="nowrap">{{ r.invoiceDate | date:'dd MMM yyyy' }}</td>
+
+              <td>
+                <div class="cust-cell">
+                  <span class="cust-now">{{ r.customerName }}</span>
+                  @if (r.customerChanged) {
+                    <span class="changed-chip"
+                          [matTooltip]="'Changed by ' + (r.customerChangedBy || 'accountant')">
+                      <mat-icon>swap_horiz</mat-icon> changed
+                    </span>
+                  }
+                  @if (r.freeIssueAddedBy) {
+                    <span class="free-chip"
+                          [matTooltip]="'Free issue added by ' + r.freeIssueAddedBy">
+                      <mat-icon>redeem</mat-icon> free issue
+                    </span>
+                  }
+                  @if (r.billLinkedExisting) {
+                    <span class="stock-only-chip"
+                          matTooltip="A bill with this number already existed — this invoice moved the stock only, no second bill was raised">
+                      <mat-icon>inventory_2</mat-icon> stock only
+                    </span>
+                  }
+                  @if (r.editedBy) {
+                    <span class="edited-chip" [matTooltip]="'Edited by ' + r.editedBy">
+                      <mat-icon>edit</mat-icon> edited
+                    </span>
+                  }
+                </div>
+                @if (r.customerChanged && r.originalCustomerName) {
+                  <div class="cust-was">was <s>{{ r.originalCustomerName }}</s></div>
+                }
+                @if (showsBilledName(r)) {
+                  <div class="cust-billed">billed as <strong>{{ r.billedName }}</strong></div>
+                }
+              </td>
+
+              <td class="nowrap">
+                <span class="src-chip" [class.import]="r.source === 'IMPORT'">
+                  {{ r.source === 'IMPORT' ? 'Import' : 'Typed' }}
+                </span>
+                <div class="by-line">
+                  {{ r.createdBy || '—' }} · {{ r.createdAt | date:'dd MMM, HH:mm' }}
+                </div>
+              </td>
+
+              <td class="num fw6">{{ r.netTotal | number:'1.2-2' }}</td>
+
+              <td class="actions">
+                @if (r.reviewed) {
+                  <span class="reviewed-tag"
+                        [matTooltip]="'by ' + (r.reviewedBy || '') + ' on ' + (r.reviewedAt | date:'dd MMM yyyy HH:mm')">
+                    <mat-icon>check_circle</mat-icon> Reviewed
+                  </span>
+                  <button mat-icon-button (click)="markOne(r, false)" matTooltip="Reopen">
+                    <mat-icon>undo</mat-icon>
+                  </button>
+                } @else {
+                  <button mat-flat-button color="primary" (click)="markOne(r, true)">
+                    <mat-icon>check</mat-icon> Reviewed
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <mat-paginator [length]="total" [pageSize]="size" [pageIndex]="page"
+                   [pageSizeOptions]="[25, 50, 100]" (page)="onPage($event)">
+    </mat-paginator>
+  }
+</div>

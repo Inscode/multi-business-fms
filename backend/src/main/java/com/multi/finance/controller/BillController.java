@@ -5,6 +5,7 @@ import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.request.BulkAssignBillRequest;
 import com.multi.finance.dto.request.BulkBillIdsRequest;
+import com.multi.finance.dto.response.AgingExportResponse;
 import com.multi.finance.dto.response.AgingReportResponse;
 import com.multi.finance.dto.response.BillResponse;
 import com.multi.finance.dto.response.BillSequenceGapResponse;
@@ -12,7 +13,9 @@ import com.multi.finance.dto.response.DashboardResponse;
 import com.multi.finance.dto.response.DashboardStatsResponse;
 import com.multi.finance.dto.response.SkipReviewResponse;
 import com.multi.finance.enums.BillStatus;
+import com.multi.finance.enums.BillType;
 import com.multi.finance.enums.BusinessType;
+import com.multi.finance.service.impl.AgingExportService;
 import com.multi.finance.service.impl.BillServiceImpl;
 import com.multi.finance.service.impl.WorkerPortalService;
 import jakarta.validation.Valid;
@@ -34,6 +37,7 @@ import java.util.Collections;
 public class BillController {
     private final BillServiceImpl billService;
     private final WorkerPortalService workerPortalService;
+    private final AgingExportService agingExportService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
@@ -61,7 +65,7 @@ public class BillController {
 
     @GetMapping("/next-numbers")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
-    public ResponseEntity<List<Integer>> getNextBillNumbers(
+    public ResponseEntity<List<com.multi.finance.service.impl.BillServiceImpl.BillNumberOption>> getNextBillNumbers(
             @RequestParam com.multi.finance.enums.BusinessType business,
             @RequestParam com.multi.finance.enums.BillSource billSource) {
         return ResponseEntity.ok(billService.getNextBillNumbers(business, billSource));
@@ -182,11 +186,68 @@ public class BillController {
         return ResponseEntity.ok(billService.cancelBill(id));
     }
 
+    /**
+     * Keeps a bill off the aging report, or puts it back. Admin only — the report is
+     * what collection is run from, so what appears on it is not a clerical decision.
+     */
+    @PatchMapping("/{id}/aging-visibility")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> setAgingVisibility(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body,
+            java.security.Principal principal) {
+        boolean excluded = Boolean.TRUE.equals(body.get("excluded"));
+        String reason = body.get("reason") == null ? null : String.valueOf(body.get("reason"));
+        return ResponseEntity.ok(
+                billService.setAgingVisibility(id, excluded, reason, principal.getName()));
+    }
+
+    /** The bills currently hidden, so an exclusion cannot be forgotten about. */
+    @GetMapping("/aging-report/excluded")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<List<BillResponse>> getAgingExcluded(
+            @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
+        return ResponseEntity.ok(billService.getAgingExcludedBills(business));
+    }
+
     @GetMapping("/aging-report")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
     public ResponseEntity<AgingReportResponse> getAgingReport(
             @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
         return ResponseEntity.ok(billService.getAgingReport(business));
+    }
+
+    /** Printable aging report — business required; area accepts several, comma separated. */
+    @GetMapping("/aging-report/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<AgingExportResponse> getAgingExport(
+            @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business,
+            @RequestParam(required = false) String area,
+            @RequestParam(required = false) BillType billType,
+            @RequestParam(required = false, defaultValue = "AGE") AgingExportService.SortMode sort) {
+        return ResponseEntity.ok(agingExportService.getExport(business, area, billType, sort));
+    }
+
+    @GetMapping("/aging-report/export.xlsx")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<byte[]> getAgingExcel(
+            @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business,
+            @RequestParam(required = false) String area,
+            @RequestParam(required = false) BillType billType,
+            @RequestParam(required = false, defaultValue = "AGE") AgingExportService.SortMode sort)
+            throws java.io.IOException {
+
+        byte[] body = agingExportService.getExcel(business, area, billType, sort);
+        String name = "aging-" + business.name().toLowerCase()
+                + (area != null && !area.isBlank() ? "-" + area.toLowerCase().replace(' ', '-') : "")
+                + (billType != null ? "-" + billType.name().toLowerCase() : "")
+                + "-" + java.time.LocalDate.now() + ".xlsx";
+
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + name + "\"")
+                .header("Content-Type",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .body(body);
     }
 
     @GetMapping("/sequence-gaps")

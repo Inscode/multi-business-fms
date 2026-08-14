@@ -1,141 +1,267 @@
+/* Aging Report — A4 landscape, built for a plain office laser printer.
+ *
+ * The whole design assumes the page will be printed in black and white, and then
+ * photocopied. Nothing carries meaning by colour: overdue balances are found by weight
+ * and rule, never by hue, so the report reads the same on paper as on screen.
+ *
+ * Only three tones are used — white, one very light gray, and black. Dark fills with
+ * reversed text are avoided deliberately: they drink toner and turn to mud on a tired
+ * cartridge.
+ */
+
 :host {
   display: block;
-  color: #1a1a2e;
+  color: #000;
 }
 
-/* A real A4 landscape sheet — same approach as the invoice print, so what you see
-   on screen is what lands on the paper. */
+/* Three tones, and nothing between them. */
+$tint:   #f0f0f0;   // header and total-row fill
+$stripe: #f7f7f7;   // alternating rows — a whisper, still visible after a photocopy
+$rule:   #000;
+
+/* A real A4 landscape sheet, sized in mm like the invoice print so what is on
+   screen is what lands on the paper. */
 .report {
   width: 297mm;
   min-height: 210mm;
   margin: 0 auto;
-  padding: 10mm 12mm;
+  padding: 10mm 11mm;
   background: #fff;
   box-sizing: border-box;
-  font-size: 11px;
+
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.35;
+
+  /* Digits of equal width, so every column of figures lines up on the decimal
+     without needing a monospace face for the whole report. */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 @media screen {
-  :host { background: #e0e0e0; }
+  :host { background: #d9d9d9; }
+
+  .view-toolbar { margin-top: 20px; }
+
   .report {
-    margin: 20px auto;
+    margin: 0 auto 28px;
     box-shadow: 0 2px 16px rgba(0, 0, 0, .25);
   }
 }
 
-.print-btn {
-  position: fixed;
-  top: 16px;
-  right: 20px;
-  display: inline-flex;
+/* Screen-only toolbar. Sticky rather than floating over the sheet, so it never sits
+   on top of the figures being checked. */
+.view-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
-  border: none;
-  border-radius: 22px;
-  background: #1565c0;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 297mm;
+  margin: 0 auto;
+  padding: 10px 16px;
+  background: #263238;
+  color: #eceff1;
+  border-radius: 8px 8px 0 0;
+  font-family: Arial, Helvetica, sans-serif;
 
-  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  .vt-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    opacity: .9;
+
+    mat-icon { font-size: 17px; width: 17px; height: 17px; }
+  }
+
+  .vt-actions { display: flex; align-items: center; gap: 8px; }
+
+  .vt-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+    &.primary {
+      background: #fff;
+      color: #263238;
+      &:hover { background: #e3f2fd; }
+    }
+
+    &.ghost {
+      background: transparent;
+      border-color: #546e7a;
+      color: #cfd8dc;
+      &:hover { background: #37474f; }
+    }
+  }
 }
 
-// ── Header ─────────────────────────────────────────────────────────
+/* ── Header ─────────────────────────────────────────────────────────── */
 .report-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 20px;
-  padding-bottom: 12px;
-  margin-bottom: 18px;
-  border-bottom: 2px solid #1a1a2e;
+  gap: 16mm;
+  padding-bottom: 3mm;
+  margin-bottom: 5mm;
+  border-bottom: 1.5pt solid $rule;
 
   h1 {
     margin: 0;
-    font-size: 21px;
+    font-size: 17pt;
     font-weight: 700;
-    letter-spacing: .3px;
+    letter-spacing: .2pt;
+    line-height: 1.1;
   }
 
-  .business { font-size: 15px; font-weight: 600; color: #1565c0; margin-top: 2px; }
-  .scope    { font-size: 12px; color: #607d8b; margin-top: 2px; }
-
-  .head-right { text-align: right; }
-  .generated  { font-size: 11.5px; color: #607d8b; }
-
-  .grand {
-    margin-top: 6px;
-    .g-label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: #78909c; }
-    .g-value { font-size: 19px; font-weight: 700; }
+  .company {
+    font-size: 11pt;
+    font-weight: 700;
+    margin-top: 1.5mm;
   }
 
-  .split { font-size: 11.5px; color: #607d8b; margin-top: 3px; }
+  .scope {
+    font-size: 8.5pt;
+    color: #333;
+    margin-top: .8mm;
+  }
 }
 
-// ── Sections ───────────────────────────────────────────────────────
-.section {
-  margin-bottom: 26px;
+/* Ruled rather than filled — a box prints identically everywhere. */
+.summary-box {
+  flex-shrink: 0;
+  min-width: 62mm;
+  padding: 2.5mm 4mm 2mm;
+  border: 1.5pt solid $rule;
+  text-align: right;
 
-  h2 {
-    font-size: 13px;
+  .s-label {
+    font-size: 8pt;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .6px;
-    color: #37474f;
-    margin: 0 0 8px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid #cfd8dc;
+    letter-spacing: .8pt;
+  }
+
+  .s-value {
+    font-size: 20pt;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: .5mm 0;
+  }
+
+  .s-meta {
+    font-size: 8.5pt;
+    padding-top: 1mm;
+    border-top: .5pt solid #999;
+  }
+
+  .s-date {
+    font-size: 8.5pt;
+    font-weight: 700;
+    margin-top: .5mm;
   }
 }
 
+/* ── Sections ───────────────────────────────────────────────────────── */
+.section {
+  margin-bottom: 7mm;
+
+  h2 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6pt;
+    margin: 0 0 2mm;
+    padding-bottom: 1mm;
+    border-bottom: 1pt solid $rule;
+  }
+}
+
+/* ── Table ──────────────────────────────────────────────────────────── */
 .rpt-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
+
+  /* The customer name is what the reader scans for, so it gets the room. */
+  .col-cust  { width: 24%; }
+  .col-area  { width: 11%; }
+  .col-bills { width: 6%;  }
+  .col-date  { width: 10%; }
+  .col-money { width: auto; }
 
   th {
-    font-size: 10px;
+    font-size: 8.5pt;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .3px;
-    color: #455a64;
     text-align: left;
-    padding: 6px 7px;
-    background: #eceff1;
-    border-bottom: 1px solid #b0bec5;
+    padding: 1.6mm 2mm;
+    background: $tint;
+    border-top: .75pt solid $rule;
+    border-bottom: .75pt solid $rule;
     white-space: nowrap;
   }
 
   td {
-    padding: 5px 7px;
-    border-bottom: 1px solid #eceff1;
+    padding: 1.4mm 2mm;
+    border-bottom: .5pt solid #c8c8c8;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  tbody tr:nth-child(even) td { background: #fafbfc; }
+  tbody tr:nth-child(even) td { background: $stripe; }
 
+  /* Thick rule and bold text — the row you are meant to land on. */
   tfoot td {
-    padding: 7px;
+    padding: 2mm;
+    font-size: 9.5pt;
     font-weight: 700;
-    background: #eceff1;
-    border-top: 2px solid #90a4ae;
-    border-bottom: none;
+    background: $tint;
+    border-top: 1.5pt solid $rule;
+    border-bottom: 1.5pt solid $rule;
   }
 
-  .r { text-align: right; }
-  .c { text-align: center; }
-  .bold { font-weight: 600; }
-  .warn { color: #c62828; font-weight: 600; }
+  .r    { text-align: right; }
+  .c    { text-align: center; }
+  .name { font-weight: 700; }
+
+  /* Carries the emphasis that colour would have carried. */
+  .heavy { font-weight: 700; }
+}
+
+.table-note {
+  margin-top: 1.5mm;
+  font-size: 8pt;
+  color: #333;
+}
+
+.excluded-note {
+  margin-top: 4mm;
+  padding: 1.5mm 2.5mm;
+  border: .75pt solid #000;
+  font-size: 8pt;
 }
 
 .report-foot {
-  margin-top: 20px;
-  padding-top: 10px;
-  border-top: 1px solid #cfd8dc;
-  font-size: 10.5px;
-  color: #78909c;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6mm;
+  padding-top: 2mm;
+  border-top: .75pt solid $rule;
+  font-size: 8pt;
 }
 
 .loading-state,
@@ -145,15 +271,15 @@
   align-items: center;
   gap: 12px;
   padding: 80px;
-  color: #607d8b;
+  color: #555;
 }
 
-// ── Print ──────────────────────────────────────────────────────────
+/* ── Print ──────────────────────────────────────────────────────────── */
 @media print {
   .no-print { display: none !important; }
 
-  // Page margin 0 with the padding on the sheet — a page margin plus our own padding
-  // would double up and push the table off the edge.
+  /* Page margin 0 with the padding on the sheet — a page margin plus our own
+     padding would double up and push the table off the edge. */
   @page { size: A4 landscape; margin: 0; }
 
   :host { background: #fff; }
@@ -162,18 +288,28 @@
     width: 100%;
     min-height: 0;
     margin: 0;
-    padding: 10mm 12mm;
+    padding: 9mm 10mm;
     box-shadow: none;
-    font-size: 10px;
   }
 
-  .section { break-inside: auto; }
+  /* Browsers drop background fills by default, which would cost the header band,
+     the stripes and the total row all at once. */
+  .rpt-table th,
+  .rpt-table tfoot td,
+  .rpt-table tbody tr:nth-child(even) td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
-  thead { display: table-header-group; }   // repeat headers across pages
+  .rpt-table th,
+  .rpt-table tfoot td { background: $tint !important; }
+  .rpt-table tbody tr:nth-child(even) td { background: $stripe !important; }
+
+  .section { break-inside: auto; }
+  thead { display: table-header-group; }   /* repeat headings on every page */
   tfoot { display: table-row-group; }
   tr { break-inside: avoid; }
 
-  .rpt-table tbody tr:nth-child(even) td { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .rpt-table th,
-  .rpt-table tfoot td { background: #e0e0e0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Keep a heading with at least some of its table. */
+  .section h2 { break-after: avoid; }
 }

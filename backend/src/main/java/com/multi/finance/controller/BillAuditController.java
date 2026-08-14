@@ -22,13 +22,11 @@ public class BillAuditController {
 
     private final BillAuditServiceImpl service;
 
-    /** Opens the sweep for a month + scope, or returns the one already in progress. */
+    /** Opens your own sweep for the month, or returns the one you already have open. */
     @PostMapping("/sessions")
     public ResponseEntity<BillAuditSessionResponse> openSession(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate month,
-            @RequestParam(required = false) String business,
-            @RequestParam(required = false) String area) {
-        return ResponseEntity.ok(service.openSession(month, business, area));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate month) {
+        return ResponseEntity.ok(service.openSession(month));
     }
 
     @GetMapping("/sessions")
@@ -41,6 +39,7 @@ public class BillAuditController {
         return ResponseEntity.ok(service.getRows(id));
     }
 
+    /** Only the sweep's owner (or an admin) may mark — others see it read-only. */
     @PostMapping("/mark")
     public ResponseEntity<BillAuditRowResponse> mark(@Valid @RequestBody BillAuditMarkRequest req) {
         return ResponseEntity.ok(service.mark(req));

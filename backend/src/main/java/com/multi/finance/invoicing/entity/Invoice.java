@@ -66,6 +66,91 @@ public class Invoice {
     @Column(name = "printed_by")
     private String printedBy;
 
+    // ── Who it was billed to, versus who the customer actually is ────────
+    // Invoices are often raised under a different name than the real buyer, so the
+    // printed name is kept alongside the customer the money is actually owed by.
+
+    /** The name as it appeared on the source invoice (Ventura sheet / agent's copy). */
+    @Column(name = "billed_name")
+    private String billedName;
+
+    /** The customer the system resolved before anyone edited it. */
+    @Column(name = "original_customer_name")
+    private String originalCustomerName;
+
+    /** True when the accountant pointed this at a different customer than the one resolved. */
+    @Column(name = "customer_changed", nullable = false)
+    private boolean customerChanged = false;
+
+    @Column(name = "customer_changed_by")
+    private String customerChangedBy;
+
+    // ── Admin review ─────────────────────────────────────────────────────
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private com.multi.finance.invoicing.enums.InvoiceSource source =
+            com.multi.finance.invoicing.enums.InvoiceSource.MANUAL;
+
+    @Column(name = "created_by")
+    private String createdBy;
+
+    @Column(nullable = false)
+    private boolean reviewed = false;
+
+    @Column(name = "reviewed_by")
+    private String reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    /**
+     * The bill this invoice raised in the bills section, so payments can be collected.
+     * Held as a plain id rather than an association: the bills module owns its own
+     * entity graph and nothing there needs to know invoicing exists.
+     */
+    @Column(name = "bill_id")
+    private Long billId;
+
+    /**
+     * True when the invoice attached to a bill that already existed rather than raising
+     * one. Those bills were entered by hand without their stock being reduced, so the
+     * invoice exists to move the stock and must not duplicate the money.
+     */
+    @Column(name = "bill_linked_existing", nullable = false)
+    private boolean billLinkedExisting = false;
+
+    /** Set when a line carries a typed free quantity — surfaced to the admin on review. */
+    @Column(name = "free_issue_added_by")
+    private String freeIssueAddedBy;
+
+    @Column(name = "free_issue_added_at")
+    private LocalDateTime freeIssueAddedAt;
+
+    /**
+     * A flat discount an admin set for this invoice, replacing the slab rate. Used for
+     * promotions, which are not expressible as value bands. Held here for the record;
+     * the rate itself is snapshotted onto each line like any other.
+     */
+    @Column(name = "discount_override_pct", precision = 5, scale = 2)
+    private BigDecimal discountOverridePct;
+
+    @Column(name = "discount_override_by", length = 100)
+    private String discountOverrideBy;
+
+    @Column(name = "discount_override_at")
+    private LocalDateTime discountOverrideAt;
+
+    @Column(name = "edited_by")
+    private String editedBy;
+
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
+
+    /** The import run this came in on, for checking against the agent's summary bill. */
+    @Column(name = "import_batch_id")
+    private Long importBatchId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

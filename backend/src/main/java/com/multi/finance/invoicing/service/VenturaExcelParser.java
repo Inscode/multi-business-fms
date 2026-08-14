@@ -1,5 +1,7 @@
 package com.multi.finance.invoicing.service;
 
+import org.apache.poi.ss.usermodel.Workbook;
+import java.util.Locale;
 import com.multi.finance.invoicing.dto.request.InvoiceLineRequest;
 import com.multi.finance.invoicing.dto.request.InvoiceRequest;
 import com.multi.finance.entity.Customer;
@@ -11,7 +13,7 @@ import com.multi.finance.repository.CustomerRepository;
 import com.multi.finance.invoicing.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Parses "SODOC02 Invoice Reprint" Ventura Crystal Reports binary XLS exports.
@@ -60,6 +63,10 @@ public class VenturaExcelParser {
     private static final int COL_ITEM_CODE   = 0;
     private static final int COL_DESCRIPTION = 6;
     private static final int COL_QTY         = 23;
+    // The free quantity is printed just right of QTY ("12  3" = 12 paid, 3 free). Crystal
+    // Reports merges cells, so its exact column drifts — scanned rather than fixed.
+    private static final int COL_FREE_FROM   = 24;
+    private static final int COL_FREE_TO     = 29;
     private static final int COL_MRP         = 30;
     private static final int COL_WSP         = 46;
     private static final int COL_VALUE       = 55;
@@ -69,27 +76,35 @@ public class VenturaExcelParser {
 
     private final ItemRepository itemRepo;
     private final CustomerRepository customerRepo;
+    private final com.multi.finance.invoicing.repository.InvoiceRepository invoiceRepo;
+    private final InvoiceNumberService numbering;
     private final DiscountEngineService discountEngine = new DiscountEngineService();
 
     // open-in-view is off in the FMS — item.getBrand() inside matching needs an open session
     @Transactional(readOnly = true)
     public ParseResult parse(MultipartFile file, CategoryType importCategory) throws IOException {
-        List<InvoiceRequest> invoices = new ArrayList<>();
-        List<PreviewInvoice> previews = new ArrayList<>();
+        List<ParsedInvoice> invoices = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
+        InvoiceMethod method = importCategory == CategoryType.RAINCO
+                ? InvoiceMethod.RAINCO_ONLY : InvoiceMethod.STATIONERY_ONLY;
 
         // Restrict matching to the selected category so a Rainco import can never pick up a
         // Stationery item (or vice versa) — this is what makes "other category won't be there"
         // hold, without needing to inspect each row's category before it's even matched.
         Map<BigDecimal, List<Item>> itemsByWsp = new HashMap<>();
-        Map<String, Item> itemsByCode = new HashMap<>();
+        Map<String, List<Item>> itemsByDigits = new HashMap<>();
         for (Item item : itemRepo.findByCategoryAndActiveTrue(importCategory)) {
             BigDecimal wsp = discountEngine.computeWsp(item).setScale(2, RoundingMode.HALF_UP);
             itemsByWsp.computeIfAbsent(wsp, k -> new ArrayList<>()).add(item);
-            itemsByCode.put(item.getItemCode().toUpperCase(), item);
+            itemsByDigits.computeIfAbsent(digitsOf(item.getItemCode()), k -> new ArrayList<>()).add(item);
         }
 
-        try (var wb = new HSSFWorkbook(file.getInputStream())) {
+        guardSpreadsheet(file);
+
+        // WorkbookFactory picks the reader from the file's own contents rather than its
+        // name: .xls is the old binary format, .xlsx a zip, and anyone who opens the
+        // agent's export in Excel and saves it hands back the latter.
+        try (var wb = openWorkbook(file)) {
             Sheet sheet = wb.getSheetAt(0);
             int lastRow = sheet.getLastRowNum();
 
@@ -125,20 +140,48 @@ public class VenturaExcelParser {
                 if (subtotalLabel.equalsIgnoreCase("NET Invoice Value")) {
                     currentBlock.netInvoiceValue = parseBigDecimal(row, COL_SUBTOTAL_VALUE);
                     Customer customer = resolveCustomer(currentBlock, warnings);
-                    long unmatched = currentBlock.lines.stream().filter(l -> l.itemId() == null).count();
-                    if (unmatched > 0) {
-                        warnings.add("Invoice " + currentBlock.invoiceRef + " — " + unmatched
-                                + " line(s) skipped: no " + importCategory + " catalog item matched (wrong category or price/code mismatch).");
+
+                    // Any line we could not pin to exactly one catalog item blocks the whole
+                    // invoice — importing it partially would understate its value and move
+                    // stock for only some of the goods.
+                    List<String> unmatchedCodes = currentBlock.lines.stream()
+                            .filter(l -> l.itemId() == null)
+                            .map(ParsedLine::itemCode)
+                            .toList();
+                    if (!unmatchedCodes.isEmpty()) {
+                        warnings.add("Invoice " + currentBlock.invoiceRef + " BLOCKED — "
+                                + unmatchedCodes.size() + " line(s) could not be matched to a single "
+                                + importCategory + " item: " + String.join(", ", unmatchedCodes)
+                                + ". Fix the catalog (code or price) and re-import.");
                     }
-                    invoices.add(toRequest(currentBlock, customer, importCategory));
-                    previews.add(toPreview(currentBlock, customer));
+
+                    // The agent invoice number is what the bill in the bills section is
+                    // numbered from, so an invoice without one cannot be collected against
+                    // and is refused rather than imported half-usable.
+                    boolean missingRef = currentBlock.invoiceRef == null || currentBlock.invoiceRef.isBlank();
+                    if (missingRef) {
+                        warnings.add("Block at row " + currentBlock.startRow
+                                + " has no invoice number in the sheet — it cannot be imported, "
+                                + "because the bill raised for it is numbered from that reference.");
+                    }
+
+                    // Already loaded from an earlier run of the same file. Caught here so the
+                    // accountant sees it in the preview, rather than as a constraint violation
+                    // after pressing Import.
+                    boolean alreadyImported = !missingRef
+                            && invoiceRepo.existsByExternalRefAndMethod(currentBlock.invoiceRef, method);
+
+                    invoices.add(new ParsedInvoice(
+                            toRequest(currentBlock, customer, importCategory),
+                            toPreview(currentBlock, customer, unmatchedCodes, alreadyImported, missingRef, importCategory),
+                            unmatchedCodes, alreadyImported, missingRef));
                     currentBlock = null;
                     continue;
                 }
 
                 // Item line detection — brand-group headers and subtotal rows have no qty here, so they're skipped
                 if (isItemLine(row, cellA)) {
-                    ParsedLine line = parseItemLine(row, cellA, itemsByWsp, itemsByCode, warnings);
+                    ParsedLine line = parseItemLine(row, cellA, itemsByWsp, itemsByDigits, warnings);
                     if (line != null) {
                         currentBlock.lines.add(line);
                     }
@@ -151,7 +194,7 @@ public class VenturaExcelParser {
             }
         }
 
-        return new ParseResult(invoices, previews, warnings);
+        return new ParseResult(invoices, warnings);
     }
 
     // -------- block header parsing --------
@@ -204,18 +247,19 @@ public class VenturaExcelParser {
     }
 
     private ParsedLine parseItemLine(Row row, String itemCode, Map<BigDecimal, List<Item>> itemsByWsp,
-                                      Map<String, Item> itemsByCode, List<String> warnings) {
+                                      Map<String, List<Item>> itemsByDigits, List<String> warnings) {
         try {
             int qty = (int) row.getCell(COL_QTY).getNumericCellValue();
+            int freeQty = parseFreeQty(row);
             BigDecimal wsp = parseBigDecimal(row, COL_WSP);
             BigDecimal value = parseBigDecimal(row, COL_VALUE);
             BigDecimal mrp = parseBigDecimal(row, COL_MRP);
             String desc = cellText(row, COL_DESCRIPTION);
             String code = itemCode.trim();
 
-            Item item = matchItem(code, wsp, itemsByWsp, itemsByCode, warnings);
+            Item item = matchItem(code, wsp, itemsByWsp, itemsByDigits, warnings);
 
-            return new ParsedLine(itemCode.trim(), desc, qty, mrp, wsp, value,
+            return new ParsedLine(itemCode.trim(), desc, qty, freeQty, mrp, wsp, value,
                     item != null ? item.getId() : null,
                     item != null ? item.getCategory() : null);
         } catch (Exception e) {
@@ -226,48 +270,97 @@ public class VenturaExcelParser {
 
     /**
      * Matches a Ventura row to a catalog item within the selected import category.
-     * Price is the primary signal (item codes in the export aren't reliable enough on their own,
-     * especially for Stationery) — the row's WSP is looked up against each candidate item's
-     * computed WSP (mrp * (1 - marginPct/100)). Item code is only used to disambiguate when
-     * several catalog items share the same price, or as a last-resort fallback when no item in
-     * the category prices out to match at all.
+     *
+     * Price is the primary signal — the row's WSP is looked up against each catalog item's
+     * computed WSP. When several items share that price, they are told apart by the digits
+     * in the item code: the export prints bare numbers (e.g. 4321) while the catalog may
+     * carry a prefix (RC-4321), so only the digits are compared, with leading zeros ignored.
+     *
+     * If no item prices out, the digits alone are used as a last resort — flagged as a
+     * warning, because a price mismatch means one of the two sides is out of date.
+     *
+     * Anything ambiguous returns no match rather than guessing: a wrong pick would deduct
+     * stock from the wrong item, so the invoice is blocked and a human decides.
      */
     private Item matchItem(String code, BigDecimal rowWsp, Map<BigDecimal, List<Item>> itemsByWsp,
-                            Map<String, Item> itemsByCode, List<String> warnings) {
+                            Map<String, List<Item>> itemsByDigits, List<String> warnings) {
+        String digits = digitsOf(code);
+
+        // ── 1. Price ────────────────────────────────────────────────────────
         if (rowWsp != null && rowWsp.compareTo(BigDecimal.ZERO) > 0) {
             List<Item> priceMatches = itemsByWsp.get(rowWsp.setScale(2, RoundingMode.HALF_UP));
+
             if (priceMatches != null && !priceMatches.isEmpty()) {
                 if (priceMatches.size() == 1) return priceMatches.get(0);
-                Item exact = priceMatches.stream()
-                        .filter(it -> it.getItemCode().equalsIgnoreCase(code) || it.getItemCode().equalsIgnoreCase("RC-" + code))
-                        .findFirst().orElse(null);
-                if (exact != null) return exact;
-                Item first = priceMatches.get(0);
-                warnings.add("Multiple catalog items share price " + rowWsp + " for code " + code
-                        + " — using \"" + first.getItemCode() + "\" (first match); please verify.");
-                return first;
+
+                // ── 2. Same price — separate them by the digits in the code ──
+                List<Item> digitMatches = digits.isEmpty() ? List.of() : priceMatches.stream()
+                        .filter(it -> digits.equals(digitsOf(it.getItemCode())))
+                        .toList();
+
+                if (digitMatches.size() == 1) return digitMatches.get(0);
+
+                if (digitMatches.size() > 1) {
+                    warnings.add("Code " + code + " at price " + rowWsp + " matches "
+                            + digitMatches.size() + " catalog items with the same number ("
+                            + codeList(digitMatches) + ") — cannot tell them apart.");
+                    return null;
+                }
+
+                warnings.add("Code " + code + " — " + priceMatches.size()
+                        + " catalog items share price " + rowWsp + " (" + codeList(priceMatches)
+                        + ") and none carries that number, so the right one is unknown.");
+                return null;
             }
         }
 
-        // No catalog item in this category prices out to match — fall back to code matching as
-        // a best effort (e.g. Rainco variants stored with an RC- prefix or suffix Ventura doesn't show).
-        Item byCode = itemsByCode.get(code.toUpperCase());
-        if (byCode == null) byCode = itemsByCode.get(("RC-" + code).toUpperCase());
-        if (byCode != null) {
-            warnings.add("Item " + code + " matched by code only — its catalog price (" + discountEngine.computeWsp(byCode)
-                    + ") did not match the imported price (" + rowWsp + "); please verify.");
-            return byCode;
+        // ── 3. No price match — fall back to the code's digits ──────────────
+        if (!digits.isEmpty()) {
+            List<Item> byDigits = itemsByDigits.getOrDefault(digits, List.of());
+            if (byDigits.size() == 1) {
+                Item item = byDigits.get(0);
+                warnings.add("Item " + code + " matched by code number only — catalog price ("
+                        + discountEngine.computeWsp(item) + ") does not match the imported price ("
+                        + rowWsp + "); please verify.");
+                return item;
+            }
+            if (byDigits.size() > 1) {
+                warnings.add("Item " + code + " — code number matches " + byDigits.size()
+                        + " catalog items (" + codeList(byDigits)
+                        + ") and the price matched none, so the right one is unknown.");
+                return null;
+            }
         }
 
-        String prefixKey = ("RC-" + code).toUpperCase();
-        Item prefixMatch = itemsByCode.entrySet().stream()
-                .filter(e -> e.getKey().startsWith(prefixKey))
-                .map(Map.Entry::getValue).findFirst().orElse(null);
-        if (prefixMatch != null) {
-            warnings.add("Item " + code + " matched by prefix to catalog code " + prefixMatch.getItemCode()
-                    + " (\"" + prefixMatch.getDescription() + "\") — price did not match either; please verify this is the correct variant.");
+        return null;
+    }
+
+    /**
+     * The comparable part of an item code: digits only, leading zeros dropped.
+     * "RC-4321" and "4321" both reduce to 4321.
+     */
+    private String digitsOf(String code) {
+        if (code == null) return "";
+        String digits = code.replaceAll("[^0-9]", "");
+        return digits.replaceFirst("^0+(?=[0-9])", "");
+    }
+
+    private String codeList(List<Item> items) {
+        return items.stream().map(Item::getItemCode).collect(Collectors.joining(", "));
+    }
+
+    /**
+     * The free quantity sitting between QTY and MRP. Only whole positive numbers count —
+     * MRP and the money columns are decimals, so they can't be mistaken for one.
+     */
+    private int parseFreeQty(Row row) {
+        for (int c = COL_FREE_FROM; c <= COL_FREE_TO; c++) {
+            Cell cell = row.getCell(c);
+            if (cell == null || cell.getCellType() != CellType.NUMERIC) continue;
+            double v = cell.getNumericCellValue();
+            if (v > 0 && v == Math.floor(v)) return (int) v;
         }
-        return prefixMatch;
+        return 0;
     }
 
     private BigDecimal parseBigDecimal(Row row, int col) {
@@ -307,6 +400,14 @@ public class VenturaExcelParser {
         req.setExternalRef(block.invoiceRef);
         req.setAgentPrintedNet(block.netInvoiceValue);
         req.setCustomerId(customer != null ? customer.getId() : null);
+        req.setBilledName(block.customerHint);
+        req.setOriginalCustomerName(customer != null ? customer.getName() : null);
+
+        // Rainco book numbers run below 10,000 and arrive through the same import as its
+        // system bills, so the reference itself decides which kind of bill this is.
+        var business = numbering.businessFor(req.getMethod());
+        req.setBillSource(numbering.sourceForImport(business, block.invoiceRef));
+        req.setBillNumber(numbering.digitsOf(block.invoiceRef));
 
         List<InvoiceLineRequest> lines = new ArrayList<>();
         for (ParsedLine pl : block.lines) {
@@ -314,6 +415,7 @@ public class VenturaExcelParser {
                 InvoiceLineRequest lr = new InvoiceLineRequest();
                 lr.setItemId(pl.itemId);
                 lr.setQty(pl.qty);
+                lr.setFreeQty(pl.freeQty);
                 lines.add(lr);
             }
             // Lines without a catalog match are tracked in warnings by the caller
@@ -322,15 +424,39 @@ public class VenturaExcelParser {
         return req;
     }
 
-    private PreviewInvoice toPreview(InvoiceBlock block, Customer customer) {
+    private PreviewInvoice toPreview(InvoiceBlock block, Customer customer,
+                                      List<String> unmatchedCodes, boolean alreadyImported,
+                                      boolean missingRef, CategoryType importCategory) {
         List<PreviewLine> lines = new ArrayList<>();
         for (ParsedLine pl : block.lines) {
-            lines.add(new PreviewLine(pl.itemCode, pl.description, pl.qty, pl.wsp, pl.value));
+            lines.add(new PreviewLine(pl.itemCode, pl.description, pl.qty, pl.freeQty, pl.wsp, pl.value));
         }
-        String customerName = customer != null ? customer.getName()
-                : (block.customerHint != null && !block.customerHint.isBlank()
-                        ? block.customerHint + " (unresolved)" : null);
-        return new PreviewInvoice(block.invoiceRef, customerName, block.invoiceDate, block.netInvoiceValue, lines);
+        // An unmatched item is a hard block — nobody can fix it from this screen. An
+        // unresolved customer is not: the accountant picks one in the preview, which is
+        // the same control they use to redirect an invoice billed under another name.
+        String blockReason = null;
+        if (missingRef) {
+            blockReason = "No invoice number on this block — nothing to number the bill from";
+        } else if (!unmatchedCodes.isEmpty()) {
+            blockReason = unmatchedCodes.size() + " item(s) not matched: " + String.join(", ", unmatchedCodes);
+        }
+
+        String billNumber = null;
+        if (!missingRef) {
+            var business = numbering.businessFor(importCategory == CategoryType.RAINCO
+                    ? InvoiceMethod.RAINCO_ONLY : InvoiceMethod.STATIONERY_ONLY);
+            billNumber = numbering.format(business,
+                    numbering.sourceForImport(business, block.invoiceRef),
+                    numbering.digitsOf(block.invoiceRef));
+        }
+
+        return new PreviewInvoice(block.invoiceRef, billNumber,
+                customer != null ? customer.getId() : null,
+                customer != null ? customer.getName() : null,
+                block.customerHint,
+                block.invoiceDate,
+                block.netInvoiceValue, lines, unmatchedCodes,
+                blockReason != null, blockReason, alreadyImported);
     }
 
     private Customer resolveCustomer(InvoiceBlock block, List<String> warnings) {
@@ -372,15 +498,74 @@ public class VenturaExcelParser {
         List<ParsedLine> lines = new ArrayList<>();
     }
 
-    private record ParsedLine(String itemCode, String description, int qty,
+    private record ParsedLine(String itemCode, String description, int qty, int freeQty,
                                BigDecimal mrp, BigDecimal wsp, BigDecimal value,
                                Long itemId, CategoryType category) {}
 
-    public record PreviewLine(String itemCode, String description, int qty,
+    public record PreviewLine(String itemCode, String description, int qty, int freeQty,
                                BigDecimal unitPrice, BigDecimal lineTotal) {}
 
-    public record PreviewInvoice(String invoiceNo, String customerName, LocalDate invoiceDate,
-                                  BigDecimal netTotal, List<PreviewLine> lines) {}
+    /**
+     * @param customerId   resolved customer, or null when the sheet's name matched nothing
+     * @param customerName the resolved customer's own name
+     * @param billedName   the name printed on the source invoice — often not the real customer
+     */
+    /** @param billNumber the number this will carry in both the invoicing and bills sections */
+    public record PreviewInvoice(String invoiceNo, String billNumber,
+                                  Long customerId, String customerName,
+                                  String billedName, LocalDate invoiceDate,
+                                  BigDecimal netTotal, List<PreviewLine> lines,
+                                  List<String> unmatchedCodes, boolean blocked, String blockReason,
+                                  boolean alreadyImported) {}
 
-    public record ParseResult(List<InvoiceRequest> invoices, List<PreviewInvoice> previews, List<String> warnings) {}
+    /** An invoice block plus everything needed to decide whether it may be imported. */
+    public record ParsedInvoice(InvoiceRequest request, PreviewInvoice preview,
+                                 List<String> unmatchedCodes, boolean alreadyImported,
+                                 boolean missingRef) {
+        public boolean blocked() { return missingRef || !unmatchedCodes.isEmpty(); }
+    }
+
+    public record ParseResult(List<ParsedInvoice> invoices, List<String> warnings) {
+        public List<PreviewInvoice> previews() {
+            return invoices.stream().map(ParsedInvoice::preview).toList();
+        }
+    }
+
+    /** Spreadsheet formats this parser can actually read. */
+    private static final List<String> ACCEPTED_EXTENSIONS = List.of(".xls", ".xlsx");
+
+    /**
+     * Refuses anything that is not a spreadsheet, before Apache POI is handed it.
+     *
+     * <p>POI's own failure on a PDF is a message about OLE2 headers, which tells the
+     * accountant nothing. The check is on the name only — what the file actually is
+     * gets decided by {@link #openWorkbook}, which reads its contents.
+     */
+    private void guardSpreadsheet(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        String lower = name == null ? "" : name.toLowerCase(Locale.ROOT);
+        boolean ok = ACCEPTED_EXTENSIONS.stream().anyMatch(lower::endsWith);
+        if (!ok) {
+            throw new IllegalArgumentException(
+                    "\"" + (name == null || name.isBlank() ? "This file" : name)
+                  + "\" is not an Excel file. The import reads the agent's Ventura export, "
+                  + "which is a .xls or .xlsx spreadsheet — a PDF or a scan cannot be read.");
+        }
+    }
+
+    /**
+     * Opens the workbook whatever Excel format it is in, turning POI's internal
+     * complaints into something the person who uploaded it can act on.
+     */
+    private Workbook openWorkbook(MultipartFile file) throws IOException {
+        try {
+            return WorkbookFactory.create(file.getInputStream());
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalArgumentException(
+                    "\"" + file.getOriginalFilename() + "\" could not be opened as a "
+                  + "spreadsheet. It may be renamed, corrupted, or password protected — "
+                  + "try opening it in Excel and saving it again.", e);
+        }
+    }
+
 }

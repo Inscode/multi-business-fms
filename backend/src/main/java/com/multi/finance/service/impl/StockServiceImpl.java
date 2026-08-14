@@ -1,5 +1,6 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.service.BillBalance;
 import com.multi.finance.dto.request.CreateLinkingSystemBillRequest;
 import com.multi.finance.dto.request.CreateStockBillRequest;
 import com.multi.finance.dto.request.CreateSummaryLoadBillRequest;
@@ -1126,8 +1127,7 @@ public class StockServiceImpl {
         // Add to bill total
         Bill bill = item.getBill();
         bill.setTotalAmount(bill.getTotalAmount().add(item.getLineTotal()));
-        bill.setBalanceRemaining(bill.getTotalAmount().subtract(bill.getAmountPaid()));
-        bill.setUpdatedAt(LocalDateTime.now());
+        BillBalance.recompute(bill);
         billRepository.save(bill);
         // Mark as issued (no longer backorder)
         item.setBackorder(false);
@@ -1209,6 +1209,10 @@ public class StockServiceImpl {
             case DRAFT       -> "DFT-" + System.currentTimeMillis();
             case MANUAL      -> "MAN-" + System.currentTimeMillis();
             case MANUAL_BOOK -> "BK-"  + System.currentTimeMillis();
+            // Invoicing raises its own bills, numbered from the agent invoice number.
+            // The stock module never generates one, and never should.
+            case INVOICE     -> throw new IllegalStateException(
+                    "Bills from the invoicing module are numbered there, not here");
         };
     }
 

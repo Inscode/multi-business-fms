@@ -19,6 +19,17 @@ public interface BillNumberSkipRepository extends JpaRepository<BillNumberSkip, 
                    "WHERE business IN ('PLASTIC','STATIONERY') AND status = 'APPROVED' AND bill_number ~ '^[0-9]+$'", nativeQuery = true)
     Integer findMaxSharedBookSkippedNumber();
 
+    // Every approved skip, so a gap that was deliberately skipped isn't reported as missing.
+    @Query(value = "SELECT CAST(bill_number AS INTEGER) FROM bill_number_skips " +
+                   "WHERE business = :business AND status = 'APPROVED' AND bill_number ~ '^[0-9]+$'",
+           nativeQuery = true)
+    List<Integer> findApprovedSkippedNumbers(@Param("business") String business);
+
+    @Query(value = "SELECT CAST(bill_number AS INTEGER) FROM bill_number_skips " +
+                   "WHERE business IN ('PLASTIC','STATIONERY') AND status = 'APPROVED' " +
+                   "AND bill_number ~ '^[0-9]+$'", nativeQuery = true)
+    List<Integer> findApprovedSharedBookSkippedNumbers();
+
     // Pending skips for admin review — load with submittedBy and bill eagerly
     @Query("SELECT s FROM BillNumberSkip s LEFT JOIN FETCH s.submittedBy LEFT JOIN FETCH s.bill " +
            "WHERE s.status = 'PENDING' ORDER BY s.createdAt ASC")

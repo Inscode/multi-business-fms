@@ -1,5 +1,6 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.service.BillBalance;
 import com.multi.finance.dto.response.WorkerBillResponse;
 import com.multi.finance.dto.response.WorkerPaymentEntryResponse;
 import com.multi.finance.dto.response.WorkerPaymentGroupResponse;
@@ -203,10 +204,7 @@ public class WorkerCollectionService {
     }
 
     private void applyBalanceDeduction(Bill bill, BigDecimal amount) {
-        BigDecimal newBalance = bill.getBalanceRemaining().subtract(amount);
-        bill.setBalanceRemaining(newBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newBalance);
-        bill.setAmountPaid(bill.getAmountPaid().add(amount));
-        bill.setFullyPaid(bill.getBalanceRemaining().compareTo(BigDecimal.ZERO) <= 0);
+        BillBalance.applyPayment(bill, amount);
         if (Boolean.TRUE.equals(bill.getFullyPaid())) {
             bill.setStatus(BillStatus.COMPLETED);
         }
@@ -215,11 +213,7 @@ public class WorkerCollectionService {
     }
 
     private void restoreBalance(Bill bill, BigDecimal amount) {
-        BigDecimal newBalance = bill.getBalanceRemaining().add(amount);
-        BigDecimal newPaid = bill.getAmountPaid().subtract(amount);
-        bill.setBalanceRemaining(newBalance);
-        bill.setAmountPaid(newPaid.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newPaid);
-        bill.setFullyPaid(false);
+        BillBalance.reversePayment(bill, amount);
         if (bill.getStatus() == BillStatus.COMPLETED) {
             bill.setStatus(BillStatus.STORE_RECEIVED);
         }
