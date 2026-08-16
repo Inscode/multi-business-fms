@@ -182,8 +182,13 @@ public class BillController {
 
     @PatchMapping("/{id}/cancel")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BillResponse> cancelBill(@PathVariable Long id) {
-        return ResponseEntity.ok(billService.cancelBill(id));
+    public ResponseEntity<BillResponse> cancelBill(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body,
+            java.security.Principal principal) {
+        String reason = body == null ? null : body.get("reason");
+        return ResponseEntity.ok(
+                billService.cancelBill(id, reason, principal == null ? null : principal.getName()));
     }
 
     /**
@@ -208,6 +213,14 @@ public class BillController {
     public ResponseEntity<List<BillResponse>> getAgingExcluded(
             @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business) {
         return ResponseEntity.ok(billService.getAgingExcludedBills(business));
+    }
+
+    /** What deleting this bill would destroy — read before the confirmation is asked. */
+    @GetMapping("/{id}/delete-impact")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.multi.finance.dto.response.BillDeleteImpact> deleteImpact(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(billService.deleteImpact(id));
     }
 
     @GetMapping("/aging-report")
@@ -272,8 +285,10 @@ public class BillController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteBill(@PathVariable Long id) {
-        billService.deleteBill(id);
+    public ResponseEntity<Void> deleteBill(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        billService.deleteBill(id, force);
         return ResponseEntity.noContent().build();
     }
 
@@ -305,4 +320,42 @@ public class BillController {
         return ResponseEntity.noContent().build();
     }
 
+
+    /**
+     * Points a bill at the hand-written one its money is collected on.
+     *
+     * <p>Admin only: it takes a balance off the aging report, and what is chased is not
+     * a clerical decision.
+     */
+    @PatchMapping("/{id}/settle-on")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> linkSettlement(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body,
+            java.security.Principal principal) {
+        Object raw = body.get("targetBillId");
+        Long targetId = raw == null ? null : Long.valueOf(String.valueOf(raw));
+        String note = body.get("note") == null ? null : String.valueOf(body.get("note"));
+        return ResponseEntity.ok(billService.linkSettlement(
+                id, targetId, note, principal == null ? null : principal.getName()));
+    }
+
+    @DeleteMapping("/{id}/settle-on")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> unlinkSettlement(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.unlinkSettlement(id));
+    }
+
+    /** Hand-written bills this one could be collected on — same customer, same period. */
+    @GetMapping("/{id}/settle-candidates")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BillResponse>> settleCandidates(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.getSettleCandidates(id));
+    }
+
+    /** The bills collected on this one, for the banner on the manual bill's own page. */
+    @GetMapping("/{id}/settled-by")
+    public ResponseEntity<List<BillResponse>> settledBy(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.getSettledByBills(id));
+    }
 }

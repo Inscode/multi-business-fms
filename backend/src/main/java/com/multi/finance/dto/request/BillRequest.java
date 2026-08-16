@@ -49,4 +49,10 @@ public class BillRequest {
     // Admin-only: additional page numbers from the physical bill book consumed by this bill
     private List<String> skippedBillNumbers;
 
+    /** ROUTE, IMMEDIATE or STORE_PICKUP. Defaults to the open run when one is running. */
+    private com.multi.finance.enums.DeliveryMode deliveryMode;
+
+    /** The round this bill goes out on. Only meaningful with ROUTE. */
+    private Long deliveryRunId;
+
 }

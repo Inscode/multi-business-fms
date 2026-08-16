@@ -298,6 +298,49 @@
     </div>
   </div>
 
+  <!-- One shop, one lot of goods. A route return needs no photo here: the book page
+       on the Deliveries screen covers every shop on that round. -->
+  <div class="form-card" *ngIf="selectedBill && returnType && items.length > 0">
+    <div class="section-title">Photo of the returned goods</div>
+
+    <div class="route-note" *ngIf="isRouteBill">
+      <mat-icon>local_shipping</mat-icon>
+      <span>
+        This bill went out on a lorry round, so the return book page photographed on the
+        Deliveries screen is the record &mdash; one page covers every shop on that round.
+        A photo here is optional.
+      </span>
+    </div>
+
+    <div class="photo-block">
+      <label class="photo-drop" *ngIf="!photoPreview">
+        <mat-icon>photo_camera</mat-icon>
+        <span class="pd-title">Take or choose a photo</span>
+        <span class="pd-sub">{{ isRouteBill ? 'Optional' : 'Needed before the goods can be confirmed' }}</span>
+        <input type="file" accept="image/*" capture="environment" hidden
+               (change)="onPhotoPicked($event)">
+      </label>
+
+      <div class="photo-preview" *ngIf="photoPreview">
+        <img [src]="photoPreview" alt="Returned goods">
+        <div class="pp-side">
+          <span class="pp-status" *ngIf="uploadingPhoto">Uploading&hellip;</span>
+          <span class="pp-status done" *ngIf="!uploadingPhoto && photoUrl">
+            <mat-icon>check_circle</mat-icon> Attached
+          </span>
+          <span class="pp-size" *ngIf="photoSizeNote">{{ photoSizeNote }}</span>
+          <button type="button" mat-stroked-button (click)="clearPhoto()">
+            <mat-icon>refresh</mat-icon> Retake
+          </button>
+        </div>
+      </div>
+
+      <div class="photo-error" *ngIf="photoError">
+        <mat-icon>error_outline</mat-icon> {{ photoError }}
+      </div>
+    </div>
+  </div>
+
   <div class="form-card" *ngIf="selectedBill && returnType && items.length > 0">
     <div class="section-title">{{ isSalable ? '5' : '4' }}. Details</div>
 

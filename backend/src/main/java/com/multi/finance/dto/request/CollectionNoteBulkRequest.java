@@ -42,4 +42,7 @@ public class CollectionNoteBulkRequest {
         @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
         private BigDecimal amount;
     }
+
+    /** Photo of the bill(s). Optional — the combined collection screen is admin-facing. */
+    private String receiptImageUrl;
 }

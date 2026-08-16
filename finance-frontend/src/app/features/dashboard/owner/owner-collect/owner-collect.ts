@@ -10,6 +10,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Auth } from '../../../../core/services/auth';
 import { Bill, BillResponse } from '../../../../core/services/bill';
 import { CollectionNoteService } from '../../../../core/services/collection-note';
+import { Payment } from '../../../../core/services/payment';
+import { compressImage, describeSaving } from '../../../../core/utils/image-compress';
 
 interface CombinedItem {
   bill: BillResponse;
@@ -85,6 +87,7 @@ export class OwnerCollect implements OnInit {
   constructor(
     private billService: Bill,
     private collectionService: CollectionNoteService,
+    private paymentApi: Payment,
     private auth: Auth,
     private cdr: ChangeDetectorRef
   ) {}
@@ -160,6 +163,57 @@ export class OwnerCollect implements OnInit {
     this.cdr.detectChanges();
   }
 
+  // ── Photo of the bill ───────────────────────────────────────────────
+  // Optional on this screen whoever is using it — a marked collection is usually
+  // entered with the paperwork to hand. The photo still follows the note onto the
+  // payment it becomes, so it is worth offering.
+
+  receiptPreview: string | null = null;
+  receiptUrl: string | null = null;
+  uploadingImage = false;
+  imageError = '';
+  imageSizeNote = '';
+
+  onReceiptPicked(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.imageError = 'That is not an image — take a photo of the bill.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.imageError = '';
+    this.receiptUrl = null;
+    const reader = new FileReader();
+    reader.onload = () => { this.receiptPreview = String(reader.result); this.cdr.detectChanges(); };
+    reader.readAsDataURL(file);
+
+    this.uploadingImage = true;
+    this.cdr.detectChanges();
+    compressImage(file).then(result => {
+      this.imageSizeNote = describeSaving(result);
+      this.paymentApi.uploadImage(result.file).subscribe({
+        next: (url) => { this.receiptUrl = url; this.uploadingImage = false; this.cdr.detectChanges(); },
+        error: () => {
+          this.uploadingImage = false;
+          this.imageError = 'The photo could not be uploaded. Try again.';
+          this.cdr.detectChanges();
+        },
+      });
+    });
+  }
+
+  clearReceipt(): void {
+    this.receiptPreview = null;
+    this.receiptUrl = null;
+    this.imageError = '';
+    this.imageSizeNote = '';
+    this.cdr.detectChanges();
+  }
+
   submit(): void {
     if (!this.selectedBill || !this.amount || this.amount <= 0) return;
 
@@ -173,12 +227,14 @@ export class OwnerCollect implements OnInit {
       amount: this.amount,
       paymentType: this.paymentType,
       notes: this.notes || undefined,
+      receiptImageUrl: this.receiptUrl ?? undefined,
     }).subscribe({
       next: () => {
         this.successMsg = `Marked Rs ${this.amount?.toLocaleString()} ${this.paymentType} collected from ${this.selectedBill?.customerName}`;
         this.selectedBill = null;
         this.amount = null;
         this.notes = '';
+        this.clearReceipt();
         this.submitting = false;
         this.cdr.detectChanges();
       },

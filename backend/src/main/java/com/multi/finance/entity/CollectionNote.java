@@ -60,6 +60,18 @@ public class CollectionNote {
     @Column(name = "reference_number")
     private String referenceNumber;
 
+    /**
+     * Photograph of the bill taken when the collection was marked. Optional: this
+     * screen is used by admins and owners, who normally hold the paperwork. It is
+     * carried onto the payment when the note is confirmed, so the evidence follows
+     * the money rather than being stranded on the note.
+     */
+    @Column(name = "receipt_image_url", columnDefinition = "TEXT")
+    private String receiptImageUrl;
+
+    @Column(name = "receipt_uploaded_at")
+    private java.time.LocalDateTime receiptUploadedAt;
+
     // Link back to the worker entry that generated this note (nullable for manually created notes)
     @Column(name = "source_entry_id")
     private Long sourceEntryId;

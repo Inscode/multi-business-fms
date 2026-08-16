@@ -1,6 +1,6 @@
 ﻿import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -16,11 +16,14 @@ import { Bill, BillNumberOption } from '../../../core/services/bill';
 import { Auth } from '../../../core/services/auth';
 import { CustomerService } from '../../../core/services/customer';
 import { localDateStr } from '../../../core/utils/date-utils';
+import { DeliveryService, DeliveryRun, RouteArea, DeliveryMode }
+  from '../../../core/services/delivery';
 
 @Component({
   selector: 'app-create-bill',
   imports: [   CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
@@ -45,7 +48,9 @@ export class CreateBill implements OnInit{
 
 
 
-  businesses  = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
+  // Retail Shop and Hardware are not billed through this system; offering them only
+  // invited a bill to be filed under a business nothing else reports on.
+  businesses  = ['RAINCO', 'STATIONERY', 'PLASTIC'];
   divisions   = ['STORE', 'SHOP'];
   billTypes   = ['CASH', 'CREDIT'];
   billSources = ['SYSTEM', 'MANUAL', 'DRAFT'];
@@ -84,6 +89,7 @@ export class CreateBill implements OnInit{
 
   constructor(
     private fb: FormBuilder,
+    private delivery: DeliveryService,
     private billService: Bill,
     private workerService: Worker,
     private customerService: CustomerService,
@@ -157,6 +163,8 @@ export class CreateBill implements OnInit{
   ngOnInit(): void {
     this.loadWorkers();
     this.loadCustomers();
+    // Which round is open decides what every bill entered here joins.
+    if (!this.isEditing) this.loadRun();
 
     if (this.isEditing) {
       const b = this.editingBill;
@@ -183,6 +191,10 @@ export class CreateBill implements OnInit{
       if (!this.isAdmin) {
         this.form.get('division')?.setValue(this.userDivision);
         this.form.get('division')?.disable();
+      } else {
+        // Admins enter store bills almost every time; shop is the exception, and
+        // leaving it blank made them pick the same value on every bill.
+        this.form.get('division')?.setValue('STORE');
       }
     }
   }
@@ -270,6 +282,94 @@ export class CreateBill implements OnInit{
     loadNumbers();
   }
 
+  // ── The lorry round ─────────────────────────────────────────────────
+  // Fifteen to twenty bills in a row go to the same area, so the round is answered
+  // once and then stays. The bar showing which one is deliberately loud: a sticky
+  // default nobody notices is how bills end up on the wrong lorry.
+
+  currentRun: DeliveryRun | null = null;
+  routeAreas: RouteArea[] = [];
+  loadingRun = false;
+  openingRun = false;
+  showRunPicker = false;
+  newRunAreaIds: number[] = [];
+  newRunDate: Date = new Date();
+  runError = '';
+
+  /** Overrides the run for this one bill — springs back to the round afterwards. */
+  billMode: DeliveryMode | null = null;
+
+  private loadRun(): void {
+    this.loadingRun = true;
+    this.delivery.current().subscribe({
+      next: (run) => {
+        this.currentRun = run;
+        this.loadingRun = false;
+        this.cdr.markForCheck();
+      },
+      error: () => { this.loadingRun = false; this.cdr.markForCheck(); },
+    });
+    this.delivery.areas().subscribe({
+      next: (a) => { this.routeAreas = a; this.cdr.markForCheck(); },
+      error: () => {},
+    });
+  }
+
+  /**
+   * True when the open run's date has passed. Yesterday's round must not quietly
+   * collect today's bills, so it is called out rather than left as the default.
+   */
+  get runIsStale(): boolean {
+    if (!this.currentRun) return false;
+    return this.currentRun.plannedDate < localDateStr();
+  }
+
+  openRunPicker(): void {
+    this.showRunPicker = true;
+    this.newRunAreaIds = this.currentRun?.routeAreaIds ?? [];
+    this.newRunDate = new Date();
+    this.runError = '';
+    this.cdr.markForCheck();
+  }
+
+  openRun(): void {
+    if (!this.newRunAreaIds.length) { this.runError = 'Pick at least one route.'; return; }
+    this.openingRun = true;
+    this.runError = '';
+    this.delivery.open(this.newRunAreaIds, localDateStr(this.newRunDate)).subscribe({
+      next: (run) => {
+        this.currentRun = run;
+        this.showRunPicker = false;
+        this.openingRun = false;
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.openingRun = false;
+        this.runError = e?.error?.message ?? 'Could not open the run.';
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  closeRun(): void {
+    if (!this.currentRun) return;
+    this.delivery.setStatus(this.currentRun.id, 'DISPATCHED').subscribe({
+      next: () => { this.currentRun = null; this.cdr.markForCheck(); },
+      error: () => {},
+    });
+  }
+
+  /** What this bill will be saved as, given the run and any one-off override. */
+  get effectiveMode(): DeliveryMode {
+    if (this.billMode) return this.billMode;
+    return this.currentRun ? 'ROUTE' : 'UNSPECIFIED';
+  }
+
+  setBillMode(mode: DeliveryMode | null): void {
+    this.billMode = mode;
+    this.cdr.markForCheck();
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -291,8 +391,13 @@ export class CreateBill implements OnInit{
       .map((s: string) => s.trim())
       .filter((s: string) => s.length > 0);
 
+    // A one-off override wins for this bill only; otherwise it joins the open round.
+    const joiningRun = this.effectiveMode === 'ROUTE' && !!this.currentRun;
+
     const payload: any = {
       ...raw,
+      deliveryMode: this.effectiveMode,
+      deliveryRunId: joiningRun ? this.currentRun!.id : undefined,
       billDate: raw.billDate ? localDateStr(new Date(raw.billDate)) : localDateStr(),
       customerId: this.selectedCustomerId,
       skippedBillNumbers: skippedBillNumbers.length > 0 ? skippedBillNumbers : undefined,

@@ -1,9 +1,17 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { map } from 'rxjs/operators';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface PaymentResponse {
+  /** Photo taken by whoever entered the payment. */
+  receiptImageUrl?: string;
+  receiptUploadedAt?: string;
+  /** The admin's own photo, attached on confirmation. */
+  confirmImageUrl?: string;
+  confirmUploadedAt?: string;
+
   id: number;
   billId: number;
   billNumber: string;
@@ -40,6 +48,8 @@ export interface PaymentResponse {
 }
 
 export interface PaymentRequest {
+  /** Photo of the bill. Required when an accountant enters the payment. */
+  receiptImageUrl?: string;
   amount: number;
   paymentType: string;
   paymentDate?: string;
@@ -112,8 +122,24 @@ export class Payment {
     return this.http.put<PaymentResponse>(`${this.apiUrl}/${id}`, request);
   }
 
-  confirmPayment(id: number): Observable<PaymentResponse> {
-    return this.http.patch<PaymentResponse>(`${this.apiUrl}/${id}/confirm`, {});
+  /** @param confirmImageUrl the admin's own photo, optional */
+  confirmPayment(id: number, confirmImageUrl?: string): Observable<PaymentResponse> {
+    return this.http.patch<PaymentResponse>(`${this.apiUrl}/${id}/confirm`,
+      confirmImageUrl ? { confirmImageUrl } : {});
+  }
+
+  /**
+   * Uploads a photo and returns its URL. Shares the task image endpoint — one place
+   * that talks to ImageKit, rather than a second upload path to keep in step.
+   */
+  uploadImage(file: File): Observable<string> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<{ url: string }>(
+      // Payments have their own ImageKit folder: a receipt is evidence for a figure
+      // and is kept, where a task photo is not.
+      `${environment.apiUrl}/payments/upload-image`, form
+    ).pipe(map(r => r.url));
   }
 
   rejectPayment(id: number, reason: string): Observable<PaymentResponse> {

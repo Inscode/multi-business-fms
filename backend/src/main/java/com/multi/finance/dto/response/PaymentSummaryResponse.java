@@ -20,4 +20,12 @@ public class PaymentSummaryResponse {
     private String collectedByOwnerName;
     private String collectedByWorkerName;
     private String collectorNote;
+
+    /**
+     * The photographs, so the dashboard can offer them before a confirmation. Without
+     * these the panel had no way to know a photo existed and the view button never
+     * appeared, even though the payment carried one.
+     */
+    private String receiptImageUrl;
+    private String confirmImageUrl;
 }

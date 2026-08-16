@@ -35,8 +35,14 @@ public class BillReturnController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<List<BillReturnResponse>> getAll(
-            @RequestParam(required = false) ReturnStatus status) {
-        return ResponseEntity.ok(billReturnService.getAll(status));
+            @RequestParam(required = false) ReturnStatus status,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso =
+                org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate month,
+            @RequestParam(required = false) Long runId,
+            @RequestParam(required = false) com.multi.finance.enums.DeliveryMode mode) {
+        return ResponseEntity.ok(billReturnService.getFiltered(status, month, runId, mode));
     }
 
     @GetMapping("/bills/{billId}")
@@ -120,6 +126,60 @@ public class BillReturnController {
             @RequestBody(required = false) Map<String, String> body) {
         String reason = (body != null) ? body.getOrDefault("reason", "") : "";
         return ResponseEntity.ok(billReturnService.reject(id, reason));
+    }
+
+    // ── Photographs ──────────────────────────────────────────────────
+
+    /** Every photo standing behind this return — its own, or its round's book pages. */
+    @GetMapping("/{id}/images")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','ACCOUNTANT','MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<com.multi.finance.dto.response.ReturnImageResponse>> images(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(billReturnService.imagesFor(id));
+    }
+
+    /** A photo of one shop's goods — for a pickup or immediate delivery. */
+    @PostMapping("/{id}/images")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','MAIN_ACCOUNTANT')")
+    public ResponseEntity<com.multi.finance.dto.response.ReturnImageResponse> addImage(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body,
+            java.security.Principal principal) {
+        String url = String.valueOf(body.get("imageUrl"));
+        Integer page = body.get("pageNo") == null ? null
+                : Integer.valueOf(String.valueOf(body.get("pageNo")));
+        return ResponseEntity.ok(
+                billReturnService.addReturnImage(id, url, page, principal.getName()));
+    }
+
+    /** The book pages photographed for a whole round. Several are normal. */
+    @GetMapping("/runs/{runId}/images")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','ACCOUNTANT','MAIN_ACCOUNTANT')")
+    public ResponseEntity<List<com.multi.finance.dto.response.ReturnImageResponse>> runImages(
+            @PathVariable Long runId,
+            @RequestParam(required = false) com.multi.finance.enums.ReturnType returnType) {
+        return ResponseEntity.ok(billReturnService.runImages(runId, returnType));
+    }
+
+    @PostMapping("/runs/{runId}/images")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','MAIN_ACCOUNTANT')")
+    public ResponseEntity<com.multi.finance.dto.response.ReturnImageResponse> addRunImage(
+            @PathVariable Long runId,
+            @RequestBody Map<String, Object> body,
+            java.security.Principal principal) {
+        var type = com.multi.finance.enums.ReturnType.valueOf(String.valueOf(body.get("returnType")));
+        String url = String.valueOf(body.get("imageUrl"));
+        Integer page = body.get("pageNo") == null ? null
+                : Integer.valueOf(String.valueOf(body.get("pageNo")));
+        return ResponseEntity.ok(
+                billReturnService.addRunImage(runId, type, url, page, principal.getName()));
+    }
+
+    @DeleteMapping("/images/{imageId}")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','MAIN_ACCOUNTANT')")
+    public ResponseEntity<Void> deleteImage(@PathVariable Long imageId) {
+        billReturnService.deleteImage(imageId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/fix-bill-amounts")

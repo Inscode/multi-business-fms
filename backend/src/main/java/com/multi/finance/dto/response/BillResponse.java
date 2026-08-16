@@ -42,4 +42,27 @@ public class BillResponse {
     private Boolean willBeLinked;
     private Boolean stockCleared;
     private Boolean collectionOnly;
+
+    /** How it reached the customer, and the round it travelled on. */
+    /** Why it was voided. Its number is reusable, so this is what tells two apart. */
+    /** Collected on another bill — the hand-written one for the same sale. */
+    private Long settledOnBillId;
+    private String settledOnBillNumber;
+    private String settledOnStatus;
+    private String settledOnNote;
+    private String settledOnBy;
+
+    private String cancelReason;
+    private String cancelledBy;
+    private java.time.LocalDateTime cancelledAt;
+
+    /** Kept off the aging report, and why. The balance is still owed. */
+    private Boolean excludedFromAging;
+    private String agingExclusionReason;
+    private String agingExcludedBy;
+
+    private String deliveryMode;
+    private Long deliveryRunId;
+    private String deliveryRunArea;
+    private java.time.LocalDate deliveryRunDate;
 }

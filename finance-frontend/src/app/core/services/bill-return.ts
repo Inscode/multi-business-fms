@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface BillReturnItemRequest {
@@ -147,6 +148,19 @@ export interface ApproveReturnRequest {
   items: ReceivedItemDto[];
 }
 
+/** A photograph behind a return — its own, or a page of its round's book. */
+export interface ReturnImage {
+  id: number;
+  imageUrl: string;
+  pageNo?: number;
+  returnType: 'DAMAGE' | 'SALABLE';
+  uploadedBy?: string;
+  uploadedAt?: string;
+  /** True when it is a round's book page, covering every shop on that round. */
+  fromRun: boolean;
+  runLabel?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class BillReturnService {
   private apiUrl = `${environment.apiUrl}/bill-returns`;
@@ -157,9 +171,19 @@ export class BillReturnService {
     return this.http.post<BillReturnResponse>(`${this.apiUrl}/bills/${billId}`, req);
   }
 
-  getAll(status?: string): Observable<BillReturnResponse[]> {
+  /**
+   * @param month any date inside the month wanted — a round counts against its own
+   *              month, which is not always the month its bills were dated in
+   * @param runId one lorry round
+   * @param mode  IMMEDIATE or STORE_PICKUP, which have no round to belong to
+   */
+  getAll(status?: string, month?: string, runId?: number, mode?: string):
+      Observable<BillReturnResponse[]> {
     let params = new HttpParams();
     if (status) params = params.set('status', status);
+    if (month)  params = params.set('month', month);
+    if (runId)  params = params.set('runId', runId);
+    if (mode)   params = params.set('mode', mode);
     return this.http.get<BillReturnResponse[]>(this.apiUrl, { params });
   }
 
@@ -187,6 +211,43 @@ export class BillReturnService {
 
   cancel(id: number, reason: string): Observable<BillReturnResponse> {
     return this.http.patch<BillReturnResponse>(`${this.apiUrl}/${id}/cancel`, { reason });
+  }
+
+  // ── Photographs ─────────────────────────────────────────────────
+  // Damage and salable upload to separate folders: one supports a claim against the
+  // agent, the other a credit to the customer, and they are kept for different reasons.
+
+  uploadImage(file: File, returnType: 'DAMAGE' | 'SALABLE'): Observable<string> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<{ url: string }>(
+      `${environment.apiUrl}/returns/upload-image?returnType=${returnType}`, form
+    ).pipe(map(r => r.url));
+  }
+
+  /** Everything behind one return: its own photo, or its round's pages. */
+  images(returnId: number): Observable<ReturnImage[]> {
+    return this.http.get<ReturnImage[]>(`${this.apiUrl}/${returnId}/images`);
+  }
+
+  addImage(returnId: number, imageUrl: string, pageNo?: number): Observable<ReturnImage> {
+    return this.http.post<ReturnImage>(`${this.apiUrl}/${returnId}/images`, { imageUrl, pageNo });
+  }
+
+  /** The book pages for a round. Several is normal, and more can be added later. */
+  runImages(runId: number, returnType?: 'DAMAGE' | 'SALABLE'): Observable<ReturnImage[]> {
+    const q = returnType ? `?returnType=${returnType}` : '';
+    return this.http.get<ReturnImage[]>(`${this.apiUrl}/runs/${runId}/images${q}`);
+  }
+
+  addRunImage(runId: number, returnType: 'DAMAGE' | 'SALABLE',
+              imageUrl: string, pageNo?: number): Observable<ReturnImage> {
+    return this.http.post<ReturnImage>(`${this.apiUrl}/runs/${runId}/images`,
+      { returnType, imageUrl, pageNo });
+  }
+
+  deleteImage(imageId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/images/${imageId}`);
   }
 
   getPendingCount(): Observable<{ count: number }> {

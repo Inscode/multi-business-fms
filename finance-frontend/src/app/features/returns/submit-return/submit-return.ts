@@ -14,6 +14,7 @@ import { of } from 'rxjs';
 import { Bill, BillResponse } from '../../../core/services/bill';
 import { BillReturnService, BillReturnItemRequest, ReturnableLine }
   from '../../../core/services/bill-return';
+import { compressImage, describeSaving } from '../../../core/utils/image-compress';
 import { ReturnProductService, ReturnProductResponse } from '../../../core/services/return-product';
 import { StockService } from '../../../core/services/stock';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
@@ -305,6 +306,7 @@ export class SubmitReturn implements OnInit {
     this.responsibleWorkerId = null;
     this.notes = '';
     this.errorMsg = '';
+    this.clearPhoto();
     // Keep selectedBill and searchQuery so they don't need to re-select
     this.cdr.markForCheck();
   }
@@ -559,6 +561,64 @@ export class SubmitReturn implements OnInit {
     this.cdr.detectChanges();
   }
 
+  // -- Photo of the returned goods ------------------------------------
+  // For a pickup or an immediate delivery this is the evidence: one shop, one lot of
+  // goods, photographed here. A route return needs none - the book page taken on the
+  // Deliveries screen covers every shop on that round at once.
+
+  photoUrl: string | null = null;
+  photoPreview: string | null = null;
+  uploadingPhoto = false;
+  photoError = '';
+  photoSizeNote = '';
+
+  /** True when this bill travelled on a lorry round, so the book page is the record. */
+  get isRouteBill(): boolean {
+    return (this.selectedBill as any)?.deliveryMode === 'ROUTE';
+  }
+
+  onPhotoPicked(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file || !this.returnType) return;
+    if (!file.type.startsWith('image/')) {
+      this.photoError = 'That is not an image.';
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.photoError = '';
+    this.photoUrl = null;
+    const reader = new FileReader();
+    reader.onload = () => { this.photoPreview = String(reader.result); this.cdr.markForCheck(); };
+    reader.readAsDataURL(file);
+
+    this.uploadingPhoto = true;
+    this.cdr.markForCheck();
+    compressImage(file).then(result => {
+      this.photoSizeNote = describeSaving(result);
+      // Damage and salable go to separate folders, so the type has to be settled first.
+      this.billReturnService.uploadImage(result.file, this.returnType as 'DAMAGE' | 'SALABLE')
+        .subscribe({
+          next: (url) => { this.photoUrl = url; this.uploadingPhoto = false; this.cdr.markForCheck(); },
+          error: () => {
+            this.uploadingPhoto = false;
+            this.photoError = 'Upload failed - check the connection and try again.';
+            this.cdr.markForCheck();
+          },
+        });
+    });
+  }
+
+  clearPhoto(): void {
+    this.photoUrl = null;
+    this.photoPreview = null;
+    this.photoError = '';
+    this.photoSizeNote = '';
+    this.cdr.markForCheck();
+  }
+
   submit(): void {
     if (!this.canSubmit) return;
 
@@ -601,7 +661,15 @@ export class SubmitReturn implements OnInit {
       customerName: this.selectedBill!.customerName,
     };
     this.billReturnService.create(billId, payload).subscribe({
-      next: () => {
+      next: (created) => {
+        // Attached after the fact because the photo needs the return's id. It is already
+        // in ImageKit, so this is only the link - a failure here leaves the return saved
+        // and the photo addable again, rather than losing the entry.
+        if (this.photoUrl && created?.id) {
+          this.billReturnService.addImage(created.id, this.photoUrl).subscribe({
+            next: () => {}, error: () => {},
+          });
+        }
         this.submitting = false;
         this.submitted = true;
         this.cdr.markForCheck();

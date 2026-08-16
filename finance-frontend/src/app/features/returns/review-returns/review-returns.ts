@@ -10,9 +10,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
-import { ApproveReturnRequest, BillReturnResponse, BillReturnService, ReceivedItemDto }
-  from '../../../core/services/bill-return';
+import { ApproveReturnRequest, BillReturnResponse, BillReturnService, ReceivedItemDto,
+         ReturnImage } from '../../../core/services/bill-return';
+import { DeliveryRun, DeliveryService } from '../../../core/services/delivery';
+import { localDateStr } from '../../../core/utils/date-utils';
 
 interface ReceivedQty { [itemId: number]: number; }
 
@@ -24,6 +28,7 @@ interface ReceivedQty { [itemId: number]: number; }
     MatButtonModule, MatIconModule, MatProgressSpinnerModule,
     MatSelectModule, MatFormFieldModule, MatInputModule,
     MatDialogModule, MatSnackBarModule, MatTooltipModule,
+    MatDatepickerModule, MatNativeDateModule,
   ],
   templateUrl: './review-returns.html',
   styleUrl: './review-returns.scss',
@@ -38,6 +43,76 @@ export class ReviewReturns implements OnInit {
 
   filterStatus = '';
   filterType = '';
+
+  // ── Narrowing the pile ──────────────────────────────────────────────
+  // Returns arrive by round, so they are reviewed by round. Immediate and store pickup
+  // are options in the same filter because they have no round to belong to, and would
+  // otherwise never be looked at.
+
+  /**
+   * The month, as its first day in YYYY-MM-DD.
+   *
+   * <p>A list rather than a datepicker: a calendar asks for a day, and there is no day
+   * to give — picking one meant drilling through year and month views to land on a
+   * date whose day part was then thrown away.
+   */
+  filterMonth: string = '';
+
+  /** This month and the fifteen before it, which covers any round still being settled. */
+  readonly monthOptions: { value: string; label: string }[] = (() => {
+    const out: { value: string; label: string }[] = [];
+    const d = new Date();
+    d.setDate(1);
+    for (let i = 0; i < 16; i++) {
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+      const label = d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      out.push({ value, label });
+      d.setMonth(d.getMonth() - 1);
+    }
+    return out;
+  })();
+  /** A run id, or the literal IMMEDIATE / STORE_PICKUP. */
+  filterDelivery: string = '';
+  runs: DeliveryRun[] = [];
+
+  private loadRuns(): void {
+    this.delivery.list().subscribe({
+      next: (r) => { this.runs = r; this.cdr.detectChanges(); },
+      error: () => {},
+    });
+  }
+
+  clearFilters(): void {
+    this.filterMonth = '';
+    this.filterDelivery = '';
+    this.load();
+  }
+
+  get hasFilters(): boolean {
+    return !!this.filterMonth || !!this.filterDelivery;
+  }
+
+  // ── Photographs ─────────────────────────────────────────────────────
+  // Shown before the decision, not after: approving without seeing what came back
+  // would make requiring the photo pointless.
+
+  images: Record<number, ReturnImage[]> = {};
+  loadingImages: Record<number, boolean> = {};
+
+  loadImages(r: BillReturnResponse): void {
+    if (this.images[r.id] || this.loadingImages[r.id]) return;
+    this.loadingImages[r.id] = true;
+    this.billReturnService.images(r.id).subscribe({
+      next: (imgs) => {
+        this.images[r.id] = imgs;
+        this.loadingImages[r.id] = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.loadingImages[r.id] = false; this.cdr.detectChanges(); },
+    });
+  }
+
+  openImage(url: string): void { window.open(url, '_blank', 'noopener'); }
   expandedId: number | null = null;
 
   receivedQtyMap: { [returnId: number]: ReceivedQty } = {};
@@ -108,17 +183,25 @@ export class ReviewReturns implements OnInit {
     private billReturnService: BillReturnService,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
+    private delivery: DeliveryService,
     private snackBar: MatSnackBar,
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void { this.load(); this.loadRuns(); }
 
   load(): void {
     this.loading = true;
     this.error = false;
-    this.billReturnService.getAll().subscribe({
+    this.billReturnService.getAll(
+      undefined,
+      this.filterMonth || undefined,
+      // A run id is numeric; the two modes are words, and are sent as the mode instead.
+      /^\d+$/.test(this.filterDelivery) ? Number(this.filterDelivery) : undefined,
+      /^\d+$/.test(this.filterDelivery) || !this.filterDelivery ? undefined : this.filterDelivery,
+    ).subscribe({
       next: (r) => {
         this.returns = r;
+        this.images = {};
         this.loading = false;
         this.initQtyMaps(r);
         this.cdr.detectChanges();

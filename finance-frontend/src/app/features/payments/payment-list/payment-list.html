@@ -141,6 +141,12 @@
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #menu="matMenu">
+                <!-- Available to everyone: the accountant's evidence and the admin's
+                     check are only useful if each can see what the other recorded. -->
+                <button mat-menu-item *ngIf="hasPhoto(p)" (click)="viewPhotos(p)">
+                  <mat-icon>photo</mat-icon>
+                  <span>View Bill Photo</span>
+                </button>
                 <button mat-menu-item *ngIf="canConfirm(p)" (click)="confirmPayment(p)" style="color: #2e7d32;">
                   <mat-icon style="color: #2e7d32;">check_circle</mat-icon>
                   <span>Confirm</span>

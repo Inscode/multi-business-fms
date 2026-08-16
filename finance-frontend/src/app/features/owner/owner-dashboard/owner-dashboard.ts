@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { Dashboard, OwnerDashboardData } from '../../../core/services/dashboard';
@@ -13,6 +14,7 @@ import { Auth } from '../../../core/services/auth';
 import { BillChecklistService, ChecklistVerifyRow } from '../../../core/services/bill-checklist';
 import { Payment } from '../../../core/services/payment';
 import { MatDialog } from '@angular/material/dialog';
+import { PaymentPhotoDialog } from '../../payments/payment-photo-dialog/payment-photo-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { from } from 'rxjs';
 import { concatMap } from 'rxjs/operators';
@@ -29,6 +31,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     MatTableModule,
     MatButtonModule,
     MatIconModule,
+    MatTooltipModule,
     MatSelectModule,
     MatFormFieldModule,
     FormsModule,
@@ -121,6 +124,19 @@ export class OwnerDashboard implements OnInit {
     });
   }
 
+  hasPhoto(p: any): boolean {
+    return !!p?.receiptImageUrl || !!p?.confirmImageUrl;
+  }
+
+  /** Read-only look at the photo, without starting a confirmation. */
+  viewPhotos(p: any): void {
+    this.dialog.open(PaymentPhotoDialog, {
+      data: { payment: p, mode: 'view' },
+      width: '520px',
+      maxWidth: '95vw',
+    });
+  }
+
   confirmPayment(id: number): void {
     const payment = this.data?.pendingPayments.find(p => p.id === id);
     const lines = [
@@ -135,17 +151,28 @@ export class OwnerDashboard implements OnInit {
       ...(payment?.collectorNote ? [`Note: ${payment.collectorNote}`] : []),
     ].join('\n');
 
-    this.dialog.open(ConfirmDialog, {
-      data: {
-        title: 'Confirm Payment',
-        message: lines,
-        confirmText: 'Confirm',
-        confirmColor: 'primary'
-      },
-      maxWidth: '95vw',
-    }).afterClosed().subscribe(result => {
+    // With a photo attached, confirm through the dialog that shows it — confirming
+    // without seeing the evidence would make requiring it pointless. Without one, the
+    // plain summary is enough.
+    const dialogRef = this.hasPhoto(payment)
+      ? this.dialog.open(PaymentPhotoDialog, {
+          data: { payment, mode: 'confirm' },
+          width: '520px',
+          maxWidth: '95vw',
+        })
+      : this.dialog.open(ConfirmDialog, {
+          data: {
+            title: 'Confirm Payment',
+            message: lines,
+            confirmText: 'Confirm',
+            confirmColor: 'primary'
+          },
+          maxWidth: '95vw',
+        });
+
+    dialogRef.afterClosed().subscribe((result: any) => {
       if (!result?.confirmed) return;
-      this.paymentService.confirmPayment(id).subscribe({
+      this.paymentService.confirmPayment(id, result.confirmImageUrl).subscribe({
         next: () => this.load(),
         error: () => this.load(),
       });

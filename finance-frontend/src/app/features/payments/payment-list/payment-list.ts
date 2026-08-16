@@ -20,6 +20,7 @@ import { Payment, PaymentResponse } from '../../../core/services/payment';
 import { Auth } from '../../../core/services/auth';
 import { Router, RouterLink } from '@angular/router';
 import { ReturnChequeDialog } from '../return-cheque-dialog/return-cheque-dialog';
+import { PaymentPhotoDialog } from '../payment-photo-dialog/payment-photo-dialog';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -327,22 +328,36 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/payments/enter'], { state: { payment } });
   }
 
+  /**
+   * Confirming shows the photo the accountant attached, and offers the admin their own.
+   * Put in front of them here rather than on a detail page: confirming without seeing
+   * the evidence would make requiring it pointless.
+   */
   confirmPayment(payment: PaymentResponse): void {
-    this.dialog.open(ConfirmDialog, {
-      data: {
-        title: 'Confirm Payment',
-        message: `Confirm payment of Rs ${payment.paymentAmount} for ${payment.billNumber} — ${payment.customerName}?`,
-        confirmText: 'Confirm',
-        confirmColor: 'primary',
-      },
+    this.dialog.open(PaymentPhotoDialog, {
+      data: { payment, mode: 'confirm' },
+      width: '520px',
       maxWidth: '95vw',
     }).afterClosed().subscribe(result => {
       if (!result?.confirmed) return;
-      this.paymentService.confirmPayment(payment.id).subscribe({
+      this.paymentService.confirmPayment(payment.id, result.confirmImageUrl).subscribe({
         next: () => this.load(),
         error: () => this.load(),
       });
     });
+  }
+
+  /** Read-only view, so an accountant can see what an admin recorded and the reverse. */
+  viewPhotos(payment: PaymentResponse): void {
+    this.dialog.open(PaymentPhotoDialog, {
+      data: { payment, mode: 'view' },
+      width: '520px',
+      maxWidth: '95vw',
+    });
+  }
+
+  hasPhoto(payment: PaymentResponse): boolean {
+    return !!payment.receiptImageUrl || !!payment.confirmImageUrl;
   }
 
   rejectPayment(payment: PaymentResponse): void {

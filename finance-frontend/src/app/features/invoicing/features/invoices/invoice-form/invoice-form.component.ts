@@ -509,19 +509,55 @@ export class InvoiceFormComponent implements OnInit {
     return (code.match(/\d+/g) ?? []).join('').replace(/^0+/, '');
   }
 
-  private findByCode(code: string): { item?: Item; ambiguous?: boolean } {
+  private itemPrice(i: Item): number {
+    return Number(i.wsp ?? i.wholesalePrice ?? 0);
+  }
+
+  /**
+   * Narrows several candidates to one using the pasted price.
+   *
+   * <p>This is what the price is for. A code like 1020 exists twice in the catalogue —
+   * RC-1020N at 779.00 and RC-1020 at 729.80 — and the code alone cannot separate
+   * them. The price on the agent's line can, and does so exactly: it is the figure
+   * that item was sold at.
+   */
+  private narrowByPrice(candidates: Item[], price: number): Item[] {
+    if (!Number.isFinite(price) || price <= 0) return candidates;
+    const exact = candidates.filter(i => Math.abs(this.itemPrice(i) - price) < 0.01);
+    if (exact.length) return exact;
+    // Nothing exact — allow a rounding tail before giving up.
+    return candidates.filter(i => Math.abs(this.itemPrice(i) - price) < 0.5);
+  }
+
+  /**
+   * Resolves a pasted code to one catalogue item.
+   *
+   * <p>Code first, price second. Where the code lands on several items the price
+   * decides between them, rather than the whole line being skipped — which is what
+   * used to happen to every code that exists in more than one variant.
+   */
+  private findByCode(code: string, price: number): { item?: Item; candidates?: Item[] } {
     const wanted = code.trim().toUpperCase();
+
     const exact = this.items.filter(i => (i.itemCode ?? '').trim().toUpperCase() === wanted);
     if (exact.length === 1) return { item: exact[0] };
-    if (exact.length > 1) return { ambiguous: true };
+    if (exact.length > 1) {
+      const narrowed = this.narrowByPrice(exact, price);
+      if (narrowed.length === 1) return { item: narrowed[0] };
+      return { candidates: exact };
+    }
 
-    // Fall back to the digits, which is how the agent's sheet and the catalogue often
-    // differ (K01047 against 1047). Only accepted when it lands on exactly one item.
+    // The agent's sheet writes 1020 where the catalogue holds RC-1020N, so the digits
+    // are compared when the code itself does not match.
     const digits = this.codeDigits(code);
     if (!digits) return {};
     const byDigits = this.items.filter(i => this.codeDigits(i.itemCode ?? '') === digits);
     if (byDigits.length === 1) return { item: byDigits[0] };
-    if (byDigits.length > 1) return { ambiguous: true };
+    if (byDigits.length > 1) {
+      const narrowed = this.narrowByPrice(byDigits, price);
+      if (narrowed.length === 1) return { item: narrowed[0] };
+      return { candidates: byDigits };
+    }
     return {};
   }
 
@@ -551,9 +587,19 @@ export class InvoiceFormComponent implements OnInit {
       const price = parts.length > 2 ? Number(parts[2]) : NaN;
       if (!Number.isFinite(qty) || qty <= 0) continue;
 
-      const found = this.findByCode(code);
-      if (found.ambiguous) { ambiguous.push(code); continue; }
-      if (!found.item)     { unknown.push(code);   continue; }
+      const found = this.findByCode(code, price);
+      if (found.candidates) {
+        // Say which items it could be and what they cost — the price that would have
+        // separated them is the thing the user needs to supply or correct.
+        ambiguous.push(
+          `${code} → ` +
+          found.candidates
+            .map(c => `${c.itemCode} @ ${this.itemPrice(c).toFixed(2)}`)
+            .join(' | ')
+        );
+        continue;
+      }
+      if (!found.item) { unknown.push(code); continue; }
 
       const item = found.item;
       if (!this.itemAllowed(item)) { unknown.push(code + ' (wrong category)'); continue; }

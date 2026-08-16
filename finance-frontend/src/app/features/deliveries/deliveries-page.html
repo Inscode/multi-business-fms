@@ -1,0 +1,458 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Deliveries</h1>
+      <p class="page-sub">Lorry rounds, and the bills that went out on them</p>
+    </div>
+    <div class="header-actions">
+      @if (isAdmin) {
+        <button mat-stroked-button (click)="showRoutes = !showRoutes">
+          <mat-icon>alt_route</mat-icon> Routes
+        </button>
+      }
+      <button mat-flat-button color="primary" (click)="showOpen = !showOpen">
+        <mat-icon>add</mat-icon> Open a run
+      </button>
+    </div>
+  </div>
+
+  <!-- Routes: the list every round is counted against, so admin keeps it clean. -->
+  @if (showRoutes && isAdmin) {
+    <div class="card routes-card">
+      <div class="card-title">Routes</div>
+      <div class="route-add">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>New route</mat-label>
+          <input matInput [(ngModel)]="newRouteName" (keyup.enter)="addRoute()"
+                 placeholder="e.g. Welimada">
+        </mat-form-field>
+        <button mat-flat-button color="primary" (click)="addRoute()"
+                [disabled]="!newRouteName.trim()">Add</button>
+      </div>
+      <div class="route-chips">
+        @for (a of areas; track a.id) {
+          <button type="button" class="route-chip" [class.off]="!a.active"
+                  (click)="toggleRoute(a)"
+                  [matTooltip]="a.active ? 'Click to retire this route' : 'Click to bring it back'">
+            {{ a.name }}
+            @if (!a.active) { <span class="retired">retired</span> }
+          </button>
+        }
+      </div>
+      <p class="hint">
+        A route that has carried bills is retired rather than deleted &mdash; removing it
+        would orphan every run that used it.
+      </p>
+    </div>
+  }
+
+  <!-- Opening a round. Often planned before its bills are entered. -->
+  @if (showOpen) {
+    <div class="card open-card">
+      <div class="card-title">Open a run</div>
+      <div class="open-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Routes</mat-label>
+          <!-- Several at once: one lorry commonly does two or three together. -->
+          <mat-select [(ngModel)]="newAreaIds" multiple>
+            @for (a of areas; track a.id) {
+              @if (a.active) { <mat-option [value]="a.id">{{ a.name }}</mat-option> }
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Going out on</mat-label>
+          <input matInput [matDatepicker]="dp" [(ngModel)]="newDate">
+          <mat-datepicker-toggle matSuffix [for]="dp"></mat-datepicker-toggle>
+          <mat-datepicker #dp></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Counts against</mat-label>
+          <!-- Chosen, not derived: a round planned for the end of one month often
+               leaves at the start of the next, and it still belongs to the first. -->
+          <mat-select [(ngModel)]="newMonth">
+            @for (m of months; track m.value) {
+              <mat-option [value]="m.value">{{ m.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>The month this round belongs to</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Notes (optional)</mat-label>
+          <input matInput [(ngModel)]="newNotes"
+                 placeholder="Driver, vehicle, anything worth recording">
+        </mat-form-field>
+      </div>
+      <div class="open-actions">
+        <button mat-flat-button color="primary" (click)="openRun()" [disabled]="opening">
+          {{ opening ? 'Opening…' : 'Open run' }}
+        </button>
+        <button mat-stroked-button (click)="showOpen = false">Cancel</button>
+      </div>
+      @if (openError) { <div class="err">{{ openError }}</div> }
+    </div>
+  }
+
+  <!-- Rounds are planned and settled by month, so that is how they are found. -->
+  <div class="filter-bar">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width: 160px">
+      <mat-label>Month</mat-label>
+      <mat-select [(ngModel)]="filterMonth" (ngModelChange)="load()">
+        <mat-option value="">Recent months</mat-option>
+        @for (m of months; track m.value) {
+          <mat-option [value]="m.value">{{ m.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (isAdmin) {
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width: 190px">
+        <mat-label>Delivered by</mat-label>
+        <mat-select [(ngModel)]="summaryMode" (ngModelChange)="loadSummary()">
+          <mat-option value="">All deliveries</mat-option>
+          <mat-option value="ROUTE">Route only</mat-option>
+          <mat-option value="IMMEDIATE">Immediate only</mat-option>
+          <mat-option value="STORE_PICKUP">Store pickup only</mat-option>
+        </mat-select>
+      </mat-form-field>
+    }
+  </div>
+
+  <!-- Admin only: how the month is going, business by business. A single lorry's
+       counts cannot answer that, and the businesses are stocked and settled apart. -->
+  @if (isAdmin) {
+    <div class="card month-card">
+      <div class="mc-head">
+        <div>
+          <strong>
+            {{ filterMonth ? 'Month summary' : 'This month' }}
+            @if (summaryMode) { &middot; {{ summaryMode.replace('_', ' ') | titlecase }} }
+          </strong>
+          <span>Billed, collected, and what is still out</span>
+        </div>
+        @if (loadingSummary) { <mat-spinner diameter="18"></mat-spinner> }
+      </div>
+
+      @if (summary.length === 0 && !loadingSummary) {
+        <div class="mc-empty">Nothing billed in this month yet.</div>
+      } @else {
+        <div class="mc-grid">
+          @for (row of summary; track row.business) {
+            <div class="mc-biz" [class]="'biz-' + row.business.toLowerCase()">
+              <div class="mb-name">{{ row.business }}</div>
+              <div class="mb-sales">Rs {{ row.sales | number:'1.0-0' }}</div>
+              <div class="mb-meta">
+                {{ row.billCount }} bill(s) &middot; Rs {{ row.paid | number:'1.0-0' }} collected
+              </div>
+              <div class="mb-pending" [class.clear]="row.pending <= 0">
+                @if (row.pending > 0) {
+                  Rs {{ row.pending | number:'1.0-0' }} pending
+                } @else { all collected }
+              </div>
+            </div>
+          }
+
+          <!-- Every business together, so the month has one number as well. -->
+          <div class="mc-biz total">
+            <div class="mb-name">ALL</div>
+            <div class="mb-sales">Rs {{ summaryTotals.sales | number:'1.0-0' }}</div>
+            <div class="mb-meta">
+              {{ summaryTotals.bills }} bill(s) &middot;
+              Rs {{ summaryTotals.paid | number:'1.0-0' }} collected
+            </div>
+            <div class="mb-pending" [class.clear]="summaryTotals.pending <= 0">
+              @if (summaryTotals.pending > 0) {
+                Rs {{ summaryTotals.pending | number:'1.0-0' }} pending
+              } @else { all collected }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+  } @else {
+
+    <div class="split">
+      <!-- ── The rounds ─────────────────────────────────────────── -->
+      <div class="runs-col">
+        @if (runs.length === 0) {
+          <div class="empty">
+            <mat-icon>local_shipping</mat-icon>
+            <p>No runs in this period. Open one and the bills entered will join it.</p>
+          </div>
+        }
+        @for (r of runs; track r.id) {
+          <button type="button" class="run-card" [class.on]="selected?.id === r.id"
+                  [class.st-open]="r.status === 'OPEN'"
+                  [class.st-cancelled]="r.status === 'CANCELLED'"
+                  (click)="select(r)">
+            <div class="rc-top">
+              <strong>{{ r.areaName }}</strong>
+              <span class="rc-date">{{ r.plannedDate }}</span>
+            </div>
+            <div class="rc-stats">
+              <span><strong>{{ r.billCount }}</strong> bills</span>
+              <span><strong>{{ r.customerCount }}</strong> customers</span>
+              <span>Rs {{ r.totalValue | number:'1.0-0' }}</span>
+            </div>
+            <div class="rc-status">
+              {{ statusLabel(r.status) }}
+              <!-- Called out only when it differs from the date it went out, which is
+                   the case worth noticing. -->
+              @if (r.runMonth && r.runMonth.slice(0, 7) !== r.plannedDate.slice(0, 7)) {
+                <span class="rc-month">counts against {{ r.runMonth | date:'MMM yyyy' }}</span>
+              }
+            </div>
+          </button>
+        }
+      </div>
+
+      <!-- ── What that round carried ────────────────────────────── -->
+      <div class="detail-col">
+        @if (!selected) {
+          <div class="empty">
+            <mat-icon>touch_app</mat-icon>
+            <p>Pick a run to see every bill and customer on it.</p>
+          </div>
+        } @else if (loadingDetail) {
+          <div class="loading"><mat-spinner diameter="28"></mat-spinner></div>
+        } @else {
+          <div class="card detail-card">
+            <div class="detail-head">
+              <div>
+                <h2>{{ selected.areaName }}</h2>
+                <span class="dh-sub">
+                  {{ selected.plannedDate }} &middot; {{ statusLabel(selected.status) }}
+                  @if (selected.openedBy) { &middot; opened by {{ selected.openedBy }} }
+                </span>
+                @if (selected.notes) { <div class="dh-notes">{{ selected.notes }}</div> }
+              </div>
+              <div class="detail-actions">
+                @if (selected.status === 'OPEN') {
+                  <button mat-flat-button color="primary"
+                          (click)="setStatus(selected, 'DISPATCHED')">Mark dispatched</button>
+                }
+                @if (selected.status === 'DISPATCHED') {
+                  <button mat-flat-button color="primary"
+                          (click)="setStatus(selected, 'COMPLETED')">Mark completed</button>
+                }
+                <!-- The fix for a bill entered before the run was opened, or after it
+                     closed. Available while the run is not cancelled. -->
+                @if (selected.status !== 'CANCELLED') {
+                  <button mat-stroked-button (click)="openAdd()">
+                    <mat-icon>playlist_add</mat-icon> Add bills
+                  </button>
+                }
+                @if (selected.status !== 'CANCELLED' && selected.status !== 'COMPLETED') {
+                  <button mat-stroked-button color="warn"
+                          (click)="setStatus(selected, 'CANCELLED')">Cancel run</button>
+                }
+              </div>
+            </div>
+
+            <!-- What the lorry is checked against. -->
+            <div class="tallies">
+              <div class="tally">
+                <span class="t-label">Bills</span>
+                <span class="t-value">{{ selected.billCount }}</span>
+              </div>
+              <div class="tally">
+                <span class="t-label">Customers</span>
+                <span class="t-value">{{ selected.customerCount }}</span>
+              </div>
+              <div class="tally">
+                <span class="t-label">Value</span>
+                <span class="t-value">Rs {{ selected.totalValue | number:'1.0-0' }}</span>
+              </div>
+              <div class="tally">
+                <span class="t-label">Still owed</span>
+                <span class="t-value owed">Rs {{ outstandingOf(selected) | number:'1.0-0' }}</span>
+              </div>
+            </div>
+
+            <!-- One lorry, three loads. Each business is signed off against its own
+                 count, so the trip total alone cannot answer for any of them. -->
+            @if ((selected.bills ?? []).length > 0) {
+              <div class="breakdown">
+                <div class="bd-title">By business</div>
+                <div class="bd-rows">
+                  @for (b of breakdown(selected); track b.business) {
+                    <div class="bd-row" [class]="'biz-' + b.business.toLowerCase()">
+                      <span class="bd-name">{{ b.business }}</span>
+                      <span class="bd-qty"><strong>{{ b.bills }}</strong> bill(s)</span>
+                      <span class="bd-val">Rs {{ b.value | number:'1.0-0' }}</span>
+                      <span class="bd-owed" [class.has]="b.owed > 0">
+                        @if (b.owed > 0) { Rs {{ b.owed | number:'1.0-0' }} owed }
+                        @else { settled }
+                      </span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Bills that belong to no round, dated within a fortnight of this one. -->
+            @if (showAdd) {
+              <div class="add-panel">
+                <div class="ap-head">
+                  <strong>Add bills to this run</strong>
+                  <span>Bills on no other round, dated within two weeks of it</span>
+                  <button mat-icon-button (click)="showAdd = false"><mat-icon>close</mat-icon></button>
+                </div>
+
+                <div class="ap-tools">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="ap-search">
+                    <mat-icon matPrefix>search</mat-icon>
+                    <input matInput [(ngModel)]="candidateSearch"
+                           placeholder="Bill number, customer or area">
+                  </mat-form-field>
+                  <button mat-stroked-button (click)="pickAllShown()"
+                          [disabled]="shownCandidates.length === 0">
+                    Select all shown
+                  </button>
+                </div>
+
+                @if (loadingCandidates) {
+                  <div class="loading"><mat-spinner diameter="24"></mat-spinner></div>
+                } @else if (shownCandidates.length === 0) {
+                  <div class="ap-empty">
+                    No unassigned bills near this date. Every bill in that window already
+                    belongs to a round.
+                  </div>
+                } @else {
+                  <div class="ap-list">
+                    @for (b of shownCandidates; track b.id) {
+                      <label class="ap-row" [class.on]="picked.has(b.id)">
+                        <input type="checkbox" [checked]="picked.has(b.id)"
+                               (change)="togglePick(b.id)">
+                        <span class="ap-num">{{ b.billNumber }}</span>
+                        <span class="ap-biz">{{ b.business }}</span>
+                        <span class="ap-cust">{{ b.customerName }}</span>
+                        <span class="ap-area">{{ b.area || '—' }}</span>
+                        <span class="ap-date">{{ b.billDate }}</span>
+                        <span class="ap-amt">Rs {{ b.totalAmount | number:'1.0-0' }}</span>
+                      </label>
+                    }
+                  </div>
+
+                  <div class="ap-actions">
+                    <button mat-flat-button color="primary"
+                            (click)="assignPicked()"
+                            [disabled]="picked.size === 0 || assigning">
+                      {{ assigning ? 'Adding…' : 'Add ' + picked.size + ' bill(s)' }}
+                    </button>
+                    <button mat-stroked-button (click)="showAdd = false">Cancel</button>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- The book. Written up the morning after the lorry is back, one page
+                 covering every shop on the round — so it is attached here, once, rather
+                 than to each return. More pages can be added whenever the count is
+                 finished. -->
+            <div class="book">
+              <div class="bd-title">Return book pages</div>
+              <div class="book-cols">
+                @for (type of bookTypes; track type) {
+                  <div class="book-col" [class.damage]="type === 'DAMAGE'">
+                    <div class="bc-head">
+                      <strong>{{ type === 'DAMAGE' ? 'Damage' : 'Salable' }}</strong>
+                      <span>{{ runImages[type].length }} page(s)</span>
+                    </div>
+
+                    <div class="pages">
+                      @for (img of runImages[type]; track img.id) {
+                        <div class="page-thumb">
+                          <img [src]="img.imageUrl" (click)="openImage(img.imageUrl)"
+                               [alt]="'Page ' + (img.pageNo ?? '')">
+                          <span class="pg-no">{{ img.pageNo ? 'p' + img.pageNo : '' }}</span>
+                          <button type="button" class="pg-del" (click)="deletePage(img)"
+                                  matTooltip="Remove this page">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                      }
+
+                      <label class="page-add" [class.busy]="uploadingPage === type">
+                        @if (uploadingPage === type) {
+                          <mat-spinner diameter="18"></mat-spinner>
+                          <span>Uploading…</span>
+                        } @else {
+                          <mat-icon>add_a_photo</mat-icon>
+                          <span>Add page</span>
+                        }
+                        <!-- Several at once: a round often fills two or three pages. -->
+                        <input type="file" accept="image/*" capture="environment" multiple
+                               (change)="onPagePicked($event, type)" hidden>
+                      </label>
+                    </div>
+                  </div>
+                }
+              </div>
+              @if (pageError) { <div class="err">{{ pageError }}</div> }
+              <p class="hint">
+                One page stands for every return on this round, so an accountant
+                confirming a shop&rsquo;s goods does not photograph them again.
+              </p>
+            </div>
+
+            @if ((selected.bills ?? []).length === 0) {
+              <div class="empty small">
+                <p>No bills on this run yet.</p>
+              </div>
+            } @else {
+              <div class="table-wrap">
+                <table class="run-table">
+                  <thead>
+                    <tr>
+                      <th>Bill No.</th>
+                      <th>Business</th>
+                      <th>Customer</th>
+                      <th>Area</th>
+                      <th class="r">Total</th>
+                      <th class="r">Paid</th>
+                      <th class="r">Balance</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (b of selected.bills ?? []; track b.id) {
+                      <tr>
+                        <td>
+                          <a [routerLink]="['/bills', b.id]" class="bill-link">{{ b.billNumber }}</a>
+                        </td>
+                        <td><span class="biz-tag">{{ b.business }}</span></td>
+                        <td>{{ b.customerName }}</td>
+                        <td class="muted">{{ b.area || '—' }}</td>
+                        <td class="r">{{ b.totalAmount | number:'1.0-0' }}</td>
+                        <td class="r">{{ b.amountPaid | number:'1.0-0' }}</td>
+                        <td class="r" [class.owed]="b.balanceRemaining > 0">
+                          {{ b.balanceRemaining | number:'1.0-0' }}
+                        </td>
+                        <td class="r">
+                          @if (selected.status === 'OPEN') {
+                            <button mat-icon-button (click)="removeBill(b.id)"
+                                    matTooltip="Take this bill off the run">
+                              <mat-icon>remove_circle_outline</mat-icon>
+                            </button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

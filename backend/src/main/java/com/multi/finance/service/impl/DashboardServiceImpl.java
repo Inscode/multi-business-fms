@@ -366,6 +366,8 @@ public class DashboardServiceImpl {
                 .collectedByWorkerName(p.getCollectedByWorker() != null
                         ? p.getCollectedByWorker().getFullName() : null)
                 .collectorNote(p.getCollectorNote())
+                .receiptImageUrl(p.getReceiptImageUrl())
+                .confirmImageUrl(p.getConfirmImageUrl())
                 .build();
     }
 

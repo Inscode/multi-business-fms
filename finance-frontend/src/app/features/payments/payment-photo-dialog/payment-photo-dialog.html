@@ -1,0 +1,92 @@
+<div class="photo-dialog">
+
+  <div class="pd-head">
+    <div>
+      <strong>{{ isConfirm ? 'Confirm Payment' : 'Payment Photos' }}</strong>
+      <span>
+        Rs {{ p.paymentAmount | number:'1.2-2' }} · {{ p.billNumber }} — {{ p.customerName }}
+      </span>
+    </div>
+    <button mat-icon-button (click)="close()" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="pd-body">
+
+    <!-- What the person who took the money photographed. -->
+    <div class="pd-section">
+      <div class="pd-label">
+        <mat-icon>receipt_long</mat-icon>
+        Entered by {{ p.enteredByName }}
+        <span class="when" *ngIf="p.receiptUploadedAt">
+          · {{ p.receiptUploadedAt | date:'dd MMM yyyy, h:mm a' }}
+        </span>
+      </div>
+
+      @if (p.receiptImageUrl) {
+        <img class="pd-img" [src]="p.receiptImageUrl" alt="Bill photo"
+             (click)="openFull(p.receiptImageUrl!)">
+        <button mat-stroked-button class="pd-full" (click)="openFull(p.receiptImageUrl!)">
+          <mat-icon>open_in_new</mat-icon> Open full size
+        </button>
+      } @else {
+        <!-- Payments entered before photos were required, or entered by an admin. -->
+        <div class="pd-none">
+          <mat-icon>image_not_supported</mat-icon>
+          No photo was attached to this payment.
+        </div>
+      }
+    </div>
+
+    <!-- The admin's own record, on confirmation. -->
+    @if (isConfirm || p.confirmImageUrl) {
+      <div class="pd-section">
+        <div class="pd-label">
+          <mat-icon>verified</mat-icon>
+          Admin photo <span class="opt">(optional)</span>
+          <span class="when" *ngIf="p.confirmUploadedAt">
+            · {{ p.confirmUploadedAt | date:'dd MMM yyyy, h:mm a' }}
+          </span>
+        </div>
+
+        @if (p.confirmImageUrl) {
+          <img class="pd-img" [src]="p.confirmImageUrl" alt="Admin photo"
+               (click)="openFull(p.confirmImageUrl!)">
+        } @else if (isConfirm) {
+          @if (confirmPreview) {
+            <img class="pd-img" [src]="confirmPreview" alt="Admin photo">
+            <div class="pd-status">
+              @if (uploading) {
+                <mat-spinner diameter="16"></mat-spinner> <span>Uploading…</span>
+              } @else if (confirmUrl) {
+                <mat-icon class="ok">check_circle</mat-icon> <span>Attached</span>
+              }
+            </div>
+          } @else {
+            <label class="pd-drop">
+              <mat-icon>add_a_photo</mat-icon>
+              <span>Attach your own photo</span>
+              <input type="file" accept="image/*" capture="environment"
+                     (change)="onPick($event)" hidden>
+            </label>
+          }
+        }
+
+        @if (uploadError) {
+          <div class="pd-error"><mat-icon>error_outline</mat-icon> {{ uploadError }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  @if (isConfirm) {
+    <div class="pd-actions">
+      <button mat-stroked-button (click)="close()">Cancel</button>
+      <button mat-flat-button color="primary" (click)="confirm()" [disabled]="uploading">
+        <mat-icon>check</mat-icon>
+        {{ uploading ? 'Uploading…' : 'Confirm Payment' }}
+      </button>
+    </div>
+  }
+</div>
