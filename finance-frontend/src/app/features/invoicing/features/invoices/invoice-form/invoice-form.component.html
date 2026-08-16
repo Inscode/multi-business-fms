@@ -305,11 +305,21 @@ K01047,2,0</pre>
                     <strong>{{ pasteResult.unknown.join(', ') }}</strong>
                   </div>
                 }
+                <!-- Only reaches here when the price could not separate the candidates
+                     either, so the candidates and their prices are shown. -->
                 @if (pasteResult.ambiguous.length) {
                   <div class="pr-bad">
                     <mat-icon>help_outline</mat-icon>
-                    More than one item matches, so skipped:
-                    <strong>{{ pasteResult.ambiguous.join(', ') }}</strong>
+                    <div>
+                      <strong>More than one item matches, so these were skipped</strong>
+                      @for (a of pasteResult.ambiguous; track a) {
+                        <span class="pr-line">{{ a }}</span>
+                      }
+                      <span class="pr-note">
+                        Add the correct price to the line and paste again — it picks the
+                        right one.
+                      </span>
+                    </div>
                   </div>
                 }
                 <!-- The code found an item but the price disagrees — usually a mistyped

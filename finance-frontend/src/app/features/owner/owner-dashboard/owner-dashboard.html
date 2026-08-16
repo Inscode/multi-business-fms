@@ -232,8 +232,18 @@
           </ng-container>
           <ng-container matColumnDef="action">
             <th mat-header-cell *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let p">
-              <button mat-flat-button color="primary" (click)="confirmPayment(p.id)">
+            <td mat-cell *matCellDef="let p" class="pay-action-cell">
+              <!-- The eye keeps its slot whether or not there is a photo, so Confirm
+                   lands in the same place on every row instead of stepping in and out. -->
+              <span class="photo-slot">
+                <button type="button" class="view-photo-btn" *ngIf="hasPhoto(p)"
+                        (click)="viewPhotos(p)" matTooltip="View bill photo"
+                        aria-label="View bill photo">
+                  <mat-icon>visibility</mat-icon>
+                </button>
+              </span>
+              <button mat-flat-button color="primary" class="confirm-btn-sm"
+                      (click)="confirmPayment(p.id)">
                 Confirm
               </button>
             </td>
@@ -277,15 +287,24 @@
             <mat-icon>notes</mat-icon>
             <span>{{ p.collectorNote }}</span>
           </div>
-          <button
-            mat-flat-button
-            color="primary"
-            class="confirm-btn"
-            (click)="confirmPayment(p.id)"
-          >
-            <mat-icon>check_circle</mat-icon>
-            Confirm Payment
-          </button>
+          <!-- Phone: the eye sits beside Confirm, so the photo is one tap away from
+               the decision rather than buried in a menu. -->
+          <div class="card-actions">
+            <button mat-stroked-button class="view-photo-btn" *ngIf="hasPhoto(p)"
+                    (click)="viewPhotos(p)">
+              <mat-icon>visibility</mat-icon>
+              View Photo
+            </button>
+            <button
+              mat-flat-button
+              color="primary"
+              class="confirm-btn"
+              (click)="confirmPayment(p.id)"
+            >
+              <mat-icon>check_circle</mat-icon>
+              Confirm Payment
+            </button>
+          </div>
         </div>
       </div>
     </ng-container>

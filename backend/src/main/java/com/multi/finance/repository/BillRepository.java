@@ -47,23 +47,27 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business " +
+            "AND b.settledOn IS NULL " +
             "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION')")
     BigDecimal sumOutstandingByBusiness(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business " +
             "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
+            "AND b.settledOn IS NULL " +
             "AND (b.willBeLinked IS NULL OR b.willBeLinked = false)")
     BigDecimal sumOutstandingByBusinessExcludingLinking(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business AND b.billType = 'CASH' " +
-            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION')")
+            "AND b.balanceRemaining > 0 AND b.settledOn IS NULL " +
+            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION')")
     BigDecimal sumCashPendingByBusiness(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business AND b.billType = 'CASH' " +
-            "AND b.balanceRemaining > 0 AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
+            "AND b.balanceRemaining > 0 AND b.settledOn IS NULL " +
+            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
             "AND b.billDate <= :cutoff")
     BigDecimal sumCashSeriousByBusiness(@Param("business") BusinessType business,
                                         @Param("cutoff") LocalDate cutoff);
@@ -81,18 +85,19 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     boolean existsByBillNumberAndBusiness(String billNumber, BusinessType business);
 
     /**
-     * Whether a live bill already holds this number. A cancelled bill does not: its
-     * number goes back into the run, because the page it stands for is still there to
-     * be written on.
+     * Whether any bill already holds this number, cancelled or not.
+     *
+     * <p>A cancelled bill keeps its number: it is still a record of something that
+     * happened, and reusing the number would put two bills under one identity. A
+     * number is only released by deleting the bill outright.
      */
     @Query("SELECT COUNT(b) > 0 FROM Bill b WHERE b.billNumber = :billNumber "
-         + "AND b.business = :business AND b.status <> com.multi.finance.enums.BillStatus.CANCELLED")
+         + "AND b.business = :business")
     boolean existsActiveByBillNumberAndBusiness(@Param("billNumber") String billNumber,
                                                 @Param("business") BusinessType business);
 
-    /** The live bill on this number, ignoring any cancelled one that used to hold it. */
-    @Query("SELECT b FROM Bill b WHERE b.billNumber = :billNumber AND b.business = :business "
-         + "AND b.status <> com.multi.finance.enums.BillStatus.CANCELLED")
+    /** The bill on this number, whatever its status — a number is held until deleted. */
+    @Query("SELECT b FROM Bill b WHERE b.billNumber = :billNumber AND b.business = :business")
     java.util.Optional<Bill> findActiveByBillNumberAndBusiness(
             @Param("billNumber") String billNumber, @Param("business") BusinessType business);
 
@@ -250,21 +255,20 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     // ── Every number used, not just the highest ──────────────────────────────
     // The suggestion list needs the gaps, and a MAX() can't show a hole in the middle.
 
-    // Cancelled bills are excluded throughout: their numbers are free again, so they
-    // must be offered rather than counted as used or reported as an un-entered gap.
+    // Cancelled bills count as used: the number stays with them, so it is neither
+    // offered again nor reported as a gap somebody forgot to enter.
     @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 5) AS INTEGER) FROM bills " +
-                   "WHERE business = :business AND bill_number ~ '^MAN-[0-9]+$' " +
-                   "AND status <> 'CANCELLED'", nativeQuery = true)
+                   "WHERE business = :business AND bill_number ~ '^MAN-[0-9]+$'",
+           nativeQuery = true)
     List<Integer> findUsedManualBillNumbers(@Param("business") String business);
 
     @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 5) AS INTEGER) FROM bills " +
-                   "WHERE business = :business AND bill_number ~ '^SYS-[0-9]+$' " +
-                   "AND status <> 'CANCELLED'", nativeQuery = true)
+                   "WHERE business = :business AND bill_number ~ '^SYS-[0-9]+$'",
+           nativeQuery = true)
     List<Integer> findUsedSystemBillNumbers(@Param("business") String business);
 
     @Query(value = "SELECT CAST(SUBSTRING(bill_number FROM 4) AS INTEGER) FROM bills " +
-                   "WHERE bill_number ~ '^BK-[0-9]+$' AND status <> 'CANCELLED'",
-           nativeQuery = true)
+                   "WHERE bill_number ~ '^BK-[0-9]+$'", nativeQuery = true)
     List<Integer> findUsedSharedBookBillNumbers();
 
     // Global full-table search across all statuses/dates — excludes DEMO business
@@ -273,7 +277,9 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     // ── Copilot queries ───────────────────────────────────────────────────────
 
-    @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.customer WHERE b.fullyPaid = false AND b.status NOT IN :excluded ORDER BY b.billDate ASC")
+    // settledOn IS NULL: the balance is collected on another bill, so listing it here
+    // would have the copilot chase the same money twice.
+    @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.customer WHERE b.fullyPaid = false AND b.settledOn IS NULL AND b.status NOT IN :excluded ORDER BY b.billDate ASC")
     List<Bill> findOutstandingBillsWithCustomer(@Param("excluded") List<BillStatus> excluded);
 
     @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.customer WHERE LOWER(b.customerName) LIKE LOWER(CONCAT('%', :name, '%')) OR (b.customer IS NOT NULL AND LOWER(b.customer.name) LIKE LOWER(CONCAT('%', :name, '%'))) ORDER BY b.createdAt DESC")
@@ -301,4 +307,72 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findExcludedFromAging(
         @org.springframework.data.repository.query.Param("business")
         com.multi.finance.enums.BusinessType business);
+
+    /** Everything carried on one lorry round. */
+    List<Bill> findByDeliveryRunIdOrderByBillNumberAsc(Long deliveryRunId);
+
+    default List<Bill> findByDeliveryRunId(Long deliveryRunId) {
+        return findByDeliveryRunIdOrderByBillNumberAsc(deliveryRunId);
+    }
+
+    /**
+     * Sales and what is still owed, for one month, split by business.
+     *
+     * <p>The month a bill counts against is its round's month where it went out on one,
+     * and its own date otherwise. A round planned for the end of August that leaves in
+     * September still belongs to August, and that is the figure the month is judged on.
+     *
+     * <p>Cancelled bills are excluded: they are void, not sales.
+     */
+    @Query(value =
+        "SELECT b.business, "
+      + "       COUNT(*), "
+      + "       COALESCE(SUM(b.total_amount), 0), "
+      + "       COALESCE(SUM(b.amount_paid), 0), "
+      + "       COALESCE(SUM(b.balance_remaining), 0) "
+      + "  FROM bills b "
+      + "  LEFT JOIN delivery_runs r ON r.id = b.delivery_run_id "
+      + " WHERE date_trunc('month', COALESCE(r.run_month, b.bill_date)) = "
+      + "       date_trunc('month', CAST(:month AS date)) "
+      + "   AND b.status <> 'CANCELLED' "
+      + "   AND b.settled_on_bill_id IS NULL "
+      + "   AND (CAST(:mode AS text) IS NULL OR b.delivery_mode = CAST(:mode AS text)) "
+      + " GROUP BY b.business ORDER BY b.business",
+        nativeQuery = true)
+    List<Object[]> monthSalesByBusiness(@Param("month") java.time.LocalDate month,
+                                        @Param("mode") String mode);
+
+    /**
+     * Bills that could still join a round: on no run, not cancelled, and dated near it.
+     *
+     * <p>Dated near it rather than anywhere, because a bill from three months ago
+     * joining today's lorry is almost always a mis-click rather than an intention.
+     */
+    @Query("SELECT b FROM Bill b WHERE b.deliveryRun IS NULL "
+         + "AND b.status <> com.multi.finance.enums.BillStatus.CANCELLED "
+         + "AND b.billDate BETWEEN :from AND :to "
+         + "ORDER BY b.billDate DESC, b.billNumber ASC")
+    List<Bill> findRunCandidates(@Param("from") java.time.LocalDate from,
+                                 @Param("to") java.time.LocalDate to);
+
+    /** The bills whose money is collected on this one. */
+    List<Bill> findBySettledOnId(Long settledOnId);
+
+    /**
+     * Hand-written bills a bill could be collected on.
+     *
+     * <p>Not narrowed by customer: the shop's bill is written by hand and the system copy
+     * is typed later, so the two rarely carry the same spelling of the name — matching on
+     * it would hide the very bill being looked for. The business and the source are what
+     * hold, so those are what filter, and the admin picks by number from the list.
+     */
+    @Query("SELECT b FROM Bill b WHERE b.id <> :billId "
+         + "AND b.settledOn IS NULL "
+         + "AND b.status <> com.multi.finance.enums.BillStatus.CANCELLED "
+         + "AND b.business = :business "
+         + "AND b.billSource IN :sources "
+         + "ORDER BY b.billDate DESC, b.id DESC")
+    List<Bill> findSettleCandidates(@Param("billId") Long billId,
+                                    @Param("business") BusinessType business,
+                                    @Param("sources") List<com.multi.finance.enums.BillSource> sources);
 }

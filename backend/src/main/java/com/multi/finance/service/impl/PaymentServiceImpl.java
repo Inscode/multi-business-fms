@@ -103,6 +103,7 @@ public class PaymentServiceImpl {
         }
 
         guardOpenReturns(bill);
+        guardReceiptImage(caller, request.getReceiptImageUrl());
 
         // Balance is deducted immediately at entry time.
         // balanceRemaining already reflects all previously entered payments.
@@ -162,6 +163,9 @@ public class PaymentServiceImpl {
                 .collectionNote(collectionNote)
                 .collectedByWorker(collectedByWorker)
                 .collectorNote(request.getCollectorNote())
+                .receiptImageUrl(blankToNull(request.getReceiptImageUrl()))
+                .receiptUploadedAt(blankToNull(request.getReceiptImageUrl()) != null
+                        ? LocalDateTime.now() : null)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -213,6 +217,11 @@ public class PaymentServiceImpl {
                 .paymentDate(note.getCollectedAt().toLocalDate())
                 .notes(note.getNotes())
                 .collectionNote(note)
+                // The photo follows the money: attached when the collection was marked,
+                // it belongs on the payment that collection became, not stranded on the
+                // note where nobody reviewing payments would look for it.
+                .receiptImageUrl(note.getReceiptImageUrl())
+                .receiptUploadedAt(note.getReceiptUploadedAt())
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
@@ -247,6 +256,15 @@ public class PaymentServiceImpl {
 
     @Transactional
     public PaymentResponse confirmPayment(Long paymentId) {
+        return confirmPayment(paymentId, null);
+    }
+
+    /**
+     * @param confirmImageUrl the admin's own photograph, optional — kept apart from the
+     *                        accountant's so the two records are never conflated
+     */
+    @Transactional
+    public PaymentResponse confirmPayment(Long paymentId, String confirmImageUrl) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
 
@@ -261,6 +279,10 @@ public class PaymentServiceImpl {
         payment.setStatus(PaymentStatus.CONFIRMED);
         payment.setConfirmedBy(getCurrentUser());
         payment.setConfirmedAt(LocalDateTime.now());
+        if (blankToNull(confirmImageUrl) != null) {
+            payment.setConfirmImageUrl(blankToNull(confirmImageUrl));
+            payment.setConfirmUploadedAt(LocalDateTime.now());
+        }
         payment.setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
 
@@ -377,7 +399,40 @@ public class PaymentServiceImpl {
      * confirmed by an admin. Entering the final payment alone is no longer enough — until
      * confirmation the bill sits in AWAITING_CONFIRMATION.
      */
-    private void syncCompletionStatus(Bill bill) {
+    /**
+     * Requires a photograph of the bill from anyone entering a collection they took.
+     *
+     * <p>An accountant recording a payment is recording money that already changed
+     * hands, out in the field, with nobody else present. The photograph is the only
+     * thing tying the figure they typed to the paper the customer signed, so it is not
+     * optional for them.
+     *
+     * <p>An admin is not asked for it: they are usually holding the paperwork, and are
+     * the person the evidence would be shown to. They may still attach one.
+     */
+    private void guardReceiptImage(User caller, String imageUrl) {
+        boolean required = caller.getRole() == UserRole.ACCOUNTANT
+                        || caller.getRole() == UserRole.MAIN_ACCOUNTANT
+                        || caller.getRole() == UserRole.SHOP_ACCOUNTANT;
+        if (required && blankToNull(imageUrl) == null) {
+            throw new RuntimeException(
+                    "Attach a photo of the bill before entering this payment — it is the "
+                  + "record of what was collected.");
+        }
+    }
+
+    private String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    /**
+     * Moves the bill in or out of a settled status to match its balance.
+     *
+     * <p>Public because a return can settle a bill just as a payment can: crediting
+     * goods back can clear the last of what was owed, and without this the bill would
+     * sit at CREATED with nothing left to collect.
+     */
+    public void syncCompletionStatus(Bill bill) {
         if (bill.getStatus() == BillStatus.CANCELLED) return;
 
         boolean wasSettled = bill.getStatus() == BillStatus.COMPLETED
@@ -388,6 +443,7 @@ public class PaymentServiceImpl {
                 bill.setStatus(BillStatus.STORE_RECEIVED);
                 bill.setUpdatedAt(LocalDateTime.now());
                 billRepository.save(bill);
+                cascadeToSettledBills(bill, BillStatus.STORE_RECEIVED);
             }
             return;
         }
@@ -402,6 +458,24 @@ public class PaymentServiceImpl {
             bill.setStatus(target);
             bill.setUpdatedAt(LocalDateTime.now());
             billRepository.save(bill);
+        }
+        cascadeToSettledBills(bill, target);
+    }
+
+    /**
+     * Closes the bills whose money is collected on this one.
+     *
+     * <p>A system bill pointed at a hand-written bill will never be paid on its own —
+     * the cash comes in against the other one. Without this it would sit open forever
+     * on a debt that was in fact collected.
+     */
+    private void cascadeToSettledBills(Bill payer, BillStatus target) {
+        List<Bill> settled = billRepository.findBySettledOnId(payer.getId());
+        for (Bill b : settled) {
+            if (b.getStatus() == BillStatus.CANCELLED || b.getStatus() == target) continue;
+            b.setStatus(target);
+            b.setUpdatedAt(LocalDateTime.now());
+            billRepository.save(b);
         }
     }
 
@@ -753,6 +827,12 @@ public class PaymentServiceImpl {
                 .collectedByWorkerId(payment.getCollectedByWorker() != null ? payment.getCollectedByWorker().getId() : null)
                 .collectedByWorkerName(payment.getCollectedByWorker() != null ? payment.getCollectedByWorker().getFullName() : null)
                 .collectorNote(payment.getCollectorNote())
+                // Both roles see both images: the accountant's evidence and the admin's
+                // check are only useful if each can see what the other recorded.
+                .receiptImageUrl(payment.getReceiptImageUrl())
+                .receiptUploadedAt(payment.getReceiptUploadedAt())
+                .confirmImageUrl(payment.getConfirmImageUrl())
+                .confirmUploadedAt(payment.getConfirmUploadedAt())
                 .build();
     }
 }

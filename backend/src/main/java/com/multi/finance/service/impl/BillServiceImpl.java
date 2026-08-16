@@ -1,5 +1,9 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.dto.response.BillDeleteImpact;
+import com.multi.finance.repository.DeliveryRunRepository;
+import com.multi.finance.enums.DeliveryMode;
+import com.multi.finance.entity.DeliveryRun;
 import com.multi.finance.service.BillBalance;
 import com.multi.finance.dto.request.AssignBillRequest;
 import com.multi.finance.dto.request.BillRequest;
@@ -59,6 +63,7 @@ public class BillServiceImpl {
     private final CustomerRepository customerRepository;
     private final BillReviewRepository billReviewRepository;
     private final BillNumberSkipRepository billNumberSkipRepository;
+    private final DeliveryRunRepository deliveryRunRepository;
     private final BillReturnRepository billReturnRepository;
     private final com.multi.finance.invoicing.repository.SystemSettingsRepository settingsRepository;
 
@@ -120,6 +125,23 @@ public class BillServiceImpl {
             customerName = customer.getName();
         }
 
+        // The round decides the area, so a route bill can never disagree with the
+        // lorry it went on. Immediate and store pickups keep whatever area was typed.
+        DeliveryRun run = null;
+        DeliveryMode mode = request.getDeliveryMode() != null
+                ? request.getDeliveryMode() : DeliveryMode.UNSPECIFIED;
+        if (request.getDeliveryRunId() != null) {
+            run = deliveryRunRepository.findByIdWithArea(request.getDeliveryRunId())
+                    .orElseThrow(() -> new RuntimeException("Delivery run not found"));
+            if (run.getStatus() == com.multi.finance.enums.DeliveryRunStatus.CANCELLED) {
+                throw new RuntimeException("That run was cancelled — bills cannot join it.");
+            }
+            mode = DeliveryMode.ROUTE;
+        }
+        // The bill keeps its own area even on a route run: a trip covering Bandarawela,
+        // Haputale and Diyatalawa cannot say which of them this customer is in.
+        String area = request.getArea() != null ? request.getArea().trim().toUpperCase() : null;
+
         Bill bill = Bill.builder()
                 .billNumber(billNumber)
                 .business(request.getBusiness())
@@ -129,7 +151,9 @@ public class BillServiceImpl {
                 .customerName(customerName)
                 .customer(customer)
                 .totalAmount(request.getTotalAmount())
-                .area(request.getArea() != null ? request.getArea().trim().toUpperCase() : null)
+                .area(area)
+                .deliveryMode(mode)
+                .deliveryRun(run)
                 .amountPaid(BigDecimal.ZERO)
                 .balanceRemaining(request.getTotalAmount())
                 .fullyPaid(false)
@@ -437,7 +461,20 @@ public class BillServiceImpl {
     }
 
     @Transactional
-    public BillResponse cancelBill(Long id) {
+    /**
+     * Voids a bill, recording why.
+     *
+     * <p>The bill keeps its number: it is still a record of something that happened,
+     * and the number is part of that record. Nothing else will be issued under it, and
+     * the sequence shows it as used rather than as a gap somebody forgot.
+     *
+     * <p>A bill entered in error is deleted instead — that removes the record and
+     * releases the number, which is a different intention and has a different effect.
+     *
+     * <p>The reason is required because a cancelled bill sits in the run forever, and
+     * whoever finds it later has only this to explain it.
+     */
+    public BillResponse cancelBill(Long id, String reason, String by) {
         Bill bill = findBillById(id);
         if (bill.getStatus() == BillStatus.CANCELLED) {
             throw new RuntimeException("Bill is already cancelled");
@@ -446,7 +483,24 @@ public class BillServiceImpl {
                 || bill.getStatus() == BillStatus.AWAITING_CONFIRMATION) {
             throw new RuntimeException("Cannot cancel a fully paid bill");
         }
+        if (reason == null || reason.isBlank()) {
+            throw new RuntimeException(
+                    "Give a reason for cancelling this bill — it stays in the run under "
+                  + "its number, so the record has to say why.");
+        }
+        // Money already collected against a bill about to be voided is a contradiction
+        // worth stopping on rather than leaving for someone to find in the payments list.
+        if (bill.getAmountPaid() != null
+                && bill.getAmountPaid().compareTo(java.math.BigDecimal.ZERO) > 0) {
+            throw new RuntimeException(
+                    "This bill has Rs " + bill.getAmountPaid().toPlainString()
+                  + " already paid against it. Reverse the payment before cancelling.");
+        }
+
         bill.setStatus(BillStatus.CANCELLED);
+        bill.setCancelReason(reason.trim());
+        bill.setCancelledBy(by);
+        bill.setCancelledAt(LocalDateTime.now());
         bill.setUpdatedAt(LocalDateTime.now());
         return toResponse(billRepository.save(bill));
     }
@@ -567,9 +621,112 @@ public class BillServiceImpl {
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
+    /**
+     * What deleting this bill would take with it.
+     *
+     * <p>Deletion is allowed even when money is attached, because a bill entered
+     * wrongly has to be removable — but never silently. The caller shows this first,
+     * so the confirmation names the records rather than warning in the abstract.
+     */
+    @Transactional(readOnly = true)
+    public BillDeleteImpact deleteImpact(Long id) {
+        Bill bill = findBillById(id);
+        List<String> warnings = new ArrayList<>();
+
+        var payments = paymentRepository.findByBillId(bill.getId());
+        int confirmed = (int) payments.stream()
+                .filter(p -> p.getStatus() == com.multi.finance.enums.PaymentStatus.CONFIRMED)
+                .count();
+        java.math.BigDecimal confirmedAmt = payments.stream()
+                .filter(p -> p.getStatus() == com.multi.finance.enums.PaymentStatus.CONFIRMED)
+                .map(com.multi.finance.entity.Payment::getAmount)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        int unconfirmed = payments.size() - confirmed;
+
+        int workerEntries = workerPaymentEntryRepository.findByBillId(bill.getId()).size();
+        int notes = collectionNoteRepository.findByBillId(bill.getId()).size();
+
+        var returns = billReturnRepository.findByBillIdOrderBySubmittedAtDesc(bill.getId());
+        int approvedReturns = (int) returns.stream()
+                .filter(r -> r.getStatus() == com.multi.finance.enums.ReturnStatus.APPROVED).count();
+        int openReturns = (int) returns.stream().filter(r -> r.getStatus().isOpen()).count();
+
+        // Money first: it is the part that cannot be reconstructed from memory.
+        if (confirmed > 0) {
+            warnings.add(confirmed + " confirmed payment(s) totalling Rs "
+                    + confirmedAmt.setScale(2, java.math.RoundingMode.HALF_UP)
+                    + " will be deleted. That money will no longer appear anywhere in the system.");
+        }
+        if (unconfirmed > 0) {
+            warnings.add(unconfirmed + " unconfirmed payment(s) will be deleted.");
+        }
+        if (workerEntries > 0) {
+            warnings.add(workerEntries + " worker collection entr"
+                    + (workerEntries == 1 ? "y" : "ies")
+                    + " will be deleted, so the worker's record of collecting it goes too.");
+        }
+        if (notes > 0) {
+            warnings.add(notes + " collection note(s) will be deleted.");
+        }
+        if (approvedReturns > 0) {
+            warnings.add(approvedReturns + " approved return(s) will be deleted. Stock already "
+                    + "moved for them stays moved — the movement is not reversed.");
+        }
+        if (openReturns > 0) {
+            warnings.add(openReturns + " return(s) still awaiting review will be deleted.");
+        }
+        if (bill.getDeliveryRun() != null) {
+            warnings.add("It will be removed from the "
+                    + bill.getDeliveryRun().areaLabel() + " round, whose counts will drop by one.");
+        }
+
+        return BillDeleteImpact.builder()
+                .billId(bill.getId())
+                .billNumber(bill.getBillNumber())
+                .customerName(bill.getCustomerName())
+                .totalAmount(bill.getTotalAmount())
+                .confirmedPayments(confirmed)
+                .confirmedAmount(confirmedAmt)
+                .unconfirmedPayments(unconfirmed)
+                .workerEntries(workerEntries)
+                .collectionNotes(notes)
+                .approvedReturns(approvedReturns)
+                .openReturns(openReturns)
+                .onDeliveryRun(bill.getDeliveryRun() != null)
+                .deliveryRunLabel(bill.getDeliveryRun() != null
+                        ? bill.getDeliveryRun().areaLabel() : null)
+                .warnings(warnings)
+                .clean(warnings.isEmpty())
+                .build();
+    }
+
     @Transactional
     public void deleteBill(Long id) {
+        deleteBill(id, false);
+    }
+
+    /**
+     * Removes a bill and everything hanging off it.
+     *
+     * <p>Unlike cancelling, this destroys the record — which is why it also releases the
+     * number for reuse: nothing is left holding it. A bill typed in error should not sit
+     * in the run forever, and the sequence should not carry a permanent hole for it.
+     *
+     * @param force required once anything of consequence is attached. Without it the
+     *              call is refused and the impact returned, so the person deciding sees
+     *              what they are about to destroy before they agree to it.
+     */
+    @Transactional
+    public void deleteBill(Long id, boolean force) {
         Bill bill = findBillById(id);
+
+        if (!force) {
+            BillDeleteImpact impact = deleteImpact(id);
+            if (!impact.isClean()) {
+                throw new RuntimeException(
+                        "This bill has records attached: " + String.join(" ", impact.getWarnings()));
+            }
+        }
 
         List<String> blockers = new ArrayList<>();
 
@@ -593,11 +750,9 @@ public class BillServiceImpl {
             blockers.add("an approved return has already credited it and moved stock");
         }
 
-        if (!blockers.isEmpty()) {
-            throw new RuntimeException(
-                    "This bill cannot be deleted because " + String.join(", and ", blockers)
-                  + ". Reverse those first if the bill really should go.");
-        }
+        // Nothing is refused outright any more: the impact was shown and agreed to.
+        // Payments and returns are removed explicitly; the rest follows by cascade.
+        blockers.clear();
 
         // Unconfirmed payments and open returns are the bill's own and go with it. The
         // rest of its records follow by cascade.
@@ -752,6 +907,9 @@ public class BillServiceImpl {
                 // Hidden by an admin. The printable export already honoured this; the
                 // on-screen report did not, so the two disagreed.
                 .filter(b -> !Boolean.TRUE.equals(b.getExcludedFromAging()))
+                // Collected on another bill. Chasing this one would be chasing the same
+                // money twice, and the customer only owes it once.
+                .filter(b -> b.getSettledOn() == null)
                 .collect(Collectors.toList());
 
         // Bulk-fetch last confirmed payment dates — single query, no N+1
@@ -1085,6 +1243,25 @@ public class BillServiceImpl {
                 .willBeLinked(bill.getWillBeLinked())
                 .stockCleared(bill.getStockCleared())
                 .collectionOnly(bill.getCollectionOnly())
+                .settledOnBillId(bill.getSettledOn() != null ? bill.getSettledOn().getId() : null)
+                .settledOnBillNumber(bill.getSettledOn() != null
+                        ? bill.getSettledOn().getBillNumber() : null)
+                .settledOnStatus(bill.getSettledOn() != null && bill.getSettledOn().getStatus() != null
+                        ? bill.getSettledOn().getStatus().name() : null)
+                .settledOnNote(bill.getSettledOnNote())
+                .settledOnBy(bill.getSettledOnBy())
+                .cancelReason(bill.getCancelReason())
+                .cancelledBy(bill.getCancelledBy())
+                .cancelledAt(bill.getCancelledAt())
+                .excludedFromAging(bill.getExcludedFromAging())
+                .agingExclusionReason(bill.getAgingExclusionReason())
+                .agingExcludedBy(bill.getAgingExcludedBy())
+                .deliveryMode(bill.getDeliveryMode() != null ? bill.getDeliveryMode().name() : null)
+                .deliveryRunId(bill.getDeliveryRun() != null ? bill.getDeliveryRun().getId() : null)
+                .deliveryRunArea(bill.getDeliveryRun() != null
+                        ? bill.getDeliveryRun().areaLabel() : null)
+                .deliveryRunDate(bill.getDeliveryRun() != null
+                        ? bill.getDeliveryRun().getPlannedDate() : null)
                 .build();
     }
 
@@ -1097,5 +1274,157 @@ public class BillServiceImpl {
         bill.setStockCleared(true);
         bill.setUpdatedAt(LocalDateTime.now());
         return toResponse(billRepository.save(bill));
+    }
+
+    /**
+     * Which hand-written bills exist to be collected on, per business.
+     *
+     * <p>Rainco is written both on loose manual bills and in the book; stationery only
+     * on manual bills. Offering a kind that business never issues is a wrong pick
+     * waiting to happen, so each is given only what it actually uses.
+     */
+    private static List<BillSource> settleSourcesFor(BusinessType business) {
+        if (business == BusinessType.STATIONERY) {
+            return List.of(BillSource.MANUAL);
+        }
+        return List.of(BillSource.MANUAL, BillSource.MANUAL_BOOK);
+    }
+
+    /**
+     * Records that this bill's money is collected on another one.
+     *
+     * <p>The same sale gets billed twice: once by hand at the shop, once here to keep
+     * the record and move the stock. Only one of the two is collected. Cancelling the
+     * system copy used to be the answer, but that says the sale never happened — it did,
+     * and the stock went out on it.
+     *
+     * <p>Linking says the true thing instead. The bill stays real and keeps its lines;
+     * it simply stops being chased, and closes itself when the bill it points at is
+     * paid off.
+     *
+     * <p>Not the same as the end-of-month stock linking, where one system bill covers
+     * many manual ones. This is one bill to one bill, and it is about the money.
+     */
+    @Transactional
+    public BillResponse linkSettlement(Long id, Long targetId, String note, String by) {
+        Bill bill = findBillById(id);
+        if (targetId == null) {
+            throw new RuntimeException("Choose the bill this one is collected on.");
+        }
+        if (targetId.equals(id)) {
+            throw new RuntimeException("A bill cannot be collected on itself.");
+        }
+        Bill target = findBillById(targetId);
+
+        if (bill.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException("This bill is cancelled — there is nothing left to collect.");
+        }
+        if (target.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException(
+                    "Bill " + target.getBillNumber() + " is cancelled, so nothing will be "
+                  + "collected on it.");
+        }
+        // Only a hand-written bill can stand in for a system one — that is the whole
+        // situation being recorded. Pointing at another system bill would just move the
+        // same problem along.
+        if (!settleSourcesFor(bill.getBusiness()).contains(target.getBillSource())) {
+            throw new RuntimeException(
+                    "Bill " + target.getBillNumber() + " is not a hand-written bill for "
+                  + bill.getBusiness() + ". Link only to a manual bill"
+                  + (bill.getBusiness() == BusinessType.STATIONERY ? "." : " or a book bill."));
+        }
+        // The two settle against different books, so a link across businesses would take
+        // a balance off one set of totals and never put it onto the other.
+        if (target.getBusiness() != bill.getBusiness()) {
+            throw new RuntimeException(
+                    "Bill " + target.getBillNumber() + " is a " + target.getBusiness()
+                  + " bill. Link only within the same business.");
+        }
+        // One hop only. A chain would leave the money two links away from the bill
+        // being chased, and nobody reading either banner would find it.
+        if (target.getSettledOn() != null) {
+            throw new RuntimeException(
+                    "Bill " + target.getBillNumber() + " is itself collected on "
+                  + target.getSettledOn().getBillNumber() + ". Link to that one instead.");
+        }
+        if (!billRepository.findBySettledOnId(id).isEmpty()) {
+            throw new RuntimeException(
+                    "Other bills are already collected on this one, so it cannot be pointed "
+                  + "elsewhere. Unlink those first.");
+        }
+        // Money already taken here means this bill is being collected after all, and the
+        // link would hide a balance that is genuinely owed on it.
+        if (bill.getAmountPaid() != null
+                && bill.getAmountPaid().compareTo(BigDecimal.ZERO) > 0) {
+            throw new RuntimeException(
+                    "This bill already has Rs " + bill.getAmountPaid().toPlainString()
+                  + " collected on it. Reverse those payments before linking.");
+        }
+
+        bill.setSettledOn(target);
+        bill.setSettledOnAt(LocalDateTime.now());
+        bill.setSettledOnBy(by);
+        bill.setSettledOnNote(note == null || note.isBlank() ? null : note.trim());
+
+        // The target may already be settled, in which case this one is finished the
+        // moment it is linked rather than at the next payment.
+        if (target.getStatus() == BillStatus.COMPLETED
+                || target.getStatus() == BillStatus.AWAITING_CONFIRMATION) {
+            bill.setStatus(target.getStatus());
+        }
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    /**
+     * Undoes the link, putting the bill back where it was.
+     *
+     * <p>A bill closed only because the other one was paid goes back to open — its own
+     * balance was never actually collected, and leaving it COMPLETED would write off
+     * money nobody received.
+     */
+    @Transactional
+    public BillResponse unlinkSettlement(Long id) {
+        Bill bill = findBillById(id);
+        if (bill.getSettledOn() == null) {
+            throw new RuntimeException("This bill is not linked to another.");
+        }
+        boolean closedByTheLink =
+                (bill.getStatus() == BillStatus.COMPLETED
+                 || bill.getStatus() == BillStatus.AWAITING_CONFIRMATION)
+                && !Boolean.TRUE.equals(bill.getFullyPaid());
+
+        bill.setSettledOn(null);
+        bill.setSettledOnAt(null);
+        bill.setSettledOnBy(null);
+        bill.setSettledOnNote(null);
+        if (closedByTheLink) {
+            bill.setStatus(BillStatus.STORE_RECEIVED);
+        }
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    /**
+     * The hand-written bills this one could be collected on.
+     *
+     * <p>Every unlinked manual bill of the same business — Rainco manual and book,
+     * stationery manual. Not filtered by customer: the hand-written bill and the system
+     * copy are written by different people at different times and the names seldom match
+     * character for character, so filtering on them would hide the bill being looked for.
+     * The admin knows which number they wrote and searches the list for it.
+     */
+    @Transactional(readOnly = true)
+    public List<BillResponse> getSettleCandidates(Long id) {
+        Bill bill = findBillById(id);
+        return billRepository
+                .findSettleCandidates(id, bill.getBusiness(), settleSourcesFor(bill.getBusiness()))
+                .stream().map(this::toResponse).toList();
+    }
+
+    /** The bills being collected on this one — the other half of the banner. */
+    @Transactional(readOnly = true)
+    public List<BillResponse> getSettledByBills(Long id) {
+        return billRepository.findBySettledOnId(id).stream().map(this::toResponse).toList();
     }
 }

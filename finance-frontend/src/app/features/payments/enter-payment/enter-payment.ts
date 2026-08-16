@@ -13,6 +13,7 @@ import { Payment } from '../../../core/services/payment';
 import { Bill } from '../../../core/services/bill';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
+import { compressImage, describeSaving } from '../../../core/utils/image-compress';
 import { Router } from '@angular/router';
 import { BANKS, AREAS } from '../../../core/constants/payment-options';
 import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel } from '../../../core/utils/cheque-age';
@@ -231,6 +232,70 @@ export class EnterPayment implements OnInit {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  // ── Photo of the bill ───────────────────────────────────────────────
+  // Required of an accountant: they are recording money already collected, in the
+  // field, and this is the only thing tying the figure to the paper the customer
+  // signed. An admin may attach one but is not asked to.
+
+  receiptFile: File | null = null;
+  receiptPreview: string | null = null;
+  receiptUrl: string | null = null;
+  uploadingImage = false;
+  imageError = '';
+  /** "3.8 MB → 240 KB", so it is clear the big photo was not sent as-is. */
+  imageSizeNote = '';
+
+  get isAdminUser(): boolean {
+    const r = this.auth.getRole();
+    return r === 'ADMIN' || r === 'OWNER';
+  }
+
+  /** Everyone but an admin has to attach one. */
+  get imageRequired(): boolean { return !this.isAdminUser; }
+
+  onReceiptPicked(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      this.imageError = 'That is not an image — take a photo of the bill.';
+      return;
+    }
+
+    this.imageError = '';
+    this.receiptFile = file;
+    this.receiptUrl = null;
+    // Shown from the local file straight away; the upload catches up behind it.
+    const reader = new FileReader();
+    reader.onload = () => { this.receiptPreview = String(reader.result); this.cdr?.markForCheck?.(); };
+    reader.readAsDataURL(file);
+
+    // Shrunk before it leaves the phone: the upload is the slow part on mobile data,
+    // and a full-resolution photograph of a bill is no more readable than a small one.
+    this.uploadingImage = true;
+    compressImage(file).then(result => {
+      this.imageSizeNote = describeSaving(result);
+      this.paymentService.uploadImage(result.file).subscribe({
+        next: (url) => { this.receiptUrl = url; this.uploadingImage = false; this.cdr?.markForCheck?.(); },
+        error: () => {
+          this.uploadingImage = false;
+          this.imageError = 'The photo could not be uploaded. Check the connection and try again.';
+          this.cdr?.markForCheck?.();
+        },
+      });
+    });
+  }
+
+  clearReceipt(): void {
+    this.receiptFile = null;
+    this.receiptPreview = null;
+    this.receiptUrl = null;
+    this.imageError = '';
+    this.imageSizeNote = '';
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -242,12 +307,22 @@ export class EnterPayment implements OnInit {
       return;
     }
 
+    // Refused here as well as on the server: a failed save after a long form on a
+    // phone is worse than being told before it is sent.
+    if (this.imageRequired && !this.receiptUrl) {
+      this.errorMsg = this.uploadingImage
+        ? 'Wait for the photo to finish uploading.'
+        : 'Attach a photo of the bill before saving this payment.';
+      return;
+    }
+
     this.loading  = true;
     this.errorMsg = '';
 
     const fv = this.form.value;
     const payload = {
       ...fv,
+      receiptImageUrl: this.receiptUrl ?? undefined,
       paymentDate: fv.paymentDate ? this.toLocalDateStr(fv.paymentDate) : null,
       chequeDate:  fv.chequeDate  ? this.toLocalDateStr(fv.chequeDate)  : null,
       ...(this.collectionNoteId ? { collectionNoteId: this.collectionNoteId } : {}),

@@ -494,3 +494,74 @@
   mat-icon { font-size: 18px; width: 18px; height: 18px; }
   a { color: #1565c0; text-decoration: none; font-weight: 600; &:hover { text-decoration: underline; } }
 }
+
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+
+  button { flex: 1; min-height: 44px; }
+}
+
+
+// ── Confirm row actions ─────────────────────────────────────────────
+.pay-action-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pay-action-cell,
+.pay-action-cell > * {
+  vertical-align: middle;
+}
+
+/* The slot is always there, empty or not. Without it the Confirm buttons form a
+   ragged edge — every row with a photo pushes its button along. */
+.photo-slot {
+  display: inline-flex;
+  justify-content: center;
+  width: 34px;
+  margin-right: 10px;
+}
+
+/* A quiet outlined square rather than a Material icon-button: the default ripple
+   leaves a heavy grey disc behind on hover and focus, which read as a smudge next to
+   a solid blue button. */
+.view-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #cfd8dc;
+  border-radius: 8px;
+  background: #fff;
+  color: #607d8b;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+
+  mat-icon {
+    font-size: 19px;
+    width: 19px;
+    height: 19px;
+    line-height: 19px;
+  }
+
+  &:hover {
+    border-color: #1e88e5;
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #90caf9;
+    outline-offset: 1px;
+  }
+}
+
+.confirm-btn-sm {
+  min-width: 104px;
+  border-radius: 8px;
+}

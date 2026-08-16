@@ -68,7 +68,28 @@ export interface BillFilter {
 }
 
 export interface BillResponse {
-  /** Kept off the aging report by an admin. The balance is still owed. */
+  /**
+   * Collected on the hand-written bill for the same sale. This bill is real and its
+   * stock went out; it is simply not the one being paid, so it leaves the aging report
+   * and closes when that bill is paid off.
+   */
+  settledOnBillId?: number;
+  settledOnBillNumber?: string;
+  settledOnStatus?: string;
+  settledOnNote?: string;
+  settledOnBy?: string;
+
+  /** Why it was voided. */
+  cancelReason?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+
+  /** How it reached the customer, and the lorry round it travelled on. */
+  deliveryMode?: 'UNSPECIFIED' | 'ROUTE' | 'IMMEDIATE' | 'STORE_PICKUP';
+  deliveryRunId?: number;
+  deliveryRunArea?: string;
+  deliveryRunDate?: string;
+
   excludedFromAging?: boolean;
   agingExclusionReason?: string;
   agingExcludedBy?: string;
@@ -208,8 +229,40 @@ export class Bill {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/complete`, {});
   }
 
-  cancelBill(id: number): Observable<BillResponse> {
-    return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/cancel`, {});
+  /**
+   * Voids a bill. The reason is required: the bill keeps its number and stays in the
+   * run forever, and whoever finds it later has only this to explain it.
+   */
+  cancelBill(id: number, reason: string): Observable<BillResponse> {
+    return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/cancel`, { reason });
+  }
+
+  /**
+   * Records that this bill's money is collected on a hand-written one instead.
+   *
+   * <p>Used where a bill used to be cancelled as a duplicate. Cancelling said the sale
+   * never happened; it did, and the stock went out on it. Linking keeps the record and
+   * only stops the chasing.
+   */
+  linkSettlement(id: number, targetBillId: number, note?: string): Observable<BillResponse> {
+    return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/settle-on`, {
+      targetBillId,
+      note: note ?? '',
+    });
+  }
+
+  unlinkSettlement(id: number): Observable<BillResponse> {
+    return this.http.delete<BillResponse>(`${this.apiUrl}/${id}/settle-on`);
+  }
+
+  /** Manual bills this one could be collected on — same customer, within a month. */
+  getSettleCandidates(id: number): Observable<BillResponse[]> {
+    return this.http.get<BillResponse[]>(`${this.apiUrl}/${id}/settle-candidates`);
+  }
+
+  /** The bills collected on this one. */
+  getSettledByBills(id: number): Observable<BillResponse[]> {
+    return this.http.get<BillResponse[]>(`${this.apiUrl}/${id}/settled-by`);
   }
 
   toggleCollectionOnly(id: number): Observable<void> {

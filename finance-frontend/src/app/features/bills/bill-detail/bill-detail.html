@@ -64,6 +64,14 @@
         {{ bill.collectionOnly ? 'Mark as New' : 'Collection Only' }}
       </button>
 
+      <button mat-stroked-button
+              *ngIf="canLinkSettlement"
+              (click)="openSettlePicker()"
+              matTooltip="The sale was billed by hand instead — point this bill at that one">
+        <mat-icon>link</mat-icon>
+        Collect on Another Bill
+      </button>
+
       <button mat-stroked-button color="warn"
               *ngIf="isAdmin && isCancellable"
               (click)="cancelBill()">
@@ -135,6 +143,126 @@
         </div>
       </mat-card>
 
+      <!-- The sale is real and the stock went out; the money is simply being taken on
+           the hand-written bill for the same sale. Shown on both sides so neither page
+           leaves you wondering where the balance went. -->
+      <div class="settled-banner" *ngIf="bill.settledOnBillId">
+        <mat-icon>link</mat-icon>
+        <div>
+          <strong>Collected on
+            <a class="settled-link" (click)="openBill(bill.settledOnBillId!)">
+              {{ bill.settledOnBillNumber }}</a>
+          </strong>
+          <span *ngIf="bill.settledOnNote">{{ bill.settledOnNote }}</span>
+          <span class="sb-note">
+            This bill is unchanged and its stock still went out. It is not counted as
+            outstanding, is off the aging report, and closes when
+            {{ bill.settledOnBillNumber }} is paid off.
+            <em *ngIf="bill.settledOnBy"> — linked by {{ bill.settledOnBy }}</em>
+          </span>
+          <button mat-stroked-button class="sb-undo" *ngIf="isAdmin"
+                  (click)="unlinkSettlement()">
+            Remove link
+          </button>
+        </div>
+      </div>
+
+      <div class="settled-by-banner" *ngIf="settledByBills.length">
+        <mat-icon>call_merge</mat-icon>
+        <div>
+          <strong>
+            {{ settledByBills.length === 1 ? 'Another bill is' : settledByBills.length + ' bills are' }}
+            collected on this one
+          </strong>
+          <span>
+            <a class="settled-link" *ngFor="let b of settledByBills; let last = last"
+               (click)="openBill(b.id)">{{ b.billNumber }}<span *ngIf="!last">, </span></a>
+          </span>
+          <span class="sb-note">
+            Those are the system records of the same sale. Paying this bill off closes
+            them too.
+          </span>
+        </div>
+      </div>
+
+      <!-- Picking the wrong bill moves money in the reports without moving any money in
+           fact, so the list is same customer, within a month, hand-written only. -->
+      <div class="settle-picker" *ngIf="settlePickerOpen">
+        <div class="sp-head">
+          <strong>Which bill is this collected on?</strong>
+          <button mat-icon-button (click)="closeSettlePicker()"><mat-icon>close</mat-icon></button>
+        </div>
+        <p class="sp-hint">
+          Search the unlinked hand-written {{ bill.business | lowercase }} bills. The
+          customer name may read differently there than here, so search by the number
+          you wrote.
+        </p>
+
+        <div class="sp-fields">
+          <mat-form-field appearance="outline">
+            <mat-label>Search by bill number or customer</mat-label>
+            <input matInput [(ngModel)]="settleSearch" [ngModelOptions]="{ standalone: true }"
+                   placeholder="e.g. BK-1042">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Note (optional)</mat-label>
+            <input matInput [(ngModel)]="settleNote" [ngModelOptions]="{ standalone: true }"
+                   placeholder="e.g. rep wrote the book bill at the shop">
+          </mat-form-field>
+        </div>
+
+        <div class="sp-loading" *ngIf="loadingCandidates">Loading…</div>
+
+        <div class="sp-empty" *ngIf="!loadingCandidates && !settleCandidates.length">
+          No unlinked hand-written bill exists for this business yet. Enter the manual
+          bill first, then link this one to it.
+        </div>
+
+        <div class="sp-empty"
+             *ngIf="!loadingCandidates && settleCandidates.length && !visibleCandidates.length">
+          Nothing matches “{{ settleSearch }}”.
+        </div>
+
+        <div class="sp-row" *ngFor="let c of visibleCandidates">
+          <div class="sp-info">
+            <strong>{{ c.billNumber }}</strong>
+            <span>{{ c.customerName }}</span>
+            <span>{{ c.billDate | date:'dd MMM yyyy' }} · {{ c.billSource === 'MANUAL_BOOK' ? 'Book' : 'Manual' }} · {{ c.billType }}</span>
+            <span class="sp-amt">Rs {{ c.totalAmount | number }}
+              <em *ngIf="c.balanceRemaining > 0">· Rs {{ c.balanceRemaining | number }} due</em>
+              <em *ngIf="c.balanceRemaining <= 0">· settled</em>
+            </span>
+          </div>
+          <button mat-flat-button color="primary" (click)="linkSettlement(c)">Link</button>
+        </div>
+
+        <!-- Said rather than hidden: a list silently cut short reads as "that bill is
+             not in the system", which is the wrong conclusion to invite here. -->
+        <p class="sp-more" *ngIf="!loadingCandidates && hiddenCandidateCount">
+          {{ hiddenCandidateCount }} more
+          {{ hiddenCandidateCount === 1 ? 'bill matches' : 'bills match' }}. Type a little
+          more of the number to narrow it down.
+        </p>
+      </div>
+
+      <!-- A cancelled bill keeps its number and stays in the run; the reason is all
+           anyone finding it later has to go on. -->
+      <div class="cancelled-banner" *ngIf="bill.status === 'CANCELLED'">
+        <mat-icon>block</mat-icon>
+        <div>
+          <strong>Cancelled</strong>
+          <span>
+            {{ bill.cancelReason || 'No reason recorded.' }}
+            <em *ngIf="bill.cancelledBy"> — {{ bill.cancelledBy }}</em>
+            <em *ngIf="bill.cancelledAt"> · {{ bill.cancelledAt | date:'dd MMM yyyy' }}</em>
+          </span>
+          <span class="cb-note">
+            The number stays used — nothing else will be issued under it.
+          </span>
+        </div>
+      </div>
+
       <div class="aging-hidden-banner" *ngIf="bill.excludedFromAging">
         <mat-icon>visibility_off</mat-icon>
         <div>
@@ -176,6 +304,23 @@
             <span class="label">Payable After Returns</span>
             <span class="value payable-amount">Rs {{ payableAmount | number }}</span>
           </div>
+          <!-- How this bill reached the customer. A route bill links to the round it
+               went out on, which is where the count for that lorry is checked. -->
+          <div class="info-row" *ngIf="bill.deliveryMode && bill.deliveryMode !== 'UNSPECIFIED'">
+            <span class="label">Delivery</span>
+            <span class="value">
+              <ng-container [ngSwitch]="bill.deliveryMode">
+                <a *ngSwitchCase="'ROUTE'" routerLink="/deliveries" class="run-link"
+                   matTooltip="See every bill on this round">
+                  <mat-icon>local_shipping</mat-icon>
+                  {{ bill.deliveryRunArea }} · {{ bill.deliveryRunDate }}
+                </a>
+                <span *ngSwitchCase="'IMMEDIATE'" class="dm-chip">Immediate delivery</span>
+                <span *ngSwitchCase="'STORE_PICKUP'" class="dm-chip">Store pickup</span>
+              </ng-container>
+            </span>
+          </div>
+
           <div class="info-row">
             <span class="label">Amount Paid</span>
             <span class="value paid">Rs {{ bill.amountPaid | number }}</span>

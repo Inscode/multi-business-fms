@@ -130,6 +130,61 @@ public class Bill {
     private Boolean stockCleared = false;
 
     /**
+     * How the goods reached the customer. UNSPECIFIED on everything entered before
+     * deliveries were recorded — left as it is rather than guessed into a mode that
+     * would then be counted as fact.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_mode", nullable = false)
+    @Builder.Default
+    private com.multi.finance.enums.DeliveryMode deliveryMode =
+            com.multi.finance.enums.DeliveryMode.UNSPECIFIED;
+
+    /** The lorry round this went out on. Set only when the mode is ROUTE. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_run_id")
+    private DeliveryRun deliveryRun;
+
+    /**
+     * The bill this one's money is actually collected on — a hand-written bill for the
+     * same sale.
+     *
+     * <p>This record is real and keeps its stock; it simply is not the one being paid.
+     * So it stops counting as outstanding, leaves the aging report, and closes when the
+     * bill it points at is paid off.
+     *
+     * <p>Not the same as bill_stock_links, which ties one system bill to many manual
+     * ones for month-end stock. This is one-to-one and about the money.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "settled_on_bill_id")
+    private Bill settledOn;
+
+    @Column(name = "settled_on_at")
+    private LocalDateTime settledOnAt;
+
+    @Column(name = "settled_on_by", length = 100)
+    private String settledOnBy;
+
+    @Column(name = "settled_on_note", length = 300)
+    private String settledOnNote;
+
+    /** True when the money for this bill is collected on another one. */
+    public boolean isSettledElsewhere() {
+        return settledOn != null;
+    }
+
+    /** Why this bill was cancelled. Required when cancelling. */
+    @Column(name = "cancel_reason", length = 300)
+    private String cancelReason;
+
+    @Column(name = "cancelled_by", length = 100)
+    private String cancelledBy;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    /**
      * Kept off the aging report. The balance is still owed and still on the bill —
      * this only says it is not chaseable debt worth reporting, so the report does not
      * overstate what can actually be collected.

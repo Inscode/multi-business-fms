@@ -29,7 +29,22 @@ public class ImageKitService {
 
     private final RestTemplate restTemplate;
 
+    /** Uploads to the default folder — task images. */
     public String upload(MultipartFile file) {
+        return upload(file, folder);
+    }
+
+    /**
+     * Uploads into a named folder.
+     *
+     * <p>Kept separate per kind of image: payment receipts and task photos have
+     * different retention — a receipt is evidence for a figure and a task photo is
+     * not — and mixing them in one folder makes clearing out old ones impossible
+     * without picking through them by hand.
+     *
+     * @param targetFolder folder name without a leading slash, e.g. "payments"
+     */
+    public String upload(MultipartFile file, String targetFolder) {
         try {
             String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
 
@@ -41,7 +56,8 @@ public class ImageKitService {
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("fileName", fileName);
-            body.add("folder", "/" + folder);
+            body.add("folder", "/" + (targetFolder == null || targetFolder.isBlank()
+                                      ? folder : targetFolder.trim()));
             body.add("useUniqueFileName", "true");
             body.add("file", new ByteArrayResource(file.getBytes()) {
                 @Override

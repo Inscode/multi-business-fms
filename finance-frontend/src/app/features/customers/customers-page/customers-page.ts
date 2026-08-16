@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { DeliveryService } from '../../../core/services/delivery';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -51,7 +52,17 @@ export class CustomersPage implements OnInit {
 
   displayedColumns = ['name', 'phone', 'area', 'tier', 'shopType', 'status', 'actions'];
 
-  areas = [
+  /**
+   * The same areas a lorry round is opened for.
+   *
+   * <p>Read from the route list rather than held here, so a customer's area and a
+   * round's name come from one vocabulary. Two lists would drift, and a round whose
+   * name does not match its customers cannot be counted against them.
+   *
+   * <p>The built-in list stands in only if the call fails, so the form still works
+   * offline rather than offering an empty dropdown.
+   */
+  areas: string[] = [
     'Ambagasdowa', 'Badalkumbura', 'Badulla', 'Bandarawela', 'Beragala',
     'Bogakumbura', 'Boralanda', 'Demodara', 'Diyatalawa', 'Ella',
     'Etampitiya', 'Haldummulla', 'Hali-Ela', 'Hasalaka', 'Haputale',

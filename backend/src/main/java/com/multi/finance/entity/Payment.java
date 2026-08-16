@@ -77,6 +77,27 @@ public class Payment {
     @Column(name = "return_reason")
     private String returnReason;
 
+    /**
+     * The bill photographed when the payment was entered. Required of an accountant:
+     * they are recording money already collected, and this is the only thing tying the
+     * figure to the paper the customer signed.
+     */
+    @Column(name = "receipt_image_url", columnDefinition = "TEXT")
+    private String receiptImageUrl;
+
+    @Column(name = "receipt_uploaded_at")
+    private LocalDateTime receiptUploadedAt;
+
+    /**
+     * The admin's own photograph, taken on confirmation. Optional and deliberately
+     * separate: one records what the accountant saw, the other what the admin saw.
+     */
+    @Column(name = "confirm_image_url", columnDefinition = "TEXT")
+    private String confirmImageUrl;
+
+    @Column(name = "confirm_uploaded_at")
+    private LocalDateTime confirmUploadedAt;
+
     // Set when this payment was pre-collected by the owner
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collection_note_id")

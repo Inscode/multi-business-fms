@@ -129,3 +129,109 @@
 .age-ok   { background: #e8f5e9; color: #2e7d32; }
 .age-warn { background: #fff8e1; color: #ef6c00; }
 .age-late { background: #ffebee; color: #c62828; }
+
+
+// ── Bill photo ──────────────────────────────────────────────────────
+.receipt-block { margin-bottom: 16px; }
+
+.receipt-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 22px 16px;
+  border: 2px dashed #c5cae9;
+  border-radius: 12px;
+  background: #fafbff;
+  cursor: pointer;
+  text-align: center;
+
+  // A missing required photo is the one thing that will stop the save, so it is
+  // marked before the user reaches the button rather than after.
+  &.required { border-color: #ef9a9a; background: #fff5f5; }
+
+  mat-icon { font-size: 30px; width: 30px; height: 30px; color: #7986cb; }
+  .rd-title { font-size: 14px; font-weight: 600; color: #37474f; }
+  .rd-sub   { font-size: 12px; color: #78909c; }
+
+  &:hover { border-color: #7986cb; }
+}
+
+.receipt-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid #e0e4ec;
+  border-radius: 12px;
+  background: #fff;
+
+  img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #eceff1;
+  }
+
+  .rp-side { display: flex; flex-direction: column; gap: 8px; }
+}
+
+.rp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+
+  mat-icon { font-size: 17px; width: 17px; height: 17px; }
+  &.done      { color: #1b5e20; }
+  &.uploading { color: #607d8b; }
+}
+
+.receipt-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 11px;
+  border-radius: 6px;
+  background: #ffebee;
+  color: #c62828;
+  font-size: 12.5px;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+// ── Phone ───────────────────────────────────────────────────────────
+// The accountant enters these standing in a shop, one-handed, so the form goes to a
+// single column and the touch targets grow.
+@media (max-width: 600px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .field, .field-full, .form-row > * { width: 100%; }
+
+  .receipt-drop { padding: 30px 16px; }
+
+  .receipt-preview img { width: 96px; height: 96px; }
+
+  .form-actions {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 0;
+    background: #fff;
+    border-top: 1px solid #eceff1;
+    z-index: 2;
+
+    button {
+      flex: 1;
+      min-height: 48px;   // comfortable thumb target
+      font-size: 15px;
+    }
+  }
+}
+
+.rp-size { font-size: 11px; color: #90a4ae; }

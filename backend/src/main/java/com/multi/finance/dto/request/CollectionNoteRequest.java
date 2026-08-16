@@ -30,4 +30,7 @@ public class CollectionNoteRequest {
 
     // Bank transfer — optional
     private String referenceNumber;
+
+    /** Photo of the bill. Optional here — see CollectionNote.receiptImageUrl. */
+    private String receiptImageUrl;
 }

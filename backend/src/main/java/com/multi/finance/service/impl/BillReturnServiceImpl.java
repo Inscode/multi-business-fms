@@ -1,5 +1,11 @@
 package com.multi.finance.service.impl;
 
+import com.multi.finance.enums.DeliveryMode;
+import com.multi.finance.repository.DeliveryRunRepository;
+import com.multi.finance.repository.ReturnImageRepository;
+import com.multi.finance.dto.response.ReturnImageResponse;
+import com.multi.finance.entity.DeliveryRun;
+import com.multi.finance.entity.ReturnImage;
 import com.multi.finance.dto.request.ApproveReturnRequest;
 import com.multi.finance.dto.request.CancelReturnRequest;
 import com.multi.finance.dto.request.ConfirmGoodsRequest;
@@ -71,6 +77,9 @@ public class BillReturnServiceImpl {
     private final ItemRepository itemRepository;
     private final StockMovementRepository stockMovementRepository;
     private final ReturnCreditCalculator calculator;
+    private final PaymentServiceImpl paymentService;
+    private final ReturnImageRepository imageRepository;
+    private final DeliveryRunRepository deliveryRunRepository;
 
     // ── Picking items off the bill ───────────────────────────────────────
 
@@ -236,6 +245,23 @@ public class BillReturnServiceImpl {
             throw new RuntimeException("A return needs at least one item with a quantity.");
         }
 
+        // A return credits money back against the bill, so it cannot be worth more than
+        // the bill still is. Allowing it would leave a negative payable — the business
+        // owing the customer for goods it never charged them for.
+        BigDecimal alreadyReturned = nz(billReturnRepository.sumActiveReturns(bill.getId()));
+        BigDecimal thisReturn = sumCredits(items);
+        BigDecimal headroom = nz(bill.getTotalAmount()).subtract(alreadyReturned);
+        if (thisReturn.compareTo(headroom) > 0) {
+            throw new RuntimeException(
+                    "This return comes to Rs " + thisReturn.setScale(2, RoundingMode.HALF_UP)
+                  + ", but only Rs " + headroom.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP)
+                  + " is left on bill " + bill.getBillNumber()
+                  + (alreadyReturned.compareTo(BigDecimal.ZERO) > 0
+                        ? " (Rs " + alreadyReturned.setScale(2, RoundingMode.HALF_UP)
+                          + " has already been returned against it)" : "")
+                  + ". Reduce the quantities, or check this is the right bill.");
+        }
+
         BigDecimal itemsTotal = items.stream()
                 .map(BillReturnItem::getGrossValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -298,6 +324,7 @@ public class BillReturnServiceImpl {
                 && (req.getNote() == null || req.getNote().isBlank())) {
             throw new RuntimeException("Note what was missing so the admin can chase it.");
         }
+        guardReturnPhoto(ret);
 
         if (req.getReceipt() == GoodsReceipt.ALL) {
             ret.getItems().forEach(i -> i.setQuantityReturned(i.getQuantityRequested()));
@@ -314,6 +341,35 @@ public class BillReturnServiceImpl {
         ret.setGoodsConfirmedNote(req.getNote());
         ret.setStatus(ReturnStatus.GOODS_CONFIRMED);
         return toResponse(billReturnRepository.save(ret));
+    }
+
+    /**
+     * Refuses a goods confirmation with no photograph behind it.
+     *
+     * <p>Where the photo has to be depends on how the goods came back. A pickup or
+     * immediate delivery is one shop, so the return carries its own. A route round is
+     * counted from a book the morning after, so the page covering that round is the
+     * evidence — and it stands for every return on the round, which is why it is not
+     * asked for again per shop.
+     */
+    private void guardReturnPhoto(BillReturn ret) {
+        if (imageRepository.countByBillReturnId(ret.getId()) > 0) return;
+
+        DeliveryRun run = ret.getBill().getDeliveryRun();
+        if (run != null) {
+            long pages = imageRepository.countByDeliveryRunIdAndReturnType(
+                    run.getId(), ret.getReturnType());
+            if (pages > 0) return;
+            throw new RuntimeException(
+                    "No " + ret.getReturnType().name().toLowerCase() + " book page has been "
+                  + "photographed for the " + run.areaLabel() + " round yet. Upload the page "
+                  + "on the Deliveries screen, then confirm — one page covers every shop on "
+                  + "that round.");
+        }
+
+        throw new RuntimeException(
+                "Attach a photo of the returned goods before confirming — it is the record "
+              + "of what came back.");
     }
 
     // ── Admin review ─────────────────────────────────────────────────────
@@ -433,7 +489,146 @@ public class BillReturnServiceImpl {
         return toResponse(saved);
     }
 
+    // ── Photographs ──────────────────────────────────────────────────
+
+    /** A photo of one shop's returned goods, for a pickup or immediate delivery. */
+    @Transactional
+    public ReturnImageResponse addReturnImage(Long returnId, String url, Integer pageNo, String by) {
+        BillReturn ret = billReturnRepository.findById(returnId)
+                .orElseThrow(() -> new RuntimeException("Bill return not found"));
+
+        ReturnImage img = ReturnImage.builder()
+                .billReturn(ret)
+                .returnType(ret.getReturnType())
+                .pageNo(pageNo)
+                .imageUrl(url)
+                .uploadedBy(by)
+                .uploadedAt(LocalDateTime.now())
+                .build();
+        return toImageResponse(imageRepository.save(img), null);
+    }
+
+    /**
+     * A page of the book covering a whole round.
+     *
+     * <p>Added freely and repeatedly: the accountant photographs the page as they fill
+     * it, and a long round runs to two or three. Nothing stops more being added later,
+     * because the count is often finished after the first page was already taken.
+     */
+    @Transactional
+    public ReturnImageResponse addRunImage(Long runId, ReturnType type, String url,
+                                           Integer pageNo, String by) {
+        DeliveryRun run = deliveryRunRepository.findById(runId)
+                .orElseThrow(() -> new RuntimeException("Delivery run not found"));
+
+        ReturnImage img = ReturnImage.builder()
+                .deliveryRun(run)
+                .returnType(type)
+                .pageNo(pageNo)
+                .imageUrl(url)
+                .uploadedBy(by)
+                .uploadedAt(LocalDateTime.now())
+                .build();
+        return toImageResponse(imageRepository.save(img), run);
+    }
+
+    @Transactional
+    public void deleteImage(Long imageId) {
+        imageRepository.deleteById(imageId);
+    }
+
+    /** The pages photographed for one round, damage and salable kept apart. */
+    @Transactional(readOnly = true)
+    public List<ReturnImageResponse> runImages(Long runId, ReturnType type) {
+        DeliveryRun run = deliveryRunRepository.findById(runId).orElse(null);
+        List<ReturnImage> list = type == null
+                ? imageRepository.findByDeliveryRunIdOrderByPageNoAscIdAsc(runId)
+                : imageRepository.findByDeliveryRunIdAndReturnTypeOrderByPageNoAscIdAsc(runId, type);
+        return list.stream().map(i -> toImageResponse(i, run)).toList();
+    }
+
+    /**
+     * Every photograph standing behind one return.
+     *
+     * <p>Its own for a pickup, and for a route the pages of the round it came back on —
+     * the book covers every shop at once, so the evidence is shared rather than copied.
+     */
+    @Transactional(readOnly = true)
+    public List<ReturnImageResponse> imagesFor(Long returnId) {
+        BillReturn ret = billReturnRepository.findById(returnId)
+                .orElseThrow(() -> new RuntimeException("Bill return not found"));
+
+        List<ReturnImageResponse> out = new ArrayList<>(
+                imageRepository.findByBillReturnIdOrderByPageNoAscIdAsc(returnId)
+                        .stream().map(i -> toImageResponse(i, null)).toList());
+
+        DeliveryRun run = ret.getBill().getDeliveryRun();
+        if (run != null) {
+            out.addAll(imageRepository
+                    .findByDeliveryRunIdAndReturnTypeOrderByPageNoAscIdAsc(
+                            run.getId(), ret.getReturnType())
+                    .stream().map(i -> toImageResponse(i, run)).toList());
+        }
+        return out;
+    }
+
+    private ReturnImageResponse toImageResponse(ReturnImage i, DeliveryRun run) {
+        DeliveryRun r = run != null ? run : i.getDeliveryRun();
+        return ReturnImageResponse.builder()
+                .id(i.getId())
+                .imageUrl(i.getImageUrl())
+                .pageNo(i.getPageNo())
+                .returnType(i.getReturnType().name())
+                .uploadedBy(i.getUploadedBy())
+                .uploadedAt(i.getUploadedAt())
+                .fromRun(i.getDeliveryRun() != null)
+                .runLabel(r != null ? r.areaLabel() + " · " + r.getPlannedDate() : null)
+                .build();
+    }
+
     // ── Reading ──────────────────────────────────────────────────────────
+
+    /**
+     * The review list, narrowed the way the admin actually works through it.
+     *
+     * <p>Returns arrive by round, so they are reviewed by round: a month's worth at
+     * once, or one lorry's. Immediate and store pickup are their own groupings because
+     * they have no round to belong to — and without them in the same filter they would
+     * simply never be looked at.
+     *
+     * @param month     any date inside the month wanted, or null for all
+     * @param runId     one round, or null
+     * @param mode      IMMEDIATE or STORE_PICKUP, or null
+     */
+    @Transactional(readOnly = true)
+    public List<BillReturnResponse> getFiltered(ReturnStatus status, LocalDate month,
+                                                Long runId, DeliveryMode mode) {
+        List<BillReturn> list = (status != null)
+                ? billReturnRepository.findByStatusOrderBySubmittedAtDesc(status)
+                : billReturnRepository.findAllByOrderBySubmittedAtDesc();
+
+        return list.stream()
+                .filter(r -> {
+                    if (month == null) return true;
+                    DeliveryRun run = r.getBill().getDeliveryRun();
+                    // A round's month is what it counts against, which is not always the
+                    // month its bills were dated in — that is the whole point of storing it.
+                    LocalDate basis = run != null && run.getRunMonth() != null
+                            ? run.getRunMonth()
+                            : r.getBill().getBillDate();
+                    return basis != null
+                            && basis.getYear() == month.getYear()
+                            && basis.getMonthValue() == month.getMonthValue();
+                })
+                .filter(r -> {
+                    if (runId == null) return true;
+                    DeliveryRun run = r.getBill().getDeliveryRun();
+                    return run != null && run.getId().equals(runId);
+                })
+                .filter(r -> mode == null || r.getBill().getDeliveryMode() == mode)
+                .map(this::toResponse)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public List<BillReturnResponse> getAll(ReturnStatus status) {
@@ -513,6 +708,10 @@ public class BillReturnServiceImpl {
         bill.setReturnsTotal(total == null ? BigDecimal.ZERO : total);
         BillBalance.recompute(bill);
         billRepository.save(bill);
+
+        // A credit can clear the last of what was owed. Without this the bill stays at
+        // CREATED with a zero or negative balance, still listed as something to chase.
+        paymentService.syncCompletionStatus(bill);
     }
 
     /** The part of a line's credit that is backed by goods actually received. */

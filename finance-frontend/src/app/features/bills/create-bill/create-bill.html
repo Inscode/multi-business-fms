@@ -10,6 +10,95 @@
   </div>
 
   <div class="form-card">
+
+    <!-- The lorry round. Answered once, then reused for every bill entered after it —
+         and shown at all times, because a sticky default nobody notices is how bills
+         end up on the wrong lorry. Hidden while editing an existing bill. -->
+    @if (!isEditing) {
+      <div class="run-bar" [class.none]="!currentRun" [class.stale]="runIsStale">
+        @if (currentRun) {
+          <div class="rb-left">
+            <mat-icon>local_shipping</mat-icon>
+            <div>
+              <strong>Adding to: {{ currentRun.areaName | uppercase }}
+                &middot; {{ currentRun.plannedDate }}</strong>
+              <span>
+                {{ currentRun.billCount }} bill(s) &middot;
+                Rs {{ currentRun.totalValue | number:'1.0-0' }} so far
+                @if (runIsStale) { &middot; <em>this run was for an earlier date</em> }
+              </span>
+            </div>
+          </div>
+          <div class="rb-actions">
+            <button type="button" mat-stroked-button (click)="openRunPicker()">Change</button>
+            <button type="button" mat-stroked-button (click)="closeRun()">Close run</button>
+          </div>
+        } @else {
+          <div class="rb-left">
+            <mat-icon>local_shipping</mat-icon>
+            <div>
+              <strong>No delivery run open</strong>
+              <span>Open one and every bill entered joins it, without picking it each time.</span>
+            </div>
+          </div>
+          <div class="rb-actions">
+            <button type="button" mat-flat-button color="primary" (click)="openRunPicker()">
+              Open a run
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Opening a round: a route and the day it goes out. -->
+      @if (showRunPicker) {
+        <div class="run-picker">
+          <mat-form-field appearance="outline">
+            <mat-label>Routes</mat-label>
+            <!-- Several at once: one lorry often does Bandarawela, Haputale and
+                 Diyatalawa on the same trip, and that is one load to count. -->
+            <mat-select [(ngModel)]="newRunAreaIds" [ngModelOptions]="{ standalone: true }" multiple>
+              @for (a of routeAreas; track a.id) {
+                <mat-option [value]="a.id">{{ a.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Going out on</mat-label>
+            <input matInput [matDatepicker]="runPicker" [(ngModel)]="newRunDate"
+                   [ngModelOptions]="{ standalone: true }">
+            <mat-datepicker-toggle matSuffix [for]="runPicker"></mat-datepicker-toggle>
+            <mat-datepicker #runPicker></mat-datepicker>
+          </mat-form-field>
+
+          <button type="button" mat-flat-button color="primary"
+                  (click)="openRun()" [disabled]="openingRun">
+            {{ openingRun ? 'Opening…' : 'Start run' }}
+          </button>
+          <button type="button" mat-stroked-button (click)="showRunPicker = false">Cancel</button>
+
+          @if (runError) { <div class="run-error">{{ runError }}</div> }
+        </div>
+      }
+
+      <!-- The exception, one click, for this bill only. -->
+      <div class="mode-row">
+        <span class="mr-label">This bill:</span>
+        <button type="button" class="mode-chip" [class.on]="effectiveMode === 'ROUTE'"
+                [disabled]="!currentRun" (click)="setBillMode(null)">
+          Route delivery
+        </button>
+        <button type="button" class="mode-chip" [class.on]="effectiveMode === 'IMMEDIATE'"
+                (click)="setBillMode('IMMEDIATE')">
+          Immediate
+        </button>
+        <button type="button" class="mode-chip" [class.on]="effectiveMode === 'STORE_PICKUP'"
+                (click)="setBillMode('STORE_PICKUP')">
+          Store pickup
+        </button>
+      </div>
+    }
+
     <form [formGroup]="form" (ngSubmit)="submit()">
       <div class="form-row">
         <mat-form-field appearance="outline" class="field">

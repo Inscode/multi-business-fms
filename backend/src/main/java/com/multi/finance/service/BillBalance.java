@@ -23,6 +23,16 @@ public final class BillBalance {
 
     private BillBalance() {}
 
+    /**
+     * A balance this small counts as settled.
+     *
+     * <p>Rounding on discounts, and a customer paying a round figure, routinely leave a
+     * few rupees either way. Chasing those costs more than they are worth and keeps a
+     * finished bill on the aging report for good, so anything at or under this is
+     * treated as paid off — including an overpayment, which is negative.
+     */
+    public static final BigDecimal SETTLEMENT_TOLERANCE = new BigDecimal("50");
+
     /** What the customer actually owes on this bill, before payments. */
     public static BigDecimal payable(Bill bill) {
         BigDecimal total = nz(bill.getTotalAmount());
@@ -43,9 +53,10 @@ public final class BillBalance {
         BigDecimal balance = payable.subtract(paid);
 
         // An overpayment is left visible rather than clamped, because money owed back
-        // to the customer is still money that has to be dealt with.
+        // to the customer is still money that has to be dealt with. It is settled all
+        // the same — hence <= tolerance rather than a range around zero.
         bill.setBalanceRemaining(balance);
-        bill.setFullyPaid(balance.compareTo(BigDecimal.ZERO) <= 0);
+        bill.setFullyPaid(balance.compareTo(SETTLEMENT_TOLERANCE) <= 0);
         bill.setUpdatedAt(LocalDateTime.now());
     }
 

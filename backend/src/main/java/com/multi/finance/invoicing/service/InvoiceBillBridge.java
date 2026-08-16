@@ -43,8 +43,8 @@ public class InvoiceBillBridge {
         String billNumber = invoice.getInvoiceNo();
         BusinessType business = numbering.businessFor(invoice.getMethod());
 
-        // A cancelled bill on this number is not something to attach to — it is void,
-        // and the number has been handed back to the run.
+        // Any bill holding this number blocks it, cancelled or not: a number stays with
+        // the bill it was issued to until that bill is deleted.
         Bill existing = billRepository
                 .findActiveByBillNumberAndBusiness(billNumber, business).orElse(null);
         if (existing != null) {

@@ -158,6 +158,51 @@
         </mat-form-field>
       </div>
 
+      <!-- The record of what was actually collected. Required of an accountant, who
+           is entering money that already changed hands with nobody else present. -->
+      <div class="section-divider">
+        Bill Photo{{ imageRequired ? '' : ' (optional)' }}
+      </div>
+
+      <div class="receipt-block">
+        @if (!receiptPreview) {
+          <label class="receipt-drop" [class.required]="imageRequired && !receiptUrl">
+            <mat-icon>photo_camera</mat-icon>
+            <span class="rd-title">Take or choose a photo of the bill</span>
+            <span class="rd-sub">
+              {{ imageRequired
+                  ? 'Required — this is the record of what was collected'
+                  : 'Optional for admin' }}
+            </span>
+            <!-- capture asks the phone for the camera directly, rather than the
+                 gallery, which is what an accountant standing at the counter wants. -->
+            <input type="file" accept="image/*" capture="environment"
+                   (change)="onReceiptPicked($event)" hidden>
+          </label>
+        } @else {
+          <div class="receipt-preview">
+            <img [src]="receiptPreview" alt="Bill photo">
+            <div class="rp-side">
+              @if (uploadingImage) {
+                <span class="rp-status uploading">
+                  <mat-spinner diameter="16"></mat-spinner> Uploading…
+                </span>
+              } @else if (receiptUrl) {
+                <span class="rp-status done"><mat-icon>check_circle</mat-icon> Attached</span>
+                <span class="rp-size" *ngIf="imageSizeNote">{{ imageSizeNote }}</span>
+              }
+              <button type="button" mat-stroked-button (click)="clearReceipt()">
+                <mat-icon>refresh</mat-icon> Retake
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (imageError) {
+          <div class="receipt-error"><mat-icon>error_outline</mat-icon> {{ imageError }}</div>
+        }
+      </div>
+
       <div class="section-divider">Collection Info (optional)</div>
 
       <div class="form-row">

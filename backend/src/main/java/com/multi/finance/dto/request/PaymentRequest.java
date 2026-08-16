@@ -35,6 +35,9 @@ public class PaymentRequest {
 
     private String notes;
 
+    /** Photograph of the bill. Required when an accountant enters the payment. */
+    private String receiptImageUrl;
+
     private Long collectionNoteId;
 
     private Long collectedByWorkerId;

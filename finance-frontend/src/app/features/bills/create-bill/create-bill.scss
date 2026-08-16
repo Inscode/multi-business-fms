@@ -138,3 +138,90 @@
 }
 
 .missing-hint { color: #e65100; font-weight: 600; }
+
+
+// ── The open lorry round ────────────────────────────────────────────
+.run-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border-left: 4px solid #1565c0;
+  background: #e3f2fd;
+  color: #0d47a1;
+
+  .rb-left { display: flex; align-items: center; gap: 10px; }
+  .rb-actions { display: flex; gap: 8px; }
+
+  mat-icon { font-size: 24px; width: 24px; height: 24px; }
+  strong { display: block; font-size: 14px; }
+  span   { display: block; font-size: 12px; opacity: .85; margin-top: 1px; }
+  em     { font-style: normal; font-weight: 600; }
+
+  // Nothing open: stated plainly rather than left blank, since bills entered now
+  // will not belong to any round.
+  &.none {
+    border-left-color: #90a4ae;
+    background: #eceff1;
+    color: #37474f;
+  }
+
+  // Yesterday's round must not quietly collect today's bills.
+  &.stale {
+    border-left-color: #ef6c00;
+    background: #fff3e0;
+    color: #a34700;
+  }
+}
+
+.run-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px dashed #c5cae9;
+  border-radius: 10px;
+  background: #fafbff;
+}
+
+.run-error {
+  width: 100%;
+  font-size: 12.5px;
+  color: #c62828;
+}
+
+.mode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+
+  .mr-label { font-size: 12.5px; color: #607d8b; }
+}
+
+.mode-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #dfe3e8;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #607d8b;
+  cursor: pointer;
+
+  &.on { border-color: #1e88e5; background: #e3f2fd; color: #1565c0; }
+  &:disabled { opacity: .45; cursor: not-allowed; }
+}
+
+@media (max-width: 600px) {
+  .run-bar { flex-direction: column; align-items: flex-start; }
+  .run-bar .rb-actions { width: 100%; button { flex: 1; } }
+  .mode-chip { flex: 1; text-align: center; }
+}

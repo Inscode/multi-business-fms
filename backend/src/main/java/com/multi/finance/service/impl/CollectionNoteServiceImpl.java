@@ -64,6 +64,10 @@ public class CollectionNoteServiceImpl {
                 .branchName(request.getBranchName())
                 .chequeDate(request.getChequeDate())
                 .referenceNumber(request.getReferenceNumber())
+                .receiptImageUrl(request.getReceiptImageUrl())
+                .receiptUploadedAt(request.getReceiptImageUrl() != null
+                        && !request.getReceiptImageUrl().isBlank()
+                        ? java.time.LocalDateTime.now() : null)
                 .build();
 
         return toResponse(settleIfSelfConfirming(collectionNoteRepository.save(note)));
@@ -91,6 +95,10 @@ public class CollectionNoteServiceImpl {
                     .branchName(request.getBranchName())
                     .chequeDate(request.getChequeDate())
                     .referenceNumber(request.getReferenceNumber())
+                .receiptImageUrl(request.getReceiptImageUrl())
+                .receiptUploadedAt(request.getReceiptImageUrl() != null
+                        && !request.getReceiptImageUrl().isBlank()
+                        ? java.time.LocalDateTime.now() : null)
                     .build();
 
             return toResponse(settleIfSelfConfirming(collectionNoteRepository.save(note)));

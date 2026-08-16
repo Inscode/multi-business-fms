@@ -24,6 +24,34 @@
           <mat-option value="CANCELLED">Cancelled</mat-option>
         </mat-select>
       </mat-form-field>
+      <!-- Returns arrive by round, so they are worked through by round. Immediate and
+           store pickup sit in the same list because they belong to no round. -->
+      <mat-form-field appearance="outline" style="width: 150px">
+        <mat-label>Month</mat-label>
+        <mat-select [(ngModel)]="filterMonth" (ngModelChange)="load()">
+          <mat-option value="">All months</mat-option>
+          @for (m of monthOptions; track m.value) {
+            <mat-option [value]="m.value">{{ m.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" style="width: 220px">
+        <mat-label>Delivery</mat-label>
+        <mat-select [(ngModel)]="filterDelivery" (ngModelChange)="load()">
+          <mat-option value="">All deliveries</mat-option>
+          <mat-option value="IMMEDIATE">Immediate delivery</mat-option>
+          <mat-option value="STORE_PICKUP">Store pickup</mat-option>
+          @for (r of runs; track r.id) {
+            <mat-option [value]="r.id">{{ r.areaName }} · {{ r.plannedDate }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      @if (hasFilters) {
+        <button mat-stroked-button (click)="clearFilters()">Clear</button>
+      }
+
       <mat-form-field appearance="outline" style="width: 140px">
         <mat-label>Type</mat-label>
         <mat-select [(ngModel)]="filterType">
@@ -222,6 +250,38 @@
           Reversed by {{ r.cancelledByName }} on {{ r.cancelledAt | date:'dd MMM yyyy' }}
           &mdash; the amount went back onto the bill.
           <span *ngIf="r.cancelReason">: {{ r.cancelReason }}</span>
+        </div>
+
+        <!-- The evidence, in front of the decision rather than on another page. -->
+        <div class="photos" *ngIf="expandedId === r.id">
+          <div class="ph-head">
+            <mat-icon>photo_library</mat-icon>
+            <span>Return photos</span>
+            <button mat-stroked-button class="ph-load" (click)="loadImages(r)"
+                    *ngIf="!images[r.id] && !loadingImages[r.id]">
+              Show photos
+            </button>
+          </div>
+
+          <div class="ph-loading" *ngIf="loadingImages[r.id]">
+            <mat-spinner diameter="18"></mat-spinner>
+          </div>
+
+          <div class="ph-grid" *ngIf="images[r.id]?.length">
+            <div class="ph-item" *ngFor="let img of images[r.id]">
+              <img [src]="img.imageUrl" (click)="openImage(img.imageUrl)" alt="Return photo">
+              <!-- A round's book page covers every shop on it, so it is labelled as
+                   such — otherwise it reads as a photo of this shop's goods alone. -->
+              <span class="ph-tag" *ngIf="img.fromRun"
+                    [matTooltip]="'Book page from ' + img.runLabel">
+                book p{{ img.pageNo }}
+              </span>
+            </div>
+          </div>
+
+          <div class="ph-none" *ngIf="images[r.id] && images[r.id].length === 0">
+            No photo attached to this return.
+          </div>
         </div>
 
         <div class="card-actions" *ngIf="isOpen(r) && !readonly">

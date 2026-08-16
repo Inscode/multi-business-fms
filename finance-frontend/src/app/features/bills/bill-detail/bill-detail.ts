@@ -379,6 +379,7 @@ export class BillDetail implements OnInit {
         this.loadPayments(id);
         this.loadReturns(id);
         this.loadStockStatus(id);
+        this.loadSettledBy();
       },
       error: () => {
         this.error = true;
@@ -594,18 +595,193 @@ export class BillDetail implements OnInit {
     this.dialog.open(ConfirmDialog, {
       data: {
         title: 'Cancel Bill',
-        message: `Cancel bill ${billNum}? The bill will be marked as CANCELLED.`,
+        message: `Cancel bill ${billNum}?
+
+It keeps its number and stays in the run, so `
+               + 'the reason is all anyone finding it later will have.\n\n'
+               + 'If the sale is real and was billed by hand instead, link it to that '
+               + 'bill rather than cancelling — cancelling says the sale never happened.',
         confirmText: 'Cancel Bill',
         confirmColor: 'warn',
+        showInput: true,
+        inputLabel: 'Reason (required)',
       },
       maxWidth: '95vw',
     }).afterClosed().subscribe(result => {
       if (!result?.confirmed) return;
-      this.billService.cancelBill(billId).subscribe({
-        next: (updated) => { this.bill = updated; this.cdr.detectChanges(); },
-        error: (err) => alert(err?.error?.message ?? 'Failed to cancel bill.'),
+
+      const reason = String(result.inputValue ?? '').trim();
+      // Checked here as well as on the server: being told after the dialog closed
+      // means typing the reason into a box that is no longer on screen.
+      if (!reason) {
+        this.snackBar.open('A reason is needed to cancel a bill.', 'OK', { duration: 4000 });
+        return;
+      }
+
+      this.billService.cancelBill(billId, reason).subscribe({
+        next: (updated) => {
+          this.bill = updated;
+          this.snackBar.open('Bill cancelled.', 'OK', { duration: 4000 });
+          this.cdr.detectChanges();
+        },
+        error: (err) => this.snackBar.open(
+          err?.error?.message ?? 'Failed to cancel bill.', 'OK', { duration: 6000 }),
       });
     });
+  }
+
+  // ── Collected on another bill ──────────────────────────────────────────────
+  // The same sale gets billed twice: by hand at the shop, and here to keep the record
+  // and move the stock. Only one is collected. This says which, so the other stops
+  // being chased without pretending it never happened.
+
+  /** Manual bills this one could be collected on. Loaded only when the picker opens. */
+  settleCandidates: BillResponse[] = [];
+  /** Bills collected on this one — the banner shown on the manual bill's own page. */
+  settledByBills: BillResponse[] = [];
+  settlePickerOpen = false;
+  loadingCandidates = false;
+  settleNote = '';
+  /** Typed to find the number that was written by hand. */
+  settleSearch = '';
+
+  /** How many rows the picker will ever show at once. */
+  private readonly SETTLE_ROWS = 3;
+
+  /**
+   * Every unlinked manual bill of this business, narrowed by what has been typed.
+   *
+   * <p>The server cannot narrow by customer — the hand-written bill and the system copy
+   * spell the name differently — so the whole list arrives and is filtered here on
+   * number or customer, whichever the admin recalls.
+   */
+  get matchingCandidates(): BillResponse[] {
+    const q = this.settleSearch.trim().toLowerCase();
+    if (!q) return this.settleCandidates;
+    return this.settleCandidates.filter(c =>
+      c.billNumber.toLowerCase().includes(q) ||
+      (c.customerName ?? '').toLowerCase().includes(q));
+  }
+
+  /**
+   * Three rows, never more.
+   *
+   * <p>A business has hundreds of manual bills and listing them ran the page off the
+   * bottom of the screen. Three keeps the picker the size of the decision being made:
+   * the admin already knows the number they wrote, so this is a confirmation, not a
+   * browse. If the right one is not among them, typing another character is faster than
+   * scrolling ever was.
+   */
+  get visibleCandidates(): BillResponse[] {
+    return this.matchingCandidates.slice(0, this.SETTLE_ROWS);
+  }
+
+  /** How many matches are being held back, so the count is never silently wrong. */
+  get hiddenCandidateCount(): number {
+    return Math.max(0, this.matchingCandidates.length - this.SETTLE_ROWS);
+  }
+
+  /** Only worth offering while there is still a balance nobody has collected. */
+  get canLinkSettlement(): boolean {
+    return this.isAdmin
+        && !!this.bill
+        && !this.bill.settledOnBillId
+        && this.bill.status !== 'CANCELLED'
+        && (this.bill.amountPaid ?? 0) <= 0
+        && this.settledByBills.length === 0;
+  }
+
+  loadSettledBy(): void {
+    if (!this.bill) return;
+    this.billService.getSettledByBills(this.bill.id).subscribe({
+      next: (list) => { this.settledByBills = list; this.cdr.markForCheck(); },
+      error: () => { this.settledByBills = []; this.cdr.markForCheck(); },
+    });
+  }
+
+  openSettlePicker(): void {
+    if (!this.bill) return;
+    this.settlePickerOpen = true;
+    this.loadingCandidates = true;
+    this.settleNote = '';
+    this.settleSearch = '';
+    this.billService.getSettleCandidates(this.bill.id).subscribe({
+      next: (list) => {
+        this.settleCandidates = list;
+        this.loadingCandidates = false;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.settleCandidates = [];
+        this.loadingCandidates = false;
+        this.snackBar.open(err?.error?.message ?? 'Could not load bills.', 'OK',
+                           { duration: 5000 });
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  closeSettlePicker(): void {
+    this.settlePickerOpen = false;
+    this.cdr.markForCheck();
+  }
+
+  linkSettlement(target: BillResponse): void {
+    if (!this.bill) return;
+    const billId = this.bill.id;
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Collect on ' + target.billNumber,
+        message: `This bill stays exactly as it is — its lines, its stock, its number. `
+               + `It stops counting as outstanding and leaves the aging report, and it `
+               + `closes itself once ${target.billNumber} is paid off.`,
+        confirmText: 'Link',
+        confirmColor: 'primary',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.billService.linkSettlement(billId, target.id, this.settleNote).subscribe({
+        next: (updated) => {
+          this.bill = updated;
+          this.settlePickerOpen = false;
+          this.snackBar.open('Collected on ' + target.billNumber + '.', 'OK',
+                             { duration: 4000 });
+          this.cdr.detectChanges();
+        },
+        error: (err) => this.snackBar.open(
+          err?.error?.message ?? 'Could not link the bills.', 'OK', { duration: 6000 }),
+      });
+    });
+  }
+
+  unlinkSettlement(): void {
+    if (!this.bill?.settledOnBillId) return;
+    const billId = this.bill.id;
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Remove the link',
+        message: 'This bill goes back to being chased on its own, and its balance '
+               + 'counts as outstanding again.',
+        confirmText: 'Remove link',
+        confirmColor: 'warn',
+      },
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.billService.unlinkSettlement(billId).subscribe({
+        next: (updated) => {
+          this.bill = updated;
+          this.snackBar.open('Link removed.', 'OK', { duration: 3000 });
+          this.cdr.detectChanges();
+        },
+        error: (err) => this.snackBar.open(
+          err?.error?.message ?? 'Could not remove the link.', 'OK', { duration: 6000 }),
+      });
+    });
+  }
+
+  openBill(id: number): void {
+    this.router.navigate(['/bills', id]);
   }
 
   toggleCollectionOnly(): void {

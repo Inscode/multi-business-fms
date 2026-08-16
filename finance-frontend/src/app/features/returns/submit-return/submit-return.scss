@@ -580,3 +580,77 @@
 
   mat-icon { font-size: 16px; width: 16px; height: 16px; }
 }
+
+
+// -- Photo of the returned goods -------------------------------------
+.route-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #e3f2fd;
+  color: #0d47a1;
+  font-size: 12px;
+  line-height: 1.5;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
+}
+
+.photo-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 22px 16px;
+  border: 2px dashed #c5cae9;
+  border-radius: 12px;
+  background: #fafbff;
+  cursor: pointer;
+  text-align: center;
+
+  mat-icon { font-size: 28px; width: 28px; height: 28px; color: #7986cb; }
+  .pd-title { font-size: 13.5px; font-weight: 600; color: #37474f; }
+  .pd-sub   { font-size: 11.5px; color: #78909c; }
+  &:hover { border-color: #7986cb; }
+}
+
+.photo-preview {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid #e0e4ec;
+  border-radius: 12px;
+
+  img { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; background: #eceff1; }
+  .pp-side { display: flex; flex-direction: column; gap: 6px; }
+}
+
+.pp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #607d8b;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  &.done { color: #1b5e20; }
+}
+
+.pp-size { font-size: 11px; color: #90a4ae; }
+
+.photo-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 11px;
+  border-radius: 6px;
+  background: #ffebee;
+  color: #c62828;
+  font-size: 12.5px;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}

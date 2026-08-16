@@ -96,6 +96,10 @@
         <span class="nav-badge" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && !collapsed">{{ pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin }}</span>
         <span class="nav-badge-dot" *ngIf="(pendingWorkerFinanceOwner + pendingWorkerFinanceAdmin) > 0 && collapsed"></span>
       </a>
+      <a class="nav-item" routerLink="/deliveries" routerLinkActive="active" matRipple *ngIf="showDeliveries" (click)="isMobile && sidenav.close()">
+        <mat-icon>local_shipping</mat-icon>
+        <span *ngIf="!collapsed">Deliveries</span>
+      </a>
       <a class="nav-item" routerLink="/cash-flow" routerLinkActive="active" matRipple *ngIf="showCashFlow" (click)="isMobile && sidenav.close()">
         <mat-icon>account_balance_wallet</mat-icon>
         <span *ngIf="!collapsed">Cash Flow</span>

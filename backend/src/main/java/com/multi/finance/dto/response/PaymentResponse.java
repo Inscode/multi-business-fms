@@ -49,4 +49,12 @@ public class PaymentResponse {
     private Long collectedByWorkerId;
     private String collectedByWorkerName;
     private String collectorNote;
+
+    /** Photo of the bill taken when the payment was entered. */
+    private String receiptImageUrl;
+    private java.time.LocalDateTime receiptUploadedAt;
+
+    /** The admin's own photo, attached on confirmation. Optional. */
+    private String confirmImageUrl;
+    private java.time.LocalDateTime confirmUploadedAt;
 }

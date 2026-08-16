@@ -57,8 +57,11 @@ public class PaymentController {
     @PatchMapping("/{id}/confirm")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     public ResponseEntity<PaymentResponse> confirmPayment(
-            @PathVariable Long id) {
-        return ResponseEntity.ok(paymentService.confirmPayment(id));
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        // Optional: an admin may attach their own photograph when confirming.
+        String image = body == null ? null : body.get("confirmImageUrl");
+        return ResponseEntity.ok(paymentService.confirmPayment(id, image));
     }
 
     @GetMapping("/bill/{billId}")

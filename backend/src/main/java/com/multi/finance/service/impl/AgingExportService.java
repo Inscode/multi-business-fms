@@ -85,6 +85,8 @@ public class AgingExportService {
                 // A return credit can settle a bill without moving it to COMPLETED,
                 // so the flag is checked as well as the status.
                 .filter(b -> !Boolean.TRUE.equals(b.getFullyPaid()))
+                // Collected on another bill — the debt belongs on that one's line.
+                .filter(b -> b.getSettledOn() == null)
                 .filter(b -> wanted.isEmpty()
                         || (b.getArea() != null && wanted.contains(b.getArea().trim().toUpperCase())))
                 .filter(b -> billType == null || b.getBillType() == billType)

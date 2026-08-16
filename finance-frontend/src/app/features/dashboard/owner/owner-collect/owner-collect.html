@@ -145,6 +145,39 @@
         <input matInput [(ngModel)]="notes" />
       </mat-form-field>
 
+      <!-- Optional here for everyone: a marked collection is normally entered with the
+           paperwork to hand. It follows the note onto the payment it becomes. -->
+      <div class="receipt-block">
+        @if (!receiptPreview) {
+          <label class="receipt-drop">
+            <mat-icon>photo_camera</mat-icon>
+            <span class="rd-title">Attach a photo of the bill</span>
+            <span class="rd-sub">Optional</span>
+            <input type="file" accept="image/*" capture="environment"
+                   (change)="onReceiptPicked($event)" hidden>
+          </label>
+        } @else {
+          <div class="receipt-preview">
+            <img [src]="receiptPreview" alt="Bill photo">
+            <div class="rp-side">
+              @if (uploadingImage) {
+                <span class="rp-status uploading">Uploading…</span>
+              } @else if (receiptUrl) {
+                <span class="rp-status done"><mat-icon>check_circle</mat-icon> Attached</span>
+                <span class="rp-size" *ngIf="imageSizeNote">{{ imageSizeNote }}</span>
+              }
+              <button type="button" mat-stroked-button (click)="clearReceipt()">
+                <mat-icon>refresh</mat-icon> Retake
+              </button>
+            </div>
+          </div>
+        }
+        @if (imageError) {
+          <div class="receipt-error"><mat-icon>error_outline</mat-icon> {{ imageError }}</div>
+        }
+      </div>
+
+
       <button mat-flat-button color="primary" class="submit-btn"
         (click)="submit()"
         [disabled]="submitting || !amount || amount <= 0">

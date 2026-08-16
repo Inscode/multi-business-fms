@@ -56,6 +56,8 @@ export class CollectionNoteService {
     branchName?: string;
     chequeDate?: string;
     referenceNumber?: string;
+    /** Photo of the bill. Optional on this screen, for every role. */
+    receiptImageUrl?: string;
   }): Observable<CollectionNoteResponse> {
     return this.http.post<CollectionNoteResponse>(this.apiUrl, payload);
   }

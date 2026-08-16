@@ -322,6 +322,13 @@
                     color="primary"
                   ></mat-checkbox>
                   <span class="bill-number">{{ b.billNumber }}</span>
+                  <!-- Its balance is owed on another bill, so it is not chased here.
+                       Marked in the list too, or the row reads as an ordinary unpaid
+                       bill that nobody is following up. -->
+                  <span class="linked-chip" *ngIf="b.settledOnBillId"
+                        [title]="'Collected on ' + b.settledOnBillNumber">
+                    <mat-icon>link</mat-icon>{{ b.settledOnBillNumber }}
+                  </span>
                 </div>
                 <div class="card-right-group">
                   <span class="badge badge-{{ b.status | lowercase }}">{{ b.status }}</span>
