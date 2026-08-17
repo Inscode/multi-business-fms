@@ -24,6 +24,8 @@ import { WorkerPortalService, WorkerPaymentEntry, CollectionNote } from '../../.
 import { RequestEditDialog } from '../../../shared/request-edit-dialog/request-edit-dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
+import { CustomerHealthDialog }
+  from '../../../shared/customer-health-dialog/customer-health-dialog';
 import { BillStockStatus, ReturnProductResponse, StockService } from '../../../core/services/stock';
 import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel, chequeAgeTooltip } from '../../../core/utils/cheque-age';
 
@@ -782,6 +784,16 @@ It keeps its number and stays in the run, so `
 
   openBill(id: number): void {
     this.router.navigate(['/bills', id]);
+  }
+
+  /** This customer's payment record, business by business. */
+  openCustomerHealth(): void {
+    if (!this.bill?.customerId) return;
+    this.dialog.open(CustomerHealthDialog, {
+      data: { customerId: this.bill.customerId, customerName: this.bill.customerName },
+      width: '760px',
+      maxWidth: '95vw',
+    });
   }
 
   toggleCollectionOnly(): void {

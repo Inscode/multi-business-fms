@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, inject, OnInit } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,7 +19,7 @@ import { Auth } from '../../../../../core/services/auth';
   selector: 'app-item-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule,
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink,
             MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
             MatSelectModule, MatProgressSpinnerModule, MatTooltipModule],
   templateUrl: './item-list.component.html',

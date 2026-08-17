@@ -120,13 +120,25 @@ export interface StaleChequeEntry {
   billNumber: string;
 }
 
+/**
+ * A customer worth being careful with. Rated by the same service as their own record,
+ * so the dashboard and the record cannot disagree about the same shop.
+ */
 export interface CustomerRiskEntry {
+  customerId?: number;
   customerName: string;
   area: string | null;
-  partialCount: number;
-  returnedCount: number;
+  rating: 'GOOD' | 'WATCH' | 'CAREFUL';
+  /** Why, in words — the list is acted on, so it says what it saw. */
+  reasons: string[];
   currentOutstanding: number;
-  riskScore: number;
+  overdueAmount: number;
+  oldestOpenDays?: number;
+  /** Days to settle lately, falling back to all time. */
+  avgDaysToSettle?: number;
+  bouncedChequeCount: number;
+  lastBouncedChequeDate?: string;
+  partialCount: number;
 }
 
 export interface PaymentMixEntry {

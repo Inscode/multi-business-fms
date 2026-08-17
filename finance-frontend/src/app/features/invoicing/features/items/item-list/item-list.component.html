@@ -5,9 +5,17 @@
       <mat-icon>inventory_2</mat-icon>
       Items &amp; Stock
     </div>
-    <button mat-flat-button color="primary" (click)="openNew()">
-      <mat-icon>add</mat-icon> New Item
-    </button>
+    <div class="header-actions">
+      <!-- The bulk path. Adjusting one item at a time is fine for a correction and
+           unusable for a whole count. -->
+      <a mat-stroked-button routerLink="/invoicing/stock-take"
+         matTooltip="Enter a physical count over the system's figures">
+        <mat-icon>fact_check</mat-icon> Stock Take
+      </a>
+      <button mat-flat-button color="primary" (click)="openNew()">
+        <mat-icon>add</mat-icon> New Item
+      </button>
+    </div>
   </div>
 
   <!-- Item Form Panel -->

@@ -104,6 +104,10 @@
         <mat-icon>account_balance_wallet</mat-icon>
         <span *ngIf="!collapsed">Cash Flow</span>
       </a>
+      <a class="nav-item" routerLink="/payments/late-collections" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" matRipple *ngIf="showLateCollections" (click)="isMobile && sidenav.close()">
+        <mat-icon>hourglass_bottom</mat-icon>
+        <span *ngIf="!collapsed">Late Collections</span>
+      </a>
       <a class="nav-item" routerLink="/dashboard/collection-health" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" matRipple *ngIf="showCollectionHealth" (click)="isMobile && sidenav.close()">
         <mat-icon>monitor_heart</mat-icon>
         <span *ngIf="!collapsed">Collection Health</span>

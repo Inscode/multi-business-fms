@@ -108,7 +108,23 @@ export const DEMO_COLLECTION_HEALTH = {
   ],
   staleCheques: [],
   riskyCustomers: [
-    { customerName: 'Chamara Wijeratne', area: 'Kurunegala', partialCount: 2, returnedCount: 0, currentOutstanding: 46200, riskScore: 2 },
-    { customerName: 'Samanthi Kumari', area: 'Jaffna', partialCount: 1, returnedCount: 0, currentOutstanding: 63600, riskScore: 1 },
+    {
+      customerName: 'Chamara Wijeratne', area: 'Kurunegala', rating: 'CAREFUL',
+      reasons: [
+        'A bill has been open 112 days.',
+        'Takes 81 days on average to settle.',
+      ],
+      currentOutstanding: 46200, overdueAmount: 46200, oldestOpenDays: 112,
+      avgDaysToSettle: 81, bouncedChequeCount: 0, partialCount: 2,
+    },
+    {
+      customerName: 'Samanthi Kumari', area: 'Jaffna', rating: 'WATCH',
+      reasons: [
+        'Oldest open bill is 58 days old.',
+        'Slowing down — 52 days lately against 34 overall.',
+      ],
+      currentOutstanding: 63600, overdueAmount: 63600, oldestOpenDays: 58,
+      avgDaysToSettle: 52, bouncedChequeCount: 0, partialCount: 1,
+    },
   ],
 };

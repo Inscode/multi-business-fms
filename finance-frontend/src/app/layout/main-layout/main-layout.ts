@@ -162,6 +162,12 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   get showWorkerFinanceReview(): boolean { return ['ADMIN', 'OWNER'].includes(this.currentRole); }
   get showAgingReport(): boolean         { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
   get showCollectionHealth(): boolean    { return this.currentRole === 'ADMIN'; }
+  /** Also the main accountant and the owner — they are the ones funding the gap. */
+  get showLateCollections(): boolean     {
+    return this.currentRole === 'ADMIN'
+        || this.currentRole === 'OWNER'
+        || this.currentRole === 'MAIN_ACCOUNTANT';
+  }
   /** Accountants open and fill runs; admin and owner check them. */
   get showDeliveries(): boolean          { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }
   get showCashFlow(): boolean            { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
