@@ -375,4 +375,20 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     List<Bill> findSettleCandidates(@Param("billId") Long billId,
                                     @Param("business") BusinessType business,
                                     @Param("sources") List<com.multi.finance.enums.BillSource> sources);
+
+    /**
+     * Every bill belonging to a customer, by id or by the name typed on it.
+     *
+     * <p>Both, because bills predating customer records and bills brought in by import
+     * carry only the name. Matching on the id alone would rate a customer of ten years
+     * on whichever of their bills happened to get linked.
+     */
+    @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.customer "
+         + "WHERE (b.customer IS NOT NULL AND b.customer.id = :customerId) "
+         + "   OR (b.customer IS NULL AND UPPER(TRIM(b.customerName)) = UPPER(TRIM(:name))) "
+         + "ORDER BY b.billDate DESC")
+    List<Bill> findAllForCustomer(@Param("customerId") Long customerId,
+                                  @Param("name") String name);
+
+    List<Bill> findByBusinessOrderByBillDateDesc(BusinessType business);
 }

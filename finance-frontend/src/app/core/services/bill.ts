@@ -102,6 +102,8 @@ export interface BillResponse {
   billType: string;
   billSource: string;
   customerName: string;
+  /** Null on bills whose customer was only ever typed as a name. */
+  customerId?: number;
   totalAmount: number;
   amountPaid: number;
   balanceRemaining: number;

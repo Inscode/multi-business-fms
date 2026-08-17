@@ -11,7 +11,10 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Dashboard, CollectionHealthData, UpcomingChequeEntry, ChequeDetailEntry } from '../../../core/services/dashboard';
+import { Dashboard, CollectionHealthData, CustomerRiskEntry, UpcomingChequeEntry, ChequeDetailEntry } from '../../../core/services/dashboard';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { CustomerHealthDialog }
+  from '../../../shared/customer-health-dialog/customer-health-dialog';
 import { Auth } from '../../../core/services/auth';
 
 @Component({
@@ -31,6 +34,7 @@ import { Auth } from '../../../core/services/auth';
     MatNativeDateModule,
     MatTabsModule,
     MatTooltipModule,
+    MatDialogModule,
   ],
   templateUrl: './collection-health.html',
   styleUrl: './collection-health.scss',
@@ -75,6 +79,7 @@ export class CollectionHealth implements OnInit {
     private dashboardService: Dashboard,
     private cdr: ChangeDetectorRef,
     private auth: Auth,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -167,10 +172,14 @@ export class CollectionHealth implements OnInit {
   }
 
   // ── Risky customers helpers ────────────────────────────────────
-  riskClass(score: number): string {
-    if (score <= 1) return 'age-caution';
-    if (score <= 3) return 'age-warn';
-    return 'age-critical';
+  /** The customer's full record, business by business. */
+  openCustomerHealth(r: CustomerRiskEntry): void {
+    if (!r.customerId) return;
+    this.dialog.open(CustomerHealthDialog, {
+      data: { customerId: r.customerId, customerName: r.customerName },
+      width: '760px',
+      maxWidth: '95vw',
+    });
   }
 
   // ── Cheque detail drill-down ────────────────────────────────────

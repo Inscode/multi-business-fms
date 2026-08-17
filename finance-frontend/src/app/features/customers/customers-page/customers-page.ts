@@ -12,6 +12,8 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { CustomerHealth, CustomerHealthService } from '../../../core/services/customer-health';
+import { CustomerHealthDialog } from '../../../shared/customer-health-dialog/customer-health-dialog';
 import { CustomerService, CustomerResponse } from '../../../core/services/customer';
 import { Auth } from '../../../core/services/auth';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
@@ -50,7 +52,68 @@ export class CustomersPage implements OnInit {
 
   searchQuery = '';
 
-  displayedColumns = ['name', 'phone', 'area', 'tier', 'shopType', 'status', 'actions'];
+  displayedColumns = ['name', 'phone', 'area', 'tier', 'shopType', 'health', 'status', 'actions'];
+
+  /**
+   * Ratings for the business being looked at, keyed by customer id.
+   *
+   * <p>Loaded for the whole list in one request rather than per row: a page of two
+   * hundred customers would otherwise fire two hundred calls, and the rating is only
+   * worth showing if it is there before anyone scrolls past it.
+   */
+  healthByCustomer = new Map<number, CustomerHealth>();
+  /** Which business the column is rating. A customer good on one can be poor on another. */
+  healthBusiness = 'RAINCO';
+  readonly healthBusinesses = ['RAINCO', 'STATIONERY', 'PLASTIC'];
+  loadingHealth = false;
+
+  loadHealth(): void {
+    this.loadingHealth = true;
+    this.healthService.getForBusiness(this.healthBusiness).subscribe({
+      next: (list) => {
+        this.healthByCustomer = new Map(
+          list.filter(h => h.customerId != null).map(h => [h.customerId!, h]));
+        this.loadingHealth = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        // A missing rating leaves the column blank; it is not worth an error banner over
+        // a page whose main job is editing customers.
+        this.healthByCustomer = new Map();
+        this.loadingHealth = false;
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  onHealthBusinessChange(business: string): void {
+    this.healthBusiness = business;
+    this.loadHealth();
+  }
+
+  /** The rating for the chosen business, or null when they have never bought from it. */
+  ratingFor(c: CustomerResponse): string | null {
+    const h = this.healthByCustomer.get(c.id);
+    if (!h) return null;
+    const biz = h.businesses.find(b => b.business === this.healthBusiness);
+    return biz ? biz.rating : null;
+  }
+
+  /** The first reason behind the rating, as the row's tooltip. */
+  ratingHint(c: CustomerResponse): string {
+    const h = this.healthByCustomer.get(c.id);
+    const biz = h?.businesses.find(b => b.business === this.healthBusiness);
+    if (!biz) return 'No ' + this.healthBusiness.toLowerCase() + ' bills for this customer.';
+    return biz.reasons.length ? biz.reasons.join(' ') : 'Nothing against them.';
+  }
+
+  openHealth(c: CustomerResponse): void {
+    this.dialog.open(CustomerHealthDialog, {
+      data: { customerId: c.id, customerName: c.name },
+      width: '760px',
+      maxWidth: '95vw',
+    });
+  }
 
   /**
    * The same areas a lorry round is opened for.
@@ -95,6 +158,7 @@ export class CustomersPage implements OnInit {
     private auth: Auth,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
+    private healthService: CustomerHealthService,
   ) {
     this.form = this.fb.group({
       name:     ['', [Validators.required, Validators.minLength(2)]],
@@ -105,7 +169,10 @@ export class CustomersPage implements OnInit {
     });
   }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.loadHealth();
+  }
 
   get isAdmin(): boolean   { return this.auth.getRole() === 'ADMIN'; }
   get canDelete(): boolean { return this.isAdmin; }

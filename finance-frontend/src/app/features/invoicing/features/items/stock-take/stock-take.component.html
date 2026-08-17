@@ -1,0 +1,211 @@
+<div class="st-page">
+
+  <div class="st-head">
+    <h1>Stock Take</h1>
+    <p class="st-sub">
+      Write a physical count over the system's figure. Each item is set straight to what
+      you counted — nothing is zeroed first, so invoicing keeps working while you enter it.
+    </p>
+  </div>
+
+  <!-- ── Entry ──────────────────────────────────────────────────────────── -->
+  <mat-card class="st-card" *ngIf="!applied">
+    <div class="card-title">The count</div>
+    <mat-divider></mat-divider>
+
+    <div class="st-fields">
+      <mat-form-field appearance="outline" class="f-ref">
+        <mat-label>What this count was</mat-label>
+        <input matInput [(ngModel)]="reference"
+               placeholder="e.g. Opening stock take, main store">
+        <mat-hint>Written onto every movement — it is what explains the jump later.</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="f-date">
+        <mat-label>Counted on</mat-label>
+        <input matInput [matDatepicker]="picker" [(ngModel)]="countedOn">
+        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+      </mat-form-field>
+    </div>
+
+    <!-- The gap between counting and entering is where a stock take usually goes
+         wrong, so it is said here rather than left to be discovered. -->
+    <p class="st-warn">
+      <mat-icon>info</mat-icon>
+      If anything was invoiced or received between the count and now, those movements are
+      already in the system. Enter the figure as it stands today, or recount before a
+      day's trading starts.
+    </p>
+
+    <mat-form-field appearance="outline" class="f-paste">
+      <mat-label>Paste the count</mat-label>
+      <textarea matInput rows="12" [(ngModel)]="pasted"
+                placeholder="RC-1020N	48&#10;RC-K01047	12&#10;ST-4410	300	5"></textarea>
+      <mat-hint>
+        One item per line: code, quantity, and optionally damaged quantity. Tabs, commas
+        or spaces all work.
+      </mat-hint>
+    </mat-form-field>
+
+    <div class="st-actions">
+      <span class="st-count" *ngIf="parsedCount">{{ parsedCount }} lines read</span>
+      <button mat-flat-button color="primary" (click)="runPreview()" [disabled]="!canPreview">
+        <mat-icon>fact_check</mat-icon> Check the count
+      </button>
+    </div>
+  </mat-card>
+
+  <div class="st-loading" *ngIf="loading"><mat-spinner diameter="32"></mat-spinner></div>
+  <p class="st-error" *ngIf="error">{{ error }}</p>
+
+  <!-- ── Applied ────────────────────────────────────────────────────────── -->
+  <mat-card class="st-card st-done" *ngIf="applied">
+    <mat-icon>check_circle</mat-icon>
+    <div>
+      <strong>Count applied</strong>
+      <span>Stock now matches what you counted. Every change is in the movement log
+        under “{{ reference }}”.</span>
+      <button mat-stroked-button (click)="reset()">Enter another count</button>
+    </div>
+  </mat-card>
+
+  <!-- ── Preview ────────────────────────────────────────────────────────── -->
+  <ng-container *ngIf="preview && !applied">
+
+    <div class="st-summary">
+      <div class="sum-card">
+        <span class="s-label">Will change</span>
+        <span class="s-value">{{ preview.changedCount }}</span>
+        <span class="s-note">of {{ preview.lineCount }} counted</span>
+      </div>
+      <div class="sum-card">
+        <span class="s-label">Already matched</span>
+        <span class="s-value">{{ preview.matchedCount }}</span>
+        <span class="s-note">nothing to write</span>
+      </div>
+      <div class="sum-card">
+        <span class="s-label">Net movement</span>
+        <span class="s-value" [class.s-up]="preview.netUnitChange > 0"
+              [class.s-down]="preview.netUnitChange < 0">
+          {{ preview.netUnitChange > 0 ? '+' : '' }}{{ preview.netUnitChange }}
+        </span>
+        <span class="s-note">units</span>
+      </div>
+      <div class="sum-card" [class.bad]="preview.notFoundCount > 0">
+        <span class="s-label">Unknown codes</span>
+        <span class="s-value">{{ preview.notFoundCount }}</span>
+        <span class="s-note">{{ preview.notFoundCount ? 'must be fixed' : 'all recognised' }}</span>
+      </div>
+    </div>
+
+    <p class="st-block" *ngIf="preview.notFoundCount > 0">
+      <mat-icon>error</mat-icon>
+      Some codes match no item. A count that quietly skips lines is worse than one that
+      stops, so fix or remove those rows and check again.
+    </p>
+
+    <p class="st-block warn" *ngIf="problemCount && !preview.notFoundCount">
+      <mat-icon>warning</mat-icon>
+      {{ problemCount }} {{ problemCount === 1 ? 'row is' : 'rows are' }} worth a second
+      look before you apply.
+    </p>
+
+    <!-- ── Counted rows ──────────────────────────────────────────────── -->
+    <mat-card class="st-card">
+      <div class="card-title-row">
+        <span class="card-title">What will change</span>
+        <mat-checkbox [(ngModel)]="showMatched">
+          Show items that already match ({{ preview.matchedCount }})
+        </mat-checkbox>
+      </div>
+      <mat-divider></mat-divider>
+
+      <div class="row-table">
+        <div class="rt-head">
+          <span>Item</span>
+          <span class="center">System</span>
+          <span class="center">Counted</span>
+          <span class="center">Change</span>
+          <span class="center">Damage</span>
+          <span></span>
+        </div>
+        <div class="rt-row" *ngFor="let r of changedRows" [ngClass]="statusClass(r.status)">
+          <span class="rt-item">
+            <strong>{{ r.itemCode }}</strong>
+            <em *ngIf="r.description">{{ r.description }}</em>
+          </span>
+          <span class="center">{{ r.systemQty ?? '—' }}</span>
+          <span class="center strong">{{ r.countedQty ?? '—' }}</span>
+          <span class="center delta" *ngIf="r.delta != null">
+            {{ r.delta > 0 ? '+' : '' }}{{ r.delta }}
+          </span>
+          <span class="center" *ngIf="r.delta == null">—</span>
+          <span class="center">
+            <ng-container *ngIf="r.damageDelta != null && r.damageDelta !== 0">
+              {{ r.systemDamageQty }} → {{ r.countedDamageQty }}
+            </ng-container>
+            <span class="muted" *ngIf="r.damageDelta == null || r.damageDelta === 0">—</span>
+          </span>
+          <span class="rt-warn">
+            <mat-icon *ngIf="r.warning" [matTooltip]="r.warning">warning</mat-icon>
+          </span>
+        </div>
+
+        <p class="rt-empty" *ngIf="!changedRows.length">
+          Nothing to change — every counted item already matches the system.
+        </p>
+      </div>
+    </mat-card>
+
+    <!-- ── Not on the sheet ──────────────────────────────────────────── -->
+    <mat-card class="st-card" *ngIf="uncountedWithStock.length">
+      <div class="card-title-row">
+        <span class="card-title">
+          Not on the sheet ({{ uncountedWithStock.length }})
+        </span>
+        <button mat-button (click)="showUncounted = !showUncounted">
+          {{ showUncounted ? 'Hide' : 'Show' }}
+        </button>
+      </div>
+      <mat-divider></mat-divider>
+
+      <p class="unc-note">
+        These items still hold stock in the system but were never counted. Usually that
+        means the sheet ran out, not the shelf — so they are left alone unless you say
+        otherwise.
+      </p>
+
+      <mat-checkbox [(ngModel)]="zeroUncounted" class="unc-check">
+        Set these to zero as well — I counted everything
+      </mat-checkbox>
+
+      <div class="row-table" *ngIf="showUncounted">
+        <div class="rt-head">
+          <span>Item</span>
+          <span class="center">System</span>
+          <span class="center">Would become</span>
+        </div>
+        <div class="rt-row" *ngFor="let r of uncountedWithStock">
+          <span class="rt-item">
+            <strong>{{ r.itemCode }}</strong>
+            <em *ngIf="r.description">{{ r.description }}</em>
+          </span>
+          <span class="center">{{ r.systemQty }}</span>
+          <span class="center" [class.s-down]="zeroUncounted">
+            {{ zeroUncounted ? '0' : 'unchanged' }}
+          </span>
+        </div>
+      </div>
+    </mat-card>
+
+    <div class="st-apply">
+      <button mat-stroked-button (click)="reset()">Start over</button>
+      <button mat-flat-button color="primary" (click)="apply()"
+              [disabled]="applying || preview.notFoundCount > 0">
+        <mat-icon>inventory</mat-icon>
+        {{ applying ? 'Applying…' : 'Apply count' }}
+      </button>
+    </div>
+  </ng-container>
+</div>

@@ -17,6 +17,7 @@ import java.util.List;
 public class CustomerController {
 
     private final CustomerServiceImpl customerService;
+    private final com.multi.finance.service.impl.CustomerHealthService customerHealthService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
@@ -61,5 +62,28 @@ public class CustomerController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         customerService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * How this customer has behaved about paying, business by business.
+     *
+     * <p>Open to whoever might be deciding to sell to them again — the accountant taking
+     * the order is as likely to need it as the admin.
+     */
+    @GetMapping("/{id}/health")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<com.multi.finance.dto.response.CustomerHealthResponse> health(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(customerHealthService.forCustomer(id));
+    }
+
+    /** Every customer rated for one business, worst first — the pre-round scan. */
+    @GetMapping("/health")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<java.util.List<com.multi.finance.dto.response.CustomerHealthResponse>>
+            healthByBusiness(
+                @RequestParam(required = false, defaultValue = "RAINCO")
+                com.multi.finance.enums.BusinessType business) {
+        return ResponseEntity.ok(customerHealthService.forBusiness(business));
     }
 }

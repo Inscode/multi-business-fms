@@ -310,34 +310,49 @@
         </ng-template>
 
         <div class="tab-body">
-          <p class="priority-note">Customers with repeat partial payments or returned/bounced cheques, ranked by risk score.</p>
+          <p class="priority-note">
+            Judged on how long they actually take to pay, how lately it went wrong, and
+            what is open now — not on raw counts. Click a name for the full record.
+          </p>
 
-          <div class="priority-table" *ngIf="(data.riskyCustomers?.length ?? 0) > 0">
-            <div class="ptbl-header risk-cols">
-              <span class="p-rank">#</span>
-              <span class="p-name">Customer</span>
-              <span class="p-area">Area</span>
-              <span class="p-bucket center">Partials</span>
-              <span class="p-bucket center">Returned</span>
-              <span class="p-bucket right">Outstanding</span>
-              <span class="p-bills center">Risk</span>
-            </div>
-            <div class="ptbl-row risk-cols" *ngFor="let r of data.riskyCustomers ?? []; let i = index; trackBy: trackByCustomer">
-              <span class="p-rank rank-num">{{ i + 1 }}</span>
-              <span class="p-name cust-name">{{ r.customerName }}</span>
-              <span class="p-area area-tag">{{ r.area || '—' }}</span>
-              <span class="p-bucket center">{{ r.partialCount }}</span>
-              <span class="p-bucket center">{{ r.returnedCount }}</span>
-              <span class="p-bucket right total-col">Rs {{ r.currentOutstanding | number:'1.0-0' }}</span>
-              <span class="p-bills center">
-                <span class="partial-badge" [ngClass]="riskClass(r.riskScore)">{{ r.riskScore }}</span>
-              </span>
+          <div class="risk-list" *ngIf="(data.riskyCustomers?.length ?? 0) > 0">
+            <div class="risk-card" *ngFor="let r of data.riskyCustomers ?? []; trackBy: trackByCustomer"
+                 (click)="openCustomerHealth(r)"
+                 [class.clickable]="!!r.customerId">
+              <div class="rc-top">
+                <div class="rc-who">
+                  <strong>{{ r.customerName }}</strong>
+                  <span class="rc-area" *ngIf="r.area">{{ r.area }}</span>
+                </div>
+                <span class="rc-rating rating-{{ r.rating | lowercase }}">
+                  <mat-icon>{{ r.rating === 'CAREFUL' ? 'warning' : 'schedule' }}</mat-icon>
+                  {{ r.rating === 'CAREFUL' ? 'Careful' : 'Watch' }}
+                </span>
+              </div>
+
+              <!-- The reasons, not a score. Whoever reads this is about to act on it or
+                   overrule it, and either way they need to know what it saw. -->
+              <ul class="rc-reasons">
+                <li *ngFor="let reason of r.reasons">{{ reason }}</li>
+              </ul>
+
+              <div class="rc-facts">
+                <span *ngIf="r.currentOutstanding > 0">
+                  Owes <strong>Rs {{ r.currentOutstanding | number:'1.0-0' }}</strong>
+                </span>
+                <span *ngIf="r.oldestOpenDays != null">oldest {{ r.oldestOpenDays }}d</span>
+                <span *ngIf="r.avgDaysToSettle != null">pays in {{ r.avgDaysToSettle }}d</span>
+                <span *ngIf="r.bouncedChequeCount > 0" class="rc-bad">
+                  {{ r.bouncedChequeCount }}
+                  {{ r.bouncedChequeCount === 1 ? 'cheque' : 'cheques' }} returned
+                </span>
+              </div>
             </div>
           </div>
 
           <div class="empty-state" *ngIf="(data.riskyCustomers?.length ?? 0) === 0">
             <mat-icon>check_circle</mat-icon>
-            <p>No repeat partial-payers or returned cheques for {{ selectedBusiness }}</p>
+            <p>Nothing against any {{ selectedBusiness | lowercase }} customer</p>
           </div>
         </div>
       </mat-tab>

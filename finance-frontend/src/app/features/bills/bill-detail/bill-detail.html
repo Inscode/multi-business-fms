@@ -5,7 +5,16 @@
     </button>
     <div>
       <h1 class="page-title">{{ bill?.billNumber ?? 'Bill Detail' }}</h1>
-      <p class="page-sub">{{ bill?.customerName }}</p>
+      <p class="page-sub">
+        {{ bill?.customerName }}
+        <!-- Offered here because this is where the question gets asked: someone is
+             looking at a bill and wondering whether to send the next load. -->
+        <button class="who-pays" *ngIf="bill?.customerId"
+                (click)="openCustomerHealth()"
+                matTooltip="How this customer has been about paying">
+          <mat-icon>history</mat-icon> Payment record
+        </button>
+      </p>
     </div>
   </div>
 

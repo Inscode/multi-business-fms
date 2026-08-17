@@ -1,0 +1,135 @@
+<div class="chd">
+  <div class="chd-head">
+    <div>
+      <h2>{{ data.customerName }}</h2>
+      <p class="chd-sub" *ngIf="health">
+        <span *ngIf="health.area">{{ health.area }}</span>
+        <span *ngIf="health.phone"> · {{ health.phone }}</span>
+        <span *ngIf="health.tier"> · Tier {{ health.tier }}</span>
+      </p>
+    </div>
+    <button mat-icon-button (click)="close()"><mat-icon>close</mat-icon></button>
+  </div>
+
+  <div class="chd-loading" *ngIf="loading">
+    <mat-spinner diameter="30"></mat-spinner>
+  </div>
+
+  <p class="chd-error" *ngIf="error">{{ error }}</p>
+
+  <div class="chd-body" *ngIf="!loading && health">
+
+    <p class="chd-empty" *ngIf="!health.businesses.length">
+      No bills for this customer yet, so there is nothing to judge them on.
+    </p>
+
+    <!-- One block per business. A shop can be reliable on stationery and slow on
+         Rainco, and merging the two would hide exactly that. -->
+    <div class="biz" *ngFor="let b of health.businesses">
+
+      <div class="biz-head">
+        <strong>{{ b.business }}</strong>
+        <span class="rating rating-{{ b.rating | lowercase }}">
+          <mat-icon>{{ ratingIcon(b.rating) }}</mat-icon>
+          {{ ratingLabel(b.rating) }}
+        </span>
+      </div>
+
+      <!-- Why, before the numbers. The rating is a summary of these, and a rating
+           nobody can take apart gets ignored the first time it feels wrong. -->
+      <ul class="reasons">
+        <li *ngFor="let r of b.reasons">{{ r }}</li>
+      </ul>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="m-label">Pays in</span>
+          <span class="m-value" *ngIf="headlineDays(b) !== null">
+            {{ headlineDays(b) }} days
+          </span>
+          <span class="m-value m-na" *ngIf="headlineDays(b) === null">no settled bills</span>
+          <span class="m-note" *ngIf="b.settledBillCount">
+            across {{ b.settledBillCount }} settled
+            {{ b.settledBillCount === 1 ? 'bill' : 'bills' }}
+          </span>
+        </div>
+
+        <div class="metric" *ngIf="trend(b) as t">
+          <span class="m-label">Trend</span>
+          <span class="m-value" [class.m-bad]="t === 'worse'" [class.m-good]="t === 'better'">
+            {{ t === 'worse' ? 'Slowing' : t === 'better' ? 'Improving' : 'Steady' }}
+          </span>
+          <span class="m-note">
+            {{ b.avgDaysToSettleRecent }}d lately vs {{ b.avgDaysToSettle }}d overall
+          </span>
+        </div>
+
+        <div class="metric" *ngIf="b.worstDaysToSettle != null">
+          <span class="m-label">Worst ever</span>
+          <span class="m-value">{{ b.worstDaysToSettle }} days</span>
+        </div>
+
+        <div class="metric">
+          <span class="m-label">Owes now</span>
+          <span class="m-value" [class.m-bad]="b.currentOutstanding > 0">
+            Rs {{ b.currentOutstanding | number }}
+          </span>
+          <span class="m-note" *ngIf="b.openBillCount">
+            {{ b.openBillCount }} open
+            {{ b.openBillCount === 1 ? 'bill' : 'bills' }}<span *ngIf="b.oldestOpenDays != null">,
+            oldest {{ b.oldestOpenDays }}d</span>
+          </span>
+        </div>
+
+        <div class="metric" *ngIf="b.overdueAmount > 0">
+          <span class="m-label">Past 45 days</span>
+          <span class="m-value m-bad">Rs {{ b.overdueAmount | number }}</span>
+        </div>
+
+        <div class="metric" *ngIf="b.bouncedChequeCount > 0">
+          <span class="m-label">Cheques returned</span>
+          <span class="m-value m-bad">{{ b.bouncedChequeCount }}</span>
+          <span class="m-note" *ngIf="b.lastBouncedChequeDate">
+            last {{ b.lastBouncedChequeDate | date:'dd MMM yyyy' }}
+          </span>
+        </div>
+
+        <div class="metric" *ngIf="b.partialPaymentCount > 0">
+          <span class="m-label">Part payments</span>
+          <span class="m-value">{{ b.partialPaymentCount }}</span>
+          <span class="m-note">of {{ b.billCount }} bills</span>
+        </div>
+
+        <div class="metric" *ngIf="b.damageReturnAmount > 0">
+          <span class="m-label">Damage sent back</span>
+          <span class="m-value" [class.m-bad]="b.damageReturnPct >= 10">
+            {{ b.damageReturnPct }}%
+          </span>
+          <span class="m-note">Rs {{ b.damageReturnAmount | number }}</span>
+        </div>
+
+        <div class="metric">
+          <span class="m-label">Bought</span>
+          <span class="m-value">Rs {{ b.totalBilled | number }}</span>
+          <span class="m-note">
+            {{ b.billCount }} {{ b.billCount === 1 ? 'bill' : 'bills' }}
+            <span *ngIf="b.firstBillDate">since {{ b.firstBillDate | date:'MMM yyyy' }}</span>
+          </span>
+        </div>
+
+        <div class="metric" *ngIf="b.daysSinceLastBill != null">
+          <span class="m-label">Last bought</span>
+          <span class="m-value" [class.m-bad]="b.daysSinceLastBill > 180">
+            {{ b.daysSinceLastBill }} days ago
+          </span>
+          <span class="m-note">{{ b.lastBillDate | date:'dd MMM yyyy' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="chd-foot">
+      Worked out from bills, payments and returns as they stand now — nothing here is
+      stored, so it cannot fall out of step with the ledger.
+    </p>
+  </div>
+</div>

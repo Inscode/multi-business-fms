@@ -1,0 +1,199 @@
+<div class="lc-page">
+
+  <div class="lc-head">
+    <div>
+      <h1>Late Collections</h1>
+      <p class="lc-sub" *ngIf="report">
+        We get {{ report.supplierDays }} days to pay the supplier. Anything collected
+        after that was funded out of our own cash.
+      </p>
+    </div>
+    <button mat-stroked-button (click)="exportCsv()" *ngIf="report?.paymentCount">
+      <mat-icon>download</mat-icon> CSV
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="lc-filters">
+    <mat-form-field appearance="outline">
+      <mat-label>Business</mat-label>
+      <mat-select [(ngModel)]="business" (selectionChange)="load()">
+        <mat-option *ngFor="let b of businesses" [value]="b.value">{{ b.label }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Collected from</mat-label>
+      <input matInput [matDatepicker]="fromPicker" [(ngModel)]="from" (dateChange)="load()">
+      <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+      <mat-datepicker #fromPicker></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>to</mat-label>
+      <input matInput [matDatepicker]="toPicker" [(ngModel)]="to" (dateChange)="load()">
+      <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+      <mat-datepicker #toPicker></mat-datepicker>
+    </mat-form-field>
+
+    <div class="lc-presets">
+      <button mat-stroked-button (click)="setMonth(0)">This month</button>
+      <button mat-stroked-button (click)="setMonth(-1)">Last month</button>
+    </div>
+  </div>
+
+  <div class="lc-loading" *ngIf="loading"><mat-spinner diameter="34"></mat-spinner></div>
+  <p class="lc-error" *ngIf="error">{{ error }}</p>
+
+  <ng-container *ngIf="!loading && report">
+
+    <p class="lc-empty" *ngIf="!report.paymentCount">
+      No confirmed collections in this period.
+    </p>
+
+    <ng-container *ngIf="report.paymentCount">
+
+      <!-- The headline. Beyond-terms first, because it is the only one of the three
+           figures that has already cost money. -->
+      <div class="lc-cards">
+        <div class="lc-card lc-card-hero" [class.is-clean]="report.beyondTermsAmount === 0">
+          <span class="c-label">Collected past {{ report.supplierDays }} days</span>
+          <span class="c-value">Rs {{ report.beyondTermsAmount | number:'1.0-0' }}</span>
+          <span class="c-note">
+            {{ report.beyondTermsPct }}% of the period — we had already paid the supplier
+            for this.
+          </span>
+        </div>
+
+        <div class="lc-card">
+          <span class="c-label">Past {{ report.dangerDays }} days</span>
+          <span class="c-value">Rs {{ report.pastDangerAmount | number:'1.0-0' }}</span>
+          <span class="c-note">{{ report.pastDangerPct }}% — the danger line.</span>
+        </div>
+
+        <div class="lc-card">
+          <span class="c-label">Average age of money in</span>
+          <span class="c-value">{{ report.avgDaysWeighted }} days</span>
+          <span class="c-note">Weighted by amount, not by bill count.</span>
+        </div>
+
+        <div class="lc-card">
+          <span class="c-label">Total collected</span>
+          <span class="c-value">Rs {{ report.totalCollected | number:'1.0-0' }}</span>
+          <span class="c-note">{{ report.paymentCount }} confirmed payments.</span>
+        </div>
+      </div>
+
+      <!-- Bands. Click to narrow the payment list rather than opening another screen. -->
+      <mat-card class="lc-bands">
+        <div class="card-title">How old the money was when it arrived</div>
+        <mat-divider></mat-divider>
+        <div class="band-rows">
+          <button class="band-row" *ngFor="let b of report.bands"
+                  [ngClass]="bandClass(b.band)"
+                  [class.selected]="bandFilter === b.band"
+                  (click)="setBand(b.band)"
+                  [disabled]="!b.count">
+            <span class="br-label">{{ b.label }}</span>
+            <span class="br-bar">
+              <span class="br-fill" [style.width.%]="b.pct"></span>
+            </span>
+            <span class="br-amount">Rs {{ b.amount | number:'1.0-0' }}</span>
+            <span class="br-pct">{{ b.pct }}%</span>
+            <span class="br-count">{{ b.count }}</span>
+          </button>
+        </div>
+        <p class="band-note">
+          {{ report.sealDays }} days is what we stamp on the bill;
+          {{ report.dangerDays }} is where a customer becomes a problem;
+          {{ report.supplierDays }} is our own deadline with the supplier.
+        </p>
+      </mat-card>
+
+      <mat-tab-group animationDuration="0ms">
+
+        <!-- ── Customer-wise ─────────────────────────────────────────── -->
+        <mat-tab label="By customer">
+          <div class="tab-body">
+            <p class="t-note">
+              Only customers who paid something past {{ report.dangerDays }} days. Ranked
+              by what came in beyond {{ report.supplierDays }} days — the money that
+              actually cost us. Click a name for their full record.
+            </p>
+
+            <p class="lc-empty" *ngIf="!lateCustomers.length">
+              Everything came in inside {{ report.dangerDays }} days.
+            </p>
+
+            <div class="cust-table" *ngIf="lateCustomers.length">
+              <div class="ct-head">
+                <span>Customer</span>
+                <span>Area</span>
+                <span class="right">Collected</span>
+                <span class="right">Past {{ report.dangerDays }}d</span>
+                <span class="right">Past {{ report.supplierDays }}d</span>
+                <span class="center">Avg days</span>
+                <span class="center">Worst</span>
+              </div>
+              <div class="ct-row" *ngFor="let c of lateCustomers"
+                   [class.clickable]="!!c.customerId"
+                   (click)="openCustomerHealth(c)">
+                <span class="ct-name">{{ c.customerName }}</span>
+                <span class="ct-area">{{ c.area || '—' }}</span>
+                <span class="right">Rs {{ c.collected | number:'1.0-0' }}</span>
+                <span class="right warn">Rs {{ c.pastDangerAmount | number:'1.0-0' }}</span>
+                <span class="right" [class.bad]="c.beyondTermsAmount > 0">
+                  {{ c.beyondTermsAmount > 0
+                      ? 'Rs ' + (c.beyondTermsAmount | number:'1.0-0') : '—' }}
+                </span>
+                <span class="center">{{ c.avgDaysWeighted }}</span>
+                <span class="center" [class.bad]="(c.worstDays ?? 0) > report.supplierDays">
+                  {{ c.worstDays }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- ── Payment by payment ────────────────────────────────────── -->
+        <mat-tab label="Every payment">
+          <div class="tab-body">
+            <p class="t-note">
+              Oldest money first.
+              <span *ngIf="bandFilter">
+                Showing the {{ bandFilter | lowercase }} band only —
+                <button class="clear-filter" (click)="setBand(null)">show all</button>.
+              </span>
+            </p>
+
+            <div class="pay-table">
+              <div class="pt-head">
+                <span>Bill</span>
+                <span>Customer</span>
+                <span>Bill date</span>
+                <span>Paid on</span>
+                <span class="center">Days</span>
+                <span class="right">Amount</span>
+              </div>
+              <div class="pt-row" *ngFor="let p of visiblePayments"
+                   (click)="openBill(p.billId)">
+                <span class="pt-bill">{{ p.billNumber }}</span>
+                <span class="pt-cust">{{ p.customerName }}</span>
+                <span>{{ p.billDate | date:'dd MMM yy' }}</span>
+                <span>{{ p.paymentDate | date:'dd MMM yy' }}</span>
+                <span class="center">
+                  <span class="days-chip" [ngClass]="bandClass(p.band)">{{ p.days }}</span>
+                </span>
+                <span class="right">Rs {{ p.amount | number:'1.0-0' }}</span>
+              </div>
+            </div>
+
+            <p class="t-note" *ngIf="hiddenPaymentCount">
+              {{ hiddenPaymentCount }} more not shown. The CSV has all of them.
+            </p>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </ng-container>
+  </ng-container>
+</div>

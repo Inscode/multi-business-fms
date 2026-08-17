@@ -131,3 +131,10 @@ tr:has(.badge.danger) {
   background: #fafafa;
   .fw6, .mono { color: #90a4ae; }
 }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}

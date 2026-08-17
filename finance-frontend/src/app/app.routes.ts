@@ -110,6 +110,11 @@ export const routes: Routes = [
               .then(m => m.ItemListComponent)
           },
           {
+            path: 'stock-take',
+            loadComponent: () => import('./features/invoicing/features/items/stock-take/stock-take.component')
+              .then(m => m.StockTakeComponent)
+          },
+          {
             path: 'brands',
             loadComponent: () => import('./features/invoicing/features/brands/brand-list/brand-list.component')
               .then(m => m.BrandListComponent)
@@ -143,6 +148,11 @@ export const routes: Routes = [
         path: 'bills/aging',
         loadComponent: () => import('./features/bills/aging-report/aging-report')
           .then(m => m.AgingReport)
+      },
+      {
+        path: 'payments/late-collections',
+        loadComponent: () => import('./features/payments/late-collections/late-collections')
+          .then(m => m.LateCollections)
       },
       {
         path: 'dashboard/collection-health',
