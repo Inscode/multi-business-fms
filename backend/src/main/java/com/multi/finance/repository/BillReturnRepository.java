@@ -51,4 +51,8 @@ public interface BillReturnRepository extends JpaRepository<BillReturn, Long> {
          + "com.multi.finance.enums.ReturnStatus.CANCELLED, "
          + "com.multi.finance.enums.ReturnStatus.NOT_RECEIVED)")
     Integer sumClaimedQtyForLine(@Param("lineId") Long lineId);
+
+    /** Returns for a set of bills in one query, for per-customer rollups. */
+    @Query("SELECT r FROM BillReturn r JOIN FETCH r.bill WHERE r.bill.id IN :billIds")
+    List<BillReturn> findByBillIdIn(@Param("billIds") List<Long> billIds);
 }

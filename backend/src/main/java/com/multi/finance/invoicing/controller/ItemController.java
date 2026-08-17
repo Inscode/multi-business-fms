@@ -31,6 +31,7 @@ public class ItemController {
     private final ItemRepository itemRepo;
     private final BrandRepository brandRepo;
     private final StockMovementRepository movementRepo;
+    private final com.multi.finance.invoicing.service.StockTakeService stockTakeService;
     private final DiscountEngineService engine = new DiscountEngineService();
 
     /**
@@ -137,5 +138,29 @@ public class ItemController {
         r.setFreeIssueBuyQty(item.getFreeIssueBuyQty());
         r.setFreeIssueFreeQty(item.getFreeIssueFreeQty());
         return r;
+    }
+
+    /**
+     * What a physical count would do, before any of it is written.
+     *
+     * <p>Always read this first. The counted figure overwrites the system's, so there is
+     * no balance left afterwards to reveal a typo — this is the only point at which a 5
+     * typed where 50 was meant is still visible.
+     */
+    @PostMapping("/stock-take/preview")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.multi.finance.invoicing.dto.response.StockTakePreview> previewStockTake(
+            @Valid @RequestBody com.multi.finance.invoicing.dto.request.StockTakeRequest req) {
+        return ResponseEntity.ok(stockTakeService.preview(req));
+    }
+
+    /** Writes the count — one adjustment per item, all in one transaction. */
+    @PostMapping("/stock-take/apply")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.multi.finance.invoicing.dto.response.StockTakePreview> applyStockTake(
+            @Valid @RequestBody com.multi.finance.invoicing.dto.request.StockTakeRequest req,
+            java.security.Principal principal) {
+        return ResponseEntity.ok(
+                stockTakeService.apply(req, principal == null ? null : principal.getName()));
     }
 }

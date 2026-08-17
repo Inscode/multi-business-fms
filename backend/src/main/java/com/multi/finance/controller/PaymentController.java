@@ -25,6 +25,7 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentServiceImpl paymentService;
+    private final com.multi.finance.service.impl.LateCollectionService lateCollectionService;
 
     @PostMapping("/bills/{billId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT', 'SHOP_ACCOUNTANT')")
@@ -168,4 +169,25 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.searchByChequeNumber(chequeNumber));
     }
 
+
+    /**
+     * How long the money collected in a period took to arrive.
+     *
+     * <p>Banded against the three lines that matter: the 45 days stamped on the bill, the
+     * 60 where a customer becomes a problem, and the 70 the company itself is given to
+     * pay the principal. Past 70 the sale was funded out of its own cash, which is the
+     * number this report exists for.
+     */
+    @GetMapping("/late-collections")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT')")
+    public ResponseEntity<com.multi.finance.dto.response.LateCollectionReport> lateCollections(
+            @RequestParam(required = false) com.multi.finance.enums.BusinessType business,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso =
+                org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso =
+                org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(lateCollectionService.build(business, from, to));
+    }
 }

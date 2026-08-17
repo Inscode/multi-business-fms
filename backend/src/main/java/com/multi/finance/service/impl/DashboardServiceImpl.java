@@ -45,6 +45,7 @@ public class DashboardServiceImpl {
     private final BillRepository billRepository;
     private final PaymentRepository paymentRepository;
     private final BillReminderServiceImpl reminderService;
+    private final CustomerHealthService customerHealthService;
 
     private static final List<BillStatus> SHOP_STATUSES = List.of(
             BillStatus.SHOP_WORKER_ASSIGNED,
@@ -266,28 +267,42 @@ public class DashboardServiceImpl {
                 .toList();
     }
 
+    /**
+     * The customers worth being careful with, worst first.
+     *
+     * <p>Reads the same ratings as a customer's own record, so the dashboard and the
+     * record cannot say different things about the same shop. The score it used before —
+     * partials plus twice the returned cheques — had no time in it and no denominator,
+     * which put a customer of sixty bills and two late ones above one with two bills and
+     * a bounced cheque.
+     */
     private List<CustomerRiskEntry> buildRiskyCustomers(BusinessType business) {
-        Map<String, BigDecimal> outstandingByCustomer = billRepository
-                .sumOutstandingGroupedByCustomerName(business).stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        r -> (String) r[0],
-                        r -> toBigDecimal(r[1])));
-
-        return paymentRepository.findCustomerRiskRaw(business.name()).stream()
-                .map(r -> {
-                    String customerName = (String) r[0];
-                    int partialCount = toInt(r[2]);
-                    int returnedCount = toInt(r[3]);
+        return customerHealthService.forBusiness(business).stream()
+                // Only the ones there is something to say about. A list that includes
+                // everybody is a list nobody reads.
+                .filter(h -> !CustomerHealthService.GOOD.equals(h.getOverallRating()))
+                .map(h -> {
+                    var b = h.getBusinesses().stream()
+                            .filter(x -> business.name().equals(x.getBusiness()))
+                            .findFirst().orElse(null);
+                    if (b == null) return null;
                     return CustomerRiskEntry.builder()
-                            .customerName(customerName)
-                            .area((String) r[1])
-                            .partialCount(partialCount)
-                            .returnedCount(returnedCount)
-                            .currentOutstanding(outstandingByCustomer.getOrDefault(customerName, BigDecimal.ZERO))
-                            .riskScore(partialCount + returnedCount * 2)
+                            .customerId(h.getCustomerId())
+                            .customerName(h.getCustomerName())
+                            .area(h.getArea())
+                            .rating(b.getRating())
+                            .reasons(b.getReasons())
+                            .currentOutstanding(b.getCurrentOutstanding())
+                            .overdueAmount(b.getOverdueAmount())
+                            .oldestOpenDays(b.getOldestOpenDays())
+                            .avgDaysToSettle(b.getAvgDaysToSettleRecent() != null
+                                    ? b.getAvgDaysToSettleRecent() : b.getAvgDaysToSettle())
+                            .bouncedChequeCount(b.getBouncedChequeCount())
+                            .lastBouncedChequeDate(b.getLastBouncedChequeDate())
+                            .partialCount(b.getPartialPaymentCount())
                             .build();
                 })
-                .sorted(Comparator.comparingInt(CustomerRiskEntry::getRiskScore).reversed())
+                .filter(java.util.Objects::nonNull)
                 .limit(20)
                 .toList();
     }
