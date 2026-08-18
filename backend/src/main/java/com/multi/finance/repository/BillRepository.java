@@ -351,8 +351,18 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT b FROM Bill b WHERE b.deliveryRun IS NULL "
          + "AND b.status <> com.multi.finance.enums.BillStatus.CANCELLED "
          + "AND b.billDate BETWEEN :from AND :to "
+         // The lorry only goes where the run goes. Offering every unassigned bill in the
+         // fortnight put shops from other rounds in a list picked from by tapping, which
+         // is how a bill joins a lorry that never visited it.
+         //
+         // Gated on a flag rather than a null collection: Hibernate binds an IN list by
+         // expanding it, and a null there fails at bind time rather than reading as
+         // "no filter".
+         + "AND (:allAreas = TRUE OR UPPER(TRIM(b.area)) IN :areas) "
          + "ORDER BY b.billDate DESC, b.billNumber ASC")
-    List<Bill> findRunCandidates(@Param("from") java.time.LocalDate from,
+    List<Bill> findRunCandidates(@Param("allAreas") boolean allAreas,
+                                 @Param("areas") java.util.Collection<String> areas,
+                                 @Param("from") java.time.LocalDate from,
                                  @Param("to") java.time.LocalDate to);
 
     /** The bills whose money is collected on this one. */

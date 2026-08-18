@@ -654,3 +654,98 @@
 
   mat-icon { font-size: 16px; width: 16px; height: 16px; }
 }
+
+
+// ══ On a phone, beside the goods ═════════════════════════════════════════════
+//
+// A return is written up where the goods are — at the counter or by the lorry — not at
+// a desk afterwards, so the photograph is taken with the same hand holding the phone.
+// The layout below is for that, and the desktop form is left alone above it.
+@media (max-width: 700px) {
+
+  .page-header {
+    margin-bottom: 14px;
+    .page-title { font-size: 18px; }
+    .page-sub   { font-size: 12px; }
+  }
+
+  .form-card { padding: 12px; border-radius: 10px; }
+
+  .details-grid   { grid-template-columns: 1fr; }
+  .source-toggle  { grid-template-columns: 1fr; }
+
+  // ── The item table ────────────────────────────────────────────────────────
+  // Fixed columns totalling ~340px do not fit a phone. Each line becomes a small
+  // card instead: the name on its own row, and price, qty and total beneath it —
+  // shrinking the columns instead would leave a qty box too narrow to tap.
+  .items-header { display: none; }
+
+  .item-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "name   action"
+      "fields fields";
+    gap: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    border: 1px solid #e6eaf0;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .col-name   { grid-area: name; width: auto; }
+  .col-action { grid-area: action; width: auto; }
+
+  .col-price, .col-qty, .col-total {
+    grid-area: fields;
+    width: auto;
+  }
+
+  // The three number fields share one row under the name.
+  .item-row .col-price { grid-area: fields; justify-self: start;  width: 33%; }
+  .item-row .col-qty   { grid-area: fields; justify-self: center; width: 30%; }
+  .item-row .col-total { grid-area: fields; justify-self: end;    width: 30%; text-align: right; }
+
+  // ── The photograph ────────────────────────────────────────────────────────
+  // The one thing this screen exists to capture on a phone, so it is given the size
+  // of a real button rather than a dashed hint.
+  .photo-drop {
+    padding: 0 16px;
+    min-height: 62px;
+    flex-direction: row;
+    justify-content: center;
+    gap: 9px;
+    border: none;
+    border-radius: 12px;
+    background: #283593;
+    color: #fff;
+    -webkit-tap-highlight-color: transparent;
+
+    mat-icon { font-size: 23px; width: 23px; height: 23px; color: #fff; }
+    .pd-title { font-size: 14.5px; font-weight: 600; color: #fff; }
+    .pd-sub   { display: none; }
+
+    &:active { filter: brightness(.92); }
+  }
+
+  .photo-preview {
+    flex-direction: column;
+    img { width: 100%; height: 190px; }
+    .pp-side { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  // Full width and reachable: the submit is the end of a long form on a small screen,
+  // and a right-aligned pair of buttons is the easiest thing to miss on it.
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+    button { width: 100%; min-height: 46px; }
+  }
+
+  // 16px stops iOS zooming the page when a field takes focus, which on a long form
+  // means losing your place in it.
+  input.mat-mdc-input-element,
+  .item-input input { font-size: 16px; }
+}

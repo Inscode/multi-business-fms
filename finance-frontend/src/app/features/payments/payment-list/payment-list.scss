@@ -472,3 +472,100 @@
 
   mat-icon { font-size: 18px; width: 18px; height: 18px; }
 }
+
+
+// ══ On a phone ═══════════════════════════════════════════════════════════════
+//
+// Both tabs are wide tables of a kind that cannot simply be squeezed. The component
+// drops to five columns below this width; what is left here is making the filters, the
+// tab strip and the cheque panels usable with a thumb.
+@media (max-width: 700px) {
+
+  .page { max-width: 100%; padding: 0 2px; }
+
+  .page-header {
+    margin-bottom: 14px;
+    align-items: flex-start;
+
+    .page-title { font-size: 18px; }
+    .page-sub   { font-size: 12px; }
+    a { width: 100%; justify-content: center; }
+  }
+
+  // Two labels at full size do not fit, and Material starts scrolling the strip —
+  // which hides the second tab behind a gesture nobody knows is there.
+  .payment-tabs {
+    ::ng-deep .mat-mdc-tab-body-wrapper { padding-top: 18px; }
+    ::ng-deep .mat-mdc-tab { min-width: 0; padding: 0 10px; }
+    ::ng-deep .mdc-tab__text-label { font-size: 13px; }
+  }
+
+  // ── Filters ───────────────────────────────────────────────────────────────
+  // The fixed 260px and 180px widths overflow a 360px screen the moment two sit on
+  // one line, so they stack and fill instead.
+  .filters {
+    margin-bottom: 14px;
+
+    .search-field, .filter-field { width: 100%; }
+  }
+
+  .filters-row, .date-row, .cheque-search-row, .future-customer-search {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .date-field, .cheque-number-field, .customer-search-field {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .date-label { font-size: 12px; }
+
+  .toggle-all-btn, .future-cheques-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  // ── Tables ────────────────────────────────────────────────────────────────
+  // Five columns fit without scrolling; the min-width that forced 720px would put
+  // them back into a sideways scroll for no reason.
+  .table-scroll-wrap table,
+  .cheque-search-results table,
+  .future-table { min-width: 0; }
+
+  .table-card { border-radius: 8px !important; }
+
+  ::ng-deep .mat-mdc-header-cell,
+  ::ng-deep .mat-mdc-cell {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  ::ng-deep .mat-mdc-header-cell { font-size: 10.5px; }
+
+  // A row is tapped to act on it, so it gets the height of something meant to be
+  // tapped rather than the height of a line of text.
+  ::ng-deep .mat-mdc-row { min-height: 52px; }
+
+  .badge, .partial-tag, .worker-tag, .age-chip {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+
+  // ── Cheque panels ─────────────────────────────────────────────────────────
+  .cheque-results-header, .future-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .future-cheques-panel { padding: 10px; }
+  .future-summary { font-size: 12px; }
+
+  // 16px stops iOS zooming the page when a field takes focus, which on a tabbed
+  // screen means losing the tab you were on.
+  input.mat-mdc-input-element { font-size: 16px; }
+}

@@ -19,7 +19,14 @@
     <!-- Per-bill amounts -->
     <div class="bills-section" [formGroup]="form">
       <p class="section-label">Amount per bill</p>
-      <div class="bill-row" *ngFor="let bg of billForms.controls; let i = index" [formGroup]="$any(bg)">
+      <p class="photo-hint" *ngIf="!isAdminUser">
+        Each bill needs its own photo — they were signed separately, so one picture
+        cannot cover them all. Press Ctrl + V to paste onto the highlighted row; it moves
+        to the next one that needs a photo, so you can paste three in a row.
+      </p>
+      <div class="bill-row" *ngFor="let bg of billForms.controls; let i = index"
+           [formGroup]="$any(bg)" (click)="focusRow(i)"
+           [class.paste-target]="!isAdminUser && pasteRow === i && needsPhoto(i)">
         <div class="bill-info">
           <span class="bill-num">{{ data.bills[i].billNumber }}</span>
           <span class="bill-customer">{{ data.bills[i].customerName }}</span>
@@ -32,6 +39,44 @@
           <mat-error *ngIf="bg.get('amount')?.hasError('required')">Required</mat-error>
           <mat-error *ngIf="bg.get('amount')?.hasError('min')">Must be > 0</mat-error>
         </mat-form-field>
+
+        <!-- One photo per bill. Each was signed separately, so a picture of one is not
+             evidence for the others — and attaching to the wrong row is silent, which
+             is why the slot sits on the row rather than at the bottom of the form. -->
+        <div class="bill-photo" *ngIf="!isAdminUser">
+          <ng-container *ngIf="isCovered(i)">
+            <span class="bp-covered" [title]="coverage[i]?.sharedReason || ''">
+              <mat-icon>check_circle</mat-icon> On file
+            </span>
+          </ng-container>
+
+          <ng-container *ngIf="!isCovered(i)">
+            <img *ngIf="previews[i]" [src]="previews[i]" alt="Bill photo" class="bp-thumb">
+
+            <span class="bp-aim" *ngIf="pasteRow === i && needsPhoto(i)">
+              <mat-icon>content_paste</mat-icon> Ctrl+V
+            </span>
+
+            <label class="bp-btn" *ngIf="!bg.get('receiptImageUrl')?.value && !uploading[i]">
+              <mat-icon>photo_camera</mat-icon>
+              <span>Photo</span>
+              <input type="file" accept="image/*" capture="environment"
+                     (change)="onRowPicked(i, $event)" hidden>
+            </label>
+
+            <span class="bp-status" *ngIf="uploading[i]">
+              <mat-spinner diameter="14"></mat-spinner>
+            </span>
+
+            <button type="button" class="bp-clear"
+                    *ngIf="bg.get('receiptImageUrl')?.value && !uploading[i]"
+                    (click)="clearRowImage(i)" title="Replace this photo">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          </ng-container>
+
+          <span class="bp-error" *ngIf="rowError[i]">{{ rowError[i] }}</span>
+        </div>
       </div>
 
       <div class="total-row">

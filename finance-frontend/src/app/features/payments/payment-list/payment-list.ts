@@ -1,5 +1,5 @@
 ﻿import { CommonModule, DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -121,11 +121,48 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
   
   statuses = ['', 'ENTERED', 'CONFIRMED', 'REJECTED', 'RETURNED'];
 
-  displayedColumns = ['billNumber', 'customerName', 'amount',
+  /**
+   * Narrow enough that the tables have to lose columns rather than be scrolled to.
+   *
+   * <p>A nine-column table on a phone is 720px of sideways scrolling to read one row,
+   * with the bill number — the only thing identifying it — off screen by the third
+   * column. Fewer columns is worse at a desk and far better in a hand, so which set is
+   * used follows the width.
+   */
+  isNarrow = window.innerWidth <= 700;
+
+  @HostListener('window:resize')
+  onResize(): void {
+    const narrow = window.innerWidth <= 700;
+    if (narrow !== this.isNarrow) {
+      this.isNarrow = narrow;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private readonly allColumns = ['billNumber', 'customerName', 'amount',
                       'type', 'chequeAge', 'enteredBy', 'date', 'status', 'actions'];
 
-  chequeColumns = ['billNumber', 'customerName', 'chequeNumber', 'bank',
+  // Who paid, how much, where it stands, and what to do about it. Type, age, who
+  // entered it and when are all answers to questions nobody asks standing up.
+  private readonly narrowColumns = ['billNumber', 'customerName', 'amount',
+                      'status', 'actions'];
+
+  get displayedColumns(): string[] {
+    return this.isNarrow ? this.narrowColumns : this.allColumns;
+  }
+
+  private readonly allChequeColumns = ['billNumber', 'customerName', 'chequeNumber', 'bank',
                    'amount', 'billDate', 'chequeDate', 'when', 'chequeAge', 'status'];
+
+  // A cheque is chased by its number and its date; the bank and the bill dates are
+  // detail for when one is actually in dispute.
+  private readonly narrowChequeColumns = ['chequeNumber', 'customerName', 'amount',
+                   'chequeDate', 'status'];
+
+  get chequeColumns(): string[] {
+    return this.isNarrow ? this.narrowChequeColumns : this.allChequeColumns;
+  }
 
   // ── Cheque age (bill date → cheque date) ───────────────────────
   chequeBandFilter: 'ALL' | ChequeAgeBand = 'ALL';

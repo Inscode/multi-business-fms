@@ -103,7 +103,18 @@ public class PaymentServiceImpl {
         }
 
         guardOpenReturns(bill);
-        guardReceiptImage(caller, request.getReceiptImageUrl());
+
+        // A second instrument handed over in the same visit rides on the first
+        // photograph: both are written on the same page of the bill under one signature,
+        // and a second picture of it would be the same evidence filed twice.
+        ReceiptSource inherited = null;
+        if (blankToNull(request.getReceiptImageUrl()) == null && receiptRequiredOf(caller)) {
+            inherited = findExistingReceipt(bill, caller);
+        }
+        if (inherited == null) {
+            guardReceiptImage(caller, request.getReceiptImageUrl());
+        }
+        Payment sharedReceipt = inherited == null ? null : inherited.payment();
 
         // Balance is deducted immediately at entry time.
         // balanceRemaining already reflects all previously entered payments.
@@ -163,7 +174,10 @@ public class PaymentServiceImpl {
                 .collectionNote(collectionNote)
                 .collectedByWorker(collectedByWorker)
                 .collectorNote(request.getCollectorNote())
-                .receiptImageUrl(blankToNull(request.getReceiptImageUrl()))
+                .receiptImageUrl(inherited != null
+                        ? inherited.imageUrl()
+                        : blankToNull(request.getReceiptImageUrl()))
+                .receiptSharedFrom(sharedReceipt)
                 .receiptUploadedAt(blankToNull(request.getReceiptImageUrl()) != null
                         ? LocalDateTime.now() : null)
                 .createdAt(LocalDateTime.now())
@@ -411,14 +425,128 @@ public class PaymentServiceImpl {
      * the person the evidence would be shown to. They may still attach one.
      */
     private void guardReceiptImage(User caller, String imageUrl) {
-        boolean required = caller.getRole() == UserRole.ACCOUNTANT
-                        || caller.getRole() == UserRole.MAIN_ACCOUNTANT
-                        || caller.getRole() == UserRole.SHOP_ACCOUNTANT;
-        if (required && blankToNull(imageUrl) == null) {
-            throw new RuntimeException(
-                    "Attach a photo of the bill before entering this payment — it is the "
-                  + "record of what was collected.");
+        if (blankToNull(imageUrl) != null) return;
+        if (!receiptRequiredOf(caller)) return;
+        throw new RuntimeException(
+                "Attach a photo of the bill before entering this payment — it is the "
+              + "record of what was collected.");
+    }
+
+    private static boolean receiptRequiredOf(User caller) {
+        return caller.getRole() == UserRole.ACCOUNTANT
+            || caller.getRole() == UserRole.MAIN_ACCOUNTANT
+            || caller.getRole() == UserRole.SHOP_ACCOUNTANT;
+    }
+
+    /**
+     * How long a photograph can cover a second payment on the same bill.
+     *
+     * <p>Three hours. A customer settling with two cheques does it in one handover, and
+     * both go on the same page of the bill under one signature — but the accountant is
+     * out on a round, and the gap between writing the first and sitting down to enter
+     * the second is measured in interruptions rather than minutes. An hour is tight
+     * enough to fail on an ordinary afternoon.
+     *
+     * <p>It stops well short of a day because a cheque handed over tomorrow is a
+     * different event on a different page, and no photograph of today's bill is evidence
+     * of it. The same-day rule below closes the rest of the gap.
+     */
+    private static final int SHARED_RECEIPT_HOURS = 3;
+
+    /**
+     * A photograph already taken for this bill that a new payment can rest on.
+     *
+     * @param imageUrl what to copy onto the payment
+     * @param payment  the earlier payment it came from, if that is the source
+     * @param reason   what to tell the person entering, in their words not the system's
+     */
+    private record ReceiptSource(String imageUrl, Payment payment, String reason) {}
+
+    /**
+     * Where a payment's photograph can come from other than the person entering it.
+     *
+     * <p>Two cases, and both are about not asking twice for the same picture:
+     *
+     * <ul>
+     *   <li>The admin or owner already photographed the bill when marking the collection.
+     *       That note is sitting there waiting to be entered, so the accountant entering
+     *       it is looking at evidence that already exists.
+     *   <li>A second instrument handed over in the same visit, covered below.
+     * </ul>
+     */
+    private ReceiptSource findExistingReceipt(Bill bill, User caller) {
+        // The collection note first: it is the stronger evidence of the two, taken by
+        // whoever actually received the money.
+        CollectionNote note = collectionNoteRepository
+                .findByBillIdAndStatus(bill.getId(), CollectionNoteStatus.PENDING).stream()
+                .filter(n -> n.getReceiptImageUrl() != null && !n.getReceiptImageUrl().isBlank())
+                .findFirst()
+                .orElse(null);
+        if (note != null) {
+            return new ReceiptSource(note.getReceiptImageUrl(), null,
+                    "Already photographed when this collection was marked.");
         }
+
+        Payment earlier = findShareableReceipt(bill, caller);
+        if (earlier != null) {
+            return new ReceiptSource(earlier.getReceiptImageUrl(), earlier,
+                    "Covered by the photo on the Rs " + earlier.getAmount().toPlainString()
+                  + " payment you entered earlier — both are on the same page of the bill.");
+        }
+        return null;
+    }
+
+    /**
+     * The photograph a second payment can rest on, if there is one.
+     *
+     * <p>Deliberately narrow. It must be the same bill, entered by the same person,
+     * within {@value #SHARED_RECEIPT_HOURS} hours, on the same calendar day, and the
+     * earlier payment must carry a photograph of its own rather than an inherited one.
+     * Loosen any of those and the exception stops describing one handover: a different
+     * accountant did not see what this one saw, a chained inheritance walks a morning
+     * photo into the evening, and a payment either side of midnight is two days' work
+     * however few hours separate them.
+     */
+    private Payment findShareableReceipt(Bill bill, User caller) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime since = now.minusHours(SHARED_RECEIPT_HOURS);
+        return paymentRepository
+                .findRecentWithReceiptForBill(bill.getId(), caller.getId(), since).stream()
+                .filter(p -> p.getCreatedAt() != null)
+                .filter(p -> p.getCreatedAt().toLocalDate().equals(now.toLocalDate()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * What the entry screen needs to know before it asks for a photograph.
+     *
+     * <p>Read before the form is filled in, so an accountant entering the second of two
+     * cheques is told the first photograph already covers it rather than being stopped
+     * at the end for a picture of a page they have put away.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> receiptRequirement(Long billId) {
+        User caller = getCurrentUser();
+        Bill bill = billRepository.findById(billId)
+                .orElseThrow(() -> new RuntimeException("Bill not found"));
+
+        java.util.Map<String, Object> out = new java.util.HashMap<>();
+        out.put("required", receiptRequiredOf(caller));
+        out.put("windowHours", SHARED_RECEIPT_HOURS);
+
+        ReceiptSource source = receiptRequiredOf(caller) ? findExistingReceipt(bill, caller) : null;
+        out.put("canShare", source != null);
+        if (source != null) {
+            out.put("sharedImageUrl", source.imageUrl());
+            out.put("sharedReason", source.reason());
+            if (source.payment() != null) {
+                out.put("sharedFromPaymentId", source.payment().getId());
+                out.put("sharedFromAmount", source.payment().getAmount());
+                out.put("sharedFromAt", source.payment().getCreatedAt());
+            }
+        }
+        return out;
     }
 
     private String blankToNull(String s) {
@@ -622,9 +750,30 @@ public class PaymentServiceImpl {
 
             boolean isPartial = item.getAmount().compareTo(bill.getBalanceRemaining()) < 0;
 
+            // Each bill needs its own photograph: they are separate pieces of paper,
+            // signed separately, and one cheque covering three of them does not make one
+            // picture evidence for all three.
+            ReceiptSource inherited = null;
+            if (blankToNull(item.getReceiptImageUrl()) == null && receiptRequiredOf(currentUser)) {
+                inherited = findExistingReceipt(bill, currentUser);
+                if (inherited == null) {
+                    throw new RuntimeException(
+                            "Attach a photo of bill " + bill.getBillNumber()
+                          + " — each bill in a combined payment needs its own, since each "
+                          + "was signed separately.");
+                }
+            }
+
             return Payment.builder()
                     .bill(bill)
                     .group(group)
+                    .receiptImageUrl(inherited != null
+                            ? inherited.imageUrl()
+                            : blankToNull(item.getReceiptImageUrl()))
+                    .receiptUploadedAt(
+                            inherited != null || blankToNull(item.getReceiptImageUrl()) != null
+                                    ? LocalDateTime.now() : null)
+                    .receiptSharedFrom(inherited == null ? null : inherited.payment())
                     .amount(item.getAmount())
                     .paymentType(request.getPaymentType())
                     .status(autoConfirm ? PaymentStatus.CONFIRMED : PaymentStatus.ENTERED)
@@ -830,6 +979,8 @@ public class PaymentServiceImpl {
                 // Both roles see both images: the accountant's evidence and the admin's
                 // check are only useful if each can see what the other recorded.
                 .receiptImageUrl(payment.getReceiptImageUrl())
+                .receiptSharedFromPaymentId(payment.getReceiptSharedFrom() != null
+                        ? payment.getReceiptSharedFrom().getId() : null)
                 .receiptUploadedAt(payment.getReceiptUploadedAt())
                 .confirmImageUrl(payment.getConfirmImageUrl())
                 .confirmUploadedAt(payment.getConfirmUploadedAt())

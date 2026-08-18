@@ -52,6 +52,9 @@ public class PaymentResponse {
 
     /** Photo of the bill taken when the payment was entered. */
     private String receiptImageUrl;
+
+    /** Set when this payment rests on a photograph taken for an earlier one. */
+    private Long receiptSharedFromPaymentId;
     private java.time.LocalDateTime receiptUploadedAt;
 
     /** The admin's own photo, attached on confirmation. Optional. */

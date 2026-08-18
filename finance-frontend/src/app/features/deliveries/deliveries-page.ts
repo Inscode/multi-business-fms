@@ -283,9 +283,12 @@ export class DeliveriesPage implements OnInit {
     this.candidateSearch = '';
     this.loadingCandidates = true;
     this.cdr.markForCheck();
+    // detectChanges, not markForCheck: the list arrives from outside anything the app
+    // is already re-rendering, and marking alone left it sitting invisible until some
+    // unrelated tap happened to trigger a pass.
     this.api.candidates(this.selected.id).subscribe({
-      next: (c) => { this.candidates = c; this.loadingCandidates = false; this.cdr.markForCheck(); },
-      error: () => { this.loadingCandidates = false; this.cdr.markForCheck(); },
+      next: (c) => { this.candidates = c; this.loadingCandidates = false; this.cdr.detectChanges(); },
+      error: () => { this.loadingCandidates = false; this.cdr.detectChanges(); },
     });
   }
 

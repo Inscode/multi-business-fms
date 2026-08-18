@@ -165,14 +165,43 @@
       </div>
 
       <div class="receipt-block">
-        @if (!receiptPreview) {
+
+        <!-- A photograph of this bill already exists: the admin took one when marking
+             the collection, or it was taken for the first of two instruments handed
+             over together. Asking again would produce the same picture twice. -->
+        @if (alreadyCovered) {
+          <div class="receipt-covered">
+            <img [src]="coverage?.sharedImageUrl" alt="Photo already on file"
+                 (click)="viewCovered()">
+            <div class="rc-side">
+              <strong><mat-icon>check_circle</mat-icon> Already photographed</strong>
+              <span>{{ coverage?.sharedReason }}</span>
+              <span class="rc-hint">
+                No photo needed. Attach another only if this payment is written
+                somewhere else.
+              </span>
+              <label class="rc-replace">
+                <mat-icon>add_a_photo</mat-icon> Attach a different photo
+                <input type="file" accept="image/*" capture="environment"
+                       (change)="onReceiptPicked($event)" hidden>
+              </label>
+            </div>
+          </div>
+        } @else if (!receiptPreview) {
           <label class="receipt-drop" [class.required]="imageRequired && !receiptUrl">
             <mat-icon>photo_camera</mat-icon>
-            <span class="rd-title">Take or choose a photo of the bill</span>
+            <span class="rd-title">Take, choose, or paste a photo of the bill</span>
             <span class="rd-sub">
               {{ imageRequired
                   ? 'Required — this is the record of what was collected'
                   : 'Optional for admin' }}
+            </span>
+            <!-- A screenshot in the clipboard is the common case on a desktop: saving
+                 it to disk to pick it back up is three steps to move an image already
+                 in hand. -->
+            <span class="rd-paste">
+              <mat-icon>content_paste</mat-icon>
+              or just press Ctrl + V — no need to click here first
             </span>
             <!-- capture asks the phone for the camera directly, rather than the
                  gallery, which is what an accountant standing at the counter wants. -->

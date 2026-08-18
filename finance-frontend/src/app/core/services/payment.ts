@@ -64,6 +64,11 @@ export interface PaymentRequest {
 export interface BulkPaymentBillItem {
   billId: number;
   amount: number;
+  /**
+   * Photo of this bill. Per bill, not per payment: one cheque may settle three bills,
+   * but the three are separate pieces of paper signed separately.
+   */
+  receiptImageUrl?: string | null;
 }
 
 export interface BulkPaymentRequest {
@@ -96,6 +101,28 @@ export interface PaymentGroupResponse {
   returnReason?: string;
   createdAt: string;
   payments: PaymentResponse[];
+}
+
+/**
+ * Whether a bill still needs a photograph, and what already covers it if not.
+ *
+ * A photo the admin took when marking the collection, or one taken for an earlier
+ * payment in the same handover, is evidence that already exists — asking again would
+ * just produce the same picture twice.
+ */
+export interface ReceiptRequirement {
+  /** Whether this user is asked for a photo at all. */
+  required: boolean;
+  /** Whether something already covers this bill. */
+  canShare: boolean;
+  /** How long a photo can cover a follow-up payment, in hours. */
+  windowHours: number;
+  sharedImageUrl?: string;
+  /** Why it is covered, in words meant for the person entering. */
+  sharedReason?: string;
+  sharedFromPaymentId?: number;
+  sharedFromAmount?: number;
+  sharedFromAt?: string;
 }
 
 @Injectable({
@@ -194,5 +221,11 @@ export class Payment {
     return this.http.get<PaymentResponse[]>(`${this.apiUrl}/cheque-search`, {
       params: { chequeNumber },
     });
+  }
+
+  /** Read before the form is filled in, not after it is submitted. */
+  getReceiptRequirement(billId: number): Observable<ReceiptRequirement> {
+    return this.http.get<ReceiptRequirement>(
+      `${this.apiUrl}/receipt-requirement/${billId}`);
   }
 }
