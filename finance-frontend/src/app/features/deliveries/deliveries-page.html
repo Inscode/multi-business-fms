@@ -302,7 +302,10 @@
               <div class="add-panel">
                 <div class="ap-head">
                   <strong>Add bills to this run</strong>
-                  <span>Bills on no other round, dated within two weeks of it</span>
+                  <span>
+                    Unassigned bills in {{ selected.areaName }}, dated within two weeks of
+                    this run
+                  </span>
                   <button mat-icon-button (click)="showAdd = false"><mat-icon>close</mat-icon></button>
                 </div>
 
@@ -322,8 +325,9 @@
                   <div class="loading"><mat-spinner diameter="24"></mat-spinner></div>
                 } @else if (shownCandidates.length === 0) {
                   <div class="ap-empty">
-                    No unassigned bills near this date. Every bill in that window already
-                    belongs to a round.
+                    No unassigned bills in {{ selected.areaName }} near this date — every one
+                    already belongs to a round. Bills from other areas are not offered,
+                    since this lorry does not go there.
                   </div>
                 } @else {
                   <div class="ap-list">
@@ -337,6 +341,12 @@
                         <span class="ap-area">{{ b.area || '—' }}</span>
                         <span class="ap-date">{{ b.billDate }}</span>
                         <span class="ap-amt">Rs {{ b.totalAmount | number:'1.0-0' }}</span>
+                        <!-- On a phone the hidden columns fold into one line under the
+                             name, so a bill can still be told apart without them. -->
+                        <span class="ap-meta">
+                          {{ b.business }} · {{ b.area || 'no area' }} ·
+                          {{ b.billDate | date:'dd MMM' }}
+                        </span>
                       </label>
                     }
                   </div>
@@ -380,6 +390,10 @@
                         </div>
                       }
 
+                      <!-- Two shapes of the same control. On a desktop it sits among
+                           the thumbnails as another tile; on a phone it becomes a wide
+                           button, because this is used one-handed beside a lorry and a
+                           76px dashed square is not a target you can hit there. -->
                       <label class="page-add" [class.busy]="uploadingPage === type">
                         @if (uploadingPage === type) {
                           <mat-spinner diameter="18"></mat-spinner>
@@ -393,6 +407,19 @@
                                (change)="onPagePicked($event, type)" hidden>
                       </label>
                     </div>
+
+                    <label class="capture-btn" [class.busy]="uploadingPage === type"
+                           [class.damage]="type === 'DAMAGE'">
+                      @if (uploadingPage === type) {
+                        <mat-spinner diameter="20"></mat-spinner>
+                        <span>Uploading…</span>
+                      } @else {
+                        <mat-icon>photo_camera</mat-icon>
+                        <span>Photograph {{ type === 'DAMAGE' ? 'damage' : 'salable' }} pages</span>
+                      }
+                      <input type="file" accept="image/*" capture="environment" multiple
+                             (change)="onPagePicked($event, type)" hidden>
+                    </label>
                   </div>
                 }
               </div>

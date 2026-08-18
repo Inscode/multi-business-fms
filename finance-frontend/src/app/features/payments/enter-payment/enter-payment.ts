@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
@@ -14,6 +14,7 @@ import { Bill } from '../../../core/services/bill';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
 import { compressImage, describeSaving } from '../../../core/utils/image-compress';
+import { ReceiptRequirement } from '../../../core/services/payment';
 import { Router } from '@angular/router';
 import { BANKS, AREAS } from '../../../core/constants/payment-options';
 import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel } from '../../../core/utils/cheque-age';
@@ -124,6 +125,7 @@ export class EnterPayment implements OnInit {
     const preselected = history.state?.preselectedBill;
     if (preselected) {
       this.selectedBill = preselected;
+      if (preselected?.id) this.loadCoverage(preselected.id);
       this.onBillSelect(preselected);
     }
 
@@ -166,6 +168,7 @@ export class EnterPayment implements OnInit {
 
   onBillSelect(bill: any): void {
     this.selectedBill = bill;
+    if (bill?.id) this.loadCoverage(bill.id);
     const maxAmount = bill.balanceRemaining;
     this.form.get('amount')?.setValidators([
       Validators.required,
@@ -250,17 +253,71 @@ export class EnterPayment implements OnInit {
     return r === 'ADMIN' || r === 'OWNER';
   }
 
-  /** Everyone but an admin has to attach one. */
-  get imageRequired(): boolean { return !this.isAdminUser; }
+  /**
+   * What already covers this bill, if anything.
+   *
+   * <p>Looked up when the bill is chosen rather than checked on submit: being told at
+   * the end that a photo is needed, of a page already put away, is the failure this is
+   * meant to prevent.
+   */
+  coverage: ReceiptRequirement | null = null;
+
+  /** True when a photo exists already and none needs taking. */
+  get alreadyCovered(): boolean {
+    return !!this.coverage?.canShare && !this.receiptUrl;
+  }
+
+  /** Everyone but an admin has to attach one, unless one already covers it. */
+  get imageRequired(): boolean { return !this.isAdminUser && !this.alreadyCovered; }
+
+  private loadCoverage(billId: number): void {
+    this.coverage = null;
+    this.paymentService.getReceiptRequirement(billId).subscribe({
+      next: (r) => { this.coverage = r; this.cdr?.markForCheck?.(); },
+      // A failed lookup must not let a payment through unphotographed, so nothing is
+      // assumed covered — the server checks again on save regardless.
+      error: () => { this.coverage = null; this.cdr?.markForCheck?.(); },
+    });
+  }
+
+  /**
+   * Accepts a screenshot pasted straight from the clipboard.
+   *
+   * <p>The bill arrives as a photo in a chat message more often than as a piece of
+   * paper. Saving it to disk first, finding it in a file picker and uploading it is
+   * three steps to move an image that is already in hand.
+   *
+   * <p>Bound to the document, not to the drop zone. A paste event only reaches the
+   * focused element, and the zone is a label nobody thinks to click first — requiring
+   * that would make the shortcut fail silently the first time everyone tries it. There
+   * is one photo slot on this screen, so pasting anywhere can only mean this one.
+   */
+  @HostListener('document:paste', ['$event'])
+  onPaste(e: ClipboardEvent): void {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      e.preventDefault();
+      this.acceptImage(file);
+      return;
+    }
+  }
 
   onReceiptPicked(e: Event): void {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     input.value = '';
-    if (!file) return;
+    if (file) this.acceptImage(file);
+  }
 
+  /** One path for both the file picker and a pasted screenshot. */
+  private acceptImage(file: File): void {
     if (!file.type.startsWith('image/')) {
       this.imageError = 'That is not an image — take a photo of the bill.';
+      this.cdr?.markForCheck?.();
       return;
     }
 
@@ -286,6 +343,12 @@ export class EnterPayment implements OnInit {
         },
       });
     });
+  }
+
+  /** Opens the photo already on file, full size. */
+  viewCovered(): void {
+    const url = this.coverage?.sharedImageUrl;
+    if (url) window.open(url, '_blank', 'noopener');
   }
 
   clearReceipt(): void {

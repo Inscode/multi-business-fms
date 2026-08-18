@@ -27,5 +27,8 @@ public class PaymentSummaryResponse {
      * appeared, even though the payment carried one.
      */
     private String receiptImageUrl;
+
+    /** Set when this payment rests on a photograph taken for an earlier one. */
+    private Long receiptSharedFromPaymentId;
     private String confirmImageUrl;
 }

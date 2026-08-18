@@ -159,4 +159,25 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
            "AND LOWER(p.chequeNumber) LIKE LOWER(CONCAT('%', CAST(:chequeNumber AS string), '%')) " +
            "ORDER BY p.chequeDate ASC NULLS LAST")
     List<Payment> findByChequeNumberContaining(@Param("chequeNumber") String chequeNumber);
+
+    /**
+     * The most recent payment on a bill that carries its own photograph, entered by a
+     * given person since a cut-off — the candidate for a second instrument handed over
+     * in the same visit.
+     *
+     * <p>Its own photograph, not an inherited one: chaining would let a photo taken at
+     * nine in the morning cover a payment at four in the afternoon, one two-hour hop at
+     * a time.
+     */
+    @Query("SELECT p FROM Payment p "
+         + "WHERE p.bill.id = :billId "
+         + "AND p.receiptImageUrl IS NOT NULL "
+         + "AND p.receiptSharedFrom IS NULL "
+         + "AND p.enteredBy.id = :userId "
+         + "AND p.createdAt >= :since "
+         + "AND p.status <> com.multi.finance.enums.PaymentStatus.REJECTED "
+         + "ORDER BY p.createdAt DESC")
+    List<Payment> findRecentWithReceiptForBill(@Param("billId") Long billId,
+                                               @Param("userId") Long userId,
+                                               @Param("since") java.time.LocalDateTime since);
 }

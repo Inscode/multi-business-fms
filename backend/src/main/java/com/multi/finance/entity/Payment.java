@@ -89,6 +89,21 @@ public class Payment {
     private LocalDateTime receiptUploadedAt;
 
     /**
+     * The earlier payment this one's photograph was taken for.
+     *
+     * <p>Set when a customer settles a bill with two instruments in the same visit. Both
+     * are written on the same page under one signature and one photograph shows both;
+     * asking for a second would produce the same picture filed twice.
+     *
+     * <p>The URL itself is copied onto this payment, so every screen that shows a receipt
+     * keeps working. This only records where the copy came from, which is what lets an
+     * admin see that two payments rest on one photograph.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receipt_shared_from_payment_id")
+    private Payment receiptSharedFrom;
+
+    /**
      * The admin's own photograph, taken on confirmation. Optional and deliberately
      * separate: one records what the accountant saw, the other what the admin saw.
      */

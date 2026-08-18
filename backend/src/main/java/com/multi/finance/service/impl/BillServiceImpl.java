@@ -1057,7 +1057,25 @@ public class BillServiceImpl {
         return list.stream().map(fn).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private int gapScanStart(BillSource source) {
+    /**
+     * Where the gap scan starts for a series.
+     *
+     * <p>Each series was already running long before it was kept here, so a scan from
+     * one reports every number issued in the years before as missing. The report is read
+     * to chase bills nobody entered, and a list of thousands that were never going to be
+     * in it is a list nobody reads.
+     *
+     * <p>These are the first numbers actually entered, per business and per series, and
+     * they have to be given rather than derived: taking the lowest number present would
+     * move the floor every time the earliest bill was corrected or deleted, quietly
+     * hiding real gaps at the bottom of the range.
+     */
+    private int gapScanStart(BusinessType business, BillSource source) {
+        // Plastic's own system series is short and recent; Rainco's SYS numbers are in
+        // the thirteen thousands, and scanning plastic from there finds nothing at all.
+        if (business == BusinessType.PLASTIC && source == BillSource.SYSTEM) {
+            return 273;
+        }
         return switch (source) {
             case SYSTEM -> 13200;
             case MANUAL -> 300;
@@ -1080,7 +1098,7 @@ public class BillServiceImpl {
         for (Map.Entry<BillSource, List<Bill>> entry : bySource.entrySet()) {
             BillSource source = entry.getKey();
             List<Bill> sourceBills = entry.getValue();
-            int minStart = gapScanStart(source);
+            int minStart = gapScanStart(business, source);
 
             String prefix = "";
             int maxPadding = 0;

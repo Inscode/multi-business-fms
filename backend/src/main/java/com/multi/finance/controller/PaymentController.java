@@ -190,4 +190,16 @@ public class PaymentController {
                 org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(lateCollectionService.build(business, from, to));
     }
+
+    /**
+     * Whether this bill still needs a photograph, and what already covers it.
+     *
+     * <p>Read before the form is filled in. An accountant entering the second of two
+     * cheques, or one the admin already photographed, should be told so up front rather
+     * than stopped at the end for a picture of a page they have put away.
+     */
+    @GetMapping("/receipt-requirement/{billId}")
+    public ResponseEntity<Map<String, Object>> receiptRequirement(@PathVariable Long billId) {
+        return ResponseEntity.ok(paymentService.receiptRequirement(billId));
+    }
 }

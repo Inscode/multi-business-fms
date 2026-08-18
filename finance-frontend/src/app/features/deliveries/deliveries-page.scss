@@ -378,6 +378,9 @@
   &.busy  { cursor: default; }
 }
 
+// Only worth showing where the small tile is not a usable target.
+.capture-btn { display: none; }
+
 @media (max-width: 700px) {
   .book-cols { grid-template-columns: 1fr; }
 }
@@ -523,9 +526,247 @@
 
 .ap-empty { padding: 18px; font-size: 12.5px; color: #90a4ae; text-align: center; }
 
+// The meta line only exists where the columns do not.
+.ap-meta { display: none; }
+
 @media (max-width: 900px) {
+  // Two lines, not three columns. The previous rule hid three of the seven cells but
+  // left four items in a three-column grid, so the amount wrapped onto a line of its
+  // own at the far left — which is what made the list unreadable on a phone.
   .ap-row {
-    grid-template-columns: 24px 1fr auto;
-    .ap-biz, .ap-area, .ap-date { display: none; }
+    grid-template-columns: 26px 1fr auto;
+    grid-template-areas:
+      "check num  amt"
+      ".     cust cust"
+      ".     meta meta";
+    gap: 2px 10px;
+    padding: 11px 12px;
+    align-items: center;
+  }
+
+  .ap-row input[type="checkbox"] {
+    grid-area: check;
+    // A phone checkbox at its default size is a poor target when the row beside it is
+    // the thing being aimed at.
+    width: 20px;
+    height: 20px;
+  }
+
+  .ap-num  { grid-area: num; font-size: 13.5px; }
+  .ap-amt  { grid-area: amt; font-size: 13px; text-align: right; white-space: nowrap; }
+  .ap-cust {
+    grid-area: cust;
+    font-size: 12.5px;
+    color: #455a64;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ap-biz, .ap-area, .ap-date { display: none; }
+
+  .ap-meta {
+    display: block;
+    grid-area: meta;
+    font-size: 11px;
+    color: #90a4ae;
+  }
+}
+
+
+// ══ At the lorry ═════════════════════════════════════════════════════════════
+//
+// This page is read at a desk for most of the month and once beside a parked lorry
+// with a phone in one hand, and the second use is the one that decides the layout
+// below. Standing there, only two things matter: which round is open, and getting the
+// book pages photographed into the right bucket. Everything else can wait for the desk.
+@media (max-width: 700px) {
+
+  // Nothing here may widen the viewport. Anything that needs more room scrolls inside
+  // its own box, so a single wide element cannot push the header off the screen.
+  .page {
+    padding: 12px 10px 28px;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .split, .detail-col, .runs-col { min-width: 0; max-width: 100%; }
+
+  .page-header {
+    margin-bottom: 12px;
+    .page-title { font-size: 18px; }
+    .page-sub   { font-size: 12px; }
+    .header-actions { width: 100%; button, a { flex: 1; } }
+  }
+
+  .card { padding: 12px; border-radius: 10px; margin-bottom: 12px; }
+
+  // The book first. At the lorry it is the whole reason the page is open, and pushing
+  // it under the bill table means scrolling past forty rows to reach a camera button.
+  .detail-col .card {
+    display: flex;
+    flex-direction: column;
+
+    // Without this the bill table — far wider than a phone — stretches the flex
+    // container to its own width, and the whole page scrolls sideways with every
+    // heading and button cut off at the edge. Flex items are min-width:auto by
+    // default, which means "never shrink below your content"; the table has to be
+    // told it may.
+    > * { min-width: 0; max-width: 100%; }
+  }
+
+  .detail-head  { order: 0; }
+  .book         { order: 1; margin-top: 4px; }
+  .tallies      { order: 2; }
+  .breakdown    { order: 3; }
+  .table-wrap, .detail-actions, .empty-state { order: 4; }
+
+  .book-col {
+    padding: 12px;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .book, .book-cols { max-width: 100%; }
+
+  .bc-head strong { font-size: 14px; }
+
+  // The desktop tile is unreachable one-handed; the wide button replaces it.
+  .page-add { display: none; }
+
+  .capture-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    // Without this, width:100% is measured before the 14px of side padding is added,
+    // so the button ends up 28px wider than the column and hangs over its right edge.
+    box-sizing: border-box;
+    // Comfortably past the 44px that a thumb actually needs, because this is pressed
+    // while holding a book of pages in the other hand.
+    min-height: 54px;
+    margin-top: 10px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 10px;
+    background: #2e7d32;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    mat-icon { font-size: 21px; width: 21px; height: 21px; }
+
+    // Damage is claimed off the agent rather than resold, and the two buckets must not
+    // be confused when the photos are taken minutes apart.
+    &.damage { background: #c62828; }
+
+    &:active { filter: brightness(.92); }
+    &.busy   { background: #78909c; cursor: default; }
+
+    ::ng-deep .mat-mdc-progress-spinner circle { stroke: #fff; }
+  }
+
+  // Bigger, and two to a row rather than four, so a page can be read without opening it.
+  .pages { gap: 10px; }
+
+  .page-thumb {
+    width: calc(50% - 5px);
+    height: 108px;
+
+    img { border-radius: 8px; }
+
+    // A 20px circle is not a target on glass; hit area doubled without growing the dot.
+    .pg-del {
+      top: 4px;
+      right: 4px;
+      width: 30px;
+      height: 30px;
+      background: rgba(198, 40, 40, .92);
+      mat-icon { font-size: 17px; width: 17px; height: 17px; }
+    }
+
+    .pg-no { font-size: 11px; padding: 1px 6px; }
+  }
+
+  // ── Everything else, made to fit ──────────────────────────────────────────
+  .filter-bar {
+    gap: 8px;
+    mat-form-field { flex: 1 1 140px; min-width: 0; }
+  }
+
+  .tallies { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+  .detail-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .detail-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    button { flex: 1 1 45%; }
+  }
+
+  // The bill list is reference at the lorry, not the task. It scrolls sideways inside
+  // its own box rather than widening the page — kept a real table, since display:block
+  // on one abandons the column alignment that makes it readable at all.
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .run-table {
+    width: auto;
+    min-width: 100%;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .route-chip { padding: 8px 14px; font-size: 13px; }
+
+  // 16px stops iOS zooming the whole page when a field takes focus, which on this
+  // screen means losing the run you were looking at.
+  input.mat-mdc-input-element { font-size: 16px; }
+}
+
+
+// ── Adding bills, on a phone ─────────────────────────────────────────────────
+@media (max-width: 700px) {
+
+  .add-panel { max-width: 100%; box-sizing: border-box; }
+
+  .ap-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 2px;
+
+    strong { flex: 1; font-size: 14px; }
+    // The explanation goes under the title rather than squeezing between it and the
+    // close button, where it had about forty pixels to say two lines in.
+    span { flex: 0 0 100%; order: 3; font-size: 11.5px; line-height: 1.5; }
+    button { order: 2; margin: -6px -6px 0 0; }
+  }
+
+  .ap-tools {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    .ap-search { max-width: none; }
+    button { min-height: 42px; }
+  }
+
+  // Taller, since it is the whole task while it is open, and a 300px window on a phone
+  // shows three bills at a time.
+  .ap-list { max-height: 46vh; }
+
+  .ap-actions {
+    flex-direction: column-reverse;
+    button { width: 100%; min-height: 46px; }
   }
 }

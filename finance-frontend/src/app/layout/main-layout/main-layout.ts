@@ -149,6 +149,15 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   get showBills(): boolean          { return !this.isShopAccountant; }
   get showInvoicing(): boolean      { return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showPayments(): boolean       { return !this.isShopAccountant; }
+
+  /**
+   * Whether the bottom bar's third slot is Admin rather than Payments.
+   *
+   * <p>Only four slots fit on a phone, so the third goes to whatever that role opens
+   * most. An admin lives in Admin and reaches payments from a bill or from the drawer;
+   * an accountant enters payments all day. Payments is still one tap away under More.
+   */
+  get showAdminTab(): boolean       { return this.currentRole === 'ADMIN'; }
   get showStaff(): boolean          { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showUsers(): boolean          { return this.currentRole === 'ADMIN'; }
   get showCollect(): boolean        { return this.currentRole === 'OWNER'; }

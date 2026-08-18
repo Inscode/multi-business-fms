@@ -201,8 +201,22 @@ public class DeliveryRunServiceImpl {
         LocalDate from = run.getPlannedDate().minusDays(14);
         LocalDate to   = run.getPlannedDate().plusDays(14);
 
-        return billRepository.findRunCandidates(from, to).stream()
-                .map(this::billRow).toList();
+        // Only where this lorry actually went. Without it the list was every unassigned
+        // bill in the fortnight, across every round — long enough to be slow, and mixed
+        // enough that picking from it by tapping put shops on a lorry that never
+        // visited them.
+        java.util.Set<String> areas = run.getAreas() == null ? java.util.Set.of()
+                : run.getAreas().stream()
+                     .map(a -> a.getName() == null ? null : a.getName().trim().toUpperCase())
+                     .filter(java.util.Objects::nonNull)
+                     .collect(java.util.stream.Collectors.toSet());
+
+        // A run with no areas recorded is older than multi-area runs; narrowing it to
+        // nothing would hide every bill it could ever want, so it falls back to all.
+        boolean allAreas = areas.isEmpty();
+        return billRepository
+                .findRunCandidates(allAreas, allAreas ? java.util.Set.of("") : areas, from, to)
+                .stream().map(this::billRow).toList();
     }
 
     /**

@@ -382,6 +382,8 @@ public class DashboardServiceImpl {
                         ? p.getCollectedByWorker().getFullName() : null)
                 .collectorNote(p.getCollectorNote())
                 .receiptImageUrl(p.getReceiptImageUrl())
+                .receiptSharedFromPaymentId(p.getReceiptSharedFrom() != null
+                        ? p.getReceiptSharedFrom().getId() : null)
                 .confirmImageUrl(p.getConfirmImageUrl())
                 .build();
     }
