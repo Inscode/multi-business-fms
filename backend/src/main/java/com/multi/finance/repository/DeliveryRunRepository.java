@@ -29,13 +29,19 @@ public interface DeliveryRunRepository extends JpaRepository<DeliveryRun, Long> 
     List<DeliveryRun> findByMonth(@Param("month") LocalDate month);
 
     /**
-     * The run this accountant is currently entering bills into. One person enters them
-     * all, so the newest open run they opened is the one the create-bill screen sticks
-     * to.
+     * The run bills are currently being entered into, whoever opened it.
+     *
+     * <p>A lorry is loading whether or not the person at the screen is the one who said
+     * so. Scoped to the opener at first, on the grounds that one accountant enters them
+     * all — but an admin entering a bill then saw no run at all, and since a delivery
+     * has to be given, was pushed into calling route goods a store pickup.
+     *
+     * <p>Their own run still comes first where several are open, because that is the one
+     * they are working through; anyone else's follows, newest first.
      */
     @Query("SELECT r FROM DeliveryRun r "
          + "WHERE r.status = com.multi.finance.enums.DeliveryRunStatus.OPEN "
-         + "AND r.openedBy = :user ORDER BY r.openedAt DESC")
+         + "ORDER BY CASE WHEN r.openedBy = :user THEN 0 ELSE 1 END, r.openedAt DESC")
     List<DeliveryRun> findOpenFor(@Param("user") String user);
 
     /** Open runs on that date already covering the given area. */
