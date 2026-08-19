@@ -33,12 +33,22 @@ public class InvoiceBillBridge {
     private final BillRepository billRepository;
     private final UserRepository userRepository;
     private final InvoiceNumberService numbering;
+    private final com.multi.finance.repository.DeliveryRunRepository deliveryRunRepository;
 
     /**
      * @param netTotal what is actually owed — the invoice's net, after all discounts
      * @return the saved bill
      */
     public Attachment raiseBill(Invoice invoice, BigDecimal netTotal, String createdByUsername) {
+        return raiseBill(invoice, netTotal, createdByUsername, null, null);
+    }
+
+    /**
+     * @param mode  how the goods go out, for a bill this raises
+     * @param runId the round they go out on, which decides the mode on its own
+     */
+    public Attachment raiseBill(Invoice invoice, BigDecimal netTotal, String createdByUsername,
+                                com.multi.finance.enums.DeliveryMode mode, Long runId) {
         // The invoice already carries the number both records share.
         String billNumber = invoice.getInvoiceNo();
         BusinessType business = numbering.businessFor(invoice.getMethod());
@@ -56,9 +66,25 @@ public class InvoiceBillBridge {
             }
             // Entered by hand without its stock moving. Attach to it: the money is already
             // being collected there, and a second bill would double it.
+            //
+            // Its delivery is left exactly as it was. That was recorded when the bill was
+            // entered, by whoever was standing there; the invoice is raised later and
+            // knows less about how the goods actually went.
             return new Attachment(existing, true,
                     netTotal.subtract(existing.getTotalAmount() == null
                             ? BigDecimal.ZERO : existing.getTotalAmount()));
+        }
+
+        // A cancelled round cannot take new bills, and silently dropping the link would
+        // leave the bill claiming a delivery it never had.
+        com.multi.finance.entity.DeliveryRun run = null;
+        if (runId != null) {
+            run = deliveryRunRepository.findById(runId)
+                    .orElseThrow(() -> new IllegalStateException("Delivery run not found"));
+            if (run.getStatus() == com.multi.finance.enums.DeliveryRunStatus.CANCELLED) {
+                throw new IllegalStateException(
+                        "That delivery run was cancelled — bills cannot join it.");
+            }
         }
 
         User enteredBy = userRepository.findByUsername(createdByUsername)
@@ -77,6 +103,9 @@ public class InvoiceBillBridge {
                 .totalAmount(netTotal)
                 .area(normaliseArea(invoice.getCustomer().getArea()))
                 .status(BillStatus.CREATED)
+                .deliveryMode(run != null ? com.multi.finance.enums.DeliveryMode.ROUTE
+                        : (mode != null ? mode : com.multi.finance.enums.DeliveryMode.UNSPECIFIED))
+                .deliveryRun(run)
                 .enteredBy(enteredBy)
                 .billDate(invoice.getInvoiceDate())
                 .notes("Raised from invoice " + invoice.getInvoiceNo())

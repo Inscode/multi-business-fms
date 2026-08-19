@@ -1,0 +1,105 @@
+.dmp {
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 1px solid #e3e8ef;
+  border-left: 3px solid #1e88e5;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.dmp-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #78909c;
+}
+
+.dmp-run {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  color: #1a3d6b;
+
+  mat-icon { font-size: 17px; width: 17px; height: 17px; color: #1e88e5; }
+
+  .dr-name { font-weight: 700; }
+  .dr-date { color: #607d8b; }
+
+  // An open run dated before today is the one thing here worth interrupting for:
+  // it silently collects work that did not go out on it.
+  .dr-date.stale { color: #b26a00; font-weight: 600; }
+
+  .dr-stale {
+    padding: 0 7px;
+    border-radius: 9px;
+    background: #fdf0d5;
+    color: #8a5a08;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+}
+
+.dmp-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dmp-label {
+  font-size: 12px;
+  color: #607d8b;
+  margin-right: 2px;
+}
+
+.dmp-chip {
+  padding: 5px 12px;
+  border: 1.5px solid #cfd8dc;
+  border-radius: 999px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #37474f;
+  cursor: pointer;
+
+  &:hover:not([disabled]) { border-color: #1e88e5; }
+
+  &.on {
+    border-color: #1e88e5;
+    background: #e3f2fd;
+    color: #0d47a1;
+  }
+
+  &[disabled] { opacity: .45; cursor: default; }
+}
+
+// Asking, not warning: nothing has gone wrong, and the save is blocked until it is
+// answered, so the row only has to be noticed.
+.dmp.needs-pick {
+  border-left-color: #e0a52e;
+  background: #fffdf7;
+
+  .dmp-label { color: #8a5a08; font-weight: 700; }
+
+  .dmp-chip:not(.on):not([disabled]) {
+    border-color: #e0b356;
+    background: #fffaf0;
+  }
+}
+
+.dmp-hint {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: #8a5a08;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .dmp-row { gap: 5px; }
+  .dmp-label { flex-basis: 100%; margin-bottom: 2px; }
+  .dmp-chip { flex: 1 1 auto; min-height: 38px; }
+}

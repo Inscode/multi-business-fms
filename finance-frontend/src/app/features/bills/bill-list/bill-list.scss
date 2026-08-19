@@ -697,3 +697,42 @@
 
   mat-icon { font-size: 12px; width: 12px; height: 12px; }
 }
+
+// ── A bill collected on another one ──────────────────────────────────────────
+// Marked on the row rather than in a cell of its own: a whole extra column would be
+// blank on every other row, and the point is to recognise it without reading anything.
+.linked-row {
+  // An inset shadow rather than a border — a border on some rows and not others makes
+  // the cells one pixel shorter on those rows, and the columns stop lining up.
+  box-shadow: inset 3px 0 0 #1a56c4;
+  background: #f6f9ff;
+
+  &:hover { background: #eef4ff; }
+}
+
+.linked-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 0 6px 0 4px;
+  border-radius: 9px;
+  background: #e2ecfd;
+  color: #16408f;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  // Fixed and smaller than the surrounding line box, so it cannot push the row taller
+  // than the rows around it.
+  height: 15px;
+  line-height: 15px;
+  vertical-align: middle;
+
+  mat-icon {
+    font-size: 11px;
+    width: 11px;
+    height: 11px;
+    line-height: 11px;
+  }
+}

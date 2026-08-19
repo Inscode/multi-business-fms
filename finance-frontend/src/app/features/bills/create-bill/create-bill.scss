@@ -225,3 +225,22 @@
   .run-bar .rb-actions { width: 100%; button { flex: 1; } }
   .mode-chip { flex: 1; text-align: center; }
 }
+
+// Asking, rather than warning: nothing has gone wrong yet, and the bill cannot be
+// saved without an answer, so the row simply has to be noticed.
+.mode-row.needs-pick {
+  .mr-label { color: #8a5a08; font-weight: 700; }
+
+  .mode-chip:not(.on):not([disabled]) {
+    border-color: #e0b356;
+    background: #fffaf0;
+  }
+
+  .mr-hint {
+    flex-basis: 100%;
+    margin-top: 4px;
+    font-size: 11.5px;
+    color: #8a5a08;
+    line-height: 1.5;
+  }
+}

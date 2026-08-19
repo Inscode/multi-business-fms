@@ -219,7 +219,8 @@ public class InvoiceService {
         // Raise the matching bill so the money can be collected through the existing
         // payment workflow. Same transaction on purpose: an invoice nobody can collect
         // against is worse than one that failed to save at all.
-        var attachment = billBridge.raiseBill(invoice, totals.netTotal, createdBy);
+        var attachment = billBridge.raiseBill(invoice, totals.netTotal, createdBy,
+                                              req.getDeliveryMode(), req.getDeliveryRunId());
         invoice.setBillId(attachment.bill().getId());
         invoice.setBillLinkedExisting(attachment.linked());
         invoiceRepo.save(invoice);

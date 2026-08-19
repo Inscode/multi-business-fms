@@ -103,6 +103,7 @@ public class PaymentServiceImpl {
         }
 
         guardOpenReturns(bill);
+        guardSettledElsewhere(bill);
 
         // A second instrument handed over in the same visit rides on the first
         // photograph: both are written on the same page of the bill under one signature,
@@ -432,6 +433,23 @@ public class PaymentServiceImpl {
               + "record of what was collected.");
     }
 
+    /**
+     * Refuses a payment on a bill whose money is collected on another one.
+     *
+     * <p>Such a bill keeps its balance — the debt is real, it is simply owed on the
+     * hand-written bill for the same sale — so nothing about its own figures stops a
+     * payment being entered here. Taking the money against this one would settle a
+     * balance the reports have already excluded and leave the bill that is actually
+     * being chased still showing the full amount.
+     */
+    private void guardSettledElsewhere(Bill bill) {
+        if (bill.getSettledOn() == null) return;
+        throw new RuntimeException(
+                "Bill " + bill.getBillNumber() + " is collected on "
+              + bill.getSettledOn().getBillNumber() + ". Enter the payment against that "
+              + "bill instead.");
+    }
+
     private static boolean receiptRequiredOf(User caller) {
         return caller.getRole() == UserRole.ACCOUNTANT
             || caller.getRole() == UserRole.MAIN_ACCOUNTANT
@@ -744,6 +762,7 @@ public class PaymentServiceImpl {
                 throw new RuntimeException("Bill " + item.getBillId() + " is already fully paid");
             }
             guardOpenReturns(bill);
+            guardSettledElsewhere(bill);
             if (item.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
                 throw new RuntimeException("Amount exceeds balance for bill: " + bill.getBillNumber());
             }

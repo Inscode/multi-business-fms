@@ -138,6 +138,20 @@ public class BillServiceImpl {
             }
             mode = DeliveryMode.ROUTE;
         }
+
+        // With no round open, how the goods went has to be said. Left to default, the
+        // bill would sit at UNSPECIFIED — outside every delivery figure, and invisible,
+        // since nothing reports a bill nobody classified. A round being open is the one
+        // case where it need not be asked: the round already answers it.
+        //
+        // Drafts are exempt. A draft is a placeholder for a bill not yet written, so
+        // there is nothing yet to have delivered.
+        if (mode == DeliveryMode.UNSPECIFIED
+                && request.getBillSource() != BillSource.DRAFT) {
+            throw new RuntimeException(
+                    "Say how this bill goes out — immediate or store pickup. Open a "
+                  + "delivery run first if it is going on a lorry.");
+        }
         // The bill keeps its own area even on a route run: a trip covering Bandarawela,
         // Haputale and Diyatalawa cannot say which of them this customer is in.
         String area = request.getArea() != null ? request.getArea().trim().toUpperCase() : null;

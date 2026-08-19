@@ -59,7 +59,7 @@ export interface StockTakePreview {
 @Injectable({ providedIn: 'root' })
 export class StockTakeService {
   private http = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/items/stock-take`;
+  private apiUrl = `${environment.apiUrl}/invoicing/items/stock-take`;
 
   preview(req: StockTakeRequest): Observable<StockTakePreview> {
     return this.http.post<StockTakePreview>(`${this.apiUrl}/preview`, req);

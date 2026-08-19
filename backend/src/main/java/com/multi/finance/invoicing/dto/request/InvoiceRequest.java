@@ -67,4 +67,16 @@ public class InvoiceRequest {
     @Valid
     @NotNull
     List<InvoiceLineRequest> lines;
+
+    /**
+     * How the goods reach the customer, for the bill this invoice raises.
+     *
+     * <p>Carried here because the invoice is where somebody knows: the goods are being
+     * billed as they go out. Left unsaid, the bill lands UNSPECIFIED — outside every
+     * delivery figure, and invisible, since nothing reports a bill nobody classified.
+     */
+    private com.multi.finance.enums.DeliveryMode deliveryMode;
+
+    /** The open round this goes out on. Sets the mode to ROUTE on its own. */
+    private Long deliveryRunId;
 }
