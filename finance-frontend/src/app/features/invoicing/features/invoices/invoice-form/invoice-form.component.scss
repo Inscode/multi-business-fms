@@ -681,3 +681,7 @@
 }
 
 .inline-add-field { width: 100%; max-width: 460px; }
+
+// A number outside the suggested run is normal for an admin catching up on bills
+// written by hand, so it is noted rather than warned about.
+.free-typed { color: #6a4b0f; }

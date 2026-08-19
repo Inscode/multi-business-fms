@@ -816,6 +816,27 @@ export class InvoiceFormComponent implements OnInit {
     }
   }
 
+  /**
+   * The suggestions narrowed by what has been typed.
+   *
+   * <p>Only an admin types here. The list is a convenience for them rather than the set
+   * of allowed answers: a bill written by hand months ago is not in the sequence the
+   * server suggests, and refusing its number would make the invoice unenterable against
+   * the very bill it belongs to.
+   */
+  get filteredNumbers(): BillNumberOption[] {
+    const typed = String(this.form.value.billNumber || '').trim();
+    if (!typed) return this.suggestedNumbers;
+    return this.suggestedNumbers.filter(n => String(n.number).startsWith(typed));
+  }
+
+  /** True when a typed number is not one the server suggested — said, not blocked. */
+  get numberIsFreeTyped(): boolean {
+    const typed = String(this.form.value.billNumber || '').trim();
+    if (!typed || !this.isAdmin) return false;
+    return !this.suggestedNumbers.some(n => String(n.number) === typed);
+  }
+
   numberPrefix(): string {
     const src = this.form.value.billSource;
     if (src === 'SYSTEM') return 'SYS-';

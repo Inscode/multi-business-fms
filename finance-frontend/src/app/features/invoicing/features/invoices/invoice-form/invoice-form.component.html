@@ -118,17 +118,42 @@
 
           <mat-form-field appearance="outline">
             <mat-label>Bill Number *</mat-label>
-            <mat-select formControlName="billNumber">
-              @if (loadingNumbers) { <mat-option disabled>Loading…</mat-option> }
-              @for (n of suggestedNumbers; track n.number) {
-                <mat-option [value]="n.number" [class.num-missing]="n.missing">
-                  {{ numberPrefix() }}{{ n.number }}
-                  @if (n.missing) { <span class="missing-tag">not entered</span> }
-                </mat-option>
-              }
-            </mat-select>
+            <!-- An admin types it. The suggestions are the sequence the server knows
+                 about, but a bill written by hand months ago is not in that sequence,
+                 and refusing its number would make the invoice unenterable against the
+                 bill it belongs to. Everyone else picks from the list. -->
+            @if (isAdmin) {
+              <input matInput formControlName="billNumber" [matAutocomplete]="numAuto"
+                     placeholder="Type the number, e.g. 13644" autocomplete="off">
+              <mat-autocomplete #numAuto="matAutocomplete">
+                @for (n of filteredNumbers; track n.number) {
+                  <mat-option [value]="n.number" [class.num-missing]="n.missing">
+                    {{ numberPrefix() }}{{ n.number }}
+                    @if (n.missing) { <span class="missing-tag">not entered</span> }
+                  </mat-option>
+                }
+              </mat-autocomplete>
+            } @else {
+              <mat-select formControlName="billNumber">
+                @if (loadingNumbers) { <mat-option disabled>Loading…</mat-option> }
+                @for (n of suggestedNumbers; track n.number) {
+                  <mat-option [value]="n.number" [class.num-missing]="n.missing">
+                    {{ numberPrefix() }}{{ n.number }}
+                    @if (n.missing) { <span class="missing-tag">not entered</span> }
+                  </mat-option>
+                }
+              </mat-select>
+            }
             @if (!numberChosen && !loadingNumbers) {
-              <mat-hint class="pick-hint">Pick the number this invoice is written on</mat-hint>
+              <mat-hint class="pick-hint">
+                {{ isAdmin ? 'Type the number this invoice is written on'
+                           : 'Pick the number this invoice is written on' }}
+              </mat-hint>
+            }
+            @if (numberIsFreeTyped) {
+              <mat-hint class="free-typed">
+                Not in the suggested sequence — it will attach to that bill if one exists.
+              </mat-hint>
             }
             @if (previewNumber()) {
               <mat-hint>

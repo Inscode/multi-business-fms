@@ -111,7 +111,13 @@ public class DeliveryRunServiceImpl {
         return toResponse(runRepository.save(run), false);
     }
 
-    /** The run this accountant is entering bills into, if any. */
+    /**
+     * The run bills are being entered into, if any.
+     *
+     * <p>Not restricted to runs this person opened: the lorry is loading regardless of
+     * who is at the screen, and an admin who could not see it would classify route goods
+     * as something else.
+     */
     @Transactional(readOnly = true)
     public DeliveryRunResponse currentFor(String user) {
         List<DeliveryRun> open = runRepository.findOpenFor(user);
