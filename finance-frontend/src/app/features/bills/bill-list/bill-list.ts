@@ -141,7 +141,21 @@ export class BillList implements OnInit, AfterViewInit, OnDestroy {
 
   get hasBulkSelection(): boolean { return this.selection.selected.length >= 2; }
 
-  isSelectable(b: any): boolean { return !b.fullyPaid && b.status !== 'CANCELLED'; }
+  /**
+   * Whether a payment can still be collected against this bill.
+   *
+   * <p>fullyPaid alone is not enough. A bill collected on a hand-written one keeps its
+   * balance — the money is genuinely owed, just not here — so it reads as unpaid while
+   * being closed, and offered a checkbox for a payment that can never be entered on it.
+   * The closing statuses and the link are both checked for that reason.
+   */
+  isSelectable(b: any): boolean {
+    return !b.fullyPaid
+        && !b.settledOnBillId
+        && b.status !== 'CANCELLED'
+        && b.status !== 'COMPLETED'
+        && b.status !== 'AWAITING_CONFIRMATION';
+  }
 
   get canBulkAssign(): boolean {
     return this.hasBulkSelection &&

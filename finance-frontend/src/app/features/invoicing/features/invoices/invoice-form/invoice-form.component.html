@@ -33,6 +33,15 @@
   } @else {
     <div class="form-body">
 
+      <!-- How the goods go out, for the bill this invoice raises. Only on a new
+           invoice: an edit does not re-raise the bill, so its delivery is already
+           recorded and is not this form's to change. -->
+      <app-delivery-mode-picker *ngIf="!editingId"
+        subject="these goods"
+        (choice)="onDeliveryChoice($event)"
+        (incomplete)="onDeliveryMissing($event)">
+      </app-delivery-mode-picker>
+
       <!-- Section: Invoice Header -->
       <div class="card section-card">
         <div class="section-title">

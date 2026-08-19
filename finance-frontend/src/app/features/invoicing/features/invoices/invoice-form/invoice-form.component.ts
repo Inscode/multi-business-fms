@@ -20,6 +20,8 @@ import { CustomerService } from '../../../core/services/customer.service';
 import { Item, Customer, InvoiceMethod, InvoiceType, Quote } from '../../../core/models/models';
 import { Bill, BillNumberOption } from '../../../../../core/services/bill';
 import { Auth } from '../../../../../core/services/auth';
+import { DeliveryModePicker, DeliveryChoice }
+  from '../../../../../shared/delivery-mode-picker/delivery-mode-picker';
 
 interface LineEntry {
   item: Item;
@@ -37,11 +39,25 @@ interface LineEntry {
   imports: [CommonModule, FormsModule, ReactiveFormsModule,
             MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
             MatSelectModule, MatProgressSpinnerModule, MatTooltipModule, MatAutocompleteModule,
-            MatDatepickerModule, MatNativeDateModule],
+            MatDatepickerModule, MatNativeDateModule, DeliveryModePicker],
   templateUrl: './invoice-form.component.html',
   styleUrl: './invoice-form.component.scss'
 })
 export class InvoiceFormComponent implements OnInit {
+
+  // ── How the goods go out ────────────────────────────────────────────────
+  // The invoice is where somebody knows: the goods are being billed as they leave.
+  // Left unsaid the bill it raises lands UNSPECIFIED, outside every delivery figure.
+
+  delivery: DeliveryChoice = { deliveryMode: 'UNSPECIFIED' };
+  deliveryMissing = false;
+
+  onDeliveryChoice(choice: DeliveryChoice): void { this.delivery = choice; }
+  onDeliveryMissing(missing: boolean): void {
+    this.deliveryMissing = missing;
+    this.cdr.markForCheck();
+  }
+
   private billApi = inject(Bill);
   private auth = inject(Auth);
 
@@ -858,6 +874,15 @@ export class InvoiceFormComponent implements OnInit {
       this.cdr.markForCheck();
       return;
     }
+    // Only on a new invoice. An edit does not re-raise the bill, so its delivery is
+    // already recorded and is not this form's to change.
+    if (!this.editingId && this.deliveryMissing) {
+      this.error = 'Choose how these goods go out — immediate or store pickup. '
+                 + 'If they are going on a lorry, open the delivery run first.';
+      this.cdr.markForCheck();
+      return;
+    }
+
     this.saving = true;
     this.error  = '';
     const v = this.form.getRawValue();  // getRawValue includes the disabled fields
@@ -880,7 +905,9 @@ export class InvoiceFormComponent implements OnInit {
       plasticDiscountPct:    v.plasticDiscountPct || undefined,
       plasticDiscountAmount: v.plasticDiscountAmount || undefined,
       discountOverridePct:   v.discountOverridePct ?? undefined,
-      lines: this.lines.map(l => ({ itemId: l.item.id, qty: l.qty, freeQty: l.freeQty || 0 }))
+      lines: this.lines.map(l => ({ itemId: l.item.id, qty: l.qty, freeQty: l.freeQty || 0 })),
+      deliveryMode:  this.editingId ? undefined : this.delivery.deliveryMode,
+      deliveryRunId: this.editingId ? undefined : this.delivery.deliveryRunId,
     };
     const call = this.editingId
       ? this.svc.update(this.editingId, req)

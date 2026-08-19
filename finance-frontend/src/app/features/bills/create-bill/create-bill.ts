@@ -365,6 +365,26 @@ export class CreateBill implements OnInit{
     return this.currentRun ? 'ROUTE' : 'UNSPECIFIED';
   }
 
+  /**
+   * Whether this bill still has to be told how it goes out.
+   *
+   * <p>Only when no round is open. With one open the round answers it, which is the
+   * whole point of the sticky run — route bills are entered in a hurry and should cost
+   * no extra tap. When every round is closed there is nothing to infer from, and a bill
+   * left unsaid would sit outside every delivery figure without appearing anywhere as
+   * missing.
+   *
+   * <p>A draft is exempt: it stands in for a bill not yet written, so nothing has gone
+   * anywhere yet.
+   */
+  get modeRequired(): boolean {
+    return !this.currentRun && !this.isDraft;
+  }
+
+  get modeMissing(): boolean {
+    return this.modeRequired && !this.billMode;
+  }
+
   setBillMode(mode: DeliveryMode | null): void {
     this.billMode = mode;
     this.cdr.markForCheck();
@@ -392,6 +412,15 @@ export class CreateBill implements OnInit{
       .filter((s: string) => s.length > 0);
 
     // A one-off override wins for this bill only; otherwise it joins the open round.
+    // Refused here as well as on the server: the chips are at the top of a long form,
+    // and being sent back to them after a failed save is worse than being stopped now.
+    if (this.modeMissing) {
+      this.errorMsg = 'Choose how this bill goes out — immediate or store pickup. '
+                    + 'If it is going on a lorry, open the delivery run first.';
+      this.cdr.markForCheck();
+      return;
+    }
+
     const joiningRun = this.effectiveMode === 'ROUTE' && !!this.currentRun;
 
     const payload: any = {

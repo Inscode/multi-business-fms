@@ -18,6 +18,8 @@ import { environment } from '../../../../../environments/environment';
 import { CustomerService } from '../../core/services/customer.service';
 import { Auth } from '../../../../core/services/auth';
 import { Customer } from '../../core/models/models';
+import { DeliveryModePicker, DeliveryChoice }
+  from '../../../../shared/delivery-mode-picker/delivery-mode-picker';
 
 interface ImportedLine {
   itemCode?: string;
@@ -119,7 +121,7 @@ type ImportCategory = 'RAINCO' | 'STATIONERY';
   selector: 'app-import',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, RouterLink,
+  imports: [CommonModule, FormsModule, RouterLink, DeliveryModePicker,
             MatButtonModule, MatIconModule, MatProgressSpinnerModule,
             MatSelectModule, MatFormFieldModule, MatTooltipModule,
             MatInputModule, MatAutocompleteModule, MatDialogModule],
@@ -277,8 +279,31 @@ export class ImportComponent implements OnInit {
       });
   }
 
+  // ── How the load goes out ─────────────────────────────────────────────────
+  // One upload is one load of goods, so the whole file shares a delivery. Asking per
+  // invoice would be forty answers to the same question about one lorry.
+
+  delivery: DeliveryChoice = { deliveryMode: 'UNSPECIFIED' };
+  deliveryMissing = false;
+
+  onDeliveryChoice(choice: DeliveryChoice): void { this.delivery = choice; }
+  onDeliveryMissing(missing: boolean): void {
+    this.deliveryMissing = missing;
+    this.cdr.markForCheck();
+  }
+
   importAll() {
     if (!this.selectedFiles.length || !this.selectedCategory) return;
+
+    // Stopped before the upload rather than after: an import that has already moved
+    // stock cannot be undone by fixing a dropdown.
+    if (this.deliveryMissing) {
+      this.error = 'Choose how this load goes out — immediate or store pickup. '
+                 + 'If it is going on a lorry, open the delivery run first.';
+      this.cdr.markForCheck();
+      return;
+    }
+
     this.importing = true;
     const fd = new FormData();
     for (const f of this.selectedFiles) fd.append('files', f);
@@ -288,6 +313,10 @@ export class ImportComponent implements OnInit {
     fd.append('excludeRefs', JSON.stringify(this.excludedRefs()));
     fd.append('numberOverrides', JSON.stringify(this.numberOverrides()));
     if (this.batchId) fd.append('batchId', String(this.batchId));
+    fd.append('deliveryMode', this.delivery.deliveryMode);
+    if (this.delivery.deliveryRunId) {
+      fd.append('deliveryRunId', String(this.delivery.deliveryRunId));
+    }
     this.http.post<ImportResponse>(`${environment.apiUrl}/invoicing/import/confirm`, fd)
       .pipe(catchError(err => {
         this.error     = err?.error?.message ?? 'Import failed';

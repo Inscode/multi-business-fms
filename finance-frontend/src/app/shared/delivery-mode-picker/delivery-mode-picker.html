@@ -1,0 +1,45 @@
+<div class="dmp" [class.needs-pick]="missing">
+
+  <div class="dmp-loading" *ngIf="loading">
+    <mat-spinner diameter="16"></mat-spinner> Checking for an open run…
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <!-- The round, when there is one. Named rather than implied: a run left open from
+         yesterday collecting today's work is the mistake this prevents. -->
+    <div class="dmp-run" *ngIf="currentRun">
+      <mat-icon>local_shipping</mat-icon>
+      <span class="dr-name">{{ currentRun.areaName }}</span>
+      <span class="dr-date" [class.stale]="runIsStale"
+            [matTooltip]="runIsStale ? 'This run was opened for an earlier date' : ''">
+        {{ currentRun.plannedDate | date:'dd MMM' }}
+      </span>
+      <span class="dr-stale" *ngIf="runIsStale">not today</span>
+    </div>
+
+    <div class="dmp-row">
+      <span class="dmp-label">
+        {{ required ? 'How does it go out?' : 'Goes out:' }}
+      </span>
+
+      <button type="button" class="dmp-chip" [class.on]="mode === 'ROUTE'"
+              [disabled]="!currentRun" (click)="set(null)">
+        Route delivery
+      </button>
+      <button type="button" class="dmp-chip" [class.on]="mode === 'IMMEDIATE'"
+              (click)="set('IMMEDIATE')">
+        Immediate
+      </button>
+      <button type="button" class="dmp-chip" [class.on]="mode === 'STORE_PICKUP'"
+              (click)="set('STORE_PICKUP')">
+        Store pickup
+      </button>
+    </div>
+
+    <!-- Said only when it applies; with a round open this would be noise all day. -->
+    <p class="dmp-hint" *ngIf="missing">
+      No run is open, so pick one — or open a run from Deliveries and it is filled in
+      for you.
+    </p>
+  </ng-container>
+</div>

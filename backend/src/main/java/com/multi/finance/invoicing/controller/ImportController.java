@@ -252,6 +252,8 @@ public class ImportController {
                                                         @RequestParam(required = false) String excludeRefs,
                                                         @RequestParam(required = false) String numberOverrides,
                                                         @RequestParam(required = false, defaultValue = "false") boolean skipExisting,
+                                                        @RequestParam(required = false) com.multi.finance.enums.DeliveryMode deliveryMode,
+                                                        @RequestParam(required = false) Long deliveryRunId,
                                                         Authentication auth) throws IOException {
         validateImportCategory(category);
 
@@ -368,6 +370,12 @@ public class ImportController {
                 gift.setFreeQty(umbrellaQty.intValue());
                 req.getLines().add(gift);
             }
+            // One upload is one load of goods, so the whole file shares a delivery
+            // rather than being asked per invoice — which for a file of forty would be
+            // forty answers to the same question.
+            req.setDeliveryMode(deliveryMode);
+            req.setDeliveryRunId(deliveryRunId);
+
             try {
                 var created = invoiceService.create(req, auth.getName(), InvoiceSource.IMPORT,
                                                      batch.getId());

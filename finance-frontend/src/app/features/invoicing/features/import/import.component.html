@@ -289,8 +289,17 @@
               <span class="dup-count">· {{ duplicateInvoices().length }} already imported</span>
             }
           </div>
+
+          <!-- Decided once for the whole upload: these invoices are one load of goods,
+               and the open run answers it unless this file went out another way. -->
+          <app-delivery-mode-picker
+            subject="this load"
+            (choice)="onDeliveryChoice($event)"
+            (incomplete)="onDeliveryMissing($event)">
+          </app-delivery-mode-picker>
+
           <button mat-flat-button color="primary" (click)="importAll()"
-                  [disabled]="importing || importable().length === 0">
+                  [disabled]="importing || importable().length === 0 || deliveryMissing">
             @if (importing) {
               <mat-spinner diameter="18" color="accent"></mat-spinner>
               <span>Importing…</span>

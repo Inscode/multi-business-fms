@@ -82,8 +82,10 @@
       }
 
       <!-- The exception, one click, for this bill only. -->
-      <div class="mode-row">
-        <span class="mr-label">This bill:</span>
+      <div class="mode-row" [class.needs-pick]="modeMissing">
+        <span class="mr-label">
+          {{ modeRequired ? 'How does it go out?' : 'This bill:' }}
+        </span>
         <button type="button" class="mode-chip" [class.on]="effectiveMode === 'ROUTE'"
                 [disabled]="!currentRun" (click)="setBillMode(null)">
           Route delivery
@@ -96,6 +98,12 @@
                 (click)="setBillMode('STORE_PICKUP')">
           Store pickup
         </button>
+
+        <!-- Said only when it applies. With a round open this line would be noise on
+             every bill of the day. -->
+        <span class="mr-hint" *ngIf="modeMissing">
+          No run is open, so pick one — or open the run and it is filled in for you.
+        </span>
       </div>
     }
 
