@@ -1112,3 +1112,74 @@
 
   &:hover { background: #f4f7fb; }
 }
+
+// ── The bills collecting for this one ────────────────────────────────────────
+.linked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 6px 0 4px;
+}
+
+.ll-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+
+  em { font-style: normal; color: #33475f; }
+  .ll-amt { margin-left: auto; font-weight: 600; color: #16408f; }
+
+  // Each removable on its own: a load is reconciled bill by bill, and getting one
+  // wrong should not undo the others.
+  .ll-del {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: #7b8a9d;
+    cursor: pointer;
+
+    mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    &:hover { background: #dbe6f7; color: #a3241d; }
+  }
+}
+
+.ll-sum {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #33475f;
+
+  em { font-style: normal; font-weight: 700; color: #8a5a08; }
+}
+
+.sp-pick {
+  min-width: 104px;
+  font-size: 12px;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; margin-right: 2px; }
+  &.on { background: #e8f0fe; border-color: #1a56c4; color: #16408f; }
+}
+
+.sp-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eceff3;
+  font-size: 12px;
+  color: #5a6b80;
+}
+
+@media (max-width: 600px) {
+  .ll-row .ll-amt { margin-left: 0; }
+  .sp-actions { flex-direction: column; align-items: stretch; button { width: 100%; } }
+}

@@ -248,3 +248,17 @@
   .lc-page { padding: 14px 12px 28px; }
   .band-row { grid-template-columns: 108px 1fr 100px 44px; .br-count { display: none; } }
 }
+
+// A cash bill was judged on a much shorter run, so the row says so rather than
+// leaving its day count looking harsh beside the credit ones.
+.pt-cash {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #fdeee0;
+  color: #8a4108;
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+}

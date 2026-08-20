@@ -180,4 +180,22 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findRecentWithReceiptForBill(@Param("billId") Long billId,
                                                @Param("userId") Long userId,
                                                @Param("since") java.time.LocalDateTime since);
+
+    /**
+     * Payments in a status, for one business.
+     *
+     * <p>The unscoped versions counted every business at once while the card beside them
+     * showed one, so the dashboard reported four payments to confirm against an
+     * outstanding figure for Rainco alone — two numbers about different things sitting
+     * side by side.
+     */
+    @Query("SELECT COUNT(p) FROM Payment p WHERE p.status = :status "
+         + "AND p.bill.business = :business")
+    long countByStatusAndBusiness(@Param("status") PaymentStatus status,
+                                  @Param("business") com.multi.finance.enums.BusinessType business);
+
+    @Query("SELECT p FROM Payment p JOIN FETCH p.bill b WHERE p.status = :status "
+         + "AND b.business = :business ORDER BY p.createdAt DESC")
+    List<Payment> findByStatusAndBusiness(@Param("status") PaymentStatus status,
+                                          @Param("business") com.multi.finance.enums.BusinessType business);
 }

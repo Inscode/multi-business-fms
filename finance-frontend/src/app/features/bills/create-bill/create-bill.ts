@@ -163,11 +163,19 @@ export class CreateBill implements OnInit{
   ngOnInit(): void {
     this.loadWorkers();
     this.loadCustomers();
-    // Which round is open decides what every bill entered here joins.
-    if (!this.isEditing) this.loadRun();
+    // Which round is open decides what every bill entered here joins. Loaded when
+    // editing as well: an older bill often has no delivery recorded at all, and the
+    // edit form is where that gets put right.
+    this.loadRun();
 
     if (this.isEditing) {
       const b = this.editingBill;
+      // A bill that already knows how it went out keeps that as the starting point.
+      // ROUTE is left to the run bar, which shows the round it is actually on.
+      const existing = b.deliveryMode as DeliveryMode | undefined;
+      if (existing && existing !== 'UNSPECIFIED' && existing !== 'ROUTE') {
+        this.billMode = existing;
+      }
       this.form.patchValue({
         business:     b.business,
         division:     b.division,
@@ -362,6 +370,8 @@ export class CreateBill implements OnInit{
   /** What this bill will be saved as, given the run and any one-off override. */
   get effectiveMode(): DeliveryMode {
     if (this.billMode) return this.billMode;
+    // A bill already on a round stays on it; only then does the open run apply.
+    if (this.isEditing && this.editingBill?.deliveryRunId) return 'ROUTE';
     return this.currentRun ? 'ROUTE' : 'UNSPECIFIED';
   }
 
@@ -378,6 +388,8 @@ export class CreateBill implements OnInit{
    * anywhere yet.
    */
   get modeRequired(): boolean {
+    // Nothing to ask when the bill is already on a round of its own.
+    if (this.isEditing && this.editingBill?.deliveryRunId) return false;
     return !this.currentRun && !this.isDraft;
   }
 
@@ -417,16 +429,23 @@ export class CreateBill implements OnInit{
     if (this.modeMissing) {
       this.errorMsg = 'Choose how this bill goes out — immediate or store pickup. '
                     + 'If it is going on a lorry, open the delivery run first.';
+      // Reset with it: the save never started, and a spinner still turning says it did.
+      this.loading = false;
       this.cdr.markForCheck();
       return;
     }
 
+    // On an edit the bill may already be on a round of its own, which is not
+    // necessarily the one open now — it went out on that lorry, and reassigning it to
+    // today's would rewrite a delivery that already happened.
+    const keptRunId = this.isEditing && !this.billMode
+      ? (this.editingBill.deliveryRunId ?? null) : null;
     const joiningRun = this.effectiveMode === 'ROUTE' && !!this.currentRun;
 
     const payload: any = {
       ...raw,
-      deliveryMode: this.effectiveMode,
-      deliveryRunId: joiningRun ? this.currentRun!.id : undefined,
+      deliveryMode: keptRunId ? 'ROUTE' : this.effectiveMode,
+      deliveryRunId: keptRunId ?? (joiningRun ? this.currentRun!.id : undefined),
       billDate: raw.billDate ? localDateStr(new Date(raw.billDate)) : localDateStr(),
       customerId: this.selectedCustomerId,
       skippedBillNumbers: skippedBillNumbers.length > 0 ? skippedBillNumbers : undefined,

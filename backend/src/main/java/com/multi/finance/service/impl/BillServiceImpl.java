@@ -64,6 +64,7 @@ public class BillServiceImpl {
     private final BillReviewRepository billReviewRepository;
     private final BillNumberSkipRepository billNumberSkipRepository;
     private final DeliveryRunRepository deliveryRunRepository;
+    private final com.multi.finance.repository.BillSettlementLinkRepository billSettlementLinkRepository;
     private final BillReturnRepository billReturnRepository;
     private final com.multi.finance.invoicing.repository.SystemSettingsRepository settingsRepository;
 
@@ -551,6 +552,27 @@ public class BillServiceImpl {
         if (request.getBillDate() != null) {
             bill.setBillDate(request.getBillDate());
         }
+        // How the goods went out, correctable after the fact. Bills entered before
+        // deliveries were recorded carry no mode at all, and the edit form is the only
+        // place to put that right one bill at a time.
+        if (request.getDeliveryRunId() != null) {
+            DeliveryRun run = deliveryRunRepository.findByIdWithArea(request.getDeliveryRunId())
+                    .orElseThrow(() -> new RuntimeException("Delivery run not found"));
+            if (run.getStatus() == com.multi.finance.enums.DeliveryRunStatus.CANCELLED) {
+                throw new RuntimeException("That run was cancelled — bills cannot join it.");
+            }
+            bill.setDeliveryRun(run);
+            bill.setDeliveryMode(DeliveryMode.ROUTE);
+        } else if (request.getDeliveryMode() != null
+                && request.getDeliveryMode() != DeliveryMode.UNSPECIFIED) {
+            // Moving off a round drops the round with it, or the bill would claim a
+            // lorry it is no longer said to have travelled on.
+            bill.setDeliveryMode(request.getDeliveryMode());
+            if (request.getDeliveryMode() != DeliveryMode.ROUTE) {
+                bill.setDeliveryRun(null);
+            }
+        }
+
         if (request.getNotes() != null) {
             bill.setNotes(request.getNotes());
         }
@@ -1339,18 +1361,66 @@ public class BillServiceImpl {
      */
     @Transactional
     public BillResponse linkSettlement(Long id, Long targetId, String note, String by) {
+        return linkSettlement(id, List.of(targetId), note, by);
+    }
+
+    /**
+     * Records that this bill's money is collected on one or more hand-written bills.
+     *
+     * <p>Often several. A rep on a round writes a bill at each shop while the system
+     * raises one covering the load, so a single system bill's money arrives on three or
+     * four hand-written ones. Naming only the first would leave the rest looking
+     * unconnected to anything.
+     *
+     * <p>Adds to whatever is already linked rather than replacing it, since the bills
+     * are usually found one at a time.
+     */
+    @Transactional
+    public BillResponse linkSettlement(Long id, List<Long> targetIds, String note, String by) {
         Bill bill = findBillById(id);
+        if (targetIds == null || targetIds.isEmpty()) {
+            throw new RuntimeException("Choose the bill this one is collected on.");
+        }
+        if (bill.getStatus() == BillStatus.CANCELLED) {
+            throw new RuntimeException("This bill is cancelled — there is nothing left to collect.");
+        }
+        if (!billSettlementLinkRepository.findBySystemBillId(id).isEmpty()
+                && bill.getSettledOn() == null) {
+            // Defensive: the pointer and the table must not drift apart.
+            throw new RuntimeException("This bill's links are inconsistent — reload and try again.");
+        }
+
+        Bill first = null;
+        for (Long targetId : targetIds) {
+            Bill target = linkOne(bill, targetId, note, by);
+            if (first == null) first = target;
+        }
+
+        // The pointer holds the first of them, and is what every outstanding, aging and
+        // payment check reads. The table holds the full set.
+        if (bill.getSettledOn() == null && first != null) {
+            bill.setSettledOn(first);
+            bill.setSettledOnAt(LocalDateTime.now());
+            bill.setSettledOnBy(by);
+            bill.setSettledOnNote(note == null || note.isBlank() ? null : note.trim());
+        }
+
+        // Finished the moment it is linked, if everything collecting for it is paid off.
+        syncSettledCompletion(bill);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
+    /** Validates and records one hand-written bill against this one. */
+    private Bill linkOne(Bill bill, Long targetId, String note, String by) {
         if (targetId == null) {
             throw new RuntimeException("Choose the bill this one is collected on.");
         }
-        if (targetId.equals(id)) {
+        if (targetId.equals(bill.getId())) {
             throw new RuntimeException("A bill cannot be collected on itself.");
         }
         Bill target = findBillById(targetId);
 
-        if (bill.getStatus() == BillStatus.CANCELLED) {
-            throw new RuntimeException("This bill is cancelled — there is nothing left to collect.");
-        }
         if (target.getStatus() == BillStatus.CANCELLED) {
             throw new RuntimeException(
                     "Bill " + target.getBillNumber() + " is cancelled, so nothing will be "
@@ -1379,7 +1449,7 @@ public class BillServiceImpl {
                     "Bill " + target.getBillNumber() + " is itself collected on "
                   + target.getSettledOn().getBillNumber() + ". Link to that one instead.");
         }
-        if (!billRepository.findBySettledOnId(id).isEmpty()) {
+        if (!billRepository.findBySettledOnId(bill.getId()).isEmpty()) {
             throw new RuntimeException(
                     "Other bills are already collected on this one, so it cannot be pointed "
                   + "elsewhere. Unlink those first.");
@@ -1392,20 +1462,57 @@ public class BillServiceImpl {
                     "This bill already has Rs " + bill.getAmountPaid().toPlainString()
                   + " collected on it. Reverse those payments before linking.");
         }
-
-        bill.setSettledOn(target);
-        bill.setSettledOnAt(LocalDateTime.now());
-        bill.setSettledOnBy(by);
-        bill.setSettledOnNote(note == null || note.isBlank() ? null : note.trim());
-
-        // The target may already be settled, in which case this one is finished the
-        // moment it is linked rather than at the next payment.
-        if (target.getStatus() == BillStatus.COMPLETED
-                || target.getStatus() == BillStatus.AWAITING_CONFIRMATION) {
-            bill.setStatus(target.getStatus());
+        // One hand-written bill collects for one system bill. Allowing two would let the
+        // same money close both.
+        var existing = billSettlementLinkRepository.findByManualBillId(targetId);
+        if (existing.isPresent()) {
+            Bill owner = existing.get().getSystemBill();
+            if (!owner.getId().equals(bill.getId())) {
+                throw new RuntimeException(
+                        "Bill " + target.getBillNumber() + " is already collecting for "
+                      + owner.getBillNumber() + ".");
+            }
+            return target;   // already linked here; nothing to add
         }
-        bill.setUpdatedAt(LocalDateTime.now());
-        return toResponse(billRepository.save(bill));
+
+        billSettlementLinkRepository.save(com.multi.finance.entity.BillSettlementLink.builder()
+                .systemBill(bill)
+                .manualBill(target)
+                .note(note == null || note.isBlank() ? null : note.trim())
+                .linkedBy(by)
+                .linkedAt(LocalDateTime.now())
+                .build());
+        return target;
+    }
+
+    /**
+     * Closes a linked bill once everything collecting for it is paid off.
+     *
+     * <p>All of them, not any: a system bill covering three shops is not settled because
+     * one of them paid. Reopened if a payment is later reversed, so the status never
+     * claims money that is no longer there.
+     */
+    public void syncSettledCompletion(Bill bill) {
+        List<com.multi.finance.entity.BillSettlementLink> links =
+                billSettlementLinkRepository.findBySystemBillId(bill.getId());
+        if (links.isEmpty() || bill.getStatus() == BillStatus.CANCELLED) return;
+
+        boolean allSettled = links.stream().allMatch(l -> {
+            BillStatus st = l.getManualBill().getStatus();
+            return st == BillStatus.COMPLETED || st == BillStatus.AWAITING_CONFIRMATION;
+        });
+        boolean anyUnconfirmed = links.stream()
+                .anyMatch(l -> l.getManualBill().getStatus() == BillStatus.AWAITING_CONFIRMATION);
+
+        if (allSettled) {
+            BillStatus target = anyUnconfirmed
+                    ? BillStatus.AWAITING_CONFIRMATION : BillStatus.COMPLETED;
+            if (bill.getStatus() != target) bill.setStatus(target);
+        } else if ((bill.getStatus() == BillStatus.COMPLETED
+                 || bill.getStatus() == BillStatus.AWAITING_CONFIRMATION)
+                && !Boolean.TRUE.equals(bill.getFullyPaid())) {
+            bill.setStatus(BillStatus.STORE_RECEIVED);
+        }
     }
 
     /**
@@ -1415,9 +1522,30 @@ public class BillServiceImpl {
      * balance was never actually collected, and leaving it COMPLETED would write off
      * money nobody received.
      */
+    /** Removes one hand-written bill from the set collecting for this one. */
+    @Transactional
+    public BillResponse unlinkOne(Long id, Long manualBillId) {
+        Bill bill = findBillById(id);
+        billSettlementLinkRepository.findByManualBillId(manualBillId)
+                .filter(l -> l.getSystemBill().getId().equals(id))
+                .ifPresent(billSettlementLinkRepository::delete);
+
+        List<com.multi.finance.entity.BillSettlementLink> left =
+                billSettlementLinkRepository.findBySystemBillId(id);
+        if (left.isEmpty()) return unlinkSettlement(id);
+
+        // The pointer follows the set: dropping the bill it named leaves it pointing at
+        // a link that no longer exists.
+        bill.setSettledOn(left.get(0).getManualBill());
+        syncSettledCompletion(bill);
+        bill.setUpdatedAt(LocalDateTime.now());
+        return toResponse(billRepository.save(bill));
+    }
+
     @Transactional
     public BillResponse unlinkSettlement(Long id) {
         Bill bill = findBillById(id);
+        billSettlementLinkRepository.deleteBySystemBillId(id);
         if (bill.getSettledOn() == null) {
             throw new RuntimeException("This bill is not linked to another.");
         }
@@ -1449,9 +1577,25 @@ public class BillServiceImpl {
     @Transactional(readOnly = true)
     public List<BillResponse> getSettleCandidates(Long id) {
         Bill bill = findBillById(id);
+        // Bills already collecting for something else are left out: one hand-written
+        // bill settles one system bill, and offering it again only invites the error.
+        java.util.Set<Long> taken = billSettlementLinkRepository.findAll().stream()
+                .map(l -> l.getManualBill().getId())
+                .collect(java.util.stream.Collectors.toSet());
+
         return billRepository
                 .findSettleCandidates(id, bill.getBusiness(), settleSourcesFor(bill.getBusiness()))
-                .stream().map(this::toResponse).toList();
+                .stream()
+                .filter(b -> !taken.contains(b.getId()))
+                .map(this::toResponse).toList();
+    }
+
+    /** Every hand-written bill collecting this bill's money. */
+    @Transactional(readOnly = true)
+    public List<BillResponse> getSettlementLinks(Long id) {
+        return billSettlementLinkRepository.findBySystemBillId(id).stream()
+                .map(l -> toResponse(l.getManualBill()))
+                .toList();
     }
 
     /** The bills being collected on this one — the other half of the banner. */

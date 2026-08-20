@@ -21,6 +21,19 @@ export interface BusinessHealth {
   avgDaysToSettle?: number;
   avgDaysToSettleRecent?: number;
   worstDaysToSettle?: number;
+
+  /**
+   * Bills that ran past their own terms — counted per bill, not read off the average.
+   *
+   * Cash is due on delivery and credit runs to 70 days, so a customer buying both
+   * averages the two together and lands between the lines without touching either:
+   * punctual by arithmetic, late on half their bills in fact.
+   */
+  overTermsCount?: number;
+  badlyLateCount?: number;
+  overTermsPct?: number;
+  /** How far past its own terms the worst open bill has run, in days. */
+  worstOpenOverTerms?: number;
   settledBillCount: number;
 
   currentOutstanding: number;

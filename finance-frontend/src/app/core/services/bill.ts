@@ -246,11 +246,27 @@ export class Bill {
    * never happened; it did, and the stock went out on it. Linking keeps the record and
    * only stops the chasing.
    */
-  linkSettlement(id: number, targetBillId: number, note?: string): Observable<BillResponse> {
+  /**
+   * Links one or more hand-written bills as collecting this bill's money.
+   *
+   * <p>Several at once, because a load covering three shops is three hand-written
+   * bills, and one round-trip each is three chances to stop halfway.
+   */
+  linkSettlement(id: number, targetBillIds: number[], note?: string): Observable<BillResponse> {
     return this.http.patch<BillResponse>(`${this.apiUrl}/${id}/settle-on`, {
-      targetBillId,
+      targetBillIds,
       note: note ?? '',
     });
+  }
+
+  /** Removes one bill from the set collecting for this one. */
+  unlinkOne(id: number, manualBillId: number): Observable<BillResponse> {
+    return this.http.delete<BillResponse>(`${this.apiUrl}/${id}/settle-on/${manualBillId}`);
+  }
+
+  /** Every hand-written bill collecting for this one. */
+  getSettlementLinks(id: number): Observable<BillResponse[]> {
+    return this.http.get<BillResponse[]>(`${this.apiUrl}/${id}/settlement-links`);
   }
 
   unlinkSettlement(id: number): Observable<BillResponse> {

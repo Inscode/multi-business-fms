@@ -61,6 +61,29 @@ public class CustomerHealthResponse {
         private Integer avgDaysToSettleRecent;
         /** The longest they have ever taken to settle one. */
         private Integer worstDaysToSettle;
+
+        /**
+         * Settled bills that ran past their own terms, and badly past them.
+         *
+         * <p>Counted per bill rather than read off the average, because cash and credit
+         * are not due at the same time. A customer who settles cash in three weeks and
+         * credit in fifty days averages out looking punctual while having broken the
+         * only term that applied to half their bills.
+         */
+        private int overTermsCount;
+        private int badlyLateCount;
+
+        /** How many of their settled bills ran past terms, as a percentage. */
+        private Integer overTermsPct;
+
+        /**
+         * How far past its own terms the worst open bill has run.
+         *
+         * <p>Days past the line rather than days old, so a cash bill open twenty days
+         * ranks above a credit bill open fifty — which is the right way round, and the
+         * wrong way round when both were measured on the credit run.
+         */
+        private Integer worstOpenOverTerms;
         /** How many settled bills the averages rest on — a mean of two proves nothing. */
         private int settledBillCount;
 

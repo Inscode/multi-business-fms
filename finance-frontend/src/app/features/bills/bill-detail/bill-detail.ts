@@ -382,6 +382,7 @@ export class BillDetail implements OnInit {
         this.loadReturns(id);
         this.loadStockStatus(id);
         this.loadSettledBy();
+        this.loadSettlementLinks();
       },
       error: () => {
         this.error = true;
@@ -644,6 +645,47 @@ It keeps its number and stays in the run, so `
   settlePickerOpen = false;
   loadingCandidates = false;
   settleNote = '';
+
+  /**
+   * Every hand-written bill collecting this bill's money.
+   *
+   * <p>Usually several: a rep on a round writes a bill at each shop while the system
+   * raises one covering the load.
+   */
+  settlementLinks: BillResponse[] = [];
+
+  /** Ticked in the picker, linked together when Link is pressed. */
+  picked = new Set<number>();
+
+  togglePick(id: number): void {
+    if (this.picked.has(id)) this.picked.delete(id);
+    else this.picked.add(id);
+    this.cdr.markForCheck();
+  }
+
+  loadSettlementLinks(): void {
+    if (!this.bill) return;
+    this.billService.getSettlementLinks(this.bill.id).subscribe({
+      next: (list) => { this.settlementLinks = list; this.cdr.markForCheck(); },
+      error: () => { this.settlementLinks = []; this.cdr.markForCheck(); },
+    });
+  }
+
+  /** What the linked bills add up to — checked against this bill's own total. */
+  get linkedTotal(): number {
+    return this.settlementLinks.reduce((sum, b) => sum + (b.totalAmount ?? 0), 0);
+  }
+
+  /**
+   * The gap between this bill and what is collecting for it.
+   *
+   * <p>Shown rather than enforced: the totals genuinely differ when a load is billed at
+   * one price and the shops at another, and refusing the link would stop a true record
+   * being made. But a large gap usually means a bill is missing from the set.
+   */
+  get linkedVariance(): number {
+    return (this.bill?.totalAmount ?? 0) - this.linkedTotal;
+  }
   /** Typed to find the number that was written by hand. */
   settleSearch = '';
 
@@ -707,6 +749,7 @@ It keeps its number and stays in the run, so `
     this.loadingCandidates = true;
     this.settleNote = '';
     this.settleSearch = '';
+    this.picked.clear();
     this.billService.getSettleCandidates(this.bill.id).subscribe({
       next: (list) => {
         this.settleCandidates = list;
@@ -728,32 +771,60 @@ It keeps its number and stays in the run, so `
     this.cdr.markForCheck();
   }
 
-  linkSettlement(target: BillResponse): void {
-    if (!this.bill) return;
+  /** Links everything ticked, in one go. */
+  linkPicked(): void {
+    if (!this.bill || this.picked.size === 0) return;
     const billId = this.bill.id;
+    const ids = [...this.picked];
+    const names = this.settleCandidates
+      .filter(c => this.picked.has(c.id)).map(c => c.billNumber);
+
     this.dialog.open(ConfirmDialog, {
       data: {
-        title: 'Collect on ' + target.billNumber,
+        title: ids.length === 1
+          ? 'Collect on ' + names[0]
+          : `Collect across ${ids.length} bills`,
         message: `This bill stays exactly as it is — its lines, its stock, its number. `
                + `It stops counting as outstanding and leaves the aging report, and it `
-               + `closes itself once ${target.billNumber} is paid off.`,
-        confirmText: 'Link',
+               + `closes once ${ids.length === 1 ? names[0] : 'all of them are'} paid off.`
+               + `\n\n${names.join(', ')}`,
+        confirmText: ids.length === 1 ? 'Link' : `Link ${ids.length} bills`,
         confirmColor: 'primary',
       },
       maxWidth: '95vw',
     }).afterClosed().subscribe(result => {
       if (!result?.confirmed) return;
-      this.billService.linkSettlement(billId, target.id, this.settleNote).subscribe({
+      this.billService.linkSettlement(billId, ids, this.settleNote).subscribe({
         next: (updated) => {
           this.bill = updated;
           this.settlePickerOpen = false;
-          this.snackBar.open('Collected on ' + target.billNumber + '.', 'OK',
-                             { duration: 4000 });
+          this.picked.clear();
+          this.loadSettlementLinks();
+          this.snackBar.open(
+            ids.length === 1 ? 'Collected on ' + names[0] + '.'
+                             : `Collected across ${ids.length} bills.`,
+            'OK', { duration: 4000 });
           this.cdr.detectChanges();
         },
         error: (err) => this.snackBar.open(
           err?.error?.message ?? 'Could not link the bills.', 'OK', { duration: 6000 }),
       });
+    });
+  }
+
+  /** Drops one bill from the set, leaving the rest linked. */
+  unlinkOne(target: BillResponse): void {
+    if (!this.bill) return;
+    const billId = this.bill.id;
+    this.billService.unlinkOne(billId, target.id).subscribe({
+      next: (updated) => {
+        this.bill = updated;
+        this.loadSettlementLinks();
+        this.snackBar.open(target.billNumber + ' removed.', 'OK', { duration: 3000 });
+        this.cdr.detectChanges();
+      },
+      error: (err) => this.snackBar.open(
+        err?.error?.message ?? 'Could not remove it.', 'OK', { duration: 6000 }),
     });
   }
 
@@ -773,6 +844,7 @@ It keeps its number and stays in the run, so `
       this.billService.unlinkSettlement(billId).subscribe({
         next: (updated) => {
           this.bill = updated;
+          this.settlementLinks = [];
           this.snackBar.open('Link removed.', 'OK', { duration: 3000 });
           this.cdr.detectChanges();
         },

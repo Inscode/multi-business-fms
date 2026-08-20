@@ -158,15 +158,46 @@
       <div class="settled-banner" *ngIf="bill.settledOnBillId">
         <mat-icon>link</mat-icon>
         <div>
-          <strong>Collected on
+          <strong *ngIf="settlementLinks.length <= 1">Collected on
             <a class="settled-link" (click)="openBill(bill.settledOnBillId!)">
               {{ bill.settledOnBillNumber }}</a>
           </strong>
+          <strong *ngIf="settlementLinks.length > 1">
+            Collected across {{ settlementLinks.length }} bills
+          </strong>
+
+          <!-- Every one of them, each removable on its own: a load is reconciled bill
+               by bill, and getting one wrong should not undo the others. -->
+          <div class="linked-list" *ngIf="settlementLinks.length">
+            <span class="ll-row" *ngFor="let l of settlementLinks">
+              <a class="settled-link" (click)="openBill(l.id)">{{ l.billNumber }}</a>
+              <em>{{ l.customerName }}</em>
+              <span class="ll-amt">Rs {{ l.totalAmount | number:'1.0-0' }}</span>
+              <button type="button" class="ll-del" *ngIf="isAdmin"
+                      (click)="unlinkOne(l)" matTooltip="Remove this one">
+                <mat-icon>close</mat-icon>
+              </button>
+            </span>
+          </div>
+
+          <!-- Said, not enforced: the totals genuinely differ when a load is billed at
+               one price and the shops at another. A large gap usually means a bill is
+               missing from the set. -->
+          <span class="ll-sum" *ngIf="settlementLinks.length > 1">
+            They total Rs {{ linkedTotal | number:'1.0-0' }} against this bill's
+            Rs {{ bill.totalAmount | number:'1.0-0' }}
+            <em *ngIf="linkedVariance !== 0">
+              · {{ linkedVariance > 0 ? 'Rs ' + (linkedVariance | number:'1.0-0') + ' short'
+                                      : 'Rs ' + (-linkedVariance | number:'1.0-0') + ' over' }}
+            </em>
+          </span>
+
           <span *ngIf="bill.settledOnNote">{{ bill.settledOnNote }}</span>
           <span class="sb-note">
             This bill is unchanged and its stock still went out. It is not counted as
             outstanding, is off the aging report, and closes when
-            {{ bill.settledOnBillNumber }} is paid off.
+            {{ settlementLinks.length > 1
+                 ? 'all of them are' : bill.settledOnBillNumber + ' is' }} paid off.
             <em *ngIf="bill.settledOnBy"> — linked by {{ bill.settledOnBy }}</em>
           </span>
           <button mat-stroked-button class="sb-undo" *ngIf="isAdmin"
@@ -243,11 +274,24 @@
               <em *ngIf="c.balanceRemaining <= 0">· settled</em>
             </span>
           </div>
-          <button mat-flat-button color="primary" (click)="linkSettlement(c)">Link</button>
+          <button mat-stroked-button class="sp-pick" [class.on]="picked.has(c.id)"
+                  (click)="togglePick(c.id)">
+            <mat-icon>{{ picked.has(c.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+            {{ picked.has(c.id) ? 'Picked' : 'Pick' }}
+          </button>
         </div>
 
         <!-- Said rather than hidden: a list silently cut short reads as "that bill is
              not in the system", which is the wrong conclusion to invite here. -->
+        <!-- One action for the whole set: a load covering three shops is three bills,
+             and linking them one at a time is three chances to stop halfway. -->
+        <div class="sp-actions" *ngIf="picked.size">
+          <span>{{ picked.size }} picked</span>
+          <button mat-flat-button color="primary" (click)="linkPicked()">
+            Link {{ picked.size }} {{ picked.size === 1 ? 'bill' : 'bills' }}
+          </button>
+        </div>
+
         <p class="sp-more" *ngIf="!loadingCandidates && hiddenCandidateCount">
           {{ hiddenCandidateCount }} more
           {{ hiddenCandidateCount === 1 ? 'bill matches' : 'bills match' }}. Type a little

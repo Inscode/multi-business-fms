@@ -77,12 +77,16 @@ public class LateCollectionService {
             Bill bill = p.getBill();
             int days = (int) ChronoUnit.DAYS.between(bill.getBillDate(), p.getPaymentDate());
             BigDecimal amount = p.getAmount() == null ? BigDecimal.ZERO : p.getAmount();
-            String band = CreditTerms.bandFor(days);
+            // Judged on its own terms. A cash bill is due when the goods are handed
+            // over, so measuring it against the credit run reported a cash sale
+            // collected three weeks late as comfortably on time.
+            boolean cash = bill.getBillType() == com.multi.finance.enums.BillType.CASH;
+            String band = CreditTerms.bandFor(days, cash);
 
             total = total.add(amount);
             weightedDays = weightedDays.add(amount.multiply(BigDecimal.valueOf(days)));
-            if (days > CreditTerms.DANGER_DAYS) pastDanger = pastDanger.add(amount);
-            if (days > CreditTerms.SUPPLIER_DAYS) beyond = beyond.add(amount);
+            if (days > CreditTerms.dangerDays(cash)) pastDanger = pastDanger.add(amount);
+            if (days > CreditTerms.supplierDays(cash)) beyond = beyond.add(amount);
 
             byBand.computeIfAbsent(band, k -> new Agg()).add(amount);
 
@@ -93,7 +97,7 @@ public class LateCollectionService {
             ca.customerId = bill.getCustomer() != null ? bill.getCustomer().getId() : null;
             ca.name = bill.getCustomerName();
             ca.area = bill.getArea();
-            ca.add(amount, days);
+            ca.add(amount, days, cash);
 
             rows.add(LateCollectionReport.PaymentRow.builder()
                     .billId(bill.getId())
@@ -106,6 +110,7 @@ public class LateCollectionService {
                     .band(band)
                     .amount(amount)
                     .paymentType(p.getPaymentType() == null ? null : p.getPaymentType().name())
+                    .billType(bill.getBillType() == null ? null : bill.getBillType().name())
                     .build());
         }
 
@@ -130,8 +135,10 @@ public class LateCollectionService {
                         .customerName(c.name)
                         .area(c.area)
                         .collected(c.amount)
-                        .pastDangerAmount(c.pastDanger)
+                        // Disjoint: the late window, then everything past it.
+                        .lateAmount(c.pastDanger.subtract(c.beyond))
                         .beyondTermsAmount(c.beyond)
+                        .pastDangerAmount(c.pastDanger)
                         .avgDaysWeighted(c.weightedAverage())
                         .worstDays(c.worstDays)
                         .paymentCount(c.count)
@@ -152,6 +159,9 @@ public class LateCollectionService {
                 .sealDays(CreditTerms.SEAL_DAYS)
                 .dangerDays(CreditTerms.DANGER_DAYS)
                 .supplierDays(CreditTerms.SUPPLIER_DAYS)
+                .cashSealDays(CreditTerms.CASH_SEAL_DAYS)
+                .cashDangerDays(CreditTerms.CASH_DANGER_DAYS)
+                .cashSupplierDays(CreditTerms.CASH_SUPPLIER_DAYS)
                 .totalCollected(total)
                 .paymentCount(payments.size())
                 .avgDaysWeighted(total.compareTo(BigDecimal.ZERO) > 0
@@ -167,12 +177,18 @@ public class LateCollectionService {
                 .build();
     }
 
+    /**
+     * What each band means, in words rather than day-counts.
+     *
+     * <p>The numbers differ by bill type — cash is due on delivery, credit runs to 70
+     * days — so a single "46–60 days" label would be wrong for half the rows it covered.
+     */
     private static String labelFor(String band) {
         return switch (band) {
-            case "ON_TIME"      -> "Within " + CreditTerms.SEAL_DAYS + " days";
-            case "WATCH"        -> (CreditTerms.SEAL_DAYS + 1) + "–" + CreditTerms.DANGER_DAYS + " days";
-            case "LATE"         -> (CreditTerms.DANGER_DAYS + 1) + "–" + CreditTerms.SUPPLIER_DAYS + " days";
-            case "BEYOND_TERMS" -> "Over " + CreditTerms.SUPPLIER_DAYS + " days";
+            case "ON_TIME"      -> "Within terms";
+            case "WATCH"        -> "Past the bill's terms";
+            case "LATE"         -> "Past the danger line";
+            case "BEYOND_TERMS" -> "Past what we owe the supplier by";
             default             -> band;
         };
     }
@@ -199,11 +215,11 @@ public class LateCollectionService {
         int worstDays;
         int count;
 
-        void add(BigDecimal a, int days) {
+        void add(BigDecimal a, int days, boolean cash) {
             amount = amount.add(a);
             weighted = weighted.add(a.multiply(BigDecimal.valueOf(days)));
-            if (days > CreditTerms.DANGER_DAYS) pastDanger = pastDanger.add(a);
-            if (days > CreditTerms.SUPPLIER_DAYS) beyond = beyond.add(a);
+            if (days > CreditTerms.dangerDays(cash)) pastDanger = pastDanger.add(a);
+            if (days > CreditTerms.supplierDays(cash)) beyond = beyond.add(a);
             if (days > worstDays) worstDays = days;
             count++;
         }

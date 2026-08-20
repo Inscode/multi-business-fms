@@ -164,6 +164,58 @@
         Bill Photo{{ imageRequired ? '' : ' (optional)' }}
       </div>
 
+      <!-- What the admin or owner already marked against this bill. Shown before the
+           form is filled in so the accountant can check it went on the right bill,
+           rather than entering the same money twice or leaving a bill alone believing
+           it settled — neither of which shows up until the balance is queried. -->
+      <div class="marked-block" *ngIf="fromPendingNote">
+        <mat-icon>how_to_reg</mat-icon>
+        <div class="mb-body">
+          <strong>Already collected — enter it here</strong>
+          <span>
+            Rs {{ coverage?.pendingNoteAmount | number }}
+            @if (coverage?.pendingNoteType) {
+              · {{ coverage?.pendingNoteType === 'BANK_TRANSFER'
+                     ? 'Bank transfer' : (coverage?.pendingNoteType | lowercase) }}
+            }
+            @if (coverage?.pendingNoteBy) { · marked by {{ coverage?.pendingNoteBy }} }
+            @if (coverage?.pendingNoteAt) {
+              · {{ coverage?.pendingNoteAt | date:'dd MMM' }}
+            }
+          </span>
+          <span class="mb-note">
+            The form is filled in from it. Check it is the right bill before saving.
+          </span>
+        </div>
+      </div>
+
+      <!-- Everything already standing on the bill, so a second entry of the same money
+           is visible before it is made rather than after. -->
+      <div class="existing-block" *ngIf="standingPayments.length">
+        <button type="button" class="eb-head" (click)="showExisting = !showExisting">
+          <mat-icon>{{ showExisting ? 'expand_less' : 'expand_more' }}</mat-icon>
+          <span>
+            {{ standingPayments.length }}
+            {{ standingPayments.length === 1 ? 'payment' : 'payments' }}
+            already on this bill — Rs {{ standingTotal | number }}
+          </span>
+        </button>
+
+        <div class="eb-rows" *ngIf="showExisting">
+          <div class="eb-row" *ngFor="let p of standingPayments">
+            <span class="eb-amt">Rs {{ p.paymentAmount | number }}</span>
+            <span class="eb-type">
+              {{ p.paymentType === 'BANK_TRANSFER' ? 'Transfer' : (p.paymentType | lowercase) }}
+            </span>
+            <span class="eb-who">{{ p.enteredByName }}</span>
+            <span class="eb-date">{{ p.paymentDate | date:'dd MMM' }}</span>
+            <span class="eb-status" [class.pending]="p.status === 'ENTERED'">
+              {{ p.status === 'ENTERED' ? 'awaiting confirm' : (p.status | lowercase) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div class="receipt-block">
 
         <!-- A photograph of this bill already exists: the admin took one when marking

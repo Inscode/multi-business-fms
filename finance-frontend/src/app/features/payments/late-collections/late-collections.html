@@ -116,13 +116,15 @@
         <mat-tab label="By customer">
           <div class="tab-body">
             <p class="t-note">
-              Only customers who paid something past {{ report.dangerDays }} days. Ranked
-              by what came in beyond {{ report.supplierDays }} days — the money that
-              actually cost us. Click a name for their full record.
+              Only customers who paid something past their bill's terms. Credit runs to
+              {{ report.dangerDays }} then {{ report.supplierDays }} days; cash is due on
+              delivery, so it is judged at {{ report.cashDangerDays }} and
+              {{ report.cashSupplierDays }}. The two money columns do not overlap.
+              Click a name for their full record.
             </p>
 
             <p class="lc-empty" *ngIf="!lateCustomers.length">
-              Everything came in inside {{ report.dangerDays }} days.
+              Everything came in within terms.
             </p>
 
             <div class="cust-table" *ngIf="lateCustomers.length">
@@ -130,8 +132,8 @@
                 <span>Customer</span>
                 <span>Area</span>
                 <span class="right">Collected</span>
-                <span class="right">Past {{ report.dangerDays }}d</span>
-                <span class="right">Past {{ report.supplierDays }}d</span>
+                <span class="right">Late</span>
+                <span class="right">Beyond terms</span>
                 <span class="center">Avg days</span>
                 <span class="center">Worst</span>
               </div>
@@ -141,7 +143,9 @@
                 <span class="ct-name">{{ c.customerName }}</span>
                 <span class="ct-area">{{ c.area || '—' }}</span>
                 <span class="right">Rs {{ c.collected | number:'1.0-0' }}</span>
-                <span class="right warn">Rs {{ c.pastDangerAmount | number:'1.0-0' }}</span>
+                <span class="right" [class.warn]="c.lateAmount > 0">
+                  {{ c.lateAmount > 0 ? 'Rs ' + (c.lateAmount | number:'1.0-0') : '—' }}
+                </span>
                 <span class="right" [class.bad]="c.beyondTermsAmount > 0">
                   {{ c.beyondTermsAmount > 0
                       ? 'Rs ' + (c.beyondTermsAmount | number:'1.0-0') : '—' }}
@@ -177,7 +181,10 @@
               </div>
               <div class="pt-row" *ngFor="let p of visiblePayments"
                    (click)="openBill(p.billId)">
-                <span class="pt-bill">{{ p.billNumber }}</span>
+                <span class="pt-bill">
+                  {{ p.billNumber }}
+                  <em class="pt-cash" *ngIf="p.billType === 'CASH'">cash</em>
+                </span>
                 <span class="pt-cust">{{ p.customerName }}</span>
                 <span>{{ p.billDate | date:'dd MMM yy' }}</span>
                 <span>{{ p.paymentDate | date:'dd MMM yy' }}</span>

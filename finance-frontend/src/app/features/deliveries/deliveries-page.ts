@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -360,11 +360,56 @@ export class DeliveriesPage implements OnInit {
     });
   }
 
+  /**
+   * Which book a pasted page joins.
+   *
+   * <p>A paste carries no indication of which of the two it belongs to, and damage and
+   * salable are claimed and shelved differently — a page filed under the wrong one looks
+   * perfectly correct afterwards. So the target is always shown before the paste
+   * happens, and clicking either book moves it.
+   */
+  pasteBook: 'DAMAGE' | 'SALABLE' = 'SALABLE';
+
+  focusBook(type: 'DAMAGE' | 'SALABLE'): void {
+    this.pasteBook = type;
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Ctrl+V anywhere on the page, into whichever book is aimed at.
+   *
+   * <p>On the document rather than a book, because a paste only reaches the focused
+   * element and neither book is focusable. Several images pasted in turn all join the
+   * same book, which is what writing up one book of pages actually looks like.
+   */
+  @HostListener('document:paste', ['$event'])
+  onPaste(e: ClipboardEvent): void {
+    if (!this.selected) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (file) files.push(file);
+    }
+    if (!files.length) return;
+    e.preventDefault();
+    this.uploadPages(files, this.pasteBook);
+  }
+
   onPagePicked(e: Event, type: 'DAMAGE' | 'SALABLE'): void {
     const input = e.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
+    this.uploadPages(files, type);
+  }
+
+  /** One path for picked files and pasted screenshots alike. */
+  private uploadPages(files: File[], type: 'DAMAGE' | 'SALABLE'): void {
     if (!files.length || !this.selected) return;
+    this.pasteBook = type;
 
     this.pageError = '';
     this.uploadingPage = type;

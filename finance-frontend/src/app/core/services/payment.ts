@@ -123,6 +123,24 @@ export interface ReceiptRequirement {
   sharedFromPaymentId?: number;
   sharedFromAmount?: number;
   sharedFromAt?: string;
+
+  /**
+   * A collection the admin or owner marked and nobody has entered yet.
+   *
+   * The accountant is recording that same money, so the form starts from it rather than
+   * being retyped from one panel into another — which is how a cash collection quietly
+   * becomes a cheque and the two stop reconciling.
+   */
+  pendingNoteId?: number;
+  pendingNoteAmount?: number;
+  pendingNoteType?: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER';
+  pendingNoteBy?: string;
+  pendingNoteAt?: string;
+  pendingNoteChequeNumber?: string;
+  pendingNoteBankName?: string;
+  pendingNoteBranchName?: string;
+  pendingNoteChequeDate?: string;
+  pendingNoteReference?: string;
 }
 
 @Injectable({

@@ -1,5 +1,5 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnInit } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -581,7 +581,41 @@ export class SubmitReturn implements OnInit {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     input.value = '';
-    if (!file || !this.returnType) return;
+    this.acceptPhoto(file);
+  }
+
+  /**
+   * Accepts a screenshot pasted straight from the clipboard.
+   *
+   * <p>Bound to the document rather than to the drop zone: a paste event only reaches
+   * the focused element, and the zone is a label nobody thinks to click first — binding
+   * it there would make the shortcut do nothing the first time anyone tried it. One
+   * photo slot on this screen, so a paste can only mean this one.
+   */
+  @HostListener('document:paste', ['$event'])
+  onPaste(e: ClipboardEvent): void {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      e.preventDefault();
+      this.acceptPhoto(file);
+      return;
+    }
+  }
+
+  /** One path for the file picker and a pasted screenshot alike. */
+  private acceptPhoto(file: File | null): void {
+    if (!file) return;
+    // The folder is chosen by return type, so there is nowhere to put a photo until
+    // damage or salable has been picked.
+    if (!this.returnType) {
+      this.photoError = 'Choose damage or salable first — the photo is filed under it.';
+      this.cdr.markForCheck();
+      return;
+    }
     if (!file.type.startsWith('image/')) {
       this.photoError = 'That is not an image.';
       this.cdr.markForCheck();

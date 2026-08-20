@@ -227,6 +227,11 @@ public class CustomerHealthService {
         int bounced = 0;
         int partials = 0;
         Integer oldestOpenDays = null;
+        // Counted per bill against its own terms, since cash and credit are not due at
+        // the same time and one average across both hides whichever is worse.
+        int overTerms = 0;
+        int badlyLate = 0;
+        int worstOpenOverTerms = 0;
         LocalDate lastBounce = null;
         LocalDate firstBill = null;
         LocalDate lastBill = null;
@@ -280,6 +285,13 @@ public class CustomerHealthService {
                     int days = (int) ChronoUnit.DAYS.between(billDate, settledOn);
                     allDays.add(days);
                     if (settledOn.isAfter(recentFrom)) recentDays.add(days);
+
+                    // Judged against what this bill was actually due on. Cash is due when
+                    // the goods change hands; measuring it on the credit run reports a
+                    // cash sale collected three weeks late as comfortably on time.
+                    boolean cash = bill.getBillType() == com.multi.finance.enums.BillType.CASH;
+                    if (days > CreditTerms.dangerDays(cash)) overTerms++;
+                    if (days > CreditTerms.supplierDays(cash)) badlyLate++;
                 }
             } else {
                 BigDecimal bal = nz(bill.getBalanceRemaining());
@@ -287,11 +299,22 @@ public class CustomerHealthService {
                     openBills++;
                     outstanding = outstanding.add(bal);
                     int age = billDate == null ? 0 : (int) ChronoUnit.DAYS.between(billDate, today);
-                    if (age >= OVERDUE_DAYS) overdue = overdue.add(bal);
+                    boolean cash = bill.getBillType() == com.multi.finance.enums.BillType.CASH;
+                    // Overdue on its own terms: a cash bill open eight days is late, a
+                    // credit one is not.
+                    if (age >= CreditTerms.sealDays(cash)) overdue = overdue.add(bal);
+                    // How far past its own line, so a cash bill at 20 days outranks a
+                    // credit bill at 50 — which is the right way round.
+                    int over = age - CreditTerms.sealDays(cash);
+                    if (over > worstOpenOverTerms) worstOpenOverTerms = over;
                     if (oldestOpenDays == null || age > oldestOpenDays) oldestOpenDays = age;
                 }
             }
         }
+
+        int settledCount = allDays.size();
+        Integer overTermsPct = settledCount > 0
+                ? (int) Math.round(overTerms * 100.0 / settledCount) : null;
 
         Integer avgAll = average(allDays);
         Integer avgRecent = average(recentDays);
@@ -307,6 +330,10 @@ public class CustomerHealthService {
                 .avgDaysToSettle(avgAll)
                 .avgDaysToSettleRecent(avgRecent)
                 .worstDaysToSettle(worst)
+                .overTermsCount(overTerms)
+                .badlyLateCount(badlyLate)
+                .overTermsPct(overTermsPct)
+                .worstOpenOverTerms(worstOpenOverTerms)
                 .settledBillCount(allDays.size())
                 .currentOutstanding(outstanding)
                 .openBillCount(openBills)
@@ -347,16 +374,23 @@ public class CustomerHealthService {
         int watch = 0;
 
         // ── What is wrong right now ─────────────────────────────────────────
-        if (h.getOldestOpenDays() != null && h.getOldestOpenDays() > FUNDING_DAYS) {
-            careful++;
-            reasons.add("A bill has been open " + h.getOldestOpenDays()
-                      + " days — we have already had to pay for it.");
-        } else if (h.getOldestOpenDays() != null && h.getOldestOpenDays() > RISK_DAYS) {
-            careful++;
-            reasons.add("A bill has been open " + h.getOldestOpenDays() + " days.");
-        } else if (h.getOldestOpenDays() != null && h.getOldestOpenDays() > OVERDUE_DAYS) {
-            watch++;
-            reasons.add("Oldest open bill is " + h.getOldestOpenDays() + " days old.");
+        // Measured as days past the bill's own terms, so a cash bill open twenty days
+        // outranks a credit bill open fifty — which is the right way round, and the
+        // wrong way round before.
+        Integer over = h.getWorstOpenOverTerms();
+        if (over != null && over > 0) {
+            String age = h.getOldestOpenDays() + " days";
+            if (over > FUNDING_DAYS - OVERDUE_DAYS) {
+                careful++;
+                reasons.add("A bill has been open " + age
+                          + " — well past what it was due on.");
+            } else if (over > RISK_DAYS - OVERDUE_DAYS) {
+                careful++;
+                reasons.add("A bill has been open " + age + ", past its terms.");
+            } else {
+                watch++;
+                reasons.add("Oldest open bill is " + age + ", past its terms.");
+            }
         }
 
         if (h.getOverdueAmount().compareTo(BigDecimal.ZERO) > 0
@@ -367,7 +401,7 @@ public class CustomerHealthService {
             if (share.intValue() >= 60) {
                 careful++;
                 reasons.add("Rs " + h.getOverdueAmount().toBigInteger() + " of what is open — "
-                          + share + "% — is past " + OVERDUE_DAYS + " days.");
+                          + share + "% — is past its terms.");
             }
         }
 
@@ -396,26 +430,32 @@ public class CustomerHealthService {
             Integer all = h.getAvgDaysToSettle();
             int judge = recent != null ? recent : (all == null ? 0 : all);
 
-            // Past 70 the company had already paid the principal, so this customer is
-            // routinely being funded out of its own cash. That is the strongest thing
-            // the averages can say.
-            if (judge > FUNDING_DAYS) {
+            // How often they broke their own terms, rather than what the raw average
+            // came to. A customer buying cash and credit averages the two together, and
+            // the mean lands between the lines without touching either — punctual by
+            // arithmetic, late on half their bills in fact.
+            int pct = h.getOverTermsPct() == null ? 0 : h.getOverTermsPct();
+
+            if (h.getBadlyLateCount() > 0 && pct >= 40) {
                 careful++;
-                reasons.add("Takes " + judge + " days on average — past the "
-                          + FUNDING_DAYS + " days we get to pay the supplier.");
-            } else if (judge > RISK_DAYS) {
+                reasons.add(h.getBadlyLateCount() + " of " + h.getSettledBillCount()
+                          + " bills were paid long past their terms.");
+            } else if (pct >= 50) {
                 careful++;
-                reasons.add("Takes " + judge + " days on average to settle.");
-            } else if (judge > OVERDUE_DAYS) {
+                reasons.add(pct + "% of their bills ran past terms.");
+            } else if (pct >= 25) {
                 watch++;
-                reasons.add("Takes " + judge + " days on average, past the "
-                          + OVERDUE_DAYS + " days on the bill.");
-            } else if (judge > 0) {
+                reasons.add(pct + "% of their bills ran past terms.");
+            }
+
+            // Said as well, because it is what anyone asks first — but it no longer
+            // decides the rating on its own.
+            if (judge > 0) {
                 reasons.add("Settles in " + judge + " days on average.");
             }
 
             if (h.getWorstDaysToSettle() != null && h.getWorstDaysToSettle() > FUNDING_DAYS
-                    && judge <= RISK_DAYS) {
+                    && pct < 25) {
                 reasons.add("Once took " + h.getWorstDaysToSettle() + " days, though "
                           + "usually quicker.");
             }

@@ -333,17 +333,41 @@ public class BillController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> body,
             java.security.Principal principal) {
+        String note = body.get("note") == null ? null : String.valueOf(body.get("note"));
+        String by = principal == null ? null : principal.getName();
+
+        // Several at once: a load covering three shops is three hand-written bills, and
+        // linking them one round-trip at a time is three chances to stop halfway.
+        Object many = body.get("targetBillIds");
+        if (many instanceof java.util.List<?> list && !list.isEmpty()) {
+            java.util.List<Long> ids = list.stream()
+                    .map(v -> Long.valueOf(String.valueOf(v))).toList();
+            return ResponseEntity.ok(billService.linkSettlement(id, ids, note, by));
+        }
+
         Object raw = body.get("targetBillId");
         Long targetId = raw == null ? null : Long.valueOf(String.valueOf(raw));
-        String note = body.get("note") == null ? null : String.valueOf(body.get("note"));
-        return ResponseEntity.ok(billService.linkSettlement(
-                id, targetId, note, principal == null ? null : principal.getName()));
+        return ResponseEntity.ok(billService.linkSettlement(id, targetId, note, by));
+    }
+
+    /** Removes one hand-written bill from the set collecting for this one. */
+    @DeleteMapping("/{id}/settle-on/{manualBillId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BillResponse> unlinkOne(@PathVariable Long id,
+                                                  @PathVariable Long manualBillId) {
+        return ResponseEntity.ok(billService.unlinkOne(id, manualBillId));
     }
 
     @DeleteMapping("/{id}/settle-on")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BillResponse> unlinkSettlement(@PathVariable Long id) {
         return ResponseEntity.ok(billService.unlinkSettlement(id));
+    }
+
+    /** Every hand-written bill collecting this bill's money. */
+    @GetMapping("/{id}/settlement-links")
+    public ResponseEntity<List<BillResponse>> settlementLinks(@PathVariable Long id) {
+        return ResponseEntity.ok(billService.getSettlementLinks(id));
     }
 
     /** Hand-written bills this one could be collected on — same customer, same period. */

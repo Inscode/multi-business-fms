@@ -661,6 +661,17 @@
 // A return is written up where the goods are — at the counter or by the lorry — not at
 // a desk afterwards, so the photograph is taken with the same hand holding the phone.
 // The layout below is for that, and the desktop form is left alone above it.
+.paste-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: #7b8a9d;
+
+  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+}
+
 @media (max-width: 700px) {
 
   .page-header {
@@ -748,4 +759,8 @@
   // means losing your place in it.
   input.mat-mdc-input-element,
   .item-input input { font-size: 16px; }
+}
+
+@media (max-width: 700px) {
+  .paste-hint { display: none; }
 }
