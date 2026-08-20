@@ -14,7 +14,7 @@ import { Bill } from '../../../core/services/bill';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
 import { Auth } from '../../../core/services/auth';
 import { compressImage, describeSaving } from '../../../core/utils/image-compress';
-import { ReceiptRequirement } from '../../../core/services/payment';
+import { PaymentResponse, ReceiptRequirement } from '../../../core/services/payment';
 import { Router } from '@angular/router';
 import { BANKS, AREAS } from '../../../core/constants/payment-options';
 import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel } from '../../../core/utils/cheque-age';
@@ -125,7 +125,10 @@ export class EnterPayment implements OnInit {
     const preselected = history.state?.preselectedBill;
     if (preselected) {
       this.selectedBill = preselected;
-      if (preselected?.id) this.loadCoverage(preselected.id);
+      if (preselected?.id) {
+        this.loadCoverage(preselected.id);
+        this.loadExisting(preselected.id);
+      }
       this.onBillSelect(preselected);
     }
 
@@ -168,7 +171,7 @@ export class EnterPayment implements OnInit {
 
   onBillSelect(bill: any): void {
     this.selectedBill = bill;
-    if (bill?.id) this.loadCoverage(bill.id);
+    if (bill?.id) { this.loadCoverage(bill.id); this.loadExisting(bill.id); }
     const maxAmount = bill.balanceRemaining;
     this.form.get('amount')?.setValidators([
       Validators.required,
@@ -270,15 +273,88 @@ export class EnterPayment implements OnInit {
   /** Everyone but an admin has to attach one, unless one already covers it. */
   get imageRequired(): boolean { return !this.isAdminUser && !this.alreadyCovered; }
 
+  // ── What is already on this bill ────────────────────────────────────────
+  // The admin records cash collections of his own. Without seeing them the accountant
+  // either enters the same money twice, or leaves a bill alone believing it settled —
+  // and neither shows up until the balance is queried. Shown so the entry can be
+  // checked against the bill it was actually meant for.
+
+  existingPayments: PaymentResponse[] = [];
+  showExisting = false;
+
+  /** Only what still stands: a rejected or bounced payment is not money on the bill. */
+  get standingPayments(): PaymentResponse[] {
+    return this.existingPayments.filter(
+      p => p.status !== 'REJECTED' && p.status !== 'RETURNED');
+  }
+
+  get standingTotal(): number {
+    return this.standingPayments.reduce((sum, p) => sum + (p.paymentAmount ?? 0), 0);
+  }
+
+  private loadExisting(billId: number): void {
+    this.existingPayments = [];
+    this.showExisting = false;
+    this.paymentService.getPaymentsByBill(billId).subscribe({
+      next: (list) => {
+        this.existingPayments = list ?? [];
+        this.cdr?.markForCheck?.();
+      },
+      error: () => { this.existingPayments = []; this.cdr?.markForCheck?.(); },
+    });
+  }
+
   private loadCoverage(billId: number): void {
     this.coverage = null;
     this.paymentService.getReceiptRequirement(billId).subscribe({
-      next: (r) => { this.coverage = r; this.cdr?.markForCheck?.(); },
+      next: (r) => {
+        this.coverage = r;
+        this.applyPendingNote(r);
+        this.cdr?.markForCheck?.();
+      },
       // A failed lookup must not let a payment through unphotographed, so nothing is
       // assumed covered — the server checks again on save regardless.
       error: () => { this.coverage = null; this.cdr?.markForCheck?.(); },
     });
   }
+
+  /**
+   * Starts the form from the collection the admin already marked.
+   *
+   * <p>Only fills what is still empty. Anything already typed is the accountant's own
+   * and is not overwritten — being halfway through a form and having it rewritten
+   * underneath you is worse than typing the type again.
+   */
+  private applyPendingNote(r: ReceiptRequirement): void {
+    if (!r?.pendingNoteId) return;
+
+    const type = this.form.get('paymentType');
+    if (r.pendingNoteType && !type?.value) {
+      type?.setValue(r.pendingNoteType);
+    }
+
+    const amount = this.form.get('amount');
+    if (r.pendingNoteAmount != null && !amount?.value) {
+      amount?.setValue(r.pendingNoteAmount);
+    }
+
+    // Cheque and transfer details, so the accountant is not copying a cheque number
+    // by eye from one panel into another.
+    const carry: [string, unknown][] = [
+      ['chequeNumber',    r.pendingNoteChequeNumber],
+      ['bankName',        r.pendingNoteBankName],
+      ['branchName',      r.pendingNoteBranchName],
+      ['chequeDate',      r.pendingNoteChequeDate ? new Date(r.pendingNoteChequeDate) : null],
+      ['referenceNumber', r.pendingNoteReference],
+    ];
+    for (const [name, value] of carry) {
+      const c = this.form.get(name);
+      if (c && value && !c.value) c.setValue(value);
+    }
+  }
+
+  /** True when the form was started from a collection somebody else marked. */
+  get fromPendingNote(): boolean { return !!this.coverage?.pendingNoteId; }
 
   /**
    * Accepts a screenshot pasted straight from the clipboard.

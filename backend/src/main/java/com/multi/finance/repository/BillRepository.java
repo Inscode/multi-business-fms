@@ -55,6 +55,11 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
             "WHERE b.business = :business " +
             "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
             "AND b.settledOn IS NULL " +
+            // Paid off is paid off, whatever the status says. A return credit can settle
+            // a bill without anything moving it to COMPLETED, and the aging report has
+            // always checked this — the dashboard did not, so the two disagreed about
+            // the same bill.
+            "AND (b.fullyPaid IS NULL OR b.fullyPaid = false) " +
             "AND (b.willBeLinked IS NULL OR b.willBeLinked = false)")
     BigDecimal sumOutstandingByBusinessExcludingLinking(@Param("business") BusinessType business);
 

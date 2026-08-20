@@ -19,8 +19,12 @@ export interface LateCollectionCustomer {
   customerName: string;
   area?: string;
   collected: number;
-  pastDangerAmount: number;
+  /** The window between the danger line and the supplier deadline — disjoint from below. */
+  lateAmount: number;
+  /** Past the supplier deadline: the money that actually cost something. */
   beyondTermsAmount: number;
+  /** Both together. */
+  pastDangerAmount: number;
   avgDaysWeighted?: number;
   worstDays?: number;
   paymentCount: number;
@@ -37,6 +41,8 @@ export interface LateCollectionPayment {
   band: CollectionBand;
   amount: number;
   paymentType?: string;
+  /** CASH or CREDIT — the terms these days were judged against. */
+  billType?: string;
 }
 
 /**
@@ -53,6 +59,10 @@ export interface LateCollectionReport {
   sealDays: number;
   dangerDays: number;
   supplierDays: number;
+  /** Cash is due on delivery, so it is judged on a much shorter run. */
+  cashSealDays: number;
+  cashDangerDays: number;
+  cashSupplierDays: number;
 
   totalCollected: number;
   paymentCount: number;

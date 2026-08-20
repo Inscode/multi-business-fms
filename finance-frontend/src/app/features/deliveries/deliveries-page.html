@@ -371,10 +371,17 @@
               <div class="bd-title">Return book pages</div>
               <div class="book-cols">
                 @for (type of bookTypes; track type) {
-                  <div class="book-col" [class.damage]="type === 'DAMAGE'">
+                  <div class="book-col" [class.damage]="type === 'DAMAGE'"
+                       [class.paste-target]="pasteBook === type"
+                       (click)="focusBook(type)">
                     <div class="bc-head">
                       <strong>{{ type === 'DAMAGE' ? 'Damage' : 'Salable' }}</strong>
-                      <span>{{ runImages[type].length }} page(s)</span>
+                      <span class="bc-right">
+                        <span class="bc-aim" *ngIf="pasteBook === type">
+                          <mat-icon>content_paste</mat-icon> Ctrl+V
+                        </span>
+                        {{ runImages[type].length }} page(s)
+                      </span>
                     </div>
 
                     <div class="pages">
@@ -427,6 +434,7 @@
               <p class="hint">
                 One page stands for every return on this round, so an accountant
                 confirming a shop&rsquo;s goods does not photograph them again.
+                Click a book, then Ctrl + V to paste pages straight into it.
               </p>
             </div>
 

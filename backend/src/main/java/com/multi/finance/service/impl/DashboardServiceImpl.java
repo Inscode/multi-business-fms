@@ -98,8 +98,10 @@ public class DashboardServiceImpl {
                         .countByBusinessAndStatus(business, BillStatus.ASSIGNED))
                 .inShopBills(billRepository
                         .countByBusinessAndStatusIn(business, SHOP_STATUSES))
+                // Scoped to the business the card is showing. Unscoped, it counted
+                // every business while everything around it counted one.
                 .awaitingConfirmation(paymentRepository
-                        .countByStatus(PaymentStatus.ENTERED))
+                        .countByStatusAndBusiness(PaymentStatus.ENTERED, business))
                 .pendingBills(billRepository
                         .countByBusinessAndStatusIn(business, PENDING_STATUSES))
                 .totalOutstanding(billRepository
@@ -121,7 +123,7 @@ public class DashboardServiceImpl {
                 .cashPending(billRepository.sumCashPendingByBusiness(business))
                 .cashSerious(billRepository.sumCashSeriousByBusiness(business, today.minusDays(15)))
                 .pendingPayments(paymentRepository
-                        .findByStatusOrderByCreatedAtDesc(PaymentStatus.ENTERED)
+                        .findByStatusAndBusiness(PaymentStatus.ENTERED, business)
                         .stream().map(this::toPaymentSummary).toList())
                 .assignedBillList(billRepository
                         .findByBusinessAndStatus(business, BillStatus.ASSIGNED)

@@ -315,11 +315,16 @@
     <div class="photo-block">
       <label class="photo-drop" *ngIf="!photoPreview">
         <mat-icon>photo_camera</mat-icon>
-        <span class="pd-title">Take or choose a photo</span>
+        <span class="pd-title">Take, choose, or paste a photo</span>
         <span class="pd-sub">{{ isRouteBill ? 'Optional' : 'Needed before the goods can be confirmed' }}</span>
         <input type="file" accept="image/*" capture="environment" hidden
                (change)="onPhotoPicked($event)">
       </label>
+
+      <p class="paste-hint" *ngIf="!photoPreview">
+        <mat-icon>content_paste</mat-icon>
+        Or press Ctrl + V to paste a screenshot — no need to click here first.
+      </p>
 
       <div class="photo-preview" *ngIf="photoPreview">
         <img [src]="photoPreview" alt="Returned goods">

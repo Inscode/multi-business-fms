@@ -770,3 +770,47 @@
     button { width: 100%; min-height: 46px; }
   }
 }
+
+// Where a pasted page will land. Shown because damage and salable are claimed and
+// shelved differently, and a page filed under the wrong one looks correct afterwards.
+.book-col {
+  cursor: pointer;
+
+  // Tint and a ring, never border-color: the left border is green for salable and red
+  // for damage, and that colour is how the two books are told apart at a glance.
+  // Setting border-color would repaint it and lose the distinction the highlight
+  // exists to protect.
+  &.paste-target {
+    background: #f5faff;
+    box-shadow: inset 0 0 0 1px #90caf9;
+  }
+
+  &.damage.paste-target {
+    background: #fff7f6;
+    box-shadow: inset 0 0 0 1px #ef9a9a;
+  }
+}
+
+.bc-right { display: inline-flex; align-items: center; gap: 6px; }
+
+.bc-aim {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #e3f2fd;
+  color: #16408f;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  mat-icon { font-size: 12px; width: 12px; height: 12px; }
+}
+
+// Pasting needs a keyboard, so the aim chip is only clutter on a phone.
+@media (max-width: 700px) {
+  .bc-aim { display: none; }
+  .book-col.paste-target,
+  .book-col.damage.paste-target { background: #fafbfc; box-shadow: none; }
+}

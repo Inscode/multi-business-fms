@@ -160,7 +160,14 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   get showAdminTab(): boolean       { return this.currentRole === 'ADMIN'; }
   get showStaff(): boolean          { return ['ADMIN', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showUsers(): boolean          { return this.currentRole === 'ADMIN'; }
-  get showCollect(): boolean        { return this.currentRole === 'OWNER'; }
+  /**
+   * Admin as well as owner. An admin collecting cash marks it here rather than
+   * entering the payment directly: the accountant then enters it formally, and that
+   * second pair of eyes is the only check on a collection nobody else witnessed.
+   */
+  get showCollect(): boolean        {
+    return this.currentRole === 'OWNER' || this.currentRole === 'ADMIN';
+  }
   get showEditRequests(): boolean   { return this.currentRole === 'ADMIN'; }
   get showReturns(): boolean         { return ['ADMIN', 'OWNER', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.currentRole); }
   get showExpenses(): boolean       { return ['ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT'].includes(this.currentRole); }

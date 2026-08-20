@@ -14,7 +14,10 @@
     <!-- The lorry round. Answered once, then reused for every bill entered after it —
          and shown at all times, because a sticky default nobody notices is how bills
          end up on the wrong lorry. Hidden while editing an existing bill. -->
-    @if (!isEditing) {
+    <!-- Shown when editing as well: bills entered before deliveries were recorded
+         carry no mode at all, and the edit form is where that is put right. A draft
+         stands in for a bill not yet written, so nothing has gone anywhere. -->
+    @if (!isDraft) {
       <div class="run-bar" [class.none]="!currentRun" [class.stale]="runIsStale">
         @if (currentRun) {
           <div class="rb-left">

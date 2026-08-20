@@ -40,11 +40,45 @@ public final class CreditTerms {
      */
     public static final int SUPPLIER_DAYS = 70;
 
-    /** Which band a settled bill's age falls into. */
-    public static String bandFor(int days) {
-        if (days <= SEAL_DAYS) return "ON_TIME";
-        if (days <= DANGER_DAYS) return "WATCH";
-        if (days <= SUPPLIER_DAYS) return "LATE";
+    // ── Cash ────────────────────────────────────────────────────────────────
+    //
+    // A cash bill is not credit at all: the money is due when the goods are handed over,
+    // so measuring it against the credit run reports a cash sale collected three weeks
+    // late as comfortably on time. Rainco is the only business that really sells both —
+    // a cash bill elsewhere is a typing slip today, though that may change.
+
+    /** A day or two to reach the office is ordinary; beyond that it is being carried. */
+    public static final int CASH_SEAL_DAYS = 7;
+
+    /**
+     * Where cash stops being slow and starts being a debt nobody agreed to.
+     *
+     * <p>Fifteen because the dashboard already calls cash past fifteen days serious, and
+     * two different answers to the same question on two screens is worse than either.
+     */
+    public static final int CASH_DANGER_DAYS = 15;
+
+    /** Past this, cash has been outstanding longer than credit terms would have allowed. */
+    public static final int CASH_SUPPLIER_DAYS = 30;
+
+    public static int sealDays(boolean cash)     { return cash ? CASH_SEAL_DAYS : SEAL_DAYS; }
+    public static int dangerDays(boolean cash)   { return cash ? CASH_DANGER_DAYS : DANGER_DAYS; }
+    public static int supplierDays(boolean cash) { return cash ? CASH_SUPPLIER_DAYS : SUPPLIER_DAYS; }
+
+    /**
+     * Which band a settled bill's age falls into, on its own terms.
+     *
+     * @param cash true for a cash bill, which is due on delivery rather than on credit
+     */
+    public static String bandFor(int days, boolean cash) {
+        if (days <= sealDays(cash))     return "ON_TIME";
+        if (days <= dangerDays(cash))   return "WATCH";
+        if (days <= supplierDays(cash)) return "LATE";
         return "BEYOND_TERMS";
+    }
+
+    /** Credit terms, for callers with no bill type to hand. */
+    public static String bandFor(int days) {
+        return bandFor(days, false);
     }
 }

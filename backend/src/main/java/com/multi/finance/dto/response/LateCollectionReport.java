@@ -33,6 +33,11 @@ public class LateCollectionReport {
     private int supplierDays;
 
     // ── The whole period ────────────────────────────────────────────────────
+    /** Day-counts for cash, which is due on delivery rather than on credit. */
+    private int cashSealDays;
+    private int cashDangerDays;
+    private int cashSupplierDays;
+
     private BigDecimal totalCollected;
     private int paymentCount;
 
@@ -75,8 +80,22 @@ public class LateCollectionReport {
         private String customerName;
         private String area;
         private BigDecimal collected;
-        private BigDecimal pastDangerAmount;
+
+        /**
+         * Collected in the window between the danger line and the supplier deadline.
+         *
+         * <p>Disjoint from {@link #beyondTermsAmount} on purpose. They used to nest —
+         * past-60 counted everything past-70 did — so the two columns showed the same
+         * figure on every customer whose payments were all badly late, which is exactly
+         * the customer the report is about.
+         */
+        private BigDecimal lateAmount;
+
+        /** Collected past the supplier deadline — the money that cost something. */
         private BigDecimal beyondTermsAmount;
+
+        /** The two above together, for anyone wanting the total that ran past terms. */
+        private BigDecimal pastDangerAmount;
         private Integer avgDaysWeighted;
         private Integer worstDays;
         private int paymentCount;
@@ -96,5 +115,7 @@ public class LateCollectionReport {
         private String band;
         private BigDecimal amount;
         private String paymentType;
+        /** CASH or CREDIT — the terms the days were judged against. */
+        private String billType;
     }
 }

@@ -44,6 +44,8 @@ public class PaymentServiceImpl {
     private final CollectionNoteRepository collectionNoteRepository;
     private final WorkerRepository workerRepository;
     private final com.multi.finance.repository.BillReturnRepository billReturnRepository;
+    private final com.multi.finance.repository.BillSettlementLinkRepository billSettlementLinkRepository;
+    private final BillServiceImpl billService;
 
     /** Returns nobody has confirmed or reviewed yet; these hold up a payment. */
     private static final List<com.multi.finance.enums.ReturnStatus> UNSETTLED_RETURNS =
@@ -104,6 +106,7 @@ public class PaymentServiceImpl {
 
         guardOpenReturns(bill);
         guardSettledElsewhere(bill);
+        guardAdminCash(caller, request.getPaymentType(), request.getCollectionNoteId());
 
         // A second instrument handed over in the same visit rides on the first
         // photograph: both are written on the same page of the bill under one signature,
@@ -442,6 +445,29 @@ public class PaymentServiceImpl {
      * balance the reports have already excluded and leave the bill that is actually
      * being chased still showing the full amount.
      */
+    /**
+     * Sends an admin's own cash collection through the accountant.
+     *
+     * <p>An admin's payment confirms itself, which is right for money the accountant
+     * collected and the admin is checking — the two roles are the two pairs of eyes.
+     * Cash the admin collected personally has neither: entering and confirming it in one
+     * action means nobody but the collector ever saw the figure, and cash is the one
+     * kind that leaves no trace of its own to reconcile against.
+     *
+     * <p>So it is marked as a collection instead, and the accountant enters it formally.
+     * Allowed here once a note exists, because that is the accountant doing exactly
+     * that.
+     */
+    private void guardAdminCash(User caller, PaymentType type, Long collectionNoteId) {
+        if (caller.getRole() != UserRole.ADMIN) return;
+        if (type != PaymentType.CASH) return;
+        if (collectionNoteId != null) return;
+        throw new RuntimeException(
+                "Mark cash you collected under Collect instead. The accountant enters it "
+              + "formally from there, which is the check on it — entering it here would "
+              + "confirm your own collection.");
+    }
+
     private void guardSettledElsewhere(Bill bill) {
         if (bill.getSettledOn() == null) return;
         throw new RuntimeException(
@@ -553,6 +579,28 @@ public class PaymentServiceImpl {
         out.put("required", receiptRequiredOf(caller));
         out.put("windowHours", SHARED_RECEIPT_HOURS);
 
+        // What the admin or owner said they collected, waiting to be entered. The
+        // accountant is recording that same money, so the form starts from it rather
+        // than making them read it off one panel and retype it into another — where a
+        // cash collection quietly becomes a cheque, and the two never reconcile.
+        collectionNoteRepository
+                .findByBillIdAndStatus(bill.getId(), CollectionNoteStatus.PENDING).stream()
+                .findFirst()
+                .ifPresent(note -> {
+                    out.put("pendingNoteId", note.getId());
+                    out.put("pendingNoteAmount", note.getAmount());
+                    out.put("pendingNoteType", note.getPaymentType() == null
+                            ? null : note.getPaymentType().name());
+                    out.put("pendingNoteBy", note.getCollectedBy() == null
+                            ? null : note.getCollectedBy().getFullName());
+                    out.put("pendingNoteAt", note.getCollectedAt());
+                    out.put("pendingNoteChequeNumber", note.getChequeNumber());
+                    out.put("pendingNoteBankName", note.getBankName());
+                    out.put("pendingNoteBranchName", note.getBranchName());
+                    out.put("pendingNoteChequeDate", note.getChequeDate());
+                    out.put("pendingNoteReference", note.getReferenceNumber());
+                });
+
         ReceiptSource source = receiptRequiredOf(caller) ? findExistingReceipt(bill, caller) : null;
         out.put("canShare", source != null);
         if (source != null) {
@@ -616,10 +664,21 @@ public class PaymentServiceImpl {
      * on a debt that was in fact collected.
      */
     private void cascadeToSettledBills(Bill payer, BillStatus target) {
+        // The bill this one collects for, where it is one of several. It closes only
+        // when every hand-written bill collecting for it is paid — one shop paying does
+        // not settle a load that covered three.
+        billSettlementLinkRepository.findByManualBillId(payer.getId()).ifPresent(link -> {
+            Bill system = link.getSystemBill();
+            billService.syncSettledCompletion(system);
+            system.setUpdatedAt(LocalDateTime.now());
+            billRepository.save(system);
+        });
+
+        // The older one-to-one pointer, for bills linked before the table existed.
         List<Bill> settled = billRepository.findBySettledOnId(payer.getId());
         for (Bill b : settled) {
             if (b.getStatus() == BillStatus.CANCELLED || b.getStatus() == target) continue;
-            b.setStatus(target);
+            billService.syncSettledCompletion(b);
             b.setUpdatedAt(LocalDateTime.now());
             billRepository.save(b);
         }

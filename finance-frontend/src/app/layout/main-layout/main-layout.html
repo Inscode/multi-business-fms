@@ -167,7 +167,11 @@
           <mat-icon>payments</mat-icon>
           <span>Payments</span>
         </a>
-        <a class="mob-nav-item" routerLink="/owner/collect" routerLinkActive="active" *ngIf="showCollect">
+        <!-- Owner only down here. An admin already has Home, Bills, Admin and More,
+             and a fifth item is where a bottom bar stops being tappable. Collect stays
+             in the drawer for them. -->
+        <a class="mob-nav-item" routerLink="/owner/collect" routerLinkActive="active"
+           *ngIf="showCollect && !showAdminTab">
           <mat-icon>handshake</mat-icon>
           <span>Collect</span>
         </a>
