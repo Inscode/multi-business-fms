@@ -11,19 +11,97 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, debounceTime, distinctUntilChanged, switchMap, catchError, of } from 'rxjs';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { InvoiceSummary } from '../../../core/models/models';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { Auth } from '../../../../../core/services/auth';
+import { ConfirmDialog } from '../../../../../shared/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-invoice-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule, RouterLink, MatButtonModule, MatIconModule,
-            MatFormFieldModule, MatInputModule, MatSelectModule, MatProgressSpinnerModule],
+            MatFormFieldModule, MatInputModule, MatSelectModule, MatProgressSpinnerModule,
+            MatDialogModule, MatSnackBarModule, MatTooltipModule],
   templateUrl: './invoice-list.component.html',
   styleUrl: './invoice-list.component.scss'
 })
 export class InvoiceListComponent implements OnInit {
   private svc = inject(InvoiceService);
   private cdr = inject(ChangeDetectorRef);
+  private dialog = inject(MatDialog);
+  private snackBar = inject(MatSnackBar);
+  private auth = inject(Auth);
+
+  /** Voiding an invoice moves stock and cancels a bill; not a clerical decision. */
+  get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
+
+  /**
+   * Voids the invoice and the bill it raised, and returns the goods to stock.
+   *
+   * <p>A reason is required: the invoice keeps its number and stays in the list, so this
+   * is the only thing that will explain it to whoever finds it later.
+   */
+  cancelInvoice(inv: InvoiceSummary): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Cancel ' + inv.invoiceNo,
+        message:
+          'The goods go back into stock and the bill this invoice raised is cancelled '
+          + 'with it.\n\nThe invoice itself is kept under its number — it was issued, '
+          + 'and the stock moved, so the record of that stays.',
+        confirmText: 'Cancel invoice',
+        confirmColor: 'warn',
+        showInput: true,
+        inputLabel: 'Reason (required)',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      const reason = String(result.inputValue ?? '').trim();
+      if (!reason) {
+        this.snackBar.open('A reason is needed to cancel an invoice.', 'OK',
+                           { duration: 4000 });
+        return;
+      }
+      this.svc.cancel(inv.id, reason).subscribe({
+        next: () => {
+          this.snackBar.open('Cancelled, and the stock is back.', 'OK', { duration: 4000 });
+          this.load();
+        },
+        error: (err) => this.snackBar.open(
+          err?.error?.message ?? 'Could not cancel the invoice.', 'OK', { duration: 6000 }),
+      });
+    });
+  }
+
+  /** Removes the invoice here only; the bill in the bills section is left alone. */
+  deleteInvoice(inv: InvoiceSummary): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Delete ' + inv.invoiceNo,
+        message:
+          'The invoice is removed from this section and its goods go back into stock.'
+          + '\n\nThe bill in the bills section is left exactly as it is — it may have '
+          + 'been entered by hand before this invoice existed, and may already be '
+          + 'collecting money. Cancel instead if you want the record kept.',
+        confirmText: 'Delete invoice',
+        confirmColor: 'warn',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      this.svc.delete(inv.id).subscribe({
+        next: () => {
+          this.snackBar.open('Deleted, and the stock is back.', 'OK', { duration: 4000 });
+          this.load();
+        },
+        error: (err) => this.snackBar.open(
+          err?.error?.message ?? 'Could not delete the invoice.', 'OK', { duration: 6000 }),
+      });
+    });
+  }
 
   invoices: InvoiceSummary[] = [];
   loading = true;

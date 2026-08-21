@@ -76,4 +76,58 @@ public class ImageKitService {
             throw new RuntimeException("Failed to read uploaded file", e);
         }
     }
+
+    private static final String LIST_URL = "https://api.imagekit.io/v1/files";
+
+    /**
+     * Removes a stored image, given the URL that was kept for it.
+     *
+     * <p>Two calls, because only the URL was ever stored and ImageKit deletes by file id:
+     * the name is looked up first, then deleted. Storing the id at upload time would save
+     * a call but would not help the images already uploaded, which are the ones being
+     * cleared out.
+     *
+     * <p>Never throws. A file that has already gone, or a lookup that fails, must not
+     * stop the record it belonged to from being deleted — the alternative is a payment
+     * that cannot be removed because of a picture.
+     *
+     * @return true when something was actually deleted
+     */
+    public boolean deleteByUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        try {
+            String fileName = url.substring(url.lastIndexOf('/') + 1);
+            int q = fileName.indexOf('?');
+            if (q >= 0) fileName = fileName.substring(0, q);
+            if (fileName.isBlank()) return false;
+
+            HttpHeaders headers = new HttpHeaders();
+            String encoded = Base64.getEncoder().encodeToString((privateKey + ":").getBytes());
+            headers.set(HttpHeaders.AUTHORIZATION, "Basic " + encoded);
+
+            String search = LIST_URL + "?searchQuery=" + java.net.URLEncoder.encode(
+                    "name=\"" + fileName + "\"", java.nio.charset.StandardCharsets.UTF_8);
+
+            ResponseEntity<java.util.List> found = restTemplate.exchange(
+                    search, org.springframework.http.HttpMethod.GET,
+                    new HttpEntity<>(headers), java.util.List.class);
+
+            if (found.getBody() == null || found.getBody().isEmpty()) return false;
+
+            Object first = found.getBody().get(0);
+            if (!(first instanceof Map<?, ?> m)) return false;
+            Object fileId = m.get("fileId");
+            if (fileId == null) return false;
+
+            restTemplate.exchange(LIST_URL + "/" + fileId,
+                    org.springframework.http.HttpMethod.DELETE,
+                    new HttpEntity<>(headers), Void.class);
+            return true;
+
+        } catch (Exception e) {
+            // Logged rather than raised: the record must still be removable.
+            System.err.println("ImageKit delete failed for " + url + ": " + e.getMessage());
+            return false;
+        }
+    }
 }

@@ -62,11 +62,18 @@
         </thead>
         <tbody>
           @for (inv of invoices; track inv.id) {
-            <tr>
+            <tr [class.row-cancelled]="inv.cancelled">
               <td class="invoice-no">
                 {{ inv.invoiceNo }}
                 @if (inv.duplicatePrint) {
                   <span class="badge danger dup">DUP</span>
+                }
+                <!-- Kept in the list rather than hidden: the number was issued, and a
+                     gap where an invoice used to be explains nothing. -->
+                @if (inv.cancelled) {
+                  <span class="badge danger" [matTooltip]="inv.cancelReason || ''">
+                    CANCELLED
+                  </span>
                 }
               </td>
               <td>{{ inv.invoiceDate | date:'dd MMM yyyy' }}</td>
@@ -80,6 +87,18 @@
                 <a mat-icon-button [routerLink]="['/invoicing/invoices', inv.id]" matTooltip="View">
                   <mat-icon>visibility</mat-icon>
                 </a>
+                @if (isAdmin && !inv.cancelled) {
+                  <button mat-icon-button (click)="cancelInvoice(inv)"
+                          matTooltip="Cancel — voids the bill too and returns the stock">
+                    <mat-icon>block</mat-icon>
+                  </button>
+                }
+                @if (isAdmin) {
+                  <button mat-icon-button (click)="deleteInvoice(inv)"
+                          matTooltip="Delete here only — the bill is left alone">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                }
               </td>
             </tr>
           }

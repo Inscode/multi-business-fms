@@ -298,6 +298,9 @@ public class DeliveryRunServiceImpl {
                 .id(b.getId())
                 .billNumber(b.getBillNumber())
                 .business(b.getBusiness())
+                // Cash needs collecting at the door, so it has to be visible on the list
+                // the lorry is checked against rather than only on the bill itself.
+                .billType(b.getBillType())
                 .customerName(b.getCustomerName())
                 .area(b.getArea())
                 .totalAmount(b.getTotalAmount())

@@ -198,4 +198,13 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
          + "AND b.business = :business ORDER BY p.createdAt DESC")
     List<Payment> findByStatusAndBusiness(@Param("status") PaymentStatus status,
                                           @Param("business") com.multi.finance.enums.BusinessType business);
+
+    /** Other payments resting on the same photograph, so it is not deleted from under them. */
+    @Query("SELECT COUNT(p) FROM Payment p WHERE p.receiptImageUrl = :url AND p.id <> :exceptId")
+    long countSharingReceipt(@Param("url") String url, @Param("exceptId") Long exceptId);
+
+    /** Detaches anything pointing at a payment about to be removed. */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Payment p SET p.receiptSharedFrom = null WHERE p.receiptSharedFrom.id = :id")
+    void clearSharedReceiptFrom(@Param("id") Long id);
 }

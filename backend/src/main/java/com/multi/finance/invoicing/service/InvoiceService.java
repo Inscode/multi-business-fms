@@ -41,6 +41,7 @@ public class InvoiceService {
     private final BrandRepository brandRepo;
     private final DiscountSlabRepository slabRepo;
     private final StockMovementRepository movementRepo;
+    private final com.multi.finance.service.impl.BillServiceImpl billService;
     private final SystemSettingsRepository settingsRepo;
     private final InvoiceBillBridge billBridge;
     private final InvoiceNumberService numbering;
@@ -823,6 +824,9 @@ public class InvoiceService {
 
     private InvoiceSummaryResponse toSummary(Invoice inv, DiscountEngineService.InvoiceTotals t) {
         InvoiceSummaryResponse s = new InvoiceSummaryResponse();
+        s.setCancelled(inv.isCancelled());
+        s.setCancelReason(inv.getCancelReason());
+        s.setCancelledBy(inv.getCancelledBy());
         s.setId(inv.getId());
         s.setInvoiceNo(inv.getInvoiceNo());
         s.setExternalRef(inv.getExternalRef());
@@ -861,5 +865,94 @@ public class InvoiceService {
         s.setReviewedBy(inv.getReviewedBy());
         s.setReviewedAt(inv.getReviewedAt());
         return s;
+    }
+
+    // ── Voiding and removing ────────────────────────────────────────────────
+
+    /**
+     * Voids an invoice and the bill it raised, putting the stock back.
+     *
+     * <p>The invoice is kept. Its number was issued and its goods moved, and a
+     * reconciliation later goes looking for exactly that. The bill is cancelled through
+     * the same path the bills section uses, so a voided invoice and a voided bill mean
+     * the same thing and read the same way wherever either is shown.
+     *
+     * <p>Stock comes back because the goods did not go out. That is the difference
+     * between this and cancelling a bill on its own, where nothing moved in the first
+     * place.
+     */
+    @Transactional
+    public void cancelInvoice(Long id, String reason, String by) {
+        Invoice invoice = invoiceRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
+
+        if (invoice.isCancelled()) {
+            throw new IllegalArgumentException("This invoice is already cancelled.");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Give a reason — the invoice keeps its number and stays in the list, "
+                  + "and this is what will explain it.");
+        }
+
+        // The bill first: it refuses if money has been collected, and stock must not be
+        // returned for goods that somebody has already paid for.
+        if (invoice.getBillId() != null && !invoice.isBillLinkedExisting()) {
+            billService.cancelBill(invoice.getBillId(), reason.trim(), by);
+        }
+
+        returnStock(invoice, "INVOICE_CANCEL", "Cancelled by " + by + " — " + reason.trim());
+
+        invoice.setCancelled(true);
+        invoice.setCancelReason(reason.trim());
+        invoice.setCancelledBy(by);
+        invoice.setCancelledAt(LocalDateTime.now());
+        invoiceRepo.save(invoice);
+    }
+
+    /**
+     * Removes an invoice outright, leaving its bill alone.
+     *
+     * <p>For an invoice keyed in error that never stood for anything. The bill is not
+     * touched: it may have been entered by hand long before this invoice existed, may
+     * already be collecting money, and is the bills section's record rather than this
+     * one's. Deleting it from here would remove something this screen never created.
+     *
+     * <p>Stock comes back, since this invoice is what took it.
+     */
+    @Transactional
+    public void deleteInvoice(Long id, String by) {
+        Invoice invoice = invoiceRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
+
+        // Only where it was never cancelled: a cancelled invoice has already returned its
+        // stock, and doing it twice would credit goods that came back once.
+        if (!invoice.isCancelled()) {
+            returnStock(invoice, "INVOICE_DELETE", "Deleted by " + by);
+        }
+        invoiceRepo.delete(invoice);
+    }
+
+    /**
+     * Puts an invoice's goods back on the shelf, logging each move.
+     *
+     * <p>Logged rather than silently adjusted: stock that changes with no movement behind
+     * it is the thing a stock take cannot explain afterwards.
+     */
+    private void returnStock(Invoice invoice, String referenceType, String note) {
+        for (InvoiceLine line : invoice.getLines()) {
+            int moved = line.getQty() + (line.getFreeQty() == null ? 0 : line.getFreeQty());
+            if (moved == 0) continue;
+            itemRepo.adjustStock(line.getItem().getId(), moved);
+
+            StockMovement mv = new StockMovement();
+            mv.setItem(line.getItem());
+            mv.setType(StockMovementType.MANUAL_ADJUSTMENT);
+            mv.setQuantity(moved);
+            mv.setReferenceId(invoice.getId());
+            mv.setReferenceType(referenceType);
+            mv.setNotes(note);
+            movementRepo.save(mv);
+        }
     }
 }

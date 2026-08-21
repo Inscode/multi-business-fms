@@ -108,6 +108,26 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getMyEnteredPayments());
     }
 
+    /**
+     * Removes a confirmed cash payment, putting the balance back and deleting its photo.
+     *
+     * <p>Cash only: a cheque or transfer is settled by the bank, and reversing one here
+     * would leave the two records disagreeing. Admin only, and a reason is required —
+     * the payment leaves no row behind, so the note on the bill is all that will explain
+     * why the balance moved.
+     */
+    @DeleteMapping("/{id}/confirmed-cash")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteConfirmedCash(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body,
+            java.security.Principal principal) {
+        String reason = body == null ? null : body.get("reason");
+        paymentService.deleteConfirmedCashPayment(
+                id, reason, principal == null ? null : principal.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletePayment(@PathVariable Long id) {

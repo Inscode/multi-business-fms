@@ -4,6 +4,7 @@ import { localDateStr } from '../../../core/utils/date-utils';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -45,6 +46,7 @@ import { of } from 'rxjs';
     MatProgressSpinnerModule,
     MatPaginatorModule,
     MatDialogModule,
+    MatSnackBarModule,
     MatTabsModule,
     MatTooltipModule,
     DecimalPipe,
@@ -242,7 +244,8 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
     private auth: Auth,
     private router: Router,
     private cdr: ChangeDetectorRef,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {
     this.filterFrom = this.daysAgo(30);
     this.filterTo   = this.today;
@@ -439,8 +442,63 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
     return this.isAdmin && payment.status === 'ENTERED';
   }
 
+  /**
+   * Whether a confirmed cash payment can be removed.
+   *
+   * <p>Cash only. A cheque or transfer that never really happened is contradicted by the
+   * bank, and marking it returned keeps the two records agreeing; deleting it here would
+   * not. Cash has no such record, so this is the only way to undo one entered against
+   * the wrong bill.
+   */
+  canDeleteConfirmedCash(payment: PaymentResponse): boolean {
+    return this.isAdmin
+        && payment.status === 'CONFIRMED'
+        && payment.paymentType === 'CASH';
+  }
+
+  deleteConfirmedCash(payment: PaymentResponse): void {
+    this.dialog.open(ConfirmDialog, {
+      data: {
+        title: 'Delete confirmed cash payment',
+        message:
+          `Rs ${payment.paymentAmount} comes off ${payment.billNumber} and the bill `
+          + `reopens for that amount. The photo is deleted with it.
+
+`
+          + `The payment leaves no row behind, so the reason is written onto the bill — `
+          + `it is all that will explain why the balance moved.`,
+        confirmText: 'Delete payment',
+        confirmColor: 'warn',
+        showInput: true,
+        inputLabel: 'Reason (required)',
+      },
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(result => {
+      if (!result?.confirmed) return;
+      const reason = String(result.inputValue ?? '').trim();
+      // Checked here as well as on the server: being told after the dialog closed means
+      // typing the reason into a box that is no longer on screen.
+      if (!reason) {
+        this.snackBar.open('A reason is needed to delete a confirmed payment.', 'OK',
+                           { duration: 4000 });
+        return;
+      }
+      this.paymentService.deleteConfirmedCash(payment.id, reason).subscribe({
+        next: () => {
+          this.snackBar.open('Payment deleted and the balance restored.', 'OK',
+                             { duration: 4000 });
+          this.load();
+        },
+        error: (err) => this.snackBar.open(
+          err?.error?.message ?? 'Could not delete the payment.', 'OK', { duration: 6000 }),
+      });
+    });
+  }
+
   hasActions(payment: PaymentResponse): boolean {
-    return this.canConfirm(payment) || this.canEdit(payment) || this.canReturn(payment) || this.canDelete(payment) || this.canReject(payment);
+    return this.canConfirm(payment) || this.canEdit(payment) || this.canReturn(payment)
+        || this.canDelete(payment) || this.canReject(payment)
+        || this.canDeleteConfirmedCash(payment);
   }
 
   daysUntil(dateStr: string): number {
