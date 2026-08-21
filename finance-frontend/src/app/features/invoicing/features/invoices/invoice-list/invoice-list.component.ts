@@ -48,9 +48,10 @@ export class InvoiceListComponent implements OnInit {
       data: {
         title: 'Cancel ' + inv.invoiceNo,
         message:
-          'The goods go back into stock and the bill this invoice raised is cancelled '
-          + 'with it.\n\nThe invoice itself is kept under its number — it was issued, '
-          + 'and the stock moved, so the record of that stays.',
+          `The goods go back into stock and bill ${inv.invoiceNo} is cancelled with it `
+          + 'in the bills section.\n\nThe invoice itself is kept under its number — it '
+          + 'was issued, and the stock moved, so the record of that stays.\n\n'
+          + 'If money has been collected on that bill, nothing is changed at all.',
         confirmText: 'Cancel invoice',
         confirmColor: 'warn',
         showInput: true,

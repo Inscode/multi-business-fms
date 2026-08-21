@@ -7,10 +7,10 @@
 --
 -- Deleting stays available for the other case — an invoice keyed in error that never
 -- corresponded to anything — and removes it outright.
-ALTER TABLE invoices
+ALTER TABLE inv_invoices
     ADD COLUMN IF NOT EXISTS cancelled     BOOLEAN      NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS cancel_reason VARCHAR(300),
     ADD COLUMN IF NOT EXISTS cancelled_by  VARCHAR(100),
     ADD COLUMN IF NOT EXISTS cancelled_at  TIMESTAMP;
 
-CREATE INDEX IF NOT EXISTS idx_invoices_cancelled ON invoices (cancelled);
+CREATE INDEX IF NOT EXISTS idx_invoices_cancelled ON inv_invoices (cancelled);

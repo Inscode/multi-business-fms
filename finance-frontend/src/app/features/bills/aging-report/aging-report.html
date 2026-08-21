@@ -60,6 +60,10 @@
             matTooltip="Opens the report to read; print it from there when you are ready">
       <mat-icon>visibility</mat-icon> View Report
     </button>
+    <button mat-stroked-button (click)="printCompact()"
+            matTooltip="One line per customer, portrait — for the dot matrix printer">
+      <mat-icon>list_alt</mat-icon> Short List
+    </button>
     <button mat-stroked-button (click)="downloadExcel()" [disabled]="downloading">
       <mat-spinner diameter="16" *ngIf="downloading"></mat-spinner>
       <mat-icon *ngIf="!downloading">download</mat-icon>

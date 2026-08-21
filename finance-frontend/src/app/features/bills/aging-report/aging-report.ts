@@ -95,6 +95,24 @@ export class AgingReport implements OnInit {
     window.open(`/bills/aging/print?${qs}`, '_blank');
   }
 
+  /**
+   * The short sheet: one line per customer, portrait, credit and cash on separate
+   * pages.
+   *
+   * <p>The wide report answers where the money is sitting; this one answers who to
+   * call today, and prints on a dot matrix without shading every second row.
+   *
+   * <p>Bill type is deliberately not passed on. The sheet splits credit from cash
+   * itself, so filtering to one of them here would leave a page blank.
+   */
+  printCompact(): void {
+    const params = this.exportParams();
+    delete params['billType'];
+    delete params['sort'];
+    const qs = new URLSearchParams(params).toString();
+    window.open(`/bills/aging/print-compact?${qs}`, '_blank');
+  }
+
   downloadExcel(): void {
     this.downloading = true;
     this.cdr.markForCheck();

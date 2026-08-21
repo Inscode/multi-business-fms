@@ -1,0 +1,148 @@
+<div class="screen-bar">
+  <button class="sb-btn primary" (click)="print()">
+    <mat-icon>print</mat-icon> Print
+  </button>
+  <button class="sb-btn" (click)="close()">
+    <mat-icon>close</mat-icon> Close
+  </button>
+  <span class="sb-note">
+    Portrait · one line per customer · credit and cash on separate sheets
+  </span>
+</div>
+
+<div class="loading" *ngIf="loading"><mat-spinner diameter="32"></mat-spinner></div>
+<p class="err" *ngIf="error">The report could not be loaded.</p>
+
+<ng-container *ngIf="!loading && data">
+
+  <!-- ── Credit ─────────────────────────────────────────────────────────── -->
+  <section class="sheet">
+    <header class="hd">
+      <div class="hd-left">
+        <div class="hd-co">{{ companyName }}</div>
+        <div class="hd-scope">{{ data.business }} &middot; {{ scopeLine }}</div>
+      </div>
+      <div class="hd-right">
+        <div class="hd-title">CREDIT — AGING</div>
+        <div class="hd-date">As at {{ data.generatedOn | date:'dd MMM yyyy' }}</div>
+      </div>
+    </header>
+
+    <table class="t">
+      <thead>
+        <tr>
+          <th class="c-name">Customer</th>
+          <th class="c-area">Area</th>
+          <th class="c-num">Bills</th>
+          <th class="c-date">Oldest Bill</th>
+          <th class="c-num">Overdue</th>
+          <th class="c-amt">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of creditRows">
+          <td class="c-name">{{ c.customerName }}</td>
+          <td class="c-area">{{ c.area || '—' }}</td>
+          <td class="c-num">{{ c.billCount }}</td>
+          <td class="c-date">{{ c.oldestBillDate | date:'dd/MM/yy' }}</td>
+          <!-- Days past terms, not days old. A bill still inside its terms is not
+               overdue by any number, so the cell is left blank rather than showing a
+               zero somebody has to interpret. -->
+          <td class="c-num">
+            {{ overdueDays(c, false) || '' }}<span class="fl">{{ flag(c, false) }}</span>
+          </td>
+          <td class="c-amt">{{ creditAmount(c) | number:'1.0-0' }}</td>
+        </tr>
+
+        <tr *ngIf="!creditRows.length">
+          <td class="empty" colspan="6">Nothing outstanding on credit.</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="c-name">TOTAL — {{ creditRows.length }} customers</td>
+          <td class="c-area"></td>
+          <td class="c-num">{{ billsOf(creditRows) }}</td>
+          <td class="c-date"></td>
+          <td class="c-num"></td>
+          <td class="c-amt">{{ totalCredit() | number:'1.0-0' }}</td>
+        </tr>
+        <tr class="sub">
+          <td class="c-name" colspan="5">Of which past {{ creditTermsDays }} days</td>
+          <td class="c-amt">{{ overdueTotal(creditRows, false) | number:'1.0-0' }}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <p class="legend">
+      Overdue counts days past the {{ creditTermsDays }} days on the bill.
+      &nbsp;*&nbsp;late &nbsp;**&nbsp;well past &nbsp;***&nbsp;past what we owe the
+      supplier by.
+    </p>
+  </section>
+
+  <!-- ── Cash, on its own sheet ─────────────────────────────────────────── -->
+  <!-- A page break rather than a heading: cash is due on delivery and credit runs to
+       seventy days, so the two cannot share a column of days without one of them
+       being read against the wrong clock. -->
+  <section class="sheet page-break">
+    <header class="hd">
+      <div class="hd-left">
+        <div class="hd-co">{{ companyName }}</div>
+        <div class="hd-scope">{{ data.business }} &middot; {{ scopeLine }}</div>
+      </div>
+      <div class="hd-right">
+        <div class="hd-title">CASH — AGING</div>
+        <div class="hd-date">As at {{ data.generatedOn | date:'dd MMM yyyy' }}</div>
+      </div>
+    </header>
+
+    <table class="t">
+      <thead>
+        <tr>
+          <th class="c-name">Customer</th>
+          <th class="c-area">Area</th>
+          <th class="c-num">Bills</th>
+          <th class="c-date">Oldest Bill</th>
+          <th class="c-num">Overdue</th>
+          <th class="c-amt">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of cashRows">
+          <td class="c-name">{{ c.customerName }}</td>
+          <td class="c-area">{{ c.area || '—' }}</td>
+          <td class="c-num">{{ c.billCount }}</td>
+          <td class="c-date">{{ c.oldestBillDate | date:'dd/MM/yy' }}</td>
+          <td class="c-num">
+            {{ overdueDays(c, true) || '' }}<span class="fl">{{ flag(c, true) }}</span>
+          </td>
+          <td class="c-amt">{{ c.cashPending | number:'1.0-0' }}</td>
+        </tr>
+
+        <tr *ngIf="!cashRows.length">
+          <td class="empty" colspan="6">Nothing outstanding on cash.</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="c-name">TOTAL — {{ cashRows.length }} customers</td>
+          <td class="c-area"></td>
+          <td class="c-num">{{ billsOf(cashRows) }}</td>
+          <td class="c-date"></td>
+          <td class="c-num"></td>
+          <td class="c-amt">{{ totalCash() | number:'1.0-0' }}</td>
+        </tr>
+        <tr class="sub">
+          <td class="c-name" colspan="5">Of which past {{ cashTermsDays }} days</td>
+          <td class="c-amt">{{ overdueTotal(cashRows, true) | number:'1.0-0' }}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <p class="legend">
+      Cash is due on delivery, so overdue counts days past {{ cashTermsDays }} — not the
+      {{ creditTermsDays }} used for credit.
+    </p>
+  </section>
+</ng-container>

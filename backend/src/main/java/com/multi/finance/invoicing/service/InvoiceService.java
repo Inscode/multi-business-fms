@@ -895,9 +895,15 @@ public class InvoiceService {
                   + "and this is what will explain it.");
         }
 
-        // The bill first: it refuses if money has been collected, and stock must not be
-        // returned for goods that somebody has already paid for.
-        if (invoice.getBillId() != null && !invoice.isBillLinkedExisting()) {
+        // The bill goes with it, whether this invoice raised it or attached to one that
+        // was already there. They are two records of one sale: the bill in the bills
+        // section and the invoice that moved its stock. Cancelling one and leaving the
+        // other is the inconsistency this exists to prevent.
+        //
+        // Done first because it refuses when money has been collected, and stock must
+        // not go back on the shelf for goods somebody has already paid for. The whole
+        // operation rolls back with it.
+        if (invoice.getBillId() != null) {
             billService.cancelBill(invoice.getBillId(), reason.trim(), by);
         }
 
