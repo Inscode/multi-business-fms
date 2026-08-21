@@ -58,6 +58,11 @@ public class InvoiceSummaryResponse {
     private LocalDateTime freeIssueAddedAt;
     private String editedBy;
     private LocalDateTime editedAt;
+    /** Voided but kept — its number was issued and its goods moved. */
+    private boolean cancelled;
+    private String cancelReason;
+    private String cancelledBy;
+
     private boolean reviewed;
     private String reviewedBy;
     private LocalDateTime reviewedAt;

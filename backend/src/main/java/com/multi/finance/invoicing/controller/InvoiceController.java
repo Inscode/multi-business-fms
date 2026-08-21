@@ -112,4 +112,33 @@ public class InvoiceController {
             Pageable pageable) {
         return ResponseEntity.ok(invoiceService.search(method, from, to, search, pageable));
     }
+
+    /**
+     * Voids an invoice and the bill it raised, and puts the stock back.
+     *
+     * <p>Admin only. The invoice is kept under its number — it was issued, and the goods
+     * moved — so the record of what happened survives.
+     */
+    @PatchMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> cancel(@PathVariable Long id,
+                                       @RequestBody(required = false) Map<String, String> body,
+                                       Authentication auth) {
+        String reason = body == null ? null : body.get("reason");
+        invoiceService.cancelInvoice(id, reason, auth == null ? null : auth.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Removes an invoice from this section only, leaving its bill where it is.
+     *
+     * <p>Admin only, and for an invoice keyed in error. The bill belongs to the bills
+     * section — it may predate this invoice and may already be collecting money.
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id, Authentication auth) {
+        invoiceService.deleteInvoice(id, auth == null ? null : auth.getName());
+        return ResponseEntity.noContent().build();
+    }
 }

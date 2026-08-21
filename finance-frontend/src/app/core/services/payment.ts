@@ -195,6 +195,18 @@ export class Payment {
     return this.http.patch<PaymentResponse>(`${this.apiUrl}/${id}/return`, { returnReason });
   }
 
+  /**
+   * Removes a confirmed cash payment, restores the balance and deletes its photo.
+   *
+   * <p>Cash only: a cheque or transfer is settled by the bank, and reversing one here
+   * would leave the two records disagreeing with nothing to say which is right.
+   */
+  deleteConfirmedCash(id: number, reason: string): Observable<void> {
+    return this.http.request<void>('delete', `${this.apiUrl}/${id}/confirmed-cash`, {
+      body: { reason },
+    });
+  }
+
   getPaymentsByBill(billId: number): Observable<PaymentResponse[]> {
     return this.http.get<PaymentResponse[]>(`${this.apiUrl}/bill/${billId}`);
   }

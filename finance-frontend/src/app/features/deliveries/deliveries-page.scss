@@ -814,3 +814,55 @@
   .book-col.paste-target,
   .book-col.damage.paste-target { background: #fafbfc; box-shadow: none; }
 }
+
+// ── Cash on the run list ─────────────────────────────────────────────────────
+// Sized to sit inside the line box it already shares with the bill number, so a cash
+// row is exactly as tall as every other one and no column shifts.
+.cash-flag {
+  margin-left: 5px;
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: help;
+}
+
+// ── Narrowing to one business ────────────────────────────────────────────────
+.bd-row {
+  cursor: pointer;
+  transition: background .12s;
+
+  &:hover { filter: brightness(.98); }
+
+  // The left bar already carries the business colour, so the chosen row is marked with
+  // a ring and an underline instead — repainting the bar would lose what it is for.
+  &.picked {
+    box-shadow: inset 0 0 0 1px #90a4ae;
+    .bd-name { text-decoration: underline; }
+  }
+}
+
+.filter-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #eef2f7;
+  font-size: 12px;
+  color: #37474f;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; color: #607d8b; }
+
+  .fn-clear {
+    margin-left: auto;
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: #1e88e5;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}

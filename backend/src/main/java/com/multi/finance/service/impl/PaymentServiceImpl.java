@@ -45,6 +45,7 @@ public class PaymentServiceImpl {
     private final WorkerRepository workerRepository;
     private final com.multi.finance.repository.BillReturnRepository billReturnRepository;
     private final com.multi.finance.repository.BillSettlementLinkRepository billSettlementLinkRepository;
+    private final ImageKitService imageKitService;
     private final BillServiceImpl billService;
 
     /** Returns nobody has confirmed or reviewed yet; these hold up a payment. */
@@ -398,6 +399,71 @@ public class PaymentServiceImpl {
         // Restore balance — deducted at entry for all payment types.
         restoreBalance(payment.getBill(), payment.getAmount());
         paymentRepository.delete(payment);
+    }
+
+    /**
+     * Removes a confirmed cash payment and puts the balance back.
+     *
+     * <p>Cash only, and confirmed only. A cheque or a transfer that never really happened
+     * is contradicted by the bank, and the bank is the record that settles it — reversing
+     * one here would leave the two disagreeing with nothing to say which is right. Cash
+     * has no such record: if it was entered against the wrong bill, or never collected at
+     * all, this is the only way to undo it.
+     *
+     * <p>Deletes the photograph with it. It is evidence for a figure that no longer
+     * exists, and leaving it behind fills the store with pictures nothing points at.
+     */
+    @Transactional
+    public void deleteConfirmedCashPayment(Long paymentId, String reason, String by) {
+        Payment payment = getPaymentById(paymentId);
+
+        if (payment.getPaymentType() != PaymentType.CASH) {
+            throw new RuntimeException(
+                    "Only cash payments can be deleted here. A cheque or transfer is "
+                  + "settled by the bank — mark it returned instead.");
+        }
+        if (payment.getStatus() != PaymentStatus.CONFIRMED) {
+            throw new RuntimeException(
+                    "This payment is not confirmed. Delete it the ordinary way.");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new RuntimeException(
+                    "Give a reason — money is coming off a bill and the balance will "
+                  + "change with no payment left to explain it.");
+        }
+
+        Bill bill = payment.getBill();
+
+        // A photograph another payment is resting on must not go with this one. The
+        // second payment would be left claiming evidence that no longer exists.
+        String imageUrl = payment.getReceiptImageUrl();
+        boolean sharedOnward = imageUrl != null && !imageUrl.isBlank()
+                && paymentRepository.countSharingReceipt(imageUrl, paymentId) > 0;
+
+        // Written where it will be found: the bill's own notes. A deleted payment leaves
+        // no row of its own, so without this the balance simply changes one day.
+        String trail = "Cash payment of Rs "
+                + (payment.getAmount() == null ? "0" : payment.getAmount().toPlainString())
+                + " deleted on " + LocalDate.now()
+                + (by == null ? "" : " by " + by) + " — " + reason.trim();
+        bill.setNotes(bill.getNotes() == null || bill.getNotes().isBlank()
+                ? trail : bill.getNotes() + "\n" + trail);
+
+        // Links to this payment go first, or the delete fails on the reference.
+        paymentRepository.clearSharedReceiptFrom(paymentId);
+        paymentRepository.delete(payment);
+
+        restoreBalance(bill, payment.getAmount());
+        syncCompletionStatus(bill);
+
+        // Last, and only once the record is gone. The other order can delete a picture
+        // and then fail to delete the payment it belonged to.
+        if (!sharedOnward && imageUrl != null && !imageUrl.isBlank()) {
+            imageKitService.deleteByUrl(imageUrl);
+        }
+        if (payment.getConfirmImageUrl() != null && !payment.getConfirmImageUrl().isBlank()) {
+            imageKitService.deleteByUrl(payment.getConfirmImageUrl());
+        }
     }
 
     private void applyBalanceDeduction(Bill bill, BigDecimal amount) {

@@ -159,4 +159,23 @@ public class Invoice {
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InvoiceLine> lines = new ArrayList<>();
+
+    /**
+     * Voided, but kept.
+     *
+     * <p>The number was issued and the stock moved, so both need somewhere to live. An
+     * invoice that is simply erased takes with it the record of a mistake that was made,
+     * which is exactly what a reconciliation later goes looking for.
+     */
+    @Column(nullable = false)
+    private boolean cancelled = false;
+
+    @Column(name = "cancel_reason", length = 300)
+    private String cancelReason;
+
+    @Column(name = "cancelled_by", length = 100)
+    private String cancelledBy;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
 }

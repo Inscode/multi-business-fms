@@ -155,3 +155,12 @@ table.data-table {
     gap: 4px;
   }
 }
+
+// A cancelled invoice stays in the list — the number was issued, and a gap where one
+// used to be explains nothing. Faded so it reads as void without having to be read.
+.row-cancelled {
+  opacity: .62;
+
+  .invoice-no { text-decoration: line-through; }
+  .amount { text-decoration: line-through; }
+}

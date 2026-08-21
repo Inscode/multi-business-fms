@@ -348,6 +348,8 @@ export class DeliveriesPage implements OnInit {
   pageError = '';
 
   private loadRunImages(runId: number): void {
+    // A filter left over from the run before would silently hide bills on this one.
+    this.bizFilter = null;
     this.returns.runImages(runId).subscribe({
       next: (imgs) => {
         this.runImages = {
@@ -369,6 +371,29 @@ export class DeliveriesPage implements OnInit {
    * happens, and clicking either book moves it.
    */
   pasteBook: 'DAMAGE' | 'SALABLE' = 'SALABLE';
+
+  // ── Narrowing the list to one business ──────────────────────────────────
+  // The lorry is unloaded one business at a time — the Rainco boxes, then the
+  // stationery — so the count is checked the same way. Clicking the line in the
+  // breakdown shows just those bills.
+
+  bizFilter: string | null = null;
+
+  toggleBizFilter(business: string): void {
+    this.bizFilter = this.bizFilter === business ? null : business;
+    this.cdr.markForCheck();
+  }
+
+  clearBizFilter(): void {
+    this.bizFilter = null;
+    this.cdr.markForCheck();
+  }
+
+  /** The run's bills, narrowed to the chosen business. */
+  visibleBills(run: any): any[] {
+    const bills = run?.bills ?? [];
+    return this.bizFilter ? bills.filter((b: any) => b.business === this.bizFilter) : bills;
+  }
 
   focusBook(type: 'DAMAGE' | 'SALABLE'): void {
     this.pasteBook = type;

@@ -39,4 +39,25 @@ export class InvoiceService {
   print(id: number): Observable<InvoicePrint> {
     return this.http.post<InvoicePrint>(`${this.base}/${id}/print`, {});
   }
+
+  /**
+   * Voids an invoice and the bill it raised, putting the stock back.
+   *
+   * <p>The invoice is kept under its number. Cancelling the bill goes through the same
+   * path the bills section uses, so a voided invoice and a voided bill read the same way.
+   */
+  cancel(id: number, reason: string) {
+    return this.http.patch<void>(`${this.base}/${id}/cancel`, { reason });
+  }
+
+  /**
+   * Removes an invoice from this section only.
+   *
+   * <p>The bill is left where it is — it belongs to the bills section, may predate this
+   * invoice, and may already be collecting money. Stock still comes back, since this
+   * invoice is what took it.
+   */
+  delete(id: number) {
+    return this.http.delete<void>(`${this.base}/${id}`);
+  }
 }

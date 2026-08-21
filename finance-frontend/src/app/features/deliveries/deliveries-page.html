@@ -283,7 +283,13 @@
                 <div class="bd-title">By business</div>
                 <div class="bd-rows">
                   @for (b of breakdown(selected); track b.business) {
-                    <div class="bd-row" [class]="'biz-' + b.business.toLowerCase()">
+                    <!-- Clicking narrows the list below. The lorry is unloaded one
+                         business at a time, so the count is checked the same way. -->
+                    <div class="bd-row" [class]="'biz-' + b.business.toLowerCase()"
+                         [class.picked]="bizFilter === b.business"
+                         (click)="toggleBizFilter(b.business)"
+                         [title]="bizFilter === b.business
+                                    ? 'Show every bill again' : 'Show only these bills'">
                       <span class="bd-name">{{ b.business }}</span>
                       <span class="bd-qty"><strong>{{ b.bills }}</strong> bill(s)</span>
                       <span class="bd-val">Rs {{ b.value | number:'1.0-0' }}</span>
@@ -443,6 +449,19 @@
                 <p>No bills on this run yet.</p>
               </div>
             } @else {
+              <!-- Said plainly, because a filtered list and a short run look identical
+                   and one of them means bills are missing. -->
+              @if (bizFilter) {
+                <div class="filter-note">
+                  <mat-icon>filter_alt</mat-icon>
+                  Showing {{ bizFilter | lowercase }} only —
+                  {{ visibleBills(selected).length }} of
+                  {{ (selected.bills ?? []).length }} bills.
+                  <button type="button" class="fn-clear" (click)="clearBizFilter()">
+                    Show all
+                  </button>
+                </div>
+              }
               <div class="table-wrap">
                 <table class="run-table">
                   <thead>
@@ -458,10 +477,16 @@
                     </tr>
                   </thead>
                   <tbody>
-                    @for (b of selected.bills ?? []; track b.id) {
+                    @for (b of visibleBills(selected); track b.id) {
                       <tr>
                         <td>
                           <a [routerLink]="['/bills', b.id]" class="bill-link">{{ b.billNumber }}</a>
+                          <!-- Cash is collected at the door. Marked inside the existing
+                               cell rather than given a column of its own, so the rows
+                               stay aligned. -->
+                          @if (b.billType === 'CASH') {
+                            <span class="cash-flag" title="Cash — collect on delivery">🔥</span>
+                          }
                         </td>
                         <td><span class="biz-tag">{{ b.business }}</span></td>
                         <td>{{ b.customerName }}</td>

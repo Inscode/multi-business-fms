@@ -48,7 +48,8 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business " +
             "AND b.settledOn IS NULL " +
-            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION')")
+            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
+            "AND (b.fullyPaid IS NULL OR b.fullyPaid = false)")
     BigDecimal sumOutstandingByBusiness(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
@@ -66,13 +67,24 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business AND b.billType = 'CASH' " +
             "AND b.balanceRemaining > 0 AND b.settledOn IS NULL " +
-            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION')")
+            "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
+            // The same three the aging report has always applied. Without them the
+            // dashboard counted month-end linking bills — which are raised as CASH and
+            // are covered by the manual bills under them — along with bills settled by a
+            // return credit and bills an admin had hidden. Two screens answering the
+            // same question with different figures is worse than either being wrong.
+            "AND (b.fullyPaid IS NULL OR b.fullyPaid = false) " +
+            "AND (b.willBeLinked IS NULL OR b.willBeLinked = false) " +
+            "AND (b.excludedFromAging IS NULL OR b.excludedFromAging = false)")
     BigDecimal sumCashPendingByBusiness(@Param("business") BusinessType business);
 
     @Query("SELECT COALESCE(SUM(b.balanceRemaining), 0) FROM Bill b " +
             "WHERE b.business = :business AND b.billType = 'CASH' " +
             "AND b.balanceRemaining > 0 AND b.settledOn IS NULL " +
             "AND b.status NOT IN ('CANCELLED', 'COMPLETED', 'AWAITING_CONFIRMATION') " +
+            "AND (b.fullyPaid IS NULL OR b.fullyPaid = false) " +
+            "AND (b.willBeLinked IS NULL OR b.willBeLinked = false) " +
+            "AND (b.excludedFromAging IS NULL OR b.excludedFromAging = false) " +
             "AND b.billDate <= :cutoff")
     BigDecimal sumCashSeriousByBusiness(@Param("business") BusinessType business,
                                         @Param("cutoff") LocalDate cutoff);

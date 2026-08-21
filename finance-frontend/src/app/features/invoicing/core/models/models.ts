@@ -108,6 +108,14 @@ export interface Invoice {
 }
 
 export interface InvoiceSummary {
+  /**
+   * Voided but kept. The number was issued and the goods moved, so both facts need
+   * somewhere to live — an invoice simply erased takes the record of the mistake with it.
+   */
+  cancelled?: boolean;
+  cancelReason?: string;
+  cancelledBy?: string;
+
   id: number;
   invoiceNo: string;
   externalRef?: string;
