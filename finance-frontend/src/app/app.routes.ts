@@ -18,6 +18,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/bills/aging-print/aging-print')
       .then(m => m.AgingPrint)
   },
+  {
+    // One line per customer, portrait, built for a dot matrix printer.
+    path: 'bills/aging/print-compact',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/bills/aging-print-compact/aging-print-compact')
+      .then(m => m.AgingPrintCompact)
+  },
   // Invoice print lives OUTSIDE the main layout so window.print() captures
   // only the invoice — no sidebar, no header.
   {

@@ -292,18 +292,40 @@ $rule:   #000;
     box-shadow: none;
   }
 
-  /* Browsers drop background fills by default, which would cost the header band,
-     the stripes and the total row all at once. */
+  /* ── Printed without fills ────────────────────────────────────────────────
+     The tint and the stripes read well on a laser and cost real money on a dot
+     matrix: a nine-pin head renders a grey fill as a dense pattern of dots, which
+     takes a second pass, blurs the text sitting on top of it, and wears the ribbon
+     out over the header and the totals — the two rows most worth reading.
+
+     So the fills are dropped for print and the same separation is carried by rules
+     and weight, which print in one pass and survive a faded ribbon. On a laser the
+     result is plainer; on the printer this report is actually run on, it is
+     legible. */
   .rpt-table th,
   .rpt-table tfoot td,
   .rpt-table tbody tr:nth-child(even) td {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    background: none !important;
   }
 
-  .rpt-table th,
-  .rpt-table tfoot td { background: $tint !important; }
-  .rpt-table tbody tr:nth-child(even) td { background: $stripe !important; }
+  /* Stripes gone, so the rows need a hairline each to stay trackable across a wide
+     landscape sheet. */
+  .rpt-table tbody td { border-bottom: .5pt solid #000; }
+
+  /* The header and totals were bands; now they are rules, which is enough. */
+  .rpt-table th {
+    border-top: 1pt solid #000;
+    border-bottom: 1pt solid #000;
+  }
+
+  .rpt-table tfoot td {
+    border-top: 1.5pt solid #000;
+    border-bottom: 1.5pt solid #000;
+  }
+
+  /* Grey text is dithered into the same dot pattern as a fill and turns muddy.
+     Everything on the page prints black. */
+  .rpt-table td, .rpt-table th, .rpt-table tfoot td { color: #000; }
 
   .section { break-inside: auto; }
   thead { display: table-header-group; }   /* repeat headings on every page */
