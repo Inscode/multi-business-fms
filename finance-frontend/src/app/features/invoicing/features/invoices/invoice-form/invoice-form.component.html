@@ -421,7 +421,11 @@ K01047,2,0</pre>
                     <td class="fw6">{{ line.item.description }}</td>
                     <td class="num">{{ lineWsp(line) | number:'1.2-2' }}</td>
                     <td class="num qty-cell">
+                      <!-- data-item-id so the line just added can be found and focused;
+                           the row index shifts as lines are added, the item does not. -->
                       <input class="qty-input" type="number" min="0" [(ngModel)]="line.qty"
+                             [attr.data-item-id]="line.item.id"
+                             (keydown.enter)="onQtyEnter($event)"
                              (ngModelChange)="onQtyChanged(line)">
                     </td>
                     @if (allowsFreeIssue) {

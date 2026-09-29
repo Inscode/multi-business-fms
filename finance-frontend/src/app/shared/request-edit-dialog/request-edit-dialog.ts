@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, Inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { compressImage } from '../../core/utils/image-compress';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -138,8 +139,106 @@ export class RequestEditDialog implements OnInit {
       : this.allCustomers.slice(0, 30);
   }
 
+  // ── Proof, when the amount moves ────────────────────────────────────────
+  // Most edits correct how a bill reads and the typed reason judges them. An amount
+  // changes what the customer owes, and the admin approving it cannot see the paper.
+
+  proofUrl: string | null = null;
+  proofPreview: string | null = null;
+  uploadingProof = false;
+  proofError = '';
+
+  /** The field that holds the figure, which differs between a bill and a payment. */
+  private get amountField(): string {
+    return this.isBill ? 'totalAmount' : 'amount';
+  }
+
+  /** True once the figure differs from what the record already says. */
+  get amountChanged(): boolean {
+    const ctrl = this.form?.get(this.amountField);
+    if (!ctrl) return false;
+    const original = this.isBill
+      ? this.data.current['totalAmount']
+      : this.data.current['paymentAmount'];
+    return Number(ctrl.value ?? 0) !== Number(original ?? 0);
+  }
+
+  get proofMissing(): boolean {
+    return this.amountChanged && !this.proofUrl;
+  }
+
+  onProofPicked(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    this.acceptProof(file);
+  }
+
+  /** Pasted straight from the clipboard, as everywhere else a photo is attached. */
+  @HostListener('document:paste', ['$event'])
+  onPaste(e: ClipboardEvent): void {
+    if (!this.amountChanged) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      e.preventDefault();
+      this.acceptProof(file);
+      return;
+    }
+  }
+
+  private acceptProof(file: File | null): void {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.proofError = 'That is not an image.';
+      this.cdr.markForCheck();
+      return;
+    }
+    this.proofError = '';
+
+    const reader = new FileReader();
+    reader.onload = () => { this.proofPreview = String(reader.result); this.cdr.markForCheck(); };
+    reader.readAsDataURL(file);
+
+    this.uploadingProof = true;
+    this.cdr.markForCheck();
+    compressImage(file).then(result => {
+      this.editRequestService.uploadImage(result.file).subscribe({
+        next: (url) => { this.proofUrl = url; this.uploadingProof = false; this.cdr.markForCheck(); },
+        error: () => {
+          this.uploadingProof = false;
+          this.proofError = 'Upload failed — check the connection and try again.';
+          this.cdr.markForCheck();
+        },
+      });
+    });
+  }
+
+  clearProof(): void {
+    this.proofUrl = null;
+    this.proofPreview = null;
+    this.proofError = '';
+    this.cdr.markForCheck();
+  }
+
   submit(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+
+    // Refused here as well as on the server: the field sits at the foot of a long
+    // form, and being sent back to it after a failed save is the worse version.
+    if (this.proofMissing) {
+      this.errorMsg = 'Attach a photo of the bill — this request changes an amount.';
+      this.cdr.markForCheck();
+      return;
+    }
+    if (this.uploadingProof) {
+      this.errorMsg = 'Wait for the photo to finish uploading.';
+      this.cdr.markForCheck();
+      return;
+    }
 
     this.submitting = true;
     this.errorMsg = '';
@@ -159,6 +258,7 @@ export class RequestEditDialog implements OnInit {
       targetRef:        this.data.targetRef,
       requestedChanges: JSON.stringify(changes),
       reason,
+      proofImageUrl: this.proofUrl ?? undefined,
     }).subscribe({
       next: () => this.dialogRef.close(true),
       error: () => {

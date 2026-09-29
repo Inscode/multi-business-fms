@@ -67,6 +67,9 @@
             <label class="pd-drop">
               <mat-icon>add_a_photo</mat-icon>
               <span>Attach your own photo</span>
+              <!-- The screenshot is usually already in the clipboard: saving it to disk
+                   to pick it back up is three steps to move an image in hand. -->
+              <span class="pd-paste">or press Ctrl + V to paste</span>
               <input type="file" accept="image/*" capture="environment"
                      (change)="onPick($event)" hidden>
             </label>

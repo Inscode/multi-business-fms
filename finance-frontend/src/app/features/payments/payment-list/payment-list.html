@@ -167,12 +167,12 @@
                   <mat-icon style="color: #c62828;">delete</mat-icon>
                   <span>Delete</span>
                 </button>
-                <!-- Cash only. A cheque or transfer is settled by the bank, and is
-                     marked returned rather than deleted, so the two records agree. -->
+                <!-- Cash and transfers. A cheque is marked returned instead, so the
+                     record shows what became of it. -->
                 <button mat-menu-item *ngIf="canDeleteConfirmedCash(p)"
                         (click)="deleteConfirmedCash(p)" style="color: #c62828;">
                   <mat-icon style="color: #c62828;">money_off</mat-icon>
-                  <span>Delete cash payment</span>
+                  <span>Delete {{ p.paymentType === 'CASH' ? 'cash payment' : 'transfer' }}</span>
                 </button>
               </mat-menu>
             </ng-container>

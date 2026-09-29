@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, Inject, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -52,6 +52,34 @@ export class PaymentPhotoDialog {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     input.value = '';
+    this.accept(file);
+  }
+
+  /**
+   * Accepts a screenshot pasted from the clipboard.
+   *
+   * <p>Bound to the document rather than the drop zone: a paste event only reaches the
+   * focused element, and the zone is a label nobody thinks to click first — binding it
+   * there makes the shortcut do nothing the first time anyone tries it. The dialog is
+   * modal and holds one image slot, so a paste while it is open can only mean this one.
+   */
+  @HostListener('document:paste', ['$event'])
+  onPaste(e: ClipboardEvent): void {
+    if (!this.isConfirm) return;      // the view-only mode has nothing to paste into
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      e.preventDefault();
+      this.accept(file);
+      return;
+    }
+  }
+
+  /** One path for the file picker and a pasted screenshot alike. */
+  private accept(file: File | null): void {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       this.uploadError = 'That is not an image.';

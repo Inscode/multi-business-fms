@@ -28,6 +28,8 @@ import { CustomerHealthDialog }
   from '../../../shared/customer-health-dialog/customer-health-dialog';
 import { BillStockStatus, ReturnProductResponse, StockService } from '../../../core/services/stock';
 import { ChequeAgeBand, chequeAgeBand, chequeAgeDays, chequeAgeLabel, chequeAgeTooltip } from '../../../core/utils/cheque-age';
+import { PaymentPhotoDialog }
+  from '../../payments/payment-photo-dialog/payment-photo-dialog';
 
 @Component({
   selector: 'app-bill-detail',
@@ -551,6 +553,21 @@ export class BillDetail implements OnInit {
       width: '520px',
     }).afterClosed().subscribe(submitted => {
       if (submitted) this.cdr.detectChanges();
+    });
+  }
+
+  /**
+   * Opens the photo taken for a payment on this bill.
+   *
+   * <p>The same dialog the payments list uses, in view mode. Whoever is querying a
+   * figure is looking at the bill — making them find the payment in another screen
+   * first is why the evidence went unread.
+   */
+  viewPaymentPhoto(payment: PaymentResponse): void {
+    this.dialog.open(PaymentPhotoDialog, {
+      data: { payment, mode: 'view' },
+      width: '640px',
+      maxWidth: '95vw',
     });
   }
 

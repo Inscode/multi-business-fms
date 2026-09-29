@@ -54,3 +54,86 @@
   justify-content: flex-end;
   gap: 10px;
 }
+
+// ── Proof for an amount change ───────────────────────────────────────────────
+// Appears only when the figure moves, so it reads as a consequence of what was just
+// typed rather than another field to fill in.
+.proof-block {
+  margin: 4px 0 12px;
+  padding: 12px;
+  border: 1px solid #e0b356;
+  border-radius: 10px;
+  background: #fffaf0;
+
+  .pb-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+
+    > mat-icon { font-size: 20px; width: 20px; height: 20px; color: #8a5a08; }
+    strong { display: block; font-size: 13px; color: #7a5a12; }
+    span   { display: block; font-size: 12px; color: #6b5a3a; line-height: 1.5; }
+  }
+
+  .pb-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 14px;
+    border: 2px dashed #e0b356;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    text-align: center;
+
+    mat-icon { font-size: 24px; width: 24px; height: 24px; color: #b8862f; }
+    span { font-size: 12.5px; color: #7a5a12; }
+    .pb-hint { font-size: 11px; color: #9c8460; }
+
+    &:hover { border-color: #b8862f; }
+  }
+
+  .pb-preview {
+    display: flex;
+    gap: 12px;
+
+    img {
+      width: 96px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #e0d3b8;
+    }
+
+    .pb-side { display: flex; flex-direction: column; gap: 8px; }
+
+    .pb-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: #7a5a12;
+
+      &.ok { color: #1b5e35; }
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    }
+  }
+
+  .pb-error {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #b3261e;
+
+    mat-icon { font-size: 15px; width: 15px; height: 15px; }
+  }
+}
+
+@media (max-width: 600px) {
+  .proof-block .pb-preview { flex-direction: column; img { width: 100%; height: 150px; } }
+  .proof-block .pb-drop .pb-hint { display: none; }
+}

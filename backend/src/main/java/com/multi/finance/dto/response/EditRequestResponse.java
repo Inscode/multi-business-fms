@@ -22,4 +22,7 @@ public class EditRequestResponse {
     private String reviewedByName;
     private LocalDateTime reviewedAt;
     private String rejectionReason;
+
+    /** The bill photographed, on a request that changes an amount. */
+    private String proofImageUrl;
 }

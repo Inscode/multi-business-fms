@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface EditRequestResponse {
@@ -19,6 +19,9 @@ export interface EditRequestResponse {
 }
 
 export interface CreateEditRequestPayload {
+  /** The bill photographed. Required by the server when the change moves an amount. */
+  proofImageUrl?: string;
+
   type: 'BILL' | 'PAYMENT';
   targetId: number;
   targetRef: string;
@@ -34,6 +37,20 @@ export class EditRequestService {
 
   create(payload: CreateEditRequestPayload): Observable<EditRequestResponse> {
     return this.http.post<EditRequestResponse>(this.apiUrl, payload);
+  }
+
+  /**
+   * Uploads the bill photograph for a request that changes an amount.
+   *
+   * <p>Its own folder in ImageKit, kept apart from payments and returns: these are
+   * evidence for a figure somebody asked to change, and are worth as long a life as the
+   * bill itself rather than the few weeks a task photo gets.
+   */
+  uploadImage(file: File): Observable<string> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<{ url: string }>(`${this.apiUrl}/upload-image`, form)
+      .pipe(map(r => r.url));
   }
 
   getAll(): Observable<EditRequestResponse[]> {

@@ -139,6 +139,49 @@
       <mat-error>Please explain the reason</mat-error>
     </mat-form-field>
 
+    <!-- Only where the figure has actually moved. Asking on every edit would attach a
+         picture to a corrected spelling, and a rule that fires on everything is one
+         people learn to satisfy without reading. -->
+    <div class="proof-block" *ngIf="amountChanged">
+      <div class="pb-head">
+        <mat-icon>photo_camera</mat-icon>
+        <div>
+          <strong>Photo of the bill required</strong>
+          <span>
+            This request changes the amount, and the admin approving it cannot see the
+            paper.
+          </span>
+        </div>
+      </div>
+
+      <label class="pb-drop" *ngIf="!proofPreview">
+        <mat-icon>add_a_photo</mat-icon>
+        <span>Take, choose, or paste a photo</span>
+        <span class="pb-hint">or press Ctrl + V</span>
+        <input type="file" accept="image/*" capture="environment"
+               (change)="onProofPicked($event)" hidden>
+      </label>
+
+      <div class="pb-preview" *ngIf="proofPreview">
+        <img [src]="proofPreview" alt="Bill photo">
+        <div class="pb-side">
+          <span class="pb-status" *ngIf="uploadingProof">
+            <mat-spinner diameter="16"></mat-spinner> Uploading…
+          </span>
+          <span class="pb-status ok" *ngIf="!uploadingProof && proofUrl">
+            <mat-icon>check_circle</mat-icon> Attached
+          </span>
+          <button type="button" mat-stroked-button (click)="clearProof()">
+            <mat-icon>refresh</mat-icon> Retake
+          </button>
+        </div>
+      </div>
+
+      <div class="pb-error" *ngIf="proofError">
+        <mat-icon>error_outline</mat-icon> {{ proofError }}
+      </div>
+    </div>
+
     <div class="error-msg" *ngIf="errorMsg">
       <mat-icon>error_outline</mat-icon> {{ errorMsg }}
     </div>

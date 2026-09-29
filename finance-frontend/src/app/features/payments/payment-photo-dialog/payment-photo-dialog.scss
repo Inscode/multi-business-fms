@@ -102,3 +102,14 @@
   .pd-actions button { flex: 1; min-height: 46px; }
   .pd-img { max-height: 38vh; }
 }
+
+// Only worth saying where a keyboard exists to do it.
+.pd-paste {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #7b8a9d;
+}
+
+@media (max-width: 700px) {
+  .pd-paste { display: none; }
+}
