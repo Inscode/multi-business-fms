@@ -54,6 +54,8 @@ export class AgingReport implements OnInit {
   exportSelectedAreas: string[] = [];
   exportBillType: '' | 'CASH' | 'CREDIT' = '';
   exportSort: 'AGE' | 'AMOUNT' = 'AGE';
+  shortListFilterOpen = false;
+  shortListMinimumAgeDays: number | null = 3;
   downloading = false;
 
   /** Areas present in the loaded report — what can actually be printed. */
@@ -109,8 +111,22 @@ export class AgingReport implements OnInit {
     const params = this.exportParams();
     delete params['billType'];
     delete params['sort'];
+    params['minAgeDays'] = String(this.shortListMinimumAgeDays);
     const qs = new URLSearchParams(params).toString();
     window.open(`/bills/aging/print-compact?${qs}`, '_blank');
+    this.shortListFilterOpen = false;
+  }
+
+  toggleShortListFilter(): void {
+    this.shortListFilterOpen = !this.shortListFilterOpen;
+  }
+
+  openCompactShortList(): void {
+    if (this.shortListMinimumAgeDays == null) return;
+    const days = Number(this.shortListMinimumAgeDays);
+    if (!Number.isInteger(days) || days < 0) return;
+    this.shortListMinimumAgeDays = days;
+    this.printCompact();
   }
 
   downloadExcel(): void {

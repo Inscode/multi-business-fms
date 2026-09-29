@@ -1,22 +1,28 @@
 package com.multi.finance.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.request.CreateEditRequestDto;
 import com.multi.finance.dto.request.PaymentRequest;
 import com.multi.finance.dto.response.EditRequestResponse;
 import com.multi.finance.entity.EditRequest;
+import com.multi.finance.entity.Bill;
+import com.multi.finance.entity.Payment;
 import com.multi.finance.entity.User;
 import com.multi.finance.enums.EditRequestStatus;
 import com.multi.finance.enums.EditRequestType;
 import com.multi.finance.repository.EditRequestRepository;
+import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +31,8 @@ import java.util.Map;
 public class EditRequestServiceImpl {
 
     private final EditRequestRepository editRequestRepository;
+    private final BillRepository billRepository;
+    private final PaymentRepository paymentRepository;
     private final BillServiceImpl billService;
     private final PaymentServiceImpl paymentService;
     private final ObjectMapper objectMapper;
@@ -79,8 +87,32 @@ public class EditRequestServiceImpl {
     private boolean changesAnAmount(CreateEditRequestDto dto) {
         String changes = dto.getRequestedChanges();
         if (changes == null) return false;
-        // The two names the dialog sends: totalAmount for a bill, amount for a payment.
-        return changes.contains("\"totalAmount\"") || changes.contains("\"amount\"");
+        try {
+            JsonNode payload = objectMapper.readTree(changes);
+            String field = dto.getType() == EditRequestType.BILL ? "totalAmount" : "amount";
+            JsonNode requestedAmount = payload == null ? null : payload.get(field);
+            if (requestedAmount == null || requestedAmount.isNull()) return false;
+            if (!requestedAmount.isNumber()) {
+                throw new RuntimeException("Requested amount must be a number");
+            }
+
+            BigDecimal currentAmount;
+            if (dto.getType() == EditRequestType.BILL) {
+                Bill bill = billRepository.findById(dto.getTargetId())
+                        .orElseThrow(() -> new RuntimeException("Bill not found"));
+                currentAmount = bill.getTotalAmount();
+            } else {
+                Payment payment = paymentRepository.findById(dto.getTargetId())
+                        .orElseThrow(() -> new RuntimeException("Payment not found"));
+                currentAmount = payment.getAmount();
+            }
+
+            // The form submits all fields, including the unchanged amount. Require
+            // evidence only when the submitted amount differs from the saved record.
+            return currentAmount == null || requestedAmount.decimalValue().compareTo(currentAmount) != 0;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new RuntimeException("Invalid requested changes", e);
+        }
     }
 
     private static String blankToNull(String s) {

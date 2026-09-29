@@ -60,10 +60,20 @@
             matTooltip="Opens the report to read; print it from there when you are ready">
       <mat-icon>visibility</mat-icon> View Report
     </button>
-    <button mat-stroked-button (click)="printCompact()"
+    <button mat-stroked-button (click)="toggleShortListFilter()"
             matTooltip="One line per customer, portrait — for the dot matrix printer">
       <mat-icon>list_alt</mat-icon> Short List
     </button>
+    <div class="short-list-filter" *ngIf="shortListFilterOpen">
+      <label for="short-list-min-age">Minimum time since entry</label>
+      <input id="short-list-min-age" type="number" min="0" step="1"
+             [(ngModel)]="shortListMinimumAgeDays">
+      <span>days (3 keeps bills entered at least 3 days ago)</span>
+      <button mat-flat-button color="primary" (click)="openCompactShortList()"
+              [disabled]="shortListMinimumAgeDays == null || shortListMinimumAgeDays < 0 || shortListMinimumAgeDays % 1 !== 0">
+        <mat-icon>open_in_new</mat-icon> Open Short List
+      </button>
+    </div>
     <button mat-stroked-button (click)="downloadExcel()" [disabled]="downloading">
       <mat-spinner diameter="16" *ngIf="downloading"></mat-spinner>
       <mat-icon *ngIf="!downloading">download</mat-icon>

@@ -36,6 +36,7 @@ export class AgingPrintCompact implements OnInit {
    */
   readonly creditTermsDays = 45;
   readonly cashTermsDays = 7;
+  minimumAgeDays = 3;
 
   data: AgingExport | null = null;
   loading = true;
@@ -51,10 +52,13 @@ export class AgingPrintCompact implements OnInit {
     const q = this.route.snapshot.queryParamMap;
     const business = q.get('business') ?? 'RAINCO';
     const area = q.get('area') ?? undefined;
+    const requestedMinimumAge = Number(q.get('minAgeDays') ?? 3);
+    this.minimumAgeDays = Number.isInteger(requestedMinimumAge) && requestedMinimumAge >= 0
+      ? requestedMinimumAge : 3;
 
     // Both kinds are always fetched: the sheets are split here, not by the filter, so
     // one run of the report produces the whole set rather than two trips.
-    this.billService.getAgingExport(business, area, undefined, 'AGE').subscribe({
+    this.billService.getAgingExport(business, area, undefined, 'AGE', this.minimumAgeDays).subscribe({
       next: (d) => {
         this.data = d;
         this.loading = false;
@@ -68,7 +72,8 @@ export class AgingPrintCompact implements OnInit {
   close(): void { window.close(); }
 
   get scopeLine(): string {
-    return this.data?.area ?? 'All areas';
+    const area = this.data?.area ?? 'All areas';
+    return `${area} · entered ${this.minimumAgeDays}+ days ago`;
   }
 
   /**
@@ -89,20 +94,6 @@ export class AgingPrintCompact implements OnInit {
   overdueDays(c: AgingExportCustomer, cash: boolean): number {
     const over = this.ageDays(c) - (cash ? this.cashTermsDays : this.creditTermsDays);
     return over > 0 ? over : 0;
-  }
-
-  /**
-   * The mark beside a late customer.
-   *
-   * <p>Characters rather than colour or shading: a dot matrix has no colour, prints a
-   * grey fill as a heavy dot pattern that blurs the text beneath it, and is often read
-   * from a copy taken after the ribbon has faded. Asterisks survive all three.
-   */
-  flag(c: AgingExportCustomer, cash: boolean): string {
-    const over = this.overdueDays(c, cash);
-    if (over <= 0) return '';
-    if (cash)  return over > 23 ? '***' : over > 8 ? '**' : '*';
-    return over > 25 ? '***' : over > 15 ? '**' : '*';
   }
 
   /** Customers with credit still owing, worst first. */

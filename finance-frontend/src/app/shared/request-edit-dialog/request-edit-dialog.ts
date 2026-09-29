@@ -261,8 +261,8 @@ export class RequestEditDialog implements OnInit {
       proofImageUrl: this.proofUrl ?? undefined,
     }).subscribe({
       next: () => this.dialogRef.close(true),
-      error: () => {
-        this.errorMsg = 'Failed to submit request. Please try again.';
+      error: (err) => {
+        this.errorMsg = err?.error?.message ?? 'Failed to submit request. Please try again.';
         this.submitting = false;
         this.cdr.markForCheck();
       },

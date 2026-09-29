@@ -23,7 +23,7 @@
         <div class="hd-scope">{{ data.business }} &middot; {{ scopeLine }}</div>
       </div>
       <div class="hd-right">
-        <div class="hd-title">CREDIT — AGING</div>
+        <div class="hd-title">CREDIT — AGING ({{ minimumAgeDays }}+ DAYS)</div>
         <div class="hd-date">As at {{ data.generatedOn | date:'dd MMM yyyy' }}</div>
       </div>
     </header>
@@ -35,7 +35,7 @@
           <th class="c-area">Area</th>
           <th class="c-num">Bills</th>
           <th class="c-date">Oldest Bill</th>
-          <th class="c-num">Overdue</th>
+          <th class="c-num">Age (days)</th>
           <th class="c-amt">Outstanding</th>
         </tr>
       </thead>
@@ -45,12 +45,7 @@
           <td class="c-area">{{ c.area || '—' }}</td>
           <td class="c-num">{{ c.billCount }}</td>
           <td class="c-date">{{ c.oldestBillDate | date:'dd/MM/yy' }}</td>
-          <!-- Days past terms, not days old. A bill still inside its terms is not
-               overdue by any number, so the cell is left blank rather than showing a
-               zero somebody has to interpret. -->
-          <td class="c-num">
-            {{ overdueDays(c, false) || '' }}<span class="fl">{{ flag(c, false) }}</span>
-          </td>
+          <td class="c-num">{{ ageDays(c) }}</td>
           <td class="c-amt">{{ creditAmount(c) | number:'1.0-0' }}</td>
         </tr>
 
@@ -92,7 +87,7 @@
         <div class="hd-scope">{{ data.business }} &middot; {{ scopeLine }}</div>
       </div>
       <div class="hd-right">
-        <div class="hd-title">CASH — AGING</div>
+        <div class="hd-title">CASH — AGING ({{ minimumAgeDays }}+ DAYS)</div>
         <div class="hd-date">As at {{ data.generatedOn | date:'dd MMM yyyy' }}</div>
       </div>
     </header>
@@ -104,7 +99,7 @@
           <th class="c-area">Area</th>
           <th class="c-num">Bills</th>
           <th class="c-date">Oldest Bill</th>
-          <th class="c-num">Overdue</th>
+          <th class="c-num">Age (days)</th>
           <th class="c-amt">Outstanding</th>
         </tr>
       </thead>
@@ -114,9 +109,7 @@
           <td class="c-area">{{ c.area || '—' }}</td>
           <td class="c-num">{{ c.billCount }}</td>
           <td class="c-date">{{ c.oldestBillDate | date:'dd/MM/yy' }}</td>
-          <td class="c-num">
-            {{ overdueDays(c, true) || '' }}<span class="fl">{{ flag(c, true) }}</span>
-          </td>
+          <td class="c-num">{{ ageDays(c) }}</td>
           <td class="c-amt">{{ c.cashPending | number:'1.0-0' }}</td>
         </tr>
 

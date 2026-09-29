@@ -7,6 +7,8 @@
 
   <form [formGroup]="form" (ngSubmit)="submit()">
 
+    <div class="dialog-scroll">
+
     <!-- BILL fields -->
     <ng-container *ngIf="isBill">
       <div class="field-row">
@@ -180,6 +182,8 @@
       <div class="pb-error" *ngIf="proofError">
         <mat-icon>error_outline</mat-icon> {{ proofError }}
       </div>
+    </div>
+
     </div>
 
     <div class="error-msg" *ngIf="errorMsg">

@@ -515,6 +515,29 @@ $tbl-cols: 26px 180px 1fr 1fr 1fr 1fr 1fr 150px 46px 82px;
 // Several areas at once — a round rarely maps onto exactly one.
 .export-field.area-field { min-width: 190px; }
 
+.short-list-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border: 1px solid #cfd8dc;
+  border-radius: 8px;
+  background: #fff;
+
+  label { font-size: 12px; font-weight: 600; color: #455a64; }
+  input {
+    width: 72px;
+    min-height: 40px;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: 1px solid #90a4ae;
+    border-radius: 5px;
+    font: inherit;
+  }
+  span { font-size: 12px; color: #607d8b; }
+}
+
 .clear-areas {
   align-self: center;
   display: inline-flex;

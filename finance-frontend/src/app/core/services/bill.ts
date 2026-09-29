@@ -298,11 +298,13 @@ export class Bill {
   }
 
   /** Printable aging data — area and billType optional (omit = all). */
-  getAgingExport(business: string, area?: string, billType?: string, sort?: string): Observable<AgingExport> {
+  getAgingExport(business: string, area?: string, billType?: string, sort?: string,
+                 minAgeDays?: number): Observable<AgingExport> {
     let params = new HttpParams().set('business', business);
     if (area) params = params.set('area', area);
     if (billType) params = params.set('billType', billType);
     if (sort) params = params.set('sort', sort);
+    if (minAgeDays != null) params = params.set('minAgeDays', String(minAgeDays));
     return this.http.get<AgingExport>(`${this.apiUrl}/aging-report/export`, { params });
   }
 
