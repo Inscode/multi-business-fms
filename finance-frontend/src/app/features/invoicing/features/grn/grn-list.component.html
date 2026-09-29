@@ -92,7 +92,11 @@
 
       <mat-form-field appearance="outline" class="qty-field">
         <mat-label>Qty</mat-label>
-        <input matInput type="number" min="1" [(ngModel)]="l.qty" />
+        <!-- data-row so the line just picked can be found; rows are identified by
+             position here because a blank line has no item to name it by. -->
+        <input matInput type="number" min="1" [(ngModel)]="l.qty"
+               [attr.data-row]="i"
+               (keydown.enter)="onQtyEnter($event, i)" />
       </mat-form-field>
 
       <div class="line-total">

@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -58,7 +59,13 @@ public class AgingExportService {
     @Transactional(readOnly = true)
     public AgingExportResponse getExport(BusinessType business, String area,
                                          BillType billType, SortMode sort) {
-        return getExport(business, splitAreas(area), billType, sort);
+        return getExport(business, area, billType, sort, null);
+    }
+
+    @Transactional(readOnly = true)
+    public AgingExportResponse getExport(BusinessType business, String area,
+                                         BillType billType, SortMode sort, Integer minAgeDays) {
+        return getExport(business, splitAreas(area), billType, sort, minAgeDays);
     }
 
     /**
@@ -69,6 +76,12 @@ public class AgingExportService {
     @Transactional(readOnly = true)
     public AgingExportResponse getExport(BusinessType business, List<String> areas,
                                          BillType billType, SortMode sort) {
+        return getExport(business, areas, billType, sort, null);
+    }
+
+    @Transactional(readOnly = true)
+    public AgingExportResponse getExport(BusinessType business, List<String> areas,
+                                         BillType billType, SortMode sort, Integer minAgeDays) {
         LocalDate today = LocalDate.now();
         List<BillStatus> excluded = List.of(
                 BillStatus.COMPLETED, BillStatus.AWAITING_CONFIRMATION, BillStatus.CANCELLED);
@@ -90,6 +103,10 @@ public class AgingExportService {
                 .filter(b -> wanted.isEmpty()
                         || (b.getArea() != null && wanted.contains(b.getArea().trim().toUpperCase())))
                 .filter(b -> billType == null || b.getBillType() == billType)
+                // The Short List cutoff means time since entry, not the date printed
+                // on the bill; backdated invoices entered today should still be left out.
+                .filter(b -> minAgeDays == null || b.getCreatedAt() == null
+                        || ChronoUnit.DAYS.between(b.getCreatedAt(), LocalDateTime.now()) >= minAgeDays)
                 .toList();
 
         // Hidden by an admin as not chaseable. Counted and reported rather than dropped

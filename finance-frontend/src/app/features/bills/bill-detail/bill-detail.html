@@ -145,9 +145,12 @@
             <span class="label">Entered By</span>
             <span class="value">{{ bill.enteredByName }}</span>
           </div>
-          <div class="info-row" *ngIf="bill.notes">
+          <!-- Stacked, not a label/value pair. The other rows hold a word or a date;
+               a note is a sentence, and side by side it wraps back under its own
+               label. -->
+          <div class="info-row notes-row" *ngIf="bill.notes">
             <span class="label">Notes</span>
-            <span class="value">{{ bill.notes }}</span>
+            <p class="notes-text">{{ bill.notes }}</p>
           </div>
         </div>
       </mat-card>
@@ -849,6 +852,17 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let p">
+            <!-- The evidence for the figure on this row. It was reachable from the
+                 payments list and nowhere near the bill it belongs to, which is where
+                 anyone querying an amount actually looks. -->
+            <button
+              mat-icon-button
+              *ngIf="p.receiptImageUrl || p.confirmImageUrl"
+              (click)="viewPaymentPhoto(p)"
+              title="View the photo taken for this payment"
+            >
+              <mat-icon>photo_camera</mat-icon>
+            </button>
             <button
               mat-icon-button
               *ngIf="canRequestEdit && p.status === 'ENTERED'"

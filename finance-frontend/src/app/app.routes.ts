@@ -1,8 +1,11 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+import { Auth } from './core/services/auth';
 import { authGuard } from './core/guards/auth-guard';
 import { loginGuard } from './core/guards/login-guard';
 import { staffGuard } from './core/guards/staff-guard';
 import { adminGuard } from './core/guards/admin-guard';
+import { importGuard } from './core/guards/import-guard';
 import { MainLayoutComponent } from './layout/main-layout/main-layout';
 
 export const routes: Routes = [
@@ -80,9 +83,18 @@ export const routes: Routes = [
         loadComponent: () => import('./features/invoicing/invoicing-shell')
           .then(m => m.InvoicingShell),
         children: [
-          { path: '', redirectTo: 'invoices', pathMatch: 'full' },
+          {
+            // An accountant has no invoice list to land on, so they start at the form
+            // they came to fill in. Redirecting them to a page they cannot open would
+            // bounce them out of the section the moment they entered it.
+            path: '',
+            pathMatch: 'full',
+            redirectTo: () => inject(Auth).getRole() === 'ADMIN'
+              ? 'invoices' : 'invoices/new',
+          },
           {
             path: 'invoices',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/invoices/invoice-list/invoice-list.component')
               .then(m => m.InvoiceListComponent)
           },
@@ -93,16 +105,19 @@ export const routes: Routes = [
           },
           {
             path: 'invoices/:id/edit',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/invoices/invoice-form/invoice-form.component')
               .then(m => m.InvoiceFormComponent)
           },
           {
             path: 'invoices/:id',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/invoices/invoice-detail/invoice-detail.component')
               .then(m => m.InvoiceDetailComponent)
           },
           {
             path: 'batches',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/batches/import-batches.component')
               .then(m => m.ImportBatchesComponent)
           },
@@ -113,24 +128,27 @@ export const routes: Routes = [
           },
           {
             path: 'items',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/items/item-list/item-list.component')
               .then(m => m.ItemListComponent)
           },
           {
             path: 'stock-take',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/items/stock-take/stock-take.component')
               .then(m => m.StockTakeComponent)
           },
           {
             path: 'brands',
+            canActivate: [adminGuard],
             loadComponent: () => import('./features/invoicing/features/brands/brand-list/brand-list.component')
               .then(m => m.BrandListComponent)
           },
           {
-            // Admin only. Hiding the nav link alone would leave the URL open, and an
-            // import writes invoices, bills and stock in one press.
+            // Keep the route aligned with the backend import permission: importing
+            // creates invoices, bills and stock, so only operational finance roles enter.
             path: 'import',
-            canActivate: [adminGuard],
+            canActivate: [importGuard],
             loadComponent: () => import('./features/invoicing/features/import/import.component')
               .then(m => m.ImportComponent)
           },

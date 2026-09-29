@@ -1,22 +1,28 @@
 package com.multi.finance.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multi.finance.dto.request.BillRequest;
 import com.multi.finance.dto.request.CreateEditRequestDto;
 import com.multi.finance.dto.request.PaymentRequest;
 import com.multi.finance.dto.response.EditRequestResponse;
 import com.multi.finance.entity.EditRequest;
+import com.multi.finance.entity.Bill;
+import com.multi.finance.entity.Payment;
 import com.multi.finance.entity.User;
 import com.multi.finance.enums.EditRequestStatus;
 import com.multi.finance.enums.EditRequestType;
 import com.multi.finance.repository.EditRequestRepository;
+import com.multi.finance.repository.BillRepository;
+import com.multi.finance.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +31,8 @@ import java.util.Map;
 public class EditRequestServiceImpl {
 
     private final EditRequestRepository editRequestRepository;
+    private final BillRepository billRepository;
+    private final PaymentRepository paymentRepository;
     private final BillServiceImpl billService;
     private final PaymentServiceImpl paymentService;
     private final ObjectMapper objectMapper;
@@ -32,6 +40,7 @@ public class EditRequestServiceImpl {
     @Transactional
     public EditRequestResponse create(CreateEditRequestDto dto) {
         User caller = getCurrentUser();
+        guardAmountProof(dto);
 
         EditRequest req = EditRequest.builder()
                 .type(dto.getType())
@@ -39,12 +48,75 @@ public class EditRequestServiceImpl {
                 .targetRef(dto.getTargetRef())
                 .requestedChanges(dto.getRequestedChanges())
                 .reason(dto.getReason())
+                .proofImageUrl(blankToNull(dto.getProofImageUrl()))
+                .proofUploadedAt(blankToNull(dto.getProofImageUrl()) == null
+                        ? null : LocalDateTime.now())
                 .requestedBy(caller)
                 .requestedAt(LocalDateTime.now())
                 .status(EditRequestStatus.PENDING)
                 .build();
 
         return toResponse(editRequestRepository.save(req));
+    }
+
+    /**
+     * Requires a photograph when the request moves an amount.
+     *
+     * <p>Only then. Most edits correct how a bill reads — a misspelled shop, the wrong
+     * area, a date a day out — and the typed reason is enough to judge them by. An
+     * amount changes what the customer owes, and the admin approving it is being asked
+     * to take somebody's word for a figure they cannot see.
+     *
+     * <p>Asking on every edit would attach a picture to a corrected spelling, and a rule
+     * that fires on everything is one people learn to satisfy without reading.
+     */
+    private void guardAmountProof(CreateEditRequestDto dto) {
+        if (!changesAnAmount(dto)) return;
+        if (blankToNull(dto.getProofImageUrl()) != null) return;
+        throw new RuntimeException(
+                "Attach a photo of the bill — this request changes an amount, and the "
+              + "admin approving it cannot see the paper.");
+    }
+
+    /**
+     * Whether the requested changes move a figure.
+     *
+     * <p>Read out of the change payload rather than trusted from a flag the caller sets,
+     * so a request cannot declare itself exempt.
+     */
+    private boolean changesAnAmount(CreateEditRequestDto dto) {
+        String changes = dto.getRequestedChanges();
+        if (changes == null) return false;
+        try {
+            JsonNode payload = objectMapper.readTree(changes);
+            String field = dto.getType() == EditRequestType.BILL ? "totalAmount" : "amount";
+            JsonNode requestedAmount = payload == null ? null : payload.get(field);
+            if (requestedAmount == null || requestedAmount.isNull()) return false;
+            if (!requestedAmount.isNumber()) {
+                throw new RuntimeException("Requested amount must be a number");
+            }
+
+            BigDecimal currentAmount;
+            if (dto.getType() == EditRequestType.BILL) {
+                Bill bill = billRepository.findById(dto.getTargetId())
+                        .orElseThrow(() -> new RuntimeException("Bill not found"));
+                currentAmount = bill.getTotalAmount();
+            } else {
+                Payment payment = paymentRepository.findById(dto.getTargetId())
+                        .orElseThrow(() -> new RuntimeException("Payment not found"));
+                currentAmount = payment.getAmount();
+            }
+
+            // The form submits all fields, including the unchanged amount. Require
+            // evidence only when the submitted amount differs from the saved record.
+            return currentAmount == null || requestedAmount.decimalValue().compareTo(currentAmount) != 0;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new RuntimeException("Invalid requested changes", e);
+        }
+    }
+
+    private static String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
     }
 
     @Transactional(readOnly = true)
@@ -126,6 +198,7 @@ public class EditRequestServiceImpl {
                 .targetRef(r.getTargetRef())
                 .requestedChanges(r.getRequestedChanges())
                 .reason(r.getReason())
+                .proofImageUrl(r.getProofImageUrl())
                 .requestedByName(r.getRequestedBy().getFullName())
                 .requestedAt(r.getRequestedAt())
                 .status(r.getStatus())

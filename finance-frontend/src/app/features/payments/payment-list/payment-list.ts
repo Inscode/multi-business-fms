@@ -443,23 +443,26 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Whether a confirmed cash payment can be removed.
+   * Whether a confirmed payment can be removed.
    *
-   * <p>Cash only. A cheque or transfer that never really happened is contradicted by the
-   * bank, and marking it returned keeps the two records agreeing; deleting it here would
-   * not. Cash has no such record, so this is the only way to undo one entered against
-   * the wrong bill.
+   * <p>Cash and bank transfer. A cheque is different: it has a life of its own after it
+   * is written, and a cheque that fails is marked returned so the record shows what
+   * actually happened to it. Cash and a transfer entered against the wrong bill have no
+   * such story — they were simply recorded in the wrong place, and removing them is the
+   * only way to say so.
    */
   canDeleteConfirmedCash(payment: PaymentResponse): boolean {
     return this.isAdmin
         && payment.status === 'CONFIRMED'
-        && payment.paymentType === 'CASH';
+        && (payment.paymentType === 'CASH' || payment.paymentType === 'BANK_TRANSFER');
   }
 
   deleteConfirmedCash(payment: PaymentResponse): void {
     this.dialog.open(ConfirmDialog, {
       data: {
-        title: 'Delete confirmed cash payment',
+        title: payment.paymentType === 'CASH'
+          ? 'Delete confirmed cash payment'
+          : 'Delete confirmed transfer',
         message:
           `Rs ${payment.paymentAmount} comes off ${payment.billNumber} and the bill `
           + `reopens for that amount. The photo is deleted with it.
@@ -496,7 +499,11 @@ export class PaymentList implements OnInit, AfterViewInit, OnDestroy {
   }
 
   hasActions(payment: PaymentResponse): boolean {
-    return this.canConfirm(payment) || this.canEdit(payment) || this.canReturn(payment)
+    // A photograph counts as an action of its own. Without it a confirmed transfer
+    // offered no menu at all, so its evidence could be attached and then never looked
+    // at again.
+    return this.hasPhoto(payment)
+        || this.canConfirm(payment) || this.canEdit(payment) || this.canReturn(payment)
         || this.canDelete(payment) || this.canReject(payment)
         || this.canDeleteConfirmedCash(payment);
   }

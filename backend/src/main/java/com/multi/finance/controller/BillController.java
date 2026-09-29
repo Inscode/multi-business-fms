@@ -237,8 +237,9 @@ public class BillController {
             @RequestParam(required = false, defaultValue = "RAINCO") BusinessType business,
             @RequestParam(required = false) String area,
             @RequestParam(required = false) BillType billType,
-            @RequestParam(required = false, defaultValue = "AGE") AgingExportService.SortMode sort) {
-        return ResponseEntity.ok(agingExportService.getExport(business, area, billType, sort));
+            @RequestParam(required = false, defaultValue = "AGE") AgingExportService.SortMode sort,
+            @RequestParam(required = false) Integer minAgeDays) {
+        return ResponseEntity.ok(agingExportService.getExport(business, area, billType, sort, minAgeDays));
     }
 
     @GetMapping("/aging-report/export.xlsx")

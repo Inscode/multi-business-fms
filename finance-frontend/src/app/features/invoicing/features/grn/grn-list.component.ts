@@ -167,6 +167,47 @@ export class GrnListComponent implements OnInit {
     line.itemId = item.id;
     line.search = this.itemLabel(item.id);
     this.cdr.markForCheck();
+
+    // Straight into the quantity. A goods note is find-item, type-qty repeated down
+    // the delivery, and reaching for the mouse between each pair is most of the work.
+    this.focusQtyOfRow(this.lines.indexOf(line));
+  }
+
+  /**
+   * Puts the cursor in the quantity box of one row.
+   *
+   * <p>Deferred a frame: the autocomplete is still closing when this is called, and a
+   * focus set underneath it is taken straight back when it does.
+   *
+   * <p>Selects the contents rather than placing a caret, so a typed quantity replaces
+   * what is there instead of running on after it.
+   */
+  private focusQtyOfRow(index: number): void {
+    if (index < 0) return;
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(
+        `.qty-field input[data-row="${index}"]`);
+      el?.focus();
+      el?.select();
+    });
+  }
+
+  /**
+   * Enter in a quantity box opens the next line and puts the cursor in its item box.
+   *
+   * <p>The loop is item, quantity, item, quantity. On the last row there is no next
+   * line yet, so one is added — which is what the accountant was about to reach for
+   * the Add Line button to do.
+   */
+  onQtyEnter(event: Event, index: number): void {
+    event.preventDefault();
+    if (index === this.lines.length - 1) this.addLine();
+    this.cdr.markForCheck();
+
+    setTimeout(() => {
+      const rows = document.querySelectorAll<HTMLInputElement>('.item-field input');
+      rows[index + 1]?.focus();
+    });
   }
 
   /** Price is the catalog's, shown for confirmation only — never typed. */

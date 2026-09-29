@@ -15,27 +15,41 @@ import { InvoiceReviewService } from './core/services/invoice-review.service';
   imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
   template: `
     <nav class="inv-nav">
-      <a routerLink="/invoicing/invoices" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        <mat-icon>receipt_long</mat-icon> Invoices
-      </a>
+      <!-- Accountants can create invoices and import supplier bills; catalog
+           management and invoice review remain admin-only. -->
+      @if (isAdmin) {
+        <a routerLink="/invoicing/invoices" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+          <mat-icon>receipt_long</mat-icon> Invoices
+        </a>
+      } @else {
+        <a routerLink="/invoicing/invoices/new" routerLinkActive="active">
+          <mat-icon>note_add</mat-icon> New Invoice
+        </a>
+      }
+
       <a routerLink="/invoicing/grn" routerLinkActive="active">
         <mat-icon>move_to_inbox</mat-icon> Stock In
       </a>
-      <a routerLink="/invoicing/items" routerLinkActive="active">
-        <mat-icon>inventory_2</mat-icon> Items
-      </a>
-      <a routerLink="/invoicing/brands" routerLinkActive="active">
-        <mat-icon>sell</mat-icon> Brands
-      </a>
-      @if (isAdmin) {
+
+      @if (canImport && !isAdmin) {
         <a routerLink="/invoicing/import" routerLinkActive="active">
-          <mat-icon>upload_file</mat-icon> Import
+          <mat-icon>upload_file</mat-icon> Import Bills
         </a>
       }
-      <a routerLink="/invoicing/batches" routerLinkActive="active">
-        <mat-icon>summarize</mat-icon> Batches
-      </a>
+
       @if (isAdmin) {
+        <a routerLink="/invoicing/items" routerLinkActive="active">
+          <mat-icon>inventory_2</mat-icon> Items
+        </a>
+        <a routerLink="/invoicing/brands" routerLinkActive="active">
+          <mat-icon>sell</mat-icon> Brands
+        </a>
+        <a routerLink="/invoicing/import" routerLinkActive="active">
+          <mat-icon>upload_file</mat-icon> Import Bills
+        </a>
+        <a routerLink="/invoicing/batches" routerLinkActive="active">
+          <mat-icon>summarize</mat-icon> Batches
+        </a>
         <a routerLink="/invoicing/review" routerLinkActive="active">
           <mat-icon>fact_check</mat-icon> Review
           @if (pendingReview > 0) {
@@ -97,6 +111,9 @@ export class InvoicingShell implements OnInit {
   pendingReview = 0;
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
+  get canImport(): boolean {
+    return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
 
   ngOnInit(): void {
     if (!this.isAdmin) return;

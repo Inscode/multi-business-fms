@@ -417,10 +417,14 @@ public class PaymentServiceImpl {
     public void deleteConfirmedCashPayment(Long paymentId, String reason, String by) {
         Payment payment = getPaymentById(paymentId);
 
-        if (payment.getPaymentType() != PaymentType.CASH) {
+        // A cheque is the exception: once written it has a life of its own, and one that
+        // fails is marked returned so the record shows what became of it. Cash and a
+        // transfer entered against the wrong bill have no such story — they were simply
+        // recorded in the wrong place.
+        if (payment.getPaymentType() == PaymentType.CHEQUE) {
             throw new RuntimeException(
-                    "Only cash payments can be deleted here. A cheque or transfer is "
-                  + "settled by the bank — mark it returned instead.");
+                    "A cheque cannot be deleted here — mark it returned instead, so the "
+                  + "record shows what happened to it.");
         }
         if (payment.getStatus() != PaymentStatus.CONFIRMED) {
             throw new RuntimeException(

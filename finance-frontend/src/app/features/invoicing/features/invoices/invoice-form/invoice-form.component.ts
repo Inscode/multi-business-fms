@@ -746,6 +746,44 @@ export class InvoiceFormComponent implements OnInit {
     this.filteredItems = this.itemsForMethod();
     this.refreshQuote();
     this.cdr.markForCheck();
+
+    // Straight into the quantity for the line just added. Entering an invoice is
+    // find-item, type-qty, repeated forty times; reaching for the mouse between each
+    // pair is most of the work.
+    this.focusQtyOf(item.id);
+  }
+
+  /**
+   * Puts the cursor in the quantity box of a line, once it exists on screen.
+   *
+   * <p>Deferred to the next frame because the row is only rendered after change
+   * detection has run — asked for immediately, the input is not there to focus.
+   *
+   * <p>Selects what is in it rather than placing a caret: the box holds 1, and typing
+   * a quantity should replace it rather than produce 15 out of a 5 typed after it.
+   */
+  private focusQtyOf(itemId: number): void {
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(
+        `.qty-input[data-item-id="${itemId}"]`);
+      el?.focus();
+      el?.select();
+    });
+  }
+
+  /**
+   * Enter in a quantity box goes back to the item search for the next line.
+   *
+   * <p>The pair is the loop: item, quantity, item, quantity. Sending Enter back to the
+   * search closes it without touching the mouse, and it does not submit the form —
+   * which is what Enter in a lone input would otherwise do.
+   */
+  onQtyEnter(event: Event): void {
+    event.preventDefault();
+    setTimeout(() => {
+      const search = document.querySelector<HTMLInputElement>('.item-search-field input');
+      search?.focus();
+    });
   }
 
   removeLine(idx: number) {

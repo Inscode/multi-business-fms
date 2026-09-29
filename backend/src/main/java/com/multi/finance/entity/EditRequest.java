@@ -57,4 +57,18 @@ public class EditRequest {
 
     @Column(columnDefinition = "TEXT")
     private String rejectionReason;
+
+    /**
+     * The bill photographed, for a request that changes an amount.
+     *
+     * <p>Required only then. An amount changes what the customer owes, and the admin
+     * approving it is otherwise taking somebody's word for a figure they cannot see. A
+     * corrected spelling needs no such thing, and demanding one on every edit teaches
+     * people to attach whatever is nearest.
+     */
+    @Column(name = "proof_image_url", columnDefinition = "TEXT")
+    private String proofImageUrl;
+
+    @Column(name = "proof_uploaded_at")
+    private LocalDateTime proofUploadedAt;
 }
