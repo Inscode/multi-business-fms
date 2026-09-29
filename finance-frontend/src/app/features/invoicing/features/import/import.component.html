@@ -128,9 +128,11 @@
         <button mat-stroked-button (click)="startNewBatch()">
           <mat-icon>restart_alt</mat-icon> Start a new batch
         </button>
-        <a mat-button routerLink="/invoicing/batches">
-          <mat-icon>summarize</mat-icon> View batch summary
-        </a>
+        @if (isAdmin) {
+          <a mat-button routerLink="/invoicing/batches">
+            <mat-icon>summarize</mat-icon> View batch summary
+          </a>
+        }
       </div>
     </div>
   }
