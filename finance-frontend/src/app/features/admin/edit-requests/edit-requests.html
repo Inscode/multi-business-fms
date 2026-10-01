@@ -54,12 +54,27 @@
           <span>{{ r.reason }}</span>
         </div>
 
+        <a class="proof-photo" *ngIf="r.proofImageUrl"
+           [href]="r.proofImageUrl" target="_blank" rel="noopener noreferrer"
+           aria-label="Open uploaded bill proof photo in a new tab">
+          <img [src]="r.proofImageUrl" alt="Bill proof attached to this edit request">
+          <span><mat-icon>open_in_new</mat-icon> View bill photo</span>
+        </a>
+
         <div class="changes-grid">
           <div class="change-item" *ngFor="let c of parsedChanges(r.requestedChanges)">
             <span class="change-key">{{ c.key }}</span>
             <span class="change-val">{{ c.value }}</span>
           </div>
         </div>
+
+        <mat-form-field appearance="outline" class="continuation-field"
+                        *ngIf="r.status === 'PENDING' && isBkBill(r)">
+          <mat-label>Continuation numbers</mat-label>
+          <input matInput [(ngModel)]="continuationInputs[r.id]" placeholder="e.g. 89, 90"
+                 aria-label="Continuation numbers for this BK bill">
+          <mat-hint>Enter the extra physical book page numbers, separated by commas.</mat-hint>
+        </mat-form-field>
 
         <div class="rejection-note" *ngIf="r.status === 'REJECTED' && r.rejectionReason">
           <mat-icon>cancel</mat-icon>
