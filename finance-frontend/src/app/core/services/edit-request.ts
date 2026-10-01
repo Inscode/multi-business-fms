@@ -10,6 +10,7 @@ export interface EditRequestResponse {
   targetRef: string;
   requestedChanges: string;
   reason: string | null;
+  proofImageUrl: string | null;
   requestedByName: string;
   requestedAt: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -61,8 +62,8 @@ export class EditRequestService {
     return this.http.get<EditRequestResponse[]>(`${this.apiUrl}/pending`);
   }
 
-  approve(id: number): Observable<EditRequestResponse> {
-    return this.http.patch<EditRequestResponse>(`${this.apiUrl}/${id}/approve`, {});
+  approve(id: number, continuationNumbers: string[] = []): Observable<EditRequestResponse> {
+    return this.http.patch<EditRequestResponse>(`${this.apiUrl}/${id}/approve`, { continuationNumbers });
   }
 
   reject(id: number, reason: string): Observable<EditRequestResponse> {

@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface BillNumberSkipRepository extends JpaRepository<BillNumberSkip, Long> {
 
+    boolean existsByBusinessAndBillNumberAndStatusIn(String business, String billNumber, List<String> statuses);
+
     // Only APPROVED skips affect the next-number suggestion
     @Query(value = "SELECT COALESCE(MAX(CAST(bill_number AS INTEGER)), 0) FROM bill_number_skips " +
                    "WHERE business = :business AND status = 'APPROVED' AND bill_number ~ '^[0-9]+$'", nativeQuery = true)

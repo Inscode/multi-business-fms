@@ -11,11 +11,14 @@ import com.multi.finance.entity.EditRequest;
 import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.Payment;
 import com.multi.finance.entity.User;
+import com.multi.finance.entity.BillNumberSkip;
+import com.multi.finance.enums.BillSource;
 import com.multi.finance.enums.EditRequestStatus;
 import com.multi.finance.enums.EditRequestType;
 import com.multi.finance.repository.EditRequestRepository;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.PaymentRepository;
+import com.multi.finance.repository.BillNumberSkipRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ public class EditRequestServiceImpl {
     private final EditRequestRepository editRequestRepository;
     private final BillRepository billRepository;
     private final PaymentRepository paymentRepository;
+    private final BillNumberSkipRepository billNumberSkipRepository;
     private final BillServiceImpl billService;
     private final PaymentServiceImpl paymentService;
     private final ObjectMapper objectMapper;
@@ -132,12 +136,17 @@ public class EditRequestServiceImpl {
     }
 
     @Transactional
-    public EditRequestResponse approve(Long id) {
+    public EditRequestResponse approve(Long id, List<String> continuationNumbers) {
         EditRequest req = findById(id);
         User reviewer = getCurrentUser();
 
         if (req.getStatus() != EditRequestStatus.PENDING) {
             throw new RuntimeException("Request is not pending");
+        }
+
+        List<String> normalizedContinuations = normalizeContinuations(continuationNumbers);
+        if (!normalizedContinuations.isEmpty()) {
+            saveApprovedContinuations(req, reviewer, normalizedContinuations);
         }
 
         applyChanges(req);
@@ -146,6 +155,57 @@ public class EditRequestServiceImpl {
         req.setReviewedBy(reviewer);
         req.setReviewedAt(LocalDateTime.now());
         return toResponse(editRequestRepository.save(req));
+    }
+
+    private List<String> normalizeContinuations(List<String> numbers) {
+        if (numbers == null || numbers.isEmpty()) return List.of();
+        return numbers.stream()
+                .map(n -> n == null ? "" : n.trim())
+                .filter(n -> !n.isBlank())
+                .map(n -> {
+                    if (!n.matches("[0-9]+") || n.chars().allMatch(c -> c == '0')) {
+                        throw new RuntimeException("Continuation numbers must be positive whole numbers.");
+                    }
+                    return n.replaceFirst("^0+(?!$)", "");
+                })
+                .distinct()
+                .toList();
+    }
+
+    private void saveApprovedContinuations(EditRequest request, User admin, List<String> numbers) {
+        if (request.getType() != EditRequestType.BILL) {
+            throw new RuntimeException("Continuation numbers can only be added to bill edit requests.");
+        }
+        Bill bill = billRepository.findById(request.getTargetId())
+                .orElseThrow(() -> new RuntimeException("Bill not found"));
+        if (bill.getBillNumber() == null || !bill.getBillNumber().toUpperCase().startsWith("BK-")
+                || (bill.getBillSource() != BillSource.MANUAL
+                    && bill.getBillSource() != BillSource.MANUAL_BOOK)) {
+            throw new RuntimeException("Continuation numbers apply only to BK physical-book bills.");
+        }
+
+        String business = bill.getBillSource() == BillSource.MANUAL_BOOK
+                ? "PLASTIC" : bill.getBusiness().name();
+        LocalDateTime now = LocalDateTime.now();
+        List<BillNumberSkip> skips = numbers.stream().map(number -> {
+            boolean alreadyUsed = billNumberSkipRepository
+                    .existsByBusinessAndBillNumberAndStatusIn(business, number,
+                            List.of("PENDING", "APPROVED"));
+            if (alreadyUsed) {
+                throw new RuntimeException("Continuation number " + number + " is already recorded.");
+            }
+            return BillNumberSkip.builder()
+                    .business(business)
+                    .billNumber(number)
+                    .status("APPROVED")
+                    .submittedBy(admin)
+                    .reviewedBy(admin)
+                    .reviewedAt(now)
+                    .bill(bill)
+                    .createdAt(now)
+                    .build();
+        }).toList();
+        billNumberSkipRepository.saveAll(skips);
     }
 
     @Transactional

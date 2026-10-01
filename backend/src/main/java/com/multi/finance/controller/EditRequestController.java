@@ -39,8 +39,12 @@ public class EditRequestController {
 
     @PatchMapping("/{id}/approve")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<EditRequestResponse> approve(@PathVariable Long id) {
-        return ResponseEntity.ok(editRequestService.approve(id));
+    public ResponseEntity<EditRequestResponse> approve(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, List<String>> body) {
+        List<String> continuationNumbers = body == null ? List.of()
+                : body.getOrDefault("continuationNumbers", List.of());
+        return ResponseEntity.ok(editRequestService.approve(id, continuationNumbers));
     }
 
     @PatchMapping("/{id}/reject")

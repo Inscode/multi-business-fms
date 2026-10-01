@@ -3,8 +3,11 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { FormsModule } from '@angular/forms';
 import { EditRequestResponse, EditRequestService } from '../../../core/services/edit-request';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 
@@ -18,6 +21,9 @@ import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
     MatIconModule,
     MatProgressSpinnerModule,
     MatDialogModule,
+    MatFormFieldModule,
+    MatInputModule,
+    FormsModule,
     DatePipe,
   ],
   templateUrl: './edit-requests.html',
@@ -30,6 +36,11 @@ export class EditRequestsPage implements OnInit {
   error = false;
 
   showAll = false;
+  continuationInputs: Record<number, string> = {};
+
+  isBkBill(req: EditRequestResponse): boolean {
+    return req.type === 'BILL' && (req.targetRef ?? '').trim().toUpperCase().startsWith('BK-');
+  }
 
   get displayed(): EditRequestResponse[] {
     return this.showAll ? this.requests : this.requests.filter(r => r.status === 'PENDING');
@@ -107,6 +118,7 @@ export class EditRequestsPage implements OnInit {
       bankName:     'Bank',
       branchName:   'Branch',
       referenceNumber: 'Reference No.',
+      continuationNumbers: 'Continuation Numbers',
     };
     return map[key] ?? key;
   }
@@ -122,7 +134,10 @@ export class EditRequestsPage implements OnInit {
       maxWidth: '95vw',
     }).afterClosed().subscribe(result => {
       if (!result?.confirmed) return;
-      this.editRequestService.approve(req.id).subscribe({
+      const continuationNumbers = this.isBkBill(req)
+        ? (this.continuationInputs[req.id] ?? '').split(',').map(n => n.trim()).filter(Boolean)
+        : [];
+      this.editRequestService.approve(req.id, continuationNumbers).subscribe({
         next: () => this.load(),
         error: () => alert('Failed to approve request.'),
       });
