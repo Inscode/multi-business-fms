@@ -55,7 +55,11 @@ export class PaymentPhotoDialog {
 
   /** Prefer the current response field, with the legacy API name as a fallback. */
   get amountToConfirm(): number | null {
-    const raw = this.p.paymentAmount ?? this.p.amount;
+    const response = this.p as unknown as {
+      paymentAmount?: number | string | null;
+      amount?: number | string | null;
+    };
+    const raw: unknown = response.paymentAmount ?? response.amount;
     if (raw === null || raw === undefined || raw === '') return null;
     const amount = Number(raw);
     return Number.isFinite(amount) ? amount : null;

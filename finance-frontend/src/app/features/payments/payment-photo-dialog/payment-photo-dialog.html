@@ -120,10 +120,10 @@
     </div>
     <div class="pd-zoom-stage" (wheel)="onZoomWheel($event)" (click)="$event.stopPropagation()">
       <img [src]="zoomImageUrl" alt="Zoomed bill photo"
-           [style.transform]="'translate(' + zoomOffsetX + 'px, ' + zoomOffsetY + 'px) scale(' + zoomLevel + ')'
+           [style.transform]="'translate(' + zoomOffsetX + 'px, ' + zoomOffsetY + 'px) scale(' + zoomLevel + ')'"
            (pointerdown)="startPan($event)" (pointermove)="pan($event)"
            (pointerup)="endPan()" (pointercancel)="endPan()"
-           (click)="$event.stopPropagation()">
+           (click)="$event.stopPropagation()" />
     </div>
     <div class="pd-zoom-hint">Use + / − or scroll to zoom · Esc to close</div>
   </div>
