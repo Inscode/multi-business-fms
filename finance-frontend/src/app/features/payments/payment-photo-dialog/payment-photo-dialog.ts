@@ -39,6 +39,11 @@ export class PaymentPhotoDialog {
   /** The admin's own photo, if they attach one before confirming. */
   confirmUrl: string | null = null;
   confirmPreview: string | null = null;
+  zoomImageUrl: string | null = null;
+  zoomLevel = 1;
+  zoomOffsetX = 0;
+  zoomOffsetY = 0;
+  private dragStart: { x: number; y: number; offsetX: number; offsetY: number } | null = null;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: PaymentPhotoData,
@@ -47,6 +52,14 @@ export class PaymentPhotoDialog {
 
   get p(): PaymentResponse { return this.data.payment; }
   get isConfirm(): boolean { return this.data.mode === 'confirm'; }
+
+  /** Prefer the current response field, with the legacy API name as a fallback. */
+  get amountToConfirm(): number | null {
+    const raw = this.p.paymentAmount ?? this.p.amount;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const amount = Number(raw);
+    return Number.isFinite(amount) ? amount : null;
+  }
 
   onPick(e: Event): void {
     const input = e.target as HTMLInputElement;
@@ -108,9 +121,60 @@ export class PaymentPhotoDialog {
     });
   }
 
-  /** Opens the full-size image, since a thumbnail rarely settles a question about a figure. */
-  openFull(url: string): void {
-    window.open(url, '_blank', 'noopener');
+  /** Open the receipt in an in-dialog viewer so the admin can inspect it without leaving confirmation. */
+  openZoom(url: string): void {
+    this.zoomImageUrl = url;
+    this.zoomLevel = 1;
+    this.zoomOffsetX = 0;
+    this.zoomOffsetY = 0;
+  }
+
+  closeZoom(): void {
+    this.zoomImageUrl = null;
+    this.zoomLevel = 1;
+    this.zoomOffsetX = 0;
+    this.zoomOffsetY = 0;
+    this.dragStart = null;
+  }
+
+  changeZoom(delta: number): void {
+    this.zoomLevel = Math.min(4, Math.max(1, this.zoomLevel + delta));
+  }
+
+  onZoomWheel(event: WheelEvent): void {
+    event.preventDefault();
+    this.changeZoom(event.deltaY < 0 ? 0.25 : -0.25);
+  }
+
+  startPan(event: PointerEvent): void {
+    if (this.zoomLevel <= 1) return;
+    event.preventDefault();
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    this.dragStart = {
+      x: event.clientX,
+      y: event.clientY,
+      offsetX: this.zoomOffsetX,
+      offsetY: this.zoomOffsetY,
+    };
+  }
+
+  pan(event: PointerEvent): void {
+    if (!this.dragStart) return;
+    this.zoomOffsetX = this.dragStart.offsetX + event.clientX - this.dragStart.x;
+    this.zoomOffsetY = this.dragStart.offsetY + event.clientY - this.dragStart.y;
+  }
+
+  endPan(): void { this.dragStart = null; }
+
+  resetZoom(): void {
+    this.zoomLevel = 1;
+    this.zoomOffsetX = 0;
+    this.zoomOffsetY = 0;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.zoomImageUrl) this.closeZoom();
   }
 
   confirm(): void {

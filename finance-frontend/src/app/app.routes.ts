@@ -84,17 +84,16 @@ export const routes: Routes = [
           .then(m => m.InvoicingShell),
         children: [
           {
-            // An accountant has no invoice list to land on, so they start at the form
-            // they came to fill in. Redirecting them to a page they cannot open would
-            // bounce them out of the section the moment they entered it.
+            // Admin and finance accountants can browse invoices; other roles start on
+            // the invoice form only when their enclosing route allows it.
             path: '',
             pathMatch: 'full',
-            redirectTo: () => inject(Auth).getRole() === 'ADMIN'
-              ? 'invoices' : 'invoices/new',
+            redirectTo: () => ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT']
+              .includes(inject(Auth).getRole() ?? '') ? 'invoices' : 'invoices/new',
           },
           {
             path: 'invoices',
-            canActivate: [adminGuard],
+            canActivate: [importGuard],
             loadComponent: () => import('./features/invoicing/features/invoices/invoice-list/invoice-list.component')
               .then(m => m.InvoiceListComponent)
           },
@@ -111,7 +110,7 @@ export const routes: Routes = [
           },
           {
             path: 'invoices/:id',
-            canActivate: [adminGuard],
+            canActivate: [importGuard],
             loadComponent: () => import('./features/invoicing/features/invoices/invoice-detail/invoice-detail.component')
               .then(m => m.InvoiceDetailComponent)
           },
