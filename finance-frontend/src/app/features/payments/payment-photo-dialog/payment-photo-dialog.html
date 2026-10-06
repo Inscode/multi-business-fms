@@ -4,7 +4,12 @@
     <div>
       <strong>{{ isConfirm ? 'Confirm Payment' : 'Payment Photos' }}</strong>
       <span>
-        Rs {{ p.paymentAmount | number:'1.2-2' }} · {{ p.billNumber }} — {{ p.customerName }}
+        <ng-container *ngIf="amountToConfirm !== null; else noPaymentAmount">
+          Payment: Rs {{ amountToConfirm | number:'1.2-2' }}
+        </ng-container>
+        <ng-template #noPaymentAmount>Payment amount unavailable</ng-template>
+        · Bill total: Rs {{ p.billTotal | number:'1.2-2' }}
+        · {{ p.billNumber }} — {{ p.customerName }}
       </span>
     </div>
     <button mat-icon-button (click)="close()" aria-label="Close">
@@ -26,9 +31,9 @@
 
       @if (p.receiptImageUrl) {
         <img class="pd-img" [src]="p.receiptImageUrl" alt="Bill photo"
-             (click)="openFull(p.receiptImageUrl!)">
-        <button mat-stroked-button class="pd-full" (click)="openFull(p.receiptImageUrl!)">
-          <mat-icon>open_in_new</mat-icon> Open full size
+             (click)="openZoom(p.receiptImageUrl!)">
+        <button mat-stroked-button class="pd-full" (click)="openZoom(p.receiptImageUrl!)">
+          <mat-icon>zoom_in</mat-icon> Zoom bill photo
         </button>
       } @else {
         <!-- Payments entered before photos were required, or entered by an admin. -->
@@ -52,10 +57,11 @@
 
         @if (p.confirmImageUrl) {
           <img class="pd-img" [src]="p.confirmImageUrl" alt="Admin photo"
-               (click)="openFull(p.confirmImageUrl!)">
+               (click)="openZoom(p.confirmImageUrl!)">
         } @else if (isConfirm) {
           @if (confirmPreview) {
-            <img class="pd-img" [src]="confirmPreview" alt="Admin photo">
+            <img class="pd-img" [src]="confirmPreview" alt="Admin photo"
+                 (click)="openZoom(confirmPreview!)">
             <div class="pd-status">
               @if (uploading) {
                 <mat-spinner diameter="16"></mat-spinner> <span>Uploading…</span>
@@ -93,3 +99,32 @@
     </div>
   }
 </div>
+
+@if (zoomImageUrl) {
+  <div class="pd-zoom-overlay" role="dialog" aria-modal="true" aria-label="Zoomed bill photo"
+       (click)="closeZoom()">
+    <div class="pd-zoom-toolbar" (click)="$event.stopPropagation()">
+      <span>Zoom {{ zoomLevel * 100 | number:'1.0-0' }}%</span>
+      <button mat-icon-button aria-label="Zoom out" (click)="changeZoom(-0.25)" [disabled]="zoomLevel <= 1">
+        <mat-icon>remove</mat-icon>
+      </button>
+      <button mat-icon-button aria-label="Zoom in" (click)="changeZoom(0.25)" [disabled]="zoomLevel >= 4">
+        <mat-icon>add</mat-icon>
+      </button>
+      <button mat-icon-button aria-label="Reset zoom" (click)="resetZoom()">
+        <mat-icon>restart_alt</mat-icon>
+      </button>
+      <button mat-icon-button aria-label="Close zoom view" (click)="closeZoom()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="pd-zoom-stage" (wheel)="onZoomWheel($event)" (click)="$event.stopPropagation()">
+      <img [src]="zoomImageUrl" alt="Zoomed bill photo"
+           [style.transform]="'translate(' + zoomOffsetX + 'px, ' + zoomOffsetY + 'px) scale(' + zoomLevel + ')'
+           (pointerdown)="startPan($event)" (pointermove)="pan($event)"
+           (pointerup)="endPan()" (pointercancel)="endPan()"
+           (click)="$event.stopPropagation()">
+    </div>
+    <div class="pd-zoom-hint">Use + / − or scroll to zoom · Esc to close</div>
+  </div>
+}

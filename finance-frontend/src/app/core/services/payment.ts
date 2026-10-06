@@ -19,6 +19,8 @@ export interface PaymentResponse {
   customerName: string;
   business: string;
   billTotal: number;
+  /** Legacy API alias used by older hosted backend deployments. */
+  amount?: number | string;
   amountPaid: number;
   balanceRemaining: number;
   fullyPaid: boolean;

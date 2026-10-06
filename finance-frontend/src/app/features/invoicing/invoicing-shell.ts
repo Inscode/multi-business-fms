@@ -17,11 +17,13 @@ import { InvoiceReviewService } from './core/services/invoice-review.service';
     <nav class="inv-nav">
       <!-- Accountants can create invoices and import supplier bills; catalog
            management and invoice review remain admin-only. -->
-      @if (isAdmin) {
+      @if (canViewInvoices) {
         <a routerLink="/invoicing/invoices" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
           <mat-icon>receipt_long</mat-icon> Invoices
         </a>
-      } @else {
+      }
+
+      @if (!isAdmin) {
         <a routerLink="/invoicing/invoices/new" routerLinkActive="active">
           <mat-icon>note_add</mat-icon> New Invoice
         </a>
@@ -111,6 +113,9 @@ export class InvoicingShell implements OnInit {
   pendingReview = 0;
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
+  get canViewInvoices(): boolean {
+    return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
   get canImport(): boolean {
     return ['ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
   }
