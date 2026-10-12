@@ -21,6 +21,7 @@ export interface CashFundResponse {
 export interface CashBalanceResponse {
   totalFunded: number;
   totalSpent: number;
+  outstandingAdvances: number;
   balance: number;
 }
 

@@ -1,0 +1,59 @@
+.request-dialog {
+  width: min(520px, 92vw);
+  padding: 8px 8px 0;
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+  color: #1a1a2e;
+
+  mat-icon { color: #1565c0; }
+}
+
+.request-sub {
+  margin: 0 24px 8px;
+  color: #607d8b;
+  font-size: 13px;
+}
+
+.request-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(62vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.full-width { width: 100%; }
+
+input[formControlName='name'] { text-transform: uppercase; }
+
+.phone-row {
+  display: flex;
+  gap: 12px;
+
+  mat-form-field { flex: 1 1 0; min-width: 0; }
+}
+
+.request-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #ffebee;
+  color: #b3261e;
+  font-size: 13px;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+mat-dialog-actions button { min-height: 44px; }
+
+@media (max-width: 520px) {
+  .phone-row { flex-direction: column; gap: 0; }
+}

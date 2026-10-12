@@ -14,5 +14,6 @@ public class ExpenseRequest {
     private BigDecimal amount;
     private LocalDate date;
     private String description;
+    private String receiptImageUrl;
     private Long workerId;
 }

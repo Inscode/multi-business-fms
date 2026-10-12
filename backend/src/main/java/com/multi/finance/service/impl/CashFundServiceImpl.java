@@ -24,6 +24,7 @@ public class CashFundServiceImpl {
     private final CashFundRepository cashFundRepository;
     private final ExpenseRepository expenseRepository;
     private final PettyCashDeductionRepository pettyCashDeductionRepository;
+    private final com.multi.finance.repository.ExpenseAdvanceRepository expenseAdvanceRepository;
 
     @Transactional
     public CashFundResponse addFund(CashFundRequest req) {
@@ -43,10 +44,12 @@ public class CashFundServiceImpl {
         BigDecimal expensesSpent   = expenseRepository.totalSpent();
         BigDecimal deductionsSpent = pettyCashDeductionRepository.totalDeducted();
         BigDecimal totalSpent      = expensesSpent.add(deductionsSpent);
+        BigDecimal outstandingAdvances = expenseAdvanceRepository.totalOutstanding();
         return CashBalanceResponse.builder()
                 .totalFunded(totalFunded)
                 .totalSpent(totalSpent)
-                .balance(totalFunded.subtract(totalSpent))
+                .outstandingAdvances(outstandingAdvances)
+                .balance(totalFunded.subtract(totalSpent).subtract(outstandingAdvances))
                 .build();
     }
 

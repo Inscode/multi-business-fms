@@ -7,6 +7,7 @@ export interface CustomerResponse {
   id: number;
   name: string;
   phone?: string;
+  phone2?: string;
   area?: string;
   tier?: string;
   shopType?: string;
@@ -17,6 +18,7 @@ export interface CustomerResponse {
 export interface CustomerRequest {
   name: string;
   phone?: string;
+  phone2?: string;
   area?: string;
   tier?: string;
   shopType?: string;

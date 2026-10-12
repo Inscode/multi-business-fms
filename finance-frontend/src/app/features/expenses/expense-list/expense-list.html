@@ -11,12 +11,13 @@
 
   <div class="balance-card" *ngIf="balance" [class]="balanceClass">
     <div class="balance-left">
-      <div class="balance-label">Petty Cash Balance</div>
+      <div class="balance-label">Expense Fund Balance</div>
       <div class="balance-amount">Rs {{ balance.balance | number:'1.2-2' }}</div>
       <div class="balance-detail">
         Funded: Rs {{ balance.totalFunded | number:'1.2-2' }}
         &nbsp;·&nbsp;
         Spent: Rs {{ balance.totalSpent | number:'1.2-2' }}
+        <ng-container *ngIf="balance.outstandingAdvances">&nbsp;·&nbsp; Advances out: Rs {{ balance.outstandingAdvances | number:'1.2-2' }}</ng-container>
       </div>
     </div>
     <div class="balance-actions" *ngIf="isOwnerOrAdmin">
@@ -42,7 +43,7 @@
       </mat-form-field>
       <mat-form-field appearance="outline" style="flex:2">
         <mat-label>Note (optional)</mat-label>
-        <input matInput [(ngModel)]="newFundDescription" placeholder="e.g. Weekly petty cash top-up">
+        <input matInput [(ngModel)]="newFundDescription" placeholder="e.g. Weekly expense fund top-up">
       </mat-form-field>
       <button mat-flat-button color="primary" [disabled]="addingFund || newFundAmount <= 0" (click)="saveAddFunds()">
         <mat-spinner diameter="16" *ngIf="addingFund"></mat-spinner>
@@ -87,6 +88,8 @@
     </div>
   </div>
 
+  <app-expense-advance-panel (changed)="refreshAfterAdvance()"></app-expense-advance-panel>
+
   <!-- Pending Review Banner — always visible regardless of date filter -->
   <div class="pending-banner" *ngIf="isOwnerOrAdmin && pendingReviewExpenses.length > 0">
     <div class="pending-banner-title">
@@ -98,6 +101,7 @@
         <span class="pr-cat">{{ categoryLabel(e.category) }}</span>
         <span class="pr-biz">{{ e.business }}</span>
         <span class="pr-desc" *ngIf="e.description">{{ e.description }}</span>
+        <a *ngIf="e.receiptImageUrl" [href]="e.receiptImageUrl" target="_blank" rel="noopener">Photo</a>
         <span class="pr-amt">Rs {{ e.amount | number:'1.2-2' }}</span>
         <span class="pr-date">{{ e.date }}</span>
         <span class="pr-by">by {{ e.enteredByName }}</span>
@@ -200,7 +204,7 @@
         <span class="date-cell">{{ e.date | date:'dd MMM yyyy' }}</span>
         <span class="biz-chip">{{ e.business }}</span>
         <span class="cat-chip cat-{{ e.category | lowercase }}">{{ categoryLabel(e.category) }}</span>
-        <span class="desc-cell">{{ e.description || '—' }}</span>
+        <span class="desc-cell">{{ e.description || '—' }} <a *ngIf="e.receiptImageUrl" [href]="e.receiptImageUrl" target="_blank" rel="noopener" aria-label="Open expense photo">Photo</a></span>
         <span class="worker-cell">{{ e.workerName || '—' }}</span>
         <span class="amount-cell col-right">Rs {{ e.amount | number:'1.2-2' }}</span>
         <span class="status-badge status-{{ e.status | lowercase }}">

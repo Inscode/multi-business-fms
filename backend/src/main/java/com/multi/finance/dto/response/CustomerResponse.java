@@ -11,6 +11,7 @@ public class CustomerResponse {
     private Long id;
     private String name;
     private String phone;
+    private String phone2;
     private String area;
     private String customerCode;
     private String address;

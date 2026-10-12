@@ -79,8 +79,12 @@ export class EditRequestsPage implements OnInit {
     try {
       const obj = JSON.parse(changesJson);
       return Object.entries(obj)
-        .filter(([, v]) => v !== null && v !== '' && v !== undefined)
-        .map(([key, value]) => ({ key: this.labelFor(key), value: this.valueFor(key, value) }));
+        .filter(([key, value]) =>
+          (key === 'phone2' && value === null) || (value !== null && value !== '' && value !== undefined))
+        .map(([key, value]) => ({
+          key: this.labelFor(key),
+          value: key === 'phone2' && value === null ? 'Remove secondary number' : this.valueFor(key, value),
+        }));
     } catch {
       return [];
     }
@@ -103,6 +107,7 @@ export class EditRequestsPage implements OnInit {
   private labelFor(key: string): string {
     const map: Record<string, string> = {
       customerName: 'Customer Name',
+      name: 'Customer Name',
       totalAmount:  'Total Amount',
       business:     'Business',
       billType:     'Bill Type',
@@ -119,6 +124,8 @@ export class EditRequestsPage implements OnInit {
       branchName:   'Branch',
       referenceNumber: 'Reference No.',
       continuationNumbers: 'Continuation Numbers',
+      phone: 'Mobile Number 1',
+      phone2: 'Mobile Number 2',
     };
     return map[key] ?? key;
   }

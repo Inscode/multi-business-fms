@@ -1,0 +1,101 @@
+<section class="advance-panel">
+  <header class="panel-head">
+    <div>
+      <h2>Route and collection cash</h2>
+      <p>Issue an advance, record itemized expenses, and return the unspent balance to the expense fund.</p>
+    </div>
+    <button *ngIf="canManageAdvances" mat-flat-button color="primary" type="button" (click)="showIssue = !showIssue">
+      <mat-icon>payments</mat-icon> Issue cash
+    </button>
+  </header>
+
+  <form class="issue-form" *ngIf="showIssue" (ngSubmit)="issue()">
+    <div class="fields">
+      <label>Business<select name="business" [(ngModel)]="business"><option *ngFor="let b of businesses" [value]="b">{{ b }}</option></select></label>
+      <label>Cash for<select name="targetType" [(ngModel)]="targetType" (ngModelChange)="runId = null; collectorId = null">
+        <option value="DELIVERY_ROUTE">Delivery route</option><option value="COLLECTION_DAY">Collector collection day</option>
+      </select></label>
+      <label *ngIf="targetType === 'DELIVERY_ROUTE'">Delivery route<select name="runId" [(ngModel)]="runId" required>
+        <option [ngValue]="null" disabled>Select a route</option><option *ngFor="let run of runs" [ngValue]="run.id">{{ runLabel(run) }}</option>
+      </select></label>
+      <label *ngIf="targetType === 'COLLECTION_DAY'">Collector<select name="collectorId" [(ngModel)]="collectorId" required>
+        <option [ngValue]="null" disabled>Select a collector</option><option *ngFor="let person of collectors" [ngValue]="person.id">{{ person.fullName }}</option>
+      </select></label>
+      <label *ngIf="targetType === 'COLLECTION_DAY'">Collection day<input name="activityDate" type="date" [(ngModel)]="activityDate" required></label>
+      <label>Cash issued (Rs)<input name="advanceAmount" type="number" min="0.01" step="0.01" [(ngModel)]="advanceAmount" required></label>
+      <label class="wide">Note (optional)<input name="advanceNotes" [(ngModel)]="advanceNotes" maxlength="500"></label>
+    </div>
+    <p class="error" *ngIf="issueError">{{ issueError }}</p>
+    <div class="form-actions"><button mat-button type="button" (click)="showIssue = false">Cancel</button>
+      <button mat-flat-button color="primary" type="submit" [disabled]="issuing">{{ issuing ? 'Issuing…' : 'Issue advance' }}</button></div>
+  </form>
+
+  <div class="advance-list" *ngIf="!loading && advances.length">
+    <article class="advance-card" *ngFor="let advance of advances">
+      <div class="advance-main">
+        <div class="advance-title">{{ advance.targetType === 'DELIVERY_ROUTE' ? 'Delivery route' : 'Collection day' }} · {{ advance.targetType === 'DELIVERY_ROUTE' ? advance.deliveryRoute : advance.collectorName }}</div>
+        <div class="advance-meta">{{ advance.business }} · {{ advance.activityDate }}<span *ngIf="advance.notes"> · {{ advance.notes }}</span></div>
+      </div>
+      <div class="advance-amount">Rs {{ advance.amount | number:'1.2-2' }}<small *ngIf="advance.status === 'CLOSED'">Returned Rs {{ (advance.returnedAmount || 0) | number:'1.2-2' }}</small></div>
+      <span class="state" [class.closed]="advance.status === 'CLOSED'">{{ advance.status === 'OPEN' ? 'Cash out' : 'Closed' }}</span>
+      <button *ngIf="canManageAdvances && advance.status === 'OPEN'" mat-stroked-button type="button" (click)="beginSettle(advance)">Close out</button>
+    </article>
+  </div>
+  <p class="empty" *ngIf="!loading && !advances.length">No route or collection-day advances yet.</p>
+  <p class="empty" *ngIf="loading">Loading cash advances…</p>
+
+  <section class="settle-box" *ngIf="settling as advance">
+    <header><div><h3>Close out advance #{{ advance.id }}</h3><p>Issued Rs {{ advance.amount | number:'1.2-2' }} · {{ advance.business }} · {{ advance.activityDate }}</p></div>
+      <button mat-icon-button type="button" aria-label="Cancel close out" (click)="cancelSettle()"><mat-icon>close</mat-icon></button></header>
+    <div class="line-list">
+      <div class="settlement-line" *ngFor="let line of settlementLines; let i = index">
+        <label>Expense category<select [(ngModel)]="line.category" [name]="'category' + i" (ngModelChange)="categoryChanged(line)" required>
+          <option value="">Choose category</option><option *ngFor="let cat of categoriesFor(advance.targetType)" [value]="cat.value">{{ cat.label }}</option>
+          <option *ngIf="advance.targetType === 'COLLECTION_DAY'" value="BUS_FARE">Bus fare</option>
+          <option value="OTHER">Other</option>
+        </select></label>
+        <label *ngIf="line.category === 'BUS_FARE'">Fare route<select [(ngModel)]="line.busFareId" [name]="'fare' + i" (ngModelChange)="fareChanged(line)" required>
+          <option [ngValue]="null">Choose from → to</option><option *ngFor="let fare of activeFares" [ngValue]="fare.id">{{ fare.fromLocation }} → {{ fare.toLocation }} · Rs {{ fare.amount | number:'1.2-2' }}</option>
+        </select></label>
+        <label>Amount (Rs)<input [(ngModel)]="line.amount" [name]="'amount' + i" type="number" min="0.01" step="0.01" [readonly]="line.category === 'BUS_FARE'" required></label>
+        <label *ngIf="line.category !== 'BUS_FARE'">Description<input [(ngModel)]="line.description" [name]="'description' + i" maxlength="500"></label>
+        <div class="line-photo" *ngIf="lineNeedsPhoto(line)" (click)="setActivePhotoLine(line)">
+          <input #photoFile type="file" accept="image/*" hidden (change)="uploadLinePhoto(line, $event)">
+          <button mat-stroked-button type="button" (click)="setActivePhotoLine(line); photoFile.click()" [disabled]="line.uploading">{{ line.uploading ? 'Compressing / uploading…' : line.receiptImageUrl ? 'Replace photo' : 'Attach photo *' }}</button>
+          <small>Press Ctrl + V to paste</small>
+          <a *ngIf="line.receiptImageUrl" [href]="line.receiptImageUrl" target="_blank" rel="noopener">View photo</a>
+          <small *ngIf="line.photoSizeNote">{{ line.photoSizeNote }}</small>
+          <small class="error" *ngIf="line.photoError">{{ line.photoError }}</small>
+        </div>
+        <button mat-icon-button type="button" aria-label="Remove expense row" (click)="removeLine(i)"><mat-icon>delete_outline</mat-icon></button>
+      </div>
+    </div>
+    <button mat-button type="button" (click)="addLine()"><mat-icon>add</mat-icon> Add expense line</button>
+    <div class="return-summary" [class.over]="isOverAdvance">
+      <span>Expenses recorded <strong>Rs {{ spentTotal | number:'1.2-2' }}</strong></span>
+      <span>Cash returning to fund <strong>Rs {{ returnAmount | number:'1.2-2' }}</strong></span>
+    </div>
+    <p class="error" *ngIf="isOverAdvance">Expense total cannot exceed the advance.</p>
+    <p class="error" *ngIf="settleError">{{ settleError }}</p>
+    <div class="form-actions"><button mat-button type="button" (click)="cancelSettle()">Cancel</button>
+      <button mat-flat-button color="primary" type="button" (click)="settle()" [disabled]="!canSettle">{{ settlingNow ? 'Closing…' : 'Record expenses and return cash' }}</button></div>
+  </section>
+
+  <section class="fare-manager" *ngIf="isAdmin">
+    <button mat-button type="button" (click)="showFareManager = !showFareManager"><mat-icon>route</mat-icon> {{ showFareManager ? 'Hide' : 'Manage' }} bus fare routes</button>
+    <div *ngIf="showFareManager" class="fare-content">
+      <p>Set the amount for each direction. Accountants select these routes during a collection-day close-out.</p>
+      <form class="fare-form" (ngSubmit)="addFare()">
+        <label>From<input name="fareFrom" [(ngModel)]="fareFrom" required></label>
+        <label>To<input name="fareTo" [(ngModel)]="fareTo" required></label>
+        <label>Fare (Rs)<input name="fareAmount" type="number" min="0.01" step="0.01" [(ngModel)]="fareAmount" required></label>
+        <button mat-flat-button color="primary" type="submit" [disabled]="addingFare">{{ editingFareId ? 'Save fare' : 'Add route' }}</button>
+        <button *ngIf="editingFareId" mat-button type="button" (click)="cancelFareEdit()">Cancel</button>
+      </form>
+      <p class="error" *ngIf="fareError">{{ fareError }}</p>
+      <div class="fare-row" *ngFor="let fare of fares"><span>{{ fare.fromLocation }} → {{ fare.toLocation }}</span><strong>Rs {{ fare.amount | number:'1.2-2' }}</strong>
+        <button mat-button type="button" (click)="editFare(fare)">Edit</button>
+        <button mat-button type="button" (click)="toggleFare(fare)">{{ fare.active ? 'Disable' : 'Enable' }}</button></div>
+    </div>
+  </section>
+</section>

@@ -10,5 +10,6 @@ import java.math.BigDecimal;
 public class CashBalanceResponse {
     private BigDecimal totalFunded;
     private BigDecimal totalSpent;
+    private BigDecimal outstandingAdvances;
     private BigDecimal balance;
 }

@@ -11,7 +11,7 @@
 
   <div class="form-card" [formGroup]="form">
     <div class="form-row">
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" *ngIf="!isSalaryPayment">
         <mat-label>Business</mat-label>
         <mat-select formControlName="business">
           <mat-option *ngFor="let b of businesses" [value]="b">{{ b }}</mat-option>
@@ -19,7 +19,7 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>Date</mat-label>
+        <mat-label>{{ isSalaryPayment ? 'Payment Date' : 'Date' }}</mat-label>
         <input matInput [matDatepicker]="picker" formControlName="date">
         <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
         <mat-datepicker #picker></mat-datepicker>
@@ -36,6 +36,31 @@
       </mat-select>
     </mat-form-field>
 
+    <div class="form-row" *ngIf="isSalaryPayment">
+      <mat-form-field appearance="outline">
+        <mat-label>Salary Recipient</mat-label>
+        <mat-select formControlName="salaryRecipientId" required>
+          <mat-option *ngFor="let recipient of salaryRecipients" [value]="recipient.id">
+            {{ recipient.name }} — {{ recipient.designation | titlecase }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Salary Month</mat-label>
+        <input matInput [value]="salaryMonthLabel" readonly required
+               aria-label="Choose salary month and year" (click)="salaryMonthPicker.open()">
+        <mat-datepicker-toggle matIconSuffix [for]="salaryMonthPicker"></mat-datepicker-toggle>
+      </mat-form-field>
+    </div>
+    <input class="salary-month-picker-anchor" matInput [matDatepicker]="salaryMonthPicker"
+           [value]="salaryMonthPickerDate" tabindex="-1" aria-hidden="true">
+    <mat-datepicker #salaryMonthPicker startView="multi-year"
+                    (monthSelected)="chooseSalaryMonth($event, salaryMonthPicker)"></mat-datepicker>
+
+    <p class="salary-fund-note" *ngIf="isSalaryPayment">
+      Salary uses the existing salary records. Payments of Rs 5,000 or more require approval before reducing the expense fund.
+    </p>
+
     <div class="review-warning" *ngIf="needsReview">
       <mat-icon>info</mat-icon>
       This category will be flagged for owner review.
@@ -48,7 +73,7 @@
         <span matPrefix>Rs&nbsp;</span>
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" *ngIf="!isSalaryPayment">
         <mat-label>Worker (optional)</mat-label>
         <mat-select formControlName="workerId">
           <mat-option [value]="null">None</mat-option>
@@ -60,20 +85,36 @@
     </div>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Description / Reason (optional)</mat-label>
+      <mat-label>{{ isSalaryPayment ? 'Notes (optional)' : 'Description / Reason (optional)' }}</mat-label>
       <textarea matInput formControlName="description" rows="3"
                 placeholder="e.g. Fuel for morning delivery route, Tea for 3 workers..."></textarea>
     </mat-form-field>
 
+    <section class="receipt-box" *ngIf="requiresReceipt">
+      <div>
+        <strong>Expense photo <span class="required-mark">*</span></strong>
+        <p>Attach a receipt or bill image (compressed to about 150 KB). Choose a file or press Ctrl + V to paste. Tea and Driver Salary do not need a photo.</p>
+      </div>
+      <input #receiptInput type="file" accept="image/*" (change)="uploadReceipt($event)" hidden>
+      <button mat-stroked-button type="button" (click)="receiptInput.click()" [disabled]="uploadingPhoto">
+        <mat-icon>upload</mat-icon> {{ uploadingPhoto ? 'Uploading…' : receiptImageUrl ? 'Replace photo' : 'Choose photo' }}
+      </button>
+      <a *ngIf="receiptImageUrl" [href]="receiptImageUrl" target="_blank" rel="noopener">View uploaded photo</a>
+      <span *ngIf="photoSizeNote">{{ photoSizeNote }}</span>
+      <button *ngIf="receiptImageUrl" mat-button type="button" (click)="clearReceipt()">Remove</button>
+      <span class="photo-error" *ngIf="photoError">{{ photoError }}</span>
+    </section>
+
+    <div class="success-msg" *ngIf="successMsg">{{ successMsg }}</div>
     <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
 
     <div class="form-actions">
       <button mat-stroked-button routerLink="/expenses">Cancel</button>
       <button mat-flat-button color="primary"
-              [disabled]="form.invalid || submitting"
+              [disabled]="!canSubmit"
               (click)="submit()">
         <mat-spinner diameter="18" *ngIf="submitting"></mat-spinner>
-        <span *ngIf="!submitting">Save Expense</span>
+        <span *ngIf="!submitting">{{ isSalaryPayment ? 'Record Salary Payment' : 'Save Expense' }}</span>
       </button>
     </div>
   </div>

@@ -12,6 +12,7 @@ import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.Payment;
 import com.multi.finance.entity.User;
 import com.multi.finance.entity.BillNumberSkip;
+import com.multi.finance.entity.Customer;
 import com.multi.finance.enums.BillSource;
 import com.multi.finance.enums.EditRequestStatus;
 import com.multi.finance.enums.EditRequestType;
@@ -19,6 +20,8 @@ import com.multi.finance.repository.EditRequestRepository;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.PaymentRepository;
 import com.multi.finance.repository.BillNumberSkipRepository;
+import com.multi.finance.repository.CustomerRepository;
+import com.multi.finance.enums.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -37,19 +40,31 @@ public class EditRequestServiceImpl {
     private final BillRepository billRepository;
     private final PaymentRepository paymentRepository;
     private final BillNumberSkipRepository billNumberSkipRepository;
+    private final CustomerRepository customerRepository;
     private final BillServiceImpl billService;
     private final PaymentServiceImpl paymentService;
+    private final CustomerServiceImpl customerService;
     private final ObjectMapper objectMapper;
 
     @Transactional
     public EditRequestResponse create(CreateEditRequestDto dto) {
         User caller = getCurrentUser();
+        String targetRef = dto.getTargetRef();
+        if (dto.getType() == EditRequestType.CUSTOMER) {
+            if (caller.getRole() != UserRole.ACCOUNTANT
+                    && caller.getRole() != UserRole.MAIN_ACCOUNTANT) {
+                throw new RuntimeException("Only accountants can request customer detail changes.");
+            }
+            Customer customer = customerRepository.findById(dto.getTargetId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found"));
+            targetRef = customer.getName();
+        }
         guardAmountProof(dto);
 
         EditRequest req = EditRequest.builder()
                 .type(dto.getType())
                 .targetId(dto.getTargetId())
-                .targetRef(dto.getTargetRef())
+                .targetRef(targetRef)
                 .requestedChanges(dto.getRequestedChanges())
                 .reason(dto.getReason())
                 .proofImageUrl(blankToNull(dto.getProofImageUrl()))
@@ -89,6 +104,7 @@ public class EditRequestServiceImpl {
      * so a request cannot declare itself exempt.
      */
     private boolean changesAnAmount(CreateEditRequestDto dto) {
+        if (dto.getType() == EditRequestType.CUSTOMER) return false;
         String changes = dto.getRequestedChanges();
         if (changes == null) return false;
         try {
@@ -229,12 +245,16 @@ public class EditRequestServiceImpl {
             Map<String, Object> changes = objectMapper.readValue(
                     req.getRequestedChanges(), new TypeReference<>() {});
 
-            if (req.getType() == EditRequestType.BILL) {
-                BillRequest billReq = objectMapper.convertValue(changes, BillRequest.class);
-                billService.updateBill(req.getTargetId(), billReq);
-            } else {
-                PaymentRequest payReq = objectMapper.convertValue(changes, PaymentRequest.class);
-                paymentService.updatePayment(req.getTargetId(), payReq);
+            switch (req.getType()) {
+                case BILL -> {
+                    BillRequest billReq = objectMapper.convertValue(changes, BillRequest.class);
+                    billService.updateBill(req.getTargetId(), billReq);
+                }
+                case PAYMENT -> {
+                    PaymentRequest payReq = objectMapper.convertValue(changes, PaymentRequest.class);
+                    paymentService.updatePayment(req.getTargetId(), payReq);
+                }
+                case CUSTOMER -> customerService.applyRequestedChanges(req.getTargetId(), changes);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to apply changes: " + e.getMessage());

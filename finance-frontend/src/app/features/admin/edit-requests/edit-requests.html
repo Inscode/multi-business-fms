@@ -34,7 +34,8 @@
 
         <div class="card-header">
           <div class="card-header-left">
-            <span class="type-chip" [class.bill]="r.type === 'BILL'" [class.payment]="r.type === 'PAYMENT'">
+            <span class="type-chip" [class.bill]="r.type === 'BILL'"
+                  [class.payment]="r.type === 'PAYMENT'" [class.customer]="r.type === 'CUSTOMER'">
               {{ r.type }}
             </span>
             <span class="target-ref">{{ r.targetRef }}</span>
