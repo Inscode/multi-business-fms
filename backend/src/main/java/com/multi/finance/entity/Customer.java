@@ -23,6 +23,9 @@ public class Customer {
     @Column
     private String phone;
 
+    @Column(name = "phone2", length = 50)
+    private String phone2;
+
     @Column
     private String area;
 

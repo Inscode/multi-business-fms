@@ -6,6 +6,7 @@ public enum ExpenseCategory {
     PARKING,
     REPAIR,
     PETTY_CASH,
+    BUS_FARE,
     DRIVER_SALARY,
     OTHER
 }

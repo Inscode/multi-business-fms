@@ -17,6 +17,8 @@ import { CustomerHealthDialog } from '../../../shared/customer-health-dialog/cus
 import { CustomerService, CustomerResponse } from '../../../core/services/customer';
 import { Auth } from '../../../core/services/auth';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
+import { CustomerEditRequestDialog } from '../customer-edit-request-dialog/customer-edit-request-dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-customers-page',
@@ -34,6 +36,7 @@ import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
     MatTooltipModule,
     MatChipsModule,
     MatDialogModule,
+    MatSnackBarModule,
   ],
   templateUrl: './customers-page.html',
   styleUrl: './customers-page.scss',
@@ -52,7 +55,7 @@ export class CustomersPage implements OnInit {
 
   searchQuery = '';
 
-  displayedColumns = ['name', 'phone', 'area', 'tier', 'shopType', 'health', 'status', 'actions'];
+  displayedColumns = ['name', 'phone', 'phone2', 'area', 'tier', 'shopType', 'health', 'status', 'actions'];
 
   /**
    * Ratings for the business being looked at, keyed by customer id.
@@ -159,10 +162,12 @@ export class CustomersPage implements OnInit {
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
     private healthService: CustomerHealthService,
+    private snackBar: MatSnackBar,
   ) {
     this.form = this.fb.group({
       name:     ['', [Validators.required, Validators.minLength(2)]],
       phone:    ['', Validators.required],
+      phone2:   [''],
       area:     [null, Validators.required],
       tier:     [null],
       shopType: [null],
@@ -177,6 +182,9 @@ export class CustomersPage implements OnInit {
   get isAdmin(): boolean   { return this.auth.getRole() === 'ADMIN'; }
   get canDelete(): boolean { return this.isAdmin; }
   get canEdit(): boolean   { return this.isAdmin; }
+  get canRequestChanges(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '');
+  }
 
   load(): void {
     this.loading = true;
@@ -200,6 +208,7 @@ export class CustomersPage implements OnInit {
       ? this.customers.filter(c =>
           c.name.toLowerCase().includes(q) ||
           (c.phone ?? '').includes(q) ||
+          (c.phone2 ?? '').includes(q) ||
           (c.area ?? '').toLowerCase().includes(q))
       : [...this.customers];
     this.cdr.detectChanges();
@@ -223,6 +232,7 @@ export class CustomersPage implements OnInit {
     this.form.setValue({
       name:     c.name,
       phone:    c.phone    ?? '',
+      phone2:   c.phone2   ?? '',
       area:     c.area     ?? null,
       tier:     c.tier     ?? null,
       shopType: c.shopType ?? null,
@@ -247,6 +257,7 @@ export class CustomersPage implements OnInit {
     const req = {
       name:     this.form.value.name,
       phone:    this.form.value.phone    || undefined,
+      phone2:   this.form.value.phone2   ?? '',
       area:     this.form.value.area     || undefined,
       tier:     this.form.value.tier     || undefined,
       shopType: this.form.value.shopType || undefined,
@@ -268,6 +279,18 @@ export class CustomersPage implements OnInit {
         this.errorMsg = err?.error?.message ?? 'Failed to save customer';
         this.cdr.detectChanges();
       },
+    });
+  }
+
+  requestChanges(c: CustomerResponse): void {
+    this.dialog.open(CustomerEditRequestDialog, {
+      data: { customer: c },
+      width: '520px',
+      maxWidth: '95vw',
+    }).afterClosed().subscribe(sent => {
+      if (sent) {
+        this.snackBar.open('Customer change request sent to the admin.', 'OK', { duration: 4000 });
+      }
     });
   }
 

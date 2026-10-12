@@ -28,6 +28,14 @@
 
 .full-width { width: 100%; }
 
+.receipt-box { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px; margin: 4px 0 16px; border: 1px dashed #90a4ae; border-radius: 8px; }
+.receipt-box > div { flex: 1 1 100%; }
+.receipt-box p { margin: 4px 0 0; color: #607d8b; font-size: 13px; }
+.salary-fund-note { margin: 0 0 12px; color: #607d8b; font-size: 13px; }
+.salary-month-picker-anchor { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.success-msg { background: #e8f5e9; color: #2e7d32; border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }
+.required-mark, .photo-error { color: #c62828; }
+
 .cat-hint {
   font-size: 11px;
   color: #888;

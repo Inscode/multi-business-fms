@@ -19,6 +19,9 @@ public class ExpenseResponse {
     private BigDecimal amount;
     private LocalDate date;
     private String description;
+    private String receiptImageUrl;
+    private LocalDateTime receiptUploadedAt;
+    private Long advanceId;
     private String workerName;
     private ExpenseStatus status;
     private String enteredByName;

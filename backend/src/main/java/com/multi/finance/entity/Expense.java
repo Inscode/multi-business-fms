@@ -39,6 +39,18 @@ public class Expense {
     @Column
     private String description;
 
+    @Column(name = "receipt_image_url", columnDefinition = "TEXT")
+    private String receiptImageUrl;
+
+    @Column(name = "receipt_uploaded_at")
+    private LocalDateTime receiptUploadedAt;
+
+    @Column(name = "advance_id")
+    private Long advanceId;
+
+    @Column(name = "bus_fare_id")
+    private Long busFareId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "worker_id")
     private Worker worker;

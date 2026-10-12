@@ -1,7 +1,10 @@
 package com.multi.finance.controller;
 
 import com.multi.finance.dto.request.ExpenseRequest;
+import com.multi.finance.dto.request.ExpenseAdvanceRequest;
+import com.multi.finance.dto.request.SettleExpenseAdvanceRequest;
 import com.multi.finance.dto.response.ExpenseResponse;
+import com.multi.finance.dto.response.ExpenseAdvanceResponse;
 import com.multi.finance.enums.BusinessType;
 import com.multi.finance.enums.ExpenseCategory;
 import com.multi.finance.enums.ExpenseStatus;
@@ -22,6 +25,26 @@ import java.util.Map;
 public class ExpenseController {
 
     private final ExpenseServiceImpl expenseService;
+    private final com.multi.finance.service.impl.ExpenseAdvanceService advanceService;
+
+    @GetMapping("/advances")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<List<ExpenseAdvanceResponse>> advances() {
+        return ResponseEntity.ok(advanceService.list());
+    }
+
+    @PostMapping("/advances")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<ExpenseAdvanceResponse> issueAdvance(@RequestBody ExpenseAdvanceRequest request) {
+        return ResponseEntity.ok(advanceService.issue(request));
+    }
+
+    @PostMapping("/advances/{id}/settle")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")
+    public ResponseEntity<ExpenseAdvanceResponse> settleAdvance(@PathVariable Long id,
+                                                                 @RequestBody SettleExpenseAdvanceRequest request) {
+        return ResponseEntity.ok(advanceService.settle(id, request));
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MAIN_ACCOUNTANT', 'ACCOUNTANT')")

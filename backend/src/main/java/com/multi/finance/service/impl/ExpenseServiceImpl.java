@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -36,6 +37,20 @@ public class ExpenseServiceImpl {
 
     @Transactional
     public ExpenseResponse create(ExpenseRequest req) {
+        if (req.getBusiness() != BusinessType.RAINCO && req.getBusiness() != BusinessType.PLASTIC) {
+            throw new IllegalArgumentException("Choose Rainco or Plastic for this expense.");
+        }
+        if (req.getCategory() == ExpenseCategory.PETTY_CASH) {
+            throw new IllegalArgumentException("Petty Cash is no longer an expense category. Record what the money was spent on.");
+        }
+        if (req.getCategory() == ExpenseCategory.BUS_FARE) {
+            throw new IllegalArgumentException("Bus Fare can only be recorded when closing a collection-day advance.");
+        }
+        if (req.getCategory() != ExpenseCategory.TEA && req.getCategory() != ExpenseCategory.DRIVER_SALARY
+                && !StringUtils.hasText(req.getReceiptImageUrl())) {
+            throw new IllegalArgumentException("Attach a photo or receipt for this expense.");
+        }
+
         Worker worker = null;
         if (req.getWorkerId() != null) {
             worker = workerRepository.findById(req.getWorkerId())
@@ -53,6 +68,8 @@ public class ExpenseServiceImpl {
                 .amount(req.getAmount())
                 .date(req.getDate())
                 .description(req.getDescription())
+                .receiptImageUrl(req.getReceiptImageUrl())
+                .receiptUploadedAt(StringUtils.hasText(req.getReceiptImageUrl()) ? LocalDateTime.now() : null)
                 .worker(worker)
                 .status(status)
                 .enteredBy(getCurrentUser())
@@ -108,6 +125,9 @@ public class ExpenseServiceImpl {
                 .amount(e.getAmount())
                 .date(e.getDate())
                 .description(e.getDescription())
+                .receiptImageUrl(e.getReceiptImageUrl())
+                .receiptUploadedAt(e.getReceiptUploadedAt())
+                .advanceId(e.getAdvanceId())
                 .workerName(e.getWorker() != null ? e.getWorker().getFullName() : null)
                 .status(e.getStatus())
                 .enteredByName(e.getEnteredBy().getFullName())

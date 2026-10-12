@@ -1,0 +1,56 @@
+<div class="request-dialog">
+  <h2 mat-dialog-title>
+    <mat-icon>edit_note</mat-icon>
+    Request Customer Change
+  </h2>
+  <p class="request-sub">{{ data.customer.name }} · Admin approval required</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <mat-dialog-content class="request-content">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Customer name</mat-label>
+        <input matInput formControlName="name" autocomplete="organization">
+        <mat-error>A customer name is required.</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Area</mat-label>
+        <mat-select formControlName="area">
+          <mat-option *ngFor="let area of areaOptions" [value]="area">{{ area | titlecase }}</mat-option>
+        </mat-select>
+        <mat-error>Please choose an area.</mat-error>
+      </mat-form-field>
+
+      <div class="phone-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Mobile number 1</mat-label>
+          <input matInput type="tel" inputmode="tel" formControlName="phone" autocomplete="tel">
+          <mat-icon matPrefix>phone</mat-icon>
+          <mat-error>Primary mobile number is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Mobile number 2</mat-label>
+          <input matInput type="tel" inputmode="tel" formControlName="phone2" placeholder="Optional">
+          <mat-icon matPrefix>phone</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Reason for change</mat-label>
+        <textarea matInput formControlName="reason" rows="2" placeholder="Explain what needs correcting"></textarea>
+        <mat-error>Please explain the reason for this request.</mat-error>
+      </mat-form-field>
+
+      <div class="request-error" *ngIf="errorMsg">
+        <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+      </div>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+      <button mat-button type="button" (click)="ref.close(false)">Cancel</button>
+      <button mat-flat-button color="primary" type="submit" [disabled]="submitting || form.invalid || !hasChanges">
+        <mat-icon>send</mat-icon> {{ submitting ? 'Sending…' : 'Send Request' }}
+      </button>
+    </mat-dialog-actions>
+  </form>
+</div>

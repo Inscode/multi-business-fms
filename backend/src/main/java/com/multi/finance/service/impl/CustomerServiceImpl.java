@@ -38,6 +38,7 @@ public class CustomerServiceImpl {
         Customer c = Customer.builder()
                 .name(name)
                 .phone(req.getPhone())
+                .phone2(blankToNull(req.getPhone2()))
                 .area(req.getArea() != null ? req.getArea().trim().toUpperCase() : null)
                 .tier(req.getTier())
                 .shopType(req.getShopType())
@@ -57,6 +58,7 @@ public class CustomerServiceImpl {
         }
         c.setName(name);
         if (req.getPhone()    != null) c.setPhone(req.getPhone());
+        if (req.getPhone2()   != null) c.setPhone2(blankToNull(req.getPhone2()));
         if (req.getArea()     != null) c.setArea(req.getArea().trim().toUpperCase());
         if (req.getTier()     != null) c.setTier(req.getTier());
         if (req.getShopType() != null) c.setShopType(req.getShopType());
@@ -81,6 +83,7 @@ public class CustomerServiceImpl {
                 .id(c.getId())
                 .name(c.getName())
                 .phone(c.getPhone())
+                .phone2(c.getPhone2())
                 .area(c.getArea())
                 .customerCode(c.getCustomerCode())
                 .address(c.getAddress())
@@ -89,5 +92,49 @@ public class CustomerServiceImpl {
                 .active(c.getActive())
                 .createdAt(c.getCreatedAt())
                 .build();
+    }
+
+    /** Applies only the customer identity/contact fields permitted through edit requests. */
+    @Transactional
+    public CustomerResponse applyRequestedChanges(Long id, java.util.Map<String, Object> changes) {
+        Customer c = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+        java.util.Set<String> allowed = java.util.Set.of("name", "area", "phone", "phone2");
+        if (!allowed.containsAll(changes.keySet())) {
+            throw new RuntimeException("Customer edit requests may change only name, area, and mobile numbers.");
+        }
+        if (changes.isEmpty()) throw new RuntimeException("The customer request has no changes.");
+
+        if (changes.containsKey("name")) {
+            String name = stringValue(changes.get("name")).trim().toUpperCase();
+            if (name.isBlank()) throw new RuntimeException("Customer name is required.");
+            if (!c.getName().equalsIgnoreCase(name) && customerRepository.existsByNameIgnoreCase(name)) {
+                throw new RuntimeException("Customer already exists: " + name);
+            }
+            c.setName(name);
+        }
+        if (changes.containsKey("area")) {
+            String area = stringValue(changes.get("area")).trim();
+            if (area.isBlank()) throw new RuntimeException("Customer area is required.");
+            c.setArea(area.toUpperCase());
+        }
+        if (changes.containsKey("phone")) {
+            String phone = stringValue(changes.get("phone")).trim();
+            if (phone.isBlank()) throw new RuntimeException("Primary mobile number is required.");
+            c.setPhone(phone);
+        }
+        if (changes.containsKey("phone2")) {
+            c.setPhone2(blankToNull(changes.get("phone2") == null
+                    ? null : stringValue(changes.get("phone2"))));
+        }
+        return toResponse(customerRepository.save(c));
+    }
+
+    private static String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

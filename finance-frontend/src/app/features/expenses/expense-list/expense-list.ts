@@ -13,6 +13,7 @@ import { RouterLink } from '@angular/router';
 import { Auth } from '../../../core/services/auth';
 import { type CashFundResponse, CashBalanceResponse, CashFundService } from '../../../core/services/cash-fund';
 import { ExpenseResponse, ExpenseService } from '../../../core/services/expense';
+import { ExpenseAdvancePanel } from '../expense-advance-panel/expense-advance-panel';
 
 @Component({
   selector: 'app-expense-list',
@@ -31,6 +32,7 @@ import { ExpenseResponse, ExpenseService } from '../../../core/services/expense'
     MatProgressSpinnerModule,
     MatDatepickerModule,
     MatNativeDateModule,
+    ExpenseAdvancePanel,
   ],
   templateUrl: './expense-list.html',
   styleUrl: './expense-list.scss',
@@ -58,8 +60,8 @@ export class ExpenseList implements OnInit {
   filterFrom: Date | null = null;
   filterTo: Date | null = null;
 
-  businesses = ['RAINCO', 'RETAIL_SHOP', 'PLASTIC', 'HARDWARE', 'STATIONERY'];
-  categories = ['FUEL', 'TEA', 'PARKING', 'REPAIR', 'PETTY_CASH', 'DRIVER_SALARY', 'OTHER'];
+  businesses = ['RAINCO', 'PLASTIC'];
+  categories = ['FUEL', 'TEA', 'PARKING', 'REPAIR', 'BUS_FARE', 'DRIVER_SALARY', 'OTHER'];
 
   get isOwnerOrAdmin(): boolean {
     const r = this.auth.getRole();
@@ -117,6 +119,8 @@ export class ExpenseList implements OnInit {
       error: () => {},
     });
   }
+
+  refreshAfterAdvance(): void { this.loadBalance(); this.load(); }
 
   toggleFundHistory(): void {
     this.showFundHistory = !this.showFundHistory;
@@ -217,7 +221,7 @@ export class ExpenseList implements OnInit {
   categoryLabel(cat: string): string {
     const map: Record<string, string> = {
       FUEL: 'Fuel', TEA: 'Tea', PARKING: 'Parking',
-      REPAIR: 'Repair', PETTY_CASH: 'Petty Cash',
+      REPAIR: 'Repair', PETTY_CASH: 'Petty Cash (legacy)', BUS_FARE: 'Bus Fare',
       DRIVER_SALARY: 'Driver Salary', OTHER: 'Other',
     };
     return map[cat] ?? cat;
