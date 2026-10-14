@@ -14,6 +14,7 @@ import { ItemService } from '../../../core/services/item.service';
 import { BrandService } from '../../../core/services/brand.service';
 import { Item, Brand, CategoryType } from '../../../core/models/models';
 import { Auth } from '../../../../../core/services/auth';
+import { EditRequestService } from '../../../../../core/services/edit-request';
 
 @Component({
   selector: 'app-item-list',
@@ -30,6 +31,7 @@ export class ItemListComponent implements OnInit {
   private bsvc  = inject(BrandService);
   private cdr   = inject(ChangeDetectorRef);
   private auth  = inject(Auth);
+  private editRequests = inject(EditRequestService);
 
   get isAdmin(): boolean { return this.auth.getRole() === 'ADMIN'; }
   private fb    = inject(FormBuilder);
@@ -44,6 +46,9 @@ export class ItemListComponent implements OnInit {
   showForm  = false;
   saving    = false;
   editingId: number | null = null;
+  requestTarget: Item | null = null;
+  formError = '';
+  requestNotice = '';
 
   adjustingItem: Item | null = null;
   stockDelta = 0;
@@ -58,6 +63,9 @@ export class ItemListComponent implements OnInit {
     mrp:            [null as number | null],
     marginPct:      [null as number | null],
     wholesalePrice: [null as number | null],
+    costPrice:      [null as number | null],
+    stockQty:       [0, [Validators.required, Validators.min(0)]],
+    requestReason:  [''],
     active:         [true]
   });
 
@@ -109,15 +117,24 @@ export class ItemListComponent implements OnInit {
   }
 
   openNew() {
+    this.enableAllFormFields();
     this.editingId = null;
-    this.form.reset({ category: 'STATIONERY', active: true });
+    this.requestTarget = null;
+    this.formError = '';
+    this.requestNotice = '';
+    this.setReasonRequired(!this.isAdmin);
+    this.form.reset({ category: 'STATIONERY', active: true, stockQty: 0 });
     this.showForm = true;
     this.adjustingItem = null;
     this.cdr.markForCheck();
   }
 
   openEdit(i: Item) {
+    this.enableAllFormFields();
     this.editingId = i.id;
+    this.requestTarget = this.isAdmin ? null : i;
+    this.formError = '';
+    this.setReasonRequired(!this.isAdmin);
     this.form.patchValue({
       itemCode:       i.itemCode,
       description:    i.description,
@@ -126,25 +143,134 @@ export class ItemListComponent implements OnInit {
       mrp:            i.mrp ?? null,
       marginPct:      i.marginPct ?? null,
       wholesalePrice: i.wholesalePrice ?? null,
+      costPrice:      i.costPrice ?? null,
+      stockQty:       i.stockQty,
       active:         i.active
     });
+    if (!this.isAdmin) {
+      this.form.get('itemCode')?.disable();
+      this.form.get('category')?.disable();
+      this.form.get('brandId')?.disable();
+    }
     this.showForm = true;
     this.adjustingItem = null;
     this.cdr.markForCheck();
   }
 
-  cancel() { this.showForm = false; this.editingId = null; this.cdr.markForCheck(); }
+  cancel() {
+    this.showForm = false;
+    this.editingId = null;
+    this.requestTarget = null;
+    this.formError = '';
+    this.enableAllFormFields();
+    this.cdr.markForCheck();
+  }
 
   save() {
     if (this.form.invalid) return;
+    this.formError = '';
+    if (!this.isAdmin) {
+      this.submitItemRequest();
+      return;
+    }
     this.saving = true;
-    const req = this.form.value;
+    const raw = this.form.getRawValue();
+    const req = {
+      itemCode: raw.itemCode,
+      description: raw.description,
+      category: raw.category,
+      brandId: raw.brandId,
+      mrp: raw.mrp,
+      marginPct: raw.marginPct,
+      wholesalePrice: raw.wholesalePrice,
+      costPrice: raw.costPrice,
+      active: raw.active,
+    };
     const obs = this.editingId ? this.svc.update(this.editingId, req) : this.svc.create(req);
     obs.pipe(catchError(() => of(null))).subscribe(res => {
       this.saving = false;
       if (res) { this.showForm = false; this.editingId = null; this.load(); }
+      else this.formError = 'Could not save the item. Please check the details and try again.';
       this.cdr.markForCheck();
     });
+  }
+
+  private submitItemRequest(): void {
+    const raw = this.form.getRawValue();
+    const stockQty = Number(raw.stockQty);
+    if (!Number.isInteger(stockQty) || stockQty < 0) {
+      this.formError = 'Quantity must be a whole number greater than or equal to zero.';
+      return;
+    }
+
+    const nullablePrice = (value: unknown): number | null =>
+      value == null || value === '' ? null : Number(value);
+    const proposed: Record<string, unknown> = this.requestTarget
+      ? {
+          description: String(raw.description ?? '').trim(),
+          mrp: nullablePrice(raw.mrp),
+          marginPct: nullablePrice(raw.marginPct),
+          wholesalePrice: nullablePrice(raw.wholesalePrice),
+          stockQty,
+        }
+      : {
+          itemCode: String(raw.itemCode ?? '').trim(),
+          description: String(raw.description ?? '').trim(),
+          category: raw.category,
+          brandId: Number(raw.brandId),
+          mrp: nullablePrice(raw.mrp),
+          marginPct: nullablePrice(raw.marginPct),
+          wholesalePrice: nullablePrice(raw.wholesalePrice),
+          stockQty,
+        };
+
+    const changes: Record<string, unknown> = {};
+    if (this.requestTarget) {
+      for (const [key, value] of Object.entries(proposed)) {
+        const current = (this.requestTarget as any)[key];
+        const equal = typeof value === 'number' ? Number(current) === value : (current ?? null) === value;
+        if (!equal) changes[key] = value;
+      }
+      if (Object.keys(changes).length === 0) {
+        this.formError = 'Change at least one item value before sending the request.';
+        this.cdr.markForCheck();
+        return;
+      }
+    } else {
+      Object.assign(changes, proposed);
+    }
+
+    this.saving = true;
+    this.editRequests.create({
+      type: 'ITEM',
+      targetId: this.requestTarget?.id ?? 0,
+      targetRef: this.requestTarget?.itemCode ?? `NEW ITEM: ${String(raw.itemCode ?? '').trim()}`,
+      requestedChanges: JSON.stringify(changes),
+      reason: String(raw.requestReason ?? '').trim(),
+    }).pipe(catchError(() => of(null))).subscribe(result => {
+      this.saving = false;
+      if (result) {
+        this.showForm = false;
+        this.editingId = null;
+        this.requestTarget = null;
+        this.requestNotice = 'Item change request sent to the admin for review.';
+        this.enableAllFormFields();
+      } else {
+        this.formError = 'Could not send the request. Please try again.';
+      }
+      this.cdr.markForCheck();
+    });
+  }
+
+  private setReasonRequired(required: boolean): void {
+    const control = this.form.get('requestReason');
+    if (!control) return;
+    control.setValidators(required ? [Validators.required] : []);
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private enableAllFormFields(): void {
+    Object.values(this.form.controls).forEach(control => control.enable({ emitEvent: false }));
   }
 
   openAdjust(i: Item) {

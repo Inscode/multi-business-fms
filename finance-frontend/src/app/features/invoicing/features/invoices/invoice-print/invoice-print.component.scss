@@ -4,15 +4,13 @@
   min-height: 297mm;
   margin: 0 auto;
   padding: 10mm 12mm;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 9pt;
-  font-weight: 700;
+  font-weight: 400;
   color: #000;
   background: #fff;
   box-sizing: border-box;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  overflow: visible;
 }
 
 .loading-page, .error-page {
@@ -37,14 +35,15 @@
 }
 
 .company-name {
-  font-size: 14pt;
+  font-size: 12pt;
   font-weight: 700;
   letter-spacing: 1px;
 }
 
 .company-sub {
-  font-size: 8.5pt;
-  line-height: 1.4;
+  font-size: 8pt;
+  line-height: 1.35;
+  font-weight: 700;
 }
 
 .header-right {
@@ -52,7 +51,7 @@
   right: 0;
   top: 0;
   text-align: right;
-  font-size: 7.5pt;
+  font-size: 7pt;
 }
 
 .printed-on {
@@ -75,8 +74,18 @@
 
 /* ── Invoice type box ───────────────────────────────────────────────────── */
 .inv-type-row {
+  position: relative;
   text-align: center;
   margin: 2mm 0;
+}
+
+.invoice-kind {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8.5pt;
+  font-weight: 700;
 }
 
 .inv-type-box {
@@ -85,7 +94,7 @@
   padding: 1px 20px;
   font-weight: 700;
   letter-spacing: 2px;
-  font-size: 9.5pt;
+  font-size: 9pt;
 }
 
 /* ── Customer + Invoice meta ────────────────────────────────────────────── */
@@ -93,12 +102,13 @@
   display: flex;
   justify-content: space-between;
   margin: 3mm 0;
-  font-size: 8.5pt;
+  font-size: 8pt;
+  font-weight: 700;
   gap: 4mm;
 }
 
-.meta-left { flex: 1.6; }
-.meta-right { flex: 1; }
+.meta-left { flex: 0 0 66%; }
+.meta-right { flex: 0 0 31%; }
 
 .meta-row {
   display: flex;
@@ -109,6 +119,7 @@
 .lbl {
   white-space: nowrap;
   min-width: 68px;
+  font-weight: 700;
 }
 
 .sep { margin: 0 2px; }
@@ -119,7 +130,7 @@
   table-layout: fixed;          /* KEY: forces browser to respect column widths */
   border-collapse: collapse;
   margin-top: 3mm;
-  font-size: 8.5pt;
+  font-size: 9pt;
 
   th {
     border-top: 1.5px solid #000;
@@ -128,6 +139,7 @@
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
+    font-weight: 700;
   }
 
   td {
@@ -156,8 +168,9 @@
    These were centred before. Centring keeps a short label like QTY. visually near the
    middle of a wide column, which drifts left of a right-aligned number — over a narrow
    column like QTY. that reads as a header belonging to the column to its left. */
-th.col-qty, th.col-mrp, th.col-mgn, th.col-wsp, th.col-val {
-  text-align: right;
+th.num {
+  text-align: right !important;
+  padding-right: 3px !important;
 }
 
 td.num {
@@ -168,21 +181,23 @@ td.num {
 th.col-val, td.num:last-child {
   padding-right: 2px;
 }
+th.col-val { padding-right: 2px !important; }
 
 /* Brand section header */
 .brand-hdr td {
   padding-top: 3px;
   padding-bottom: 1px;
-  font-size: 8.5pt;
+  font-size: 8pt;
+  font-weight: 700;
   border-bottom: 0.5px solid #999;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-/* Item lines — NOT bold */
+/* Keep item descriptions readable at print size without the heavy weight of headings. */
 .item-row td {
-  line-height: 1.45;
+  line-height: 1.4;
   font-weight: 400;
 }
 
@@ -212,6 +227,7 @@ th.col-desc { padding-left: 6px; }
   padding-top: 1px;
   padding-bottom: 1px;
   font-size: 8pt;
+  font-weight: 700;
 }
 
 .first-sub td {
@@ -219,9 +235,10 @@ th.col-desc { padding-left: 6px; }
   padding-top: 2px;
 }
 
-.sub-lbl {
+.items-table td.sub-lbl {
+  box-sizing: border-box;
   text-align: left;
-  padding-left: 4px;
+  padding-left: 63mm;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -237,9 +254,9 @@ th.col-desc { padding-left: 6px; }
 /* ── Invoice totals ─────────────────────────────────────────────────────── */
 .inv-totals {
   margin-top: 3mm;
-  border-top: 1.5px solid #000;
-  padding-top: 2mm;
-  font-size: 8.5pt;
+  border-top: 0;
+  padding-top: 0;
+  font-size: 8pt;
 }
 
 .total-row {
@@ -249,8 +266,14 @@ th.col-desc { padding-left: 6px; }
   line-height: 1.7;
 }
 
-.total-lbl { flex: 1; }
-.total-val { min-width: 70px; text-align: right; }
+.total-lbl {
+  box-sizing: border-box;
+  flex: 1;
+  text-align: left;
+  padding-left: 63mm;
+  font-weight: 600;
+}
+.total-val { min-width: 70px; text-align: right; font-weight: 700; }
 .cash-pct  { min-width: 50px; }
 
 .net-total-row {
@@ -259,7 +282,7 @@ th.col-desc { padding-left: 6px; }
   padding: 2px 0;
   margin-top: 2px;
 
-  .total-lbl, .total-val { font-size: 9.5pt; }
+  .total-lbl, .total-val { font-size: 9pt; }
 }
 
 /* ── Signatures — NOT bold ──────────────────────────────────────────────── */
@@ -267,15 +290,30 @@ th.col-desc { padding-left: 6px; }
   margin-top: 10mm;
   display: flex;
   justify-content: space-between;
-  font-size: 8pt;
+  font-size: 7.5pt;
   font-weight: 400;
 }
 
-.sig-left  { text-align: left;  width: 45%; }
-.sig-right { text-align: right; width: 45%; }
+.final-details {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
 
-.sig-dots  { font-weight: 400; letter-spacing: 0; }
-.sig-label { font-weight: 400; margin-top: 2px; }
+.sig-left,
+.sig-right {
+  width: 42%;
+  text-align: center;
+}
+
+.sig-dots {
+  height: 0;
+  border-top: 1px solid #444;
+  font-size: 0;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.sig-label { font-weight: 400; margin-top: 3mm; }
 
 /* ── Collection details ─────────────────────────────────────────────────── */
 .collection {
@@ -283,15 +321,16 @@ th.col-desc { padding-left: 6px; }
 }
 
 .coll-title {
-  font-size: 8.5pt;
+  font-size: 8pt;
   font-weight: 700;
   margin-bottom: 1mm;
 }
 
 .coll-table {
-  width: 50%;
+  width: 58%;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 8.5pt;
+  font-size: 8pt;
 
   th, td {
     border: 1px solid #000;
@@ -308,9 +347,9 @@ th.col-desc { padding-left: 6px; }
     white-space: nowrap;
   }
 
-  th:nth-child(1) { width: 40%; }
-  th:nth-child(2) { width: 30%; }
-  th:nth-child(3) { width: 30%; }
+  th:nth-child(1),
+  th:nth-child(2),
+  th:nth-child(3) { width: 33.333%; }
 }
 
 /* ── End of report ──────────────────────────────────────────────────────── */
@@ -341,9 +380,11 @@ th.col-desc { padding-left: 6px; }
     margin: 0;
     box-shadow: none;
     overflow: visible;
+    min-height: 0;
   }
 
   .loading-page, .error-page { display: none; }
+  .end-of-report { display: none; }
 }
 
 /* ── Screen preview ─────────────────────────────────────────────────────── */

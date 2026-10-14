@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -55,6 +56,7 @@ public class ItemController {
 
     @PostMapping
     @Transactional
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ItemResponse> create(@Valid @RequestBody ItemRequest req) {
         Brand brand = brandRepo.findById(req.getBrandId())
                 .orElseThrow(() -> new EntityNotFoundException("Brand not found"));
@@ -114,6 +116,7 @@ public class ItemController {
         item.setMrp(req.getMrp());
         item.setMarginPct(req.getMarginPct());
         item.setWholesalePrice(req.getWholesalePrice());
+        item.setCostPrice(req.getCostPrice());
         if (req.getActive() != null) item.setActive(req.getActive());
     }
 
@@ -133,11 +136,18 @@ public class ItemController {
             r.setWsp(engine.computeWsp(item));
         }
         r.setWholesalePrice(item.getWholesalePrice());
+        if (isAdmin()) r.setCostPrice(item.getCostPrice());
         r.setActive(item.isActive());
         r.setStockQty(item.getStockQty());
         r.setFreeIssueBuyQty(item.getFreeIssueBuyQty());
         r.setFreeIssueFreeQty(item.getFreeIssueFreeQty());
         return r;
+    }
+
+    private boolean isAdmin() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
 
     /**

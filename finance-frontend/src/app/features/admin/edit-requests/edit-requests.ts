@@ -80,10 +80,14 @@ export class EditRequestsPage implements OnInit {
       const obj = JSON.parse(changesJson);
       return Object.entries(obj)
         .filter(([key, value]) =>
-          (key === 'phone2' && value === null) || (value !== null && value !== '' && value !== undefined))
+          (key === 'phone2' && value === null)
+          || (['mrp', 'marginPct', 'wholesalePrice'].includes(key) && value === null)
+          || (value !== null && value !== '' && value !== undefined))
         .map(([key, value]) => ({
           key: this.labelFor(key),
-          value: key === 'phone2' && value === null ? 'Remove secondary number' : this.valueFor(key, value),
+          value: key === 'phone2' && value === null
+            ? 'Remove secondary number'
+            : value === null ? 'Clear value' : this.valueFor(key, value),
         }));
     } catch {
       return [];
@@ -126,6 +130,14 @@ export class EditRequestsPage implements OnInit {
       continuationNumbers: 'Continuation Numbers',
       phone: 'Mobile Number 1',
       phone2: 'Mobile Number 2',
+      itemCode: 'Item Code',
+      description: 'Item Name',
+      category: 'Category',
+      brandId: 'Brand ID',
+      mrp: 'MRP',
+      marginPct: 'Margin %',
+      wholesalePrice: 'Wholesale Price',
+      stockQty: 'Stock Quantity',
     };
     return map[key] ?? key;
   }

@@ -8,20 +8,30 @@
     <div class="header-actions">
       <!-- The bulk path. Adjusting one item at a time is fine for a correction and
            unusable for a whole count. -->
-      <a mat-stroked-button routerLink="/invoicing/stock-take"
+      <a *ngIf="isAdmin" mat-stroked-button routerLink="/invoicing/stock-take"
          matTooltip="Enter a physical count over the system's figures">
         <mat-icon>fact_check</mat-icon> Stock Take
       </a>
       <button mat-flat-button color="primary" (click)="openNew()">
-        <mat-icon>add</mat-icon> New Item
+        <mat-icon>{{ isAdmin ? 'add' : 'edit_note' }}</mat-icon>
+        {{ isAdmin ? 'New Item' : 'Request New Item' }}
       </button>
     </div>
   </div>
 
+  @if (requestNotice) {
+    <div class="request-notice" role="status">{{ requestNotice }}</div>
+  }
+
   <!-- Item Form Panel -->
   @if (showForm) {
     <div class="form-panel card">
-      <div class="form-title">{{ editingId ? 'Edit Item' : 'New Item' }}</div>
+      <div class="form-title">
+        {{ isAdmin ? (editingId ? 'Edit Item' : 'New Item') : (requestTarget ? 'Request Item Change' : 'Request New Item') }}
+      </div>
+      @if (!isAdmin) {
+        <p class="request-hint">Your request will be reviewed by an admin before the catalogue changes.</p>
+      }
       <form [formGroup]="form" (ngSubmit)="save()" class="form-grid">
 
         <mat-form-field appearance="outline">
@@ -30,7 +40,7 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="span-2">
-          <mat-label>Description *</mat-label>
+          <mat-label>{{ isAdmin ? 'Description *' : 'Item Name / Description *' }}</mat-label>
           <input matInput formControlName="description" placeholder="Item description">
         </mat-form-field>
 
@@ -70,7 +80,24 @@
           <span matTextSuffix>LKR</span>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        @if (isAdmin) {
+          <mat-form-field appearance="outline">
+            <mat-label>Cost Price</mat-label>
+            <input matInput type="number" formControlName="costPrice" placeholder="Purchase cost">
+            <span matTextSuffix>LKR</span>
+          </mat-form-field>
+        } @else {
+          <mat-form-field appearance="outline">
+            <mat-label>Requested Stock Quantity *</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="stockQty">
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="span-2">
+            <mat-label>Reason for request *</mat-label>
+            <input matInput formControlName="requestReason" placeholder="Why does this item need changing?">
+          </mat-form-field>
+        }
+
+        <mat-form-field appearance="outline" *ngIf="isAdmin">
           <mat-label>Status</mat-label>
           <mat-select formControlName="active">
             <mat-option [value]="true">Active</mat-option>
@@ -78,10 +105,14 @@
           </mat-select>
         </mat-form-field>
 
+        @if (formError) {
+          <div class="form-error span-3" role="alert">{{ formError }}</div>
+        }
+
         <div class="form-actions span-3">
           <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving">
-            {{ saving ? 'Saving…' : (editingId ? 'Update' : 'Create') }}
+            {{ saving ? (isAdmin ? 'Saving…' : 'Sending…') : (isAdmin ? (editingId ? 'Update' : 'Create') : 'Send Request') }}
           </button>
         </div>
 
@@ -168,6 +199,7 @@
               <th>Brand</th>
               <th class="num">MRP</th>
               <th class="num">WSP</th>
+              <th class="num" *ngIf="isAdmin">Cost Price</th>
               <th class="num">Stock</th>
               <th>Status</th>
               <th></th>
@@ -182,6 +214,7 @@
                 <td class="muted">{{ i.brandName }}</td>
                 <td class="num">{{ i.mrp != null ? (i.mrp | number:'1.2-2') : '—' }}</td>
                 <td class="num amount">{{ i.wsp != null ? (i.wsp | number:'1.2-2') : (i.wholesalePrice != null ? (i.wholesalePrice | number:'1.2-2') : '—') }}</td>
+                <td class="num" *ngIf="isAdmin">{{ i.costPrice != null ? (i.costPrice | number:'1.2-2') : '—' }}</td>
                 <td class="num" [class.zero-stock]="i.stockQty <= 0">{{ i.stockQty }}</td>
                 <td>
                   <button class="status-toggle" *ngIf="isAdmin" (click)="toggleActive(i)"
@@ -203,6 +236,10 @@
                     </button>
                     <button mat-icon-button (click)="openEdit(i)" matTooltip="Edit">
                       <mat-icon>edit</mat-icon>
+                    </button>
+                  } @else {
+                    <button mat-icon-button (click)="openEdit(i)" matTooltip="Request a name, price, or quantity change" aria-label="Request item change">
+                      <mat-icon>edit_note</mat-icon>
                     </button>
                   }
                 </td>

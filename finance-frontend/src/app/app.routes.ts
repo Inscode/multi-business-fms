@@ -127,7 +127,7 @@ export const routes: Routes = [
           },
           {
             path: 'items',
-            canActivate: [adminGuard],
+            canActivate: [importGuard],
             loadComponent: () => import('./features/invoicing/features/items/item-list/item-list.component')
               .then(m => m.ItemListComponent)
           },

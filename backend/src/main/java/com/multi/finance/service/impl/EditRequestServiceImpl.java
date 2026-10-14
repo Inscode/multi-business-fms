@@ -22,6 +22,14 @@ import com.multi.finance.repository.PaymentRepository;
 import com.multi.finance.repository.BillNumberSkipRepository;
 import com.multi.finance.repository.CustomerRepository;
 import com.multi.finance.enums.UserRole;
+import com.multi.finance.invoicing.dto.request.ItemRequest;
+import com.multi.finance.invoicing.entity.Brand;
+import com.multi.finance.invoicing.entity.Item;
+import com.multi.finance.invoicing.entity.StockMovement;
+import com.multi.finance.invoicing.enums.StockMovementType;
+import com.multi.finance.invoicing.repository.BrandRepository;
+import com.multi.finance.invoicing.repository.ItemRepository;
+import com.multi.finance.invoicing.repository.StockMovementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -41,6 +49,9 @@ public class EditRequestServiceImpl {
     private final PaymentRepository paymentRepository;
     private final BillNumberSkipRepository billNumberSkipRepository;
     private final CustomerRepository customerRepository;
+    private final ItemRepository itemRepository;
+    private final BrandRepository brandRepository;
+    private final StockMovementRepository stockMovementRepository;
     private final BillServiceImpl billService;
     private final PaymentServiceImpl paymentService;
     private final CustomerServiceImpl customerService;
@@ -50,6 +61,17 @@ public class EditRequestServiceImpl {
     public EditRequestResponse create(CreateEditRequestDto dto) {
         User caller = getCurrentUser();
         String targetRef = dto.getTargetRef();
+        if (dto.getType() == EditRequestType.ITEM) {
+            if (caller.getRole() != UserRole.ACCOUNTANT && caller.getRole() != UserRole.MAIN_ACCOUNTANT) {
+                throw new RuntimeException("Only accountants can request item changes.");
+            }
+            if (dto.getReason() == null || dto.getReason().isBlank()) {
+                throw new RuntimeException("A reason is required for an item request.");
+            }
+            if (dto.getTargetId() != 0L && !itemRepository.existsById(dto.getTargetId())) {
+                throw new RuntimeException("Item not found");
+            }
+        }
         if (dto.getType() == EditRequestType.CUSTOMER) {
             if (caller.getRole() != UserRole.ACCOUNTANT
                     && caller.getRole() != UserRole.MAIN_ACCOUNTANT) {
@@ -255,10 +277,87 @@ public class EditRequestServiceImpl {
                     paymentService.updatePayment(req.getTargetId(), payReq);
                 }
                 case CUSTOMER -> customerService.applyRequestedChanges(req.getTargetId(), changes);
+                case ITEM -> applyItemChanges(req, changes);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to apply changes: " + e.getMessage());
         }
+    }
+
+    private void applyItemChanges(EditRequest request, Map<String, Object> changes) {
+        ItemRequest itemChanges = objectMapper.convertValue(changes, ItemRequest.class);
+        boolean create = request.getTargetId() == 0L;
+        Item item;
+        int stockDelta = 0;
+
+        if (create) {
+            if (itemChanges.getItemCode() == null || itemChanges.getItemCode().isBlank()
+                    || itemChanges.getDescription() == null || itemChanges.getDescription().isBlank()
+                    || itemChanges.getCategory() == null || itemChanges.getBrandId() == null) {
+                throw new RuntimeException("A new item request must include code, name, category and brand.");
+            }
+            if (itemRepository.findByItemCode(itemChanges.getItemCode().trim()).isPresent()) {
+                throw new RuntimeException("An item with this code already exists.");
+            }
+            Brand brand = brandRepository.findById(itemChanges.getBrandId())
+                    .orElseThrow(() -> new RuntimeException("Brand not found"));
+            if (brand.getCategory() != itemChanges.getCategory()) {
+                throw new RuntimeException("The selected brand does not belong to the requested category.");
+            }
+            item = new Item();
+            item.setItemCode(itemChanges.getItemCode().trim());
+            item.setDescription(itemChanges.getDescription().trim());
+            item.setCategory(itemChanges.getCategory());
+            item.setBrand(brand);
+            item.setMrp(itemChanges.getMrp());
+            item.setMarginPct(itemChanges.getMarginPct());
+            item.setWholesalePrice(itemChanges.getWholesalePrice());
+            item.setActive(true);
+            stockDelta = requestedStock(changes, 0);
+            item.setStockQty(stockDelta);
+        } else {
+            item = itemRepository.findById(request.getTargetId())
+                    .orElseThrow(() -> new RuntimeException("Item not found"));
+            if (changes.containsKey("description")) {
+                item.setDescription(itemChanges.getDescription() == null
+                        ? "" : itemChanges.getDescription().trim());
+            }
+            if (changes.containsKey("mrp")) item.setMrp(itemChanges.getMrp());
+            if (changes.containsKey("marginPct")) item.setMarginPct(itemChanges.getMarginPct());
+            if (changes.containsKey("wholesalePrice")) item.setWholesalePrice(itemChanges.getWholesalePrice());
+            if (changes.containsKey("stockQty")) {
+                int requested = requestedStock(changes, item.getStockQty() == null ? 0 : item.getStockQty());
+                stockDelta = requested - (item.getStockQty() == null ? 0 : item.getStockQty());
+                item.setStockQty(requested);
+            }
+        }
+
+        itemRepository.save(item);
+        if (create) request.setTargetId(item.getId());
+        if (stockDelta != 0) {
+            StockMovement movement = new StockMovement();
+            movement.setItem(item);
+            movement.setType(StockMovementType.MANUAL_ADJUSTMENT);
+            movement.setQuantity(stockDelta);
+            movement.setReferenceId(request.getId());
+            movement.setReferenceType("EDIT_REQUEST");
+            movement.setNotes("Approved item request #" + request.getId());
+            movement.setCreatedAt(LocalDateTime.now());
+            stockMovementRepository.save(movement);
+        }
+    }
+
+    private int requestedStock(Map<String, Object> changes, int defaultValue) {
+        Object value = changes.get("stockQty");
+        if (value == null) return defaultValue;
+        int quantity;
+        try {
+            quantity = new BigDecimal(value.toString()).intValueExact();
+        } catch (NumberFormatException | ArithmeticException ex) {
+            throw new RuntimeException("Requested stock quantity must be a whole number.");
+        }
+        if (quantity < 0) throw new RuntimeException("Requested stock quantity cannot be negative.");
+        return quantity;
     }
 
     private EditRequest findById(Long id) {

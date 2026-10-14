@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, Inject, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, Inject, inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Payment, PaymentResponse } from '../../../core/services/payment';
+import { Bill, BillResponse } from '../../../core/services/bill';
 import { compressImage } from '../../../core/utils/image-compress';
 
 export interface PaymentPhotoData {
@@ -30,9 +31,12 @@ export interface PaymentPhotoData {
   styleUrl: './payment-photo-dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PaymentPhotoDialog {
+export class PaymentPhotoDialog implements OnInit {
   private paymentService = inject(Payment);
+  private billService = inject(Bill);
   private cdr = inject(ChangeDetectorRef);
+  billSnapshot: BillResponse | null = null;
+  billLoading = true;
 
   uploading = false;
   uploadError = '';
@@ -53,6 +57,13 @@ export class PaymentPhotoDialog {
   get p(): PaymentResponse { return this.data.payment; }
   get isConfirm(): boolean { return this.data.mode === 'confirm'; }
 
+  ngOnInit(): void {
+    this.billService.getBillById(this.p.billId).subscribe({
+      next: bill => { this.billSnapshot = bill; this.billLoading = false; this.cdr.markForCheck(); },
+      error: () => { this.billLoading = false; this.cdr.markForCheck(); },
+    });
+  }
+
   /** Prefer the current response field, with the legacy API name as a fallback. */
   get amountToConfirm(): number | null {
     const response = this.p as unknown as {
@@ -63,6 +74,44 @@ export class PaymentPhotoDialog {
     if (raw === null || raw === undefined || raw === '') return null;
     const amount = Number(raw);
     return Number.isFinite(amount) ? amount : null;
+  }
+
+  get billTotal(): number | null {
+    return this.numberOrNull(this.billSnapshot?.totalAmount)
+      ?? this.numberOrNull(this.p.billTotal)
+      ?? this.deriveTotalFromPayment();
+  }
+
+  /** The bill response reflects the payment that is awaiting confirmation. */
+  get balanceAfterPayment(): number | null {
+    return this.numberOrNull(this.billSnapshot?.balanceRemaining)
+      ?? this.numberOrNull(this.p.balanceRemaining)
+      ?? this.deriveRemainingFromPayment();
+  }
+
+  /** Payment entry deducts the amount immediately, so add it back for the pre-entry due. */
+  get balanceBeforePayment(): number | null {
+    const remaining = this.balanceAfterPayment;
+    const payment = this.amountToConfirm;
+    return remaining !== null && payment !== null ? remaining + payment : null;
+  }
+
+  private deriveTotalFromPayment(): number | null {
+    const paid = this.numberOrNull(this.p.amountPaid);
+    const remaining = this.numberOrNull(this.p.balanceRemaining);
+    return paid !== null && remaining !== null ? paid + remaining : null;
+  }
+
+  private deriveRemainingFromPayment(): number | null {
+    const total = this.numberOrNull(this.p.billTotal);
+    const paid = this.numberOrNull(this.p.amountPaid);
+    return total !== null && paid !== null ? Math.max(0, total - paid) : null;
+  }
+
+  private numberOrNull(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
   }
 
   onPick(e: Event): void {

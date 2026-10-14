@@ -8,9 +8,20 @@
           Payment: Rs {{ amountToConfirm | number:'1.2-2' }}
         </ng-container>
         <ng-template #noPaymentAmount>Payment amount unavailable</ng-template>
-        · Bill total: Rs {{ p.billTotal | number:'1.2-2' }}
-        · {{ p.billNumber }} — {{ p.customerName }}
       </span>
+      <span class="bill-amount-context">
+        <ng-container *ngIf="billTotal !== null; else noBillTotal">
+          Bill total: Rs {{ billTotal | number:'1.2-2' }}
+        </ng-container>
+        <ng-template #noBillTotal>{{ billLoading ? 'Loading bill amount…' : 'Bill total unavailable' }}</ng-template>
+        <ng-container *ngIf="balanceBeforePayment !== null">
+          · Due before payment: Rs {{ balanceBeforePayment | number:'1.2-2' }}
+        </ng-container>
+        <ng-container *ngIf="balanceAfterPayment !== null">
+          · Remaining after payment: Rs {{ balanceAfterPayment | number:'1.2-2' }}
+        </ng-container>
+      </span>
+      <span class="bill-identity">{{ p.billNumber }} — {{ p.customerName }}</span>
     </div>
     <button mat-icon-button (click)="close()" aria-label="Close">
       <mat-icon>close</mat-icon>

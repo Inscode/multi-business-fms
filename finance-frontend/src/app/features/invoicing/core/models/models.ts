@@ -50,6 +50,7 @@ export interface Item {
   marginPct?: number;
   wsp?: number;
   wholesalePrice?: number;
+  costPrice?: number;
   active: boolean;
   stockQty: number;
   /** Automatic scheme: buy this many, get freeIssueFreeQty free. */
@@ -199,6 +200,7 @@ export interface InvoicePrint {
   invoiceDate: string;
   method: InvoiceMethod;
   invoiceType: InvoiceType;
+  customerId: number;
   customerCode: string;
   customerName: string;
   customerAddress?: string;

@@ -15,8 +15,7 @@ import { InvoiceReviewService } from './core/services/invoice-review.service';
   imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
   template: `
     <nav class="inv-nav">
-      <!-- Accountants can create invoices and import supplier bills; catalog
-           management and invoice review remain admin-only. -->
+      <!-- Accountants can inspect the catalogue and submit item changes for approval. -->
       @if (canViewInvoices) {
         <a routerLink="/invoicing/invoices" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
           <mat-icon>receipt_long</mat-icon> Invoices
@@ -33,6 +32,12 @@ import { InvoiceReviewService } from './core/services/invoice-review.service';
         <mat-icon>move_to_inbox</mat-icon> Stock In
       </a>
 
+      @if (canViewInvoices) {
+        <a routerLink="/invoicing/items" routerLinkActive="active">
+          <mat-icon>inventory_2</mat-icon> Items
+        </a>
+      }
+
       @if (canImport && !isAdmin) {
         <a routerLink="/invoicing/import" routerLinkActive="active">
           <mat-icon>upload_file</mat-icon> Import Bills
@@ -40,9 +45,6 @@ import { InvoiceReviewService } from './core/services/invoice-review.service';
       }
 
       @if (isAdmin) {
-        <a routerLink="/invoicing/items" routerLinkActive="active">
-          <mat-icon>inventory_2</mat-icon> Items
-        </a>
         <a routerLink="/invoicing/brands" routerLinkActive="active">
           <mat-icon>sell</mat-icon> Brands
         </a>

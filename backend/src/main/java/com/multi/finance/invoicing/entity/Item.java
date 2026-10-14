@@ -41,6 +41,10 @@ public class Item {
     @Column(name = "wholesale_price", precision = 12, scale = 2)
     private BigDecimal wholesalePrice;
 
+    // Acquisition cost; returned to and displayed for administrators only.
+    @Column(name = "cost_price", precision = 12, scale = 2)
+    private BigDecimal costPrice;
+
     private boolean active = true;
 
     // Current sellable stock level (units)

@@ -29,6 +29,7 @@ public class InvoicePrintResponse {
     private InvoiceType invoiceType;
 
     // Customer info
+    private Long customerId;
     private String customerCode;
     private String customerName;
     private String customerAddress;
