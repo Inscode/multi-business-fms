@@ -28,12 +28,16 @@
   </div>
 
   <div class="inv-type-row">
+    @if (print.invoiceType === 'CASH') {
+      <span class="invoice-kind">CASH INVOICE</span>
+    }
     <div class="inv-type-box">INVOICE</div>
   </div>
 
   <!-- ── Customer + Invoice meta ───────────────────────────────── -->
   <div class="inv-meta">
     <div class="meta-left">
+      <div class="meta-row"><span class="lbl">CUS. CODE</span><span class="sep">:</span><span>{{ formatCustomerCode(print.customerId) }}</span></div>
       <div class="meta-row"><span class="lbl">CUS. NAME</span><span class="sep">:</span><span>{{ print.customerName }}</span></div>
       <div class="meta-row"><span class="lbl">ADDRESS</span><span class="sep">:</span><span>{{ print.customerAddress }}</span></div>
       @if (print.customerPhone) {
@@ -43,6 +47,9 @@
     <div class="meta-right">
       <div class="meta-row"><span class="lbl">INV. NO</span><span class="sep">:</span><span>{{ print.externalRef || print.invoiceNo }}</span></div>
       <div class="meta-row"><span class="lbl">INV. DATE</span><span class="sep">:</span><span>{{ print.invoiceDate | date:'d/M/yyyy' }}</span></div>
+      <div class="meta-row"><span class="lbl">OUR VAT NO</span><span class="sep">:</span><span>161656941-7000</span></div>
+      <div class="meta-row"><span class="lbl">OUR NBT NO</span><span class="sep">:</span><span>&nbsp;</span></div>
+      <div class="meta-row"><span class="lbl">CUS VAT NO</span><span class="sep">:</span><span>&nbsp;</span></div>
     </div>
   </div>
 
@@ -79,7 +86,7 @@
         <!-- Item lines -->
         @for (line of group.lines; track line.itemCode) {
           <tr class="item-row">
-            <td>{{ line.itemCode }}</td>
+            <td>{{ displayItemCode(line.itemCode) }}</td>
             <td class="desc-cell">{{ line.description }}</td>
             <td class="num">
               {{ line.qty }}
@@ -142,7 +149,8 @@
     </div>
   </div>
 
-  <!-- ── Signatures ────────────────────────────────────────────── -->
+  <!-- Keep the signature and collection area together when the report paginates. -->
+  <div class="final-details">
   <div class="signatures">
     <div class="sig-left">
       <div class="sig-dots">................................................</div>
@@ -169,6 +177,7 @@
         <tr><td>&nbsp;</td><td></td><td></td></tr>
       </tbody>
     </table>
+  </div>
   </div>
 
   <div class="end-of-report">*** End Of Report ***</div>

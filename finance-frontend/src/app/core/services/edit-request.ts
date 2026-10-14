@@ -5,7 +5,7 @@ import { environment } from '../../../environments/environment';
 
 export interface EditRequestResponse {
   id: number;
-  type: 'BILL' | 'PAYMENT' | 'CUSTOMER';
+  type: 'BILL' | 'PAYMENT' | 'CUSTOMER' | 'ITEM';
   targetId: number;
   targetRef: string;
   requestedChanges: string;
@@ -23,7 +23,7 @@ export interface CreateEditRequestPayload {
   /** The bill photographed. Required by the server when the change moves an amount. */
   proofImageUrl?: string;
 
-  type: 'BILL' | 'PAYMENT' | 'CUSTOMER';
+  type: 'BILL' | 'PAYMENT' | 'CUSTOMER' | 'ITEM';
   targetId: number;
   targetRef: string;
   requestedChanges: string;

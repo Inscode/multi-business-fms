@@ -17,6 +17,7 @@ public class ItemResponse {
     private BigDecimal marginPct;
     private BigDecimal wsp;         // computed: mrp * (1 - marginPct/100)
     private BigDecimal wholesalePrice;
+    private BigDecimal costPrice;
     private boolean active;
     private Integer stockQty;
     /** Damaged units on hand, awaiting dispatch to the agent. Not sellable. */

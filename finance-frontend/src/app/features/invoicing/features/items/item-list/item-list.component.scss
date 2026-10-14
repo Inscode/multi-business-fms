@@ -27,6 +27,28 @@
   }
 }
 
+.request-hint {
+  margin: -8px 0 16px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.request-notice {
+  margin: 0 0 16px;
+  padding: 11px 14px;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  background: #f1f8e9;
+  color: #1b5e20;
+  font-size: 14px;
+}
+
+.form-error {
+  margin: 0 0 8px;
+  color: #b42318;
+  font-size: 13px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -30,6 +30,15 @@ export class InvoicePrintComponent implements OnInit, OnChanges {
 
   private loadedId?: number;
 
+  /** Internal Rainco prefix and new-price suffix are omitted from printed item codes. */
+  displayItemCode(itemCode: string): string {
+    return itemCode.trim().replace(/^RC-/i, '').replace(/N$/i, '');
+  }
+
+  formatCustomerCode(customerId: number): string {
+    return `BDLA${String(customerId).padStart(4, '0')}`;
+  }
+
   ngOnInit(): void {
     const id = this.invoiceId ?? Number(this.route.snapshot.paramMap.get('id'));
     this.load(id);

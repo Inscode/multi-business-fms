@@ -55,6 +55,22 @@ public class InvoiceService {
         return brand.getCategory() == CategoryType.PLASTIC ? PLASTIC_GROUP_KEY : brand.getId();
     }
 
+    private String printBrandName(Brand brand) {
+        if (brand.getCategory() != CategoryType.RAINCO) {
+            return brand.getName();
+        }
+
+        return switch (brand.getName()) {
+            case "Umbrella" -> "1304 - Rainco Umbrella";
+            case "Bet Net" -> "1305 - Rainco Mosquito Proof Net";
+            case "Adult Raincoat" -> "1306 - Rainco Adult Rainwear";
+            case "Kids Raincoat" -> "1310 - Rainco Kids Rainwear";
+            case "Kuda" -> "1313 - Kuda";
+            case "Singithi" -> "1308 - Singithi";
+            default -> brand.getName();
+        };
+    }
+
     @Transactional
     public InvoiceResponse create(InvoiceRequest req, String createdBy) {
         return create(req, createdBy, InvoiceSource.MANUAL);
@@ -281,7 +297,7 @@ public class InvoiceService {
             groupMap.computeIfAbsent(brandId, k -> {
                 InvoicePrintResponse.BrandGroup g = new InvoicePrintResponse.BrandGroup();
                 g.setBrandId(brandId);
-                g.setBrandName(isPlastic ? "PLASTIC" : line.getBrand().getName());
+                g.setBrandName(isPlastic ? "PLASTIC" : printBrandName(line.getBrand()));
                 g.setLines(new ArrayList<>());
                 g.setBrandTotalWsp(BigDecimal.ZERO);
                 g.setBrandDiscountPct(line.getAppliedDiscountPct() != null
@@ -350,6 +366,7 @@ public class InvoiceService {
         resp.setInvoiceDate(invoice.getInvoiceDate());
         resp.setMethod(invoice.getMethod());
         resp.setInvoiceType(invoice.getInvoiceType());
+        resp.setCustomerId(invoice.getCustomer().getId());
         resp.setCustomerCode(invoice.getCustomer().getCustomerCode());
         resp.setCustomerName(invoice.getCustomer().getName());
         resp.setCustomerAddress(resolveAddress(invoice.getCustomer()));
