@@ -10,8 +10,12 @@ import java.time.LocalDate;
 @Builder
 public class PaymentSummaryResponse {
     private Long id;
+    private Long billId;
     private String billNumber;
     private String customerName;
+    private BigDecimal billTotal;
+    private BigDecimal amountPaid;
+    private BigDecimal balanceRemaining;
     private BigDecimal amount;
     private String paymentType;
     private String enteredByName;

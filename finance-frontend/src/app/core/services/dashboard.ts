@@ -48,8 +48,12 @@ export interface BillSummary {
 
 export interface PaymentSummary {
   id: number;
+  billId: number;
   billNumber: string;
   customerName: string;
+  billTotal: number;
+  amountPaid: number;
+  balanceRemaining: number;
   amount: number;
   paymentType: string;
   enteredByName: string;

@@ -5,6 +5,15 @@
       <p class="page-sub">Products used in damage / salable returns</p>
     </div>
     <div class="header-actions">
+      <mat-form-field appearance="outline" class="product-search">
+        <mat-label>Search product name</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [(ngModel)]="searchQuery" placeholder="Type a product name">
+        <button mat-icon-button matSuffix *ngIf="searchQuery"
+                aria-label="Clear product search" (click)="searchQuery = ''">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
       <button mat-stroked-button (click)="showInactive = !showInactive" [class.active-toggle]="showInactive">
         <mat-icon>{{ showInactive ? 'visibility' : 'visibility_off' }}</mat-icon>
         {{ showInactive ? 'All Products' : 'Active Only' }}
@@ -51,7 +60,7 @@
   <ng-container *ngIf="!loading && !error">
     <div class="empty-state" *ngIf="displayed.length === 0">
       <mat-icon>inventory_2</mat-icon>
-      <p>No products found</p>
+      <p>{{ searchQuery.trim() ? 'No products match that name' : 'No products found' }}</p>
     </div>
 
     <div class="product-table" *ngIf="displayed.length > 0">

@@ -140,6 +140,10 @@ export class BillDetail implements OnInit {
     return this.returns.filter(r => r.status === 'PENDING');
   }
 
+  get awaitingAdminReview(): BillReturnResponse[] {
+    return this.returns.filter(r => r.status === 'GOODS_CONFIRMED');
+  }
+
   /**
    * Hides this bill from the aging report, or puts it back. Admin only, and a reason
    * is required to hide: the balance stays owed, so somebody will eventually ask why
@@ -260,6 +264,7 @@ export class BillDetail implements OnInit {
     return !this.isOwner && (this.isAccountant || this.isAdmin || this.isMainAccountant) &&
       !this.bill?.fullyPaid && this.bill?.status !== 'CANCELLED' &&
       this.bill?.status !== 'COMPLETED' &&
+      !this.returnsLoading && this.awaitingGoods.length === 0 &&
       this.pendingWorkerEntries.length === 0;
   }
 

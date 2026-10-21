@@ -20,7 +20,8 @@ import { Auth } from '../../../core/services/auth';
   template: `
     <div class="main-page">
       <h2 class="page-title">Returns</h2>
-      <mat-tab-group animationDuration="150ms">
+      <mat-tab-group class="returns-tabs" animationDuration="150ms"
+                     mat-align-tabs="start" mat-stretch-tabs="false">
         <mat-tab *ngIf="canSubmit">
           <ng-template mat-tab-label><mat-icon>assignment_return</mat-icon>&nbsp;Submit Return</ng-template>
           <div class="tab-body"><app-submit-return /></div>
@@ -45,9 +46,14 @@ import { Auth } from '../../../core/services/auth';
     </div>
   `,
   styles: [`
-    .main-page { max-width: 1100px; }
+    .main-page { width: 100%; max-width: 1100px; min-width: 0; }
     .page-title { font-size: 20px; font-weight: 600; margin: 0 0 16px; color: #1a1a2e; }
-    .tab-body { padding: 16px 0; }
+    .tab-body { padding: 16px 0; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .returns-tabs { display: block; width: 100%; min-width: 0; }
+    ::ng-deep .returns-tabs .mat-mdc-tab-header-pagination { min-width: 44px; }
+    @media (max-width: 600px) {
+      .tab-body { padding: 12px 0; }
+    }
   `],
 })
 export class ReturnsMain {

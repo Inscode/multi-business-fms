@@ -18,6 +18,7 @@ import { compressImage, describeSaving } from '../../../core/utils/image-compres
 import { ReturnProductService, ReturnProductResponse } from '../../../core/services/return-product';
 import { StockService } from '../../../core/services/stock';
 import { Worker, WorkerResponse } from '../../../core/services/worker';
+import { Auth } from '../../../core/services/auth';
 
 interface LineItem {
   productId?: number;
@@ -210,7 +211,8 @@ export class SubmitReturn implements OnInit {
   }
 
   get canSubmit(): boolean {
-    return !!this.selectedBill && !!this.returnType && this.items.length > 0 && !this.submitting;
+    return !!this.selectedBill && !!this.returnType && this.items.length > 0 && !this.submitting
+      && !this.uploadingPhoto && (!this.requiresReturnPhoto || !!this.photoUrl);
   }
 
   constructor(
@@ -221,6 +223,7 @@ export class SubmitReturn implements OnInit {
     private workerService: Worker,
     private router: Router,
     private cdr: ChangeDetectorRef,
+    private auth: Auth,
   ) {}
 
   ngOnInit(): void {
@@ -574,7 +577,12 @@ export class SubmitReturn implements OnInit {
 
   /** True when this bill travelled on a lorry round, so the book page is the record. */
   get isRouteBill(): boolean {
-    return (this.selectedBill as any)?.deliveryMode === 'ROUTE';
+    return !!this.selectedBill?.deliveryRunId;
+  }
+
+  get requiresReturnPhoto(): boolean {
+    return ['ACCOUNTANT', 'MAIN_ACCOUNTANT'].includes(this.auth.getRole() ?? '')
+      && !!this.selectedBill && !this.isRouteBill;
   }
 
   onPhotoPicked(e: Event): void {
@@ -656,6 +664,12 @@ export class SubmitReturn implements OnInit {
   submit(): void {
     if (!this.canSubmit) return;
 
+    if (this.requiresReturnPhoto && !this.photoUrl) {
+      this.errorMsg = 'Attach a photo of the returned goods before submitting this return.';
+      this.cdr.detectChanges();
+      return;
+    }
+
     const invalid = this.items.find(i => !i.itemName || i.unitPrice <= 0 || i.quantityRequested < 1);
     if (invalid) {
       this.errorMsg = 'All items must have a name, unit price, and quantity.';
@@ -686,6 +700,7 @@ export class SubmitReturn implements OnInit {
       predictedValue: this.predictedValue ?? undefined,
       responsibleWorkerId: this.responsibleWorkerId ?? undefined,
       notes: this.notes || undefined,
+      imageUrl: this.photoUrl ?? undefined,
     };
 
     const billId = this.selectedBill!.id;
@@ -695,15 +710,7 @@ export class SubmitReturn implements OnInit {
       customerName: this.selectedBill!.customerName,
     };
     this.billReturnService.create(billId, payload).subscribe({
-      next: (created) => {
-        // Attached after the fact because the photo needs the return's id. It is already
-        // in ImageKit, so this is only the link - a failure here leaves the return saved
-        // and the photo addable again, rather than losing the entry.
-        if (this.photoUrl && created?.id) {
-          this.billReturnService.addImage(created.id, this.photoUrl).subscribe({
-            next: () => {}, error: () => {},
-          });
-        }
+      next: () => {
         this.submitting = false;
         this.submitted = true;
         this.cdr.markForCheck();

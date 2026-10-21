@@ -49,6 +49,7 @@ export interface CreateBillReturnRequest {
   predictedValue?: number;
   responsibleWorkerId?: number;
   notes?: string;
+  imageUrl?: string;
 }
 
 export interface BillReturnItemResponse {

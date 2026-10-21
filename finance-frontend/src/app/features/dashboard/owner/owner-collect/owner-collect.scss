@@ -316,6 +316,22 @@
   }
 }
 
+.collection-review-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -8px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #cbdcf2;
+  border-radius: 9px;
+  background: #f2f7fd;
+  color: #294a70;
+  font-size: 12px;
+  line-height: 1.5;
+
+  mat-icon { flex: 0 0 auto; width: 18px; height: 18px; font-size: 18px; }
+}
+
 /* Combined mode */
 .combined-hint {
   display: flex;

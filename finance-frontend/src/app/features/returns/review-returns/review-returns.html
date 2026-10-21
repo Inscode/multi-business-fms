@@ -11,8 +11,22 @@
         <span *ngIf="!pendingCount">Nothing waiting</span>
       </p>
     </div>
-    <div class="header-filters">
-      <mat-form-field appearance="outline" style="width: 140px">
+  </div>
+
+  <section class="filters-panel" aria-label="Filter return requests">
+    <div class="search-row">
+      <mat-form-field appearance="outline" class="bill-search-field">
+        <mat-label>Bill ID, bill number or customer</mat-label>
+        <input matInput [(ngModel)]="billSearch" (keyup.enter)="applyBillSearch()">
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+      <button mat-flat-button color="primary" class="bill-search-button" (click)="applyBillSearch()">
+        <mat-icon>search</mat-icon><span>Search</span>
+      </button>
+    </div>
+
+    <div class="filter-grid">
+      <mat-form-field appearance="outline" class="filter-field">
         <mat-label>Status</mat-label>
         <mat-select [(ngModel)]="filterStatus">
           <mat-option value="">All</mat-option>
@@ -26,7 +40,7 @@
       </mat-form-field>
       <!-- Returns arrive by round, so they are worked through by round. Immediate and
            store pickup sit in the same list because they belong to no round. -->
-      <mat-form-field appearance="outline" style="width: 150px">
+      <mat-form-field appearance="outline" class="filter-field">
         <mat-label>Month</mat-label>
         <mat-select [(ngModel)]="filterMonth" (ngModelChange)="load()">
           <mat-option value="">All months</mat-option>
@@ -36,7 +50,7 @@
         </mat-select>
       </mat-form-field>
 
-      <mat-form-field appearance="outline" style="width: 220px">
+      <mat-form-field appearance="outline" class="filter-field delivery-field">
         <mat-label>Delivery</mat-label>
         <mat-select [(ngModel)]="filterDelivery" (ngModelChange)="load()">
           <mat-option value="">All deliveries</mat-option>
@@ -48,11 +62,7 @@
         </mat-select>
       </mat-form-field>
 
-      @if (hasFilters) {
-        <button mat-stroked-button (click)="clearFilters()">Clear</button>
-      }
-
-      <mat-form-field appearance="outline" style="width: 140px">
+      <mat-form-field appearance="outline" class="filter-field">
         <mat-label>Type</mat-label>
         <mat-select [(ngModel)]="filterType">
           <mat-option value="">All</mat-option>
@@ -60,17 +70,23 @@
           <mat-option value="SALABLE">Salable</mat-option>
         </mat-select>
       </mat-form-field>
-      <ng-container *ngIf="!readonly">
-        <button mat-stroked-button color="warn"
-          (click)="fixHistoricalBillAmounts()"
-          [disabled]="fixingBillAmounts"
-          matTooltip="One-time fix: apply approved return deductions to bill totals for historical records">
-          <mat-icon>build</mat-icon> Fix Bill Amounts
-        </button>
-        <span *ngIf="fixResult" style="font-size:13px;color:#666;align-self:center">{{ fixResult }}</span>
-      </ng-container>
+      <div class="filter-actions">
+        @if (hasFilters) {
+          <button mat-stroked-button class="action-button" (click)="clearFilters()">Clear filters</button>
+        }
+        <ng-container *ngIf="!readonly">
+          <button mat-stroked-button color="warn"
+            class="action-button"
+            (click)="fixHistoricalBillAmounts()"
+            [disabled]="fixingBillAmounts"
+            matTooltip="One-time fix: apply approved return deductions to bill totals for historical records">
+            <mat-icon>build</mat-icon> Fix Bill Amounts
+          </button>
+          <span *ngIf="fixResult" class="fix-result">{{ fixResult }}</span>
+        </ng-container>
+      </div>
     </div>
-  </div>
+  </section>
 
   <div class="loading-state" *ngIf="loading">
     <mat-spinner diameter="32"></mat-spinner>
@@ -179,7 +195,7 @@
             <span class="col-right">Rs {{ item.unitPrice | number:'1.2-2' }}</span>
             <span class="col-right">{{ item.quantityRequested }}</span>
             <span class="col-right received-col">
-              <ng-container *ngIf="r.status === 'PENDING' && !readonly">
+              <ng-container *ngIf="r.status === 'GOODS_CONFIRMED' && !readonly">
                 <input class="qty-input"
                        type="number"
                        min="0"
@@ -284,7 +300,7 @@
           </div>
         </div>
 
-        <div class="card-actions" *ngIf="isOpen(r) && !readonly">
+        <div class="card-actions" *ngIf="r.status === 'GOODS_CONFIRMED' && !readonly">
           <button mat-flat-button color="primary" (click)="approve(r, 'CALCULATED')">
             <mat-icon>check</mat-icon> Approve Received
           </button>

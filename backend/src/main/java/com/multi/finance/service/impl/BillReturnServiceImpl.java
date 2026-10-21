@@ -19,6 +19,7 @@ import com.multi.finance.enums.BusinessType;
 import com.multi.finance.enums.GoodsReceipt;
 import com.multi.finance.enums.ReturnStatus;
 import com.multi.finance.enums.ReturnType;
+import com.multi.finance.enums.UserRole;
 import com.multi.finance.invoicing.entity.Invoice;
 import com.multi.finance.invoicing.entity.InvoiceLine;
 import com.multi.finance.invoicing.entity.StockMovement;
@@ -56,15 +57,14 @@ import java.util.stream.Collectors;
  * second time.
  *
  * <p><b>A return has to be answered before money is collected.</b> The accountant
- * confirms what physically arrived, and until they do, payment entry on that bill is
- * refused. That is the whole answer to returns going missing: the check sits at the
- * moment cash moves, not on a screen someone has to remember to open.
+ * confirms what physically arrived; payment is allowed after that confirmation, but
+ * the bill credit waits until admin review approves the return.
  */
 @Service
 @RequiredArgsConstructor
 public class BillReturnServiceImpl {
 
-    /** Statuses that still owe someone an action; these hold a bill open. */
+    /** Statuses that still need accountant/admin action and appear as open returns. */
     private static final List<ReturnStatus> OPEN_STATUSES =
             List.of(ReturnStatus.PENDING, ReturnStatus.GOODS_CONFIRMED);
 
@@ -131,6 +131,14 @@ public class BillReturnServiceImpl {
         Bill bill = billRepository.findById(billId)
                 .orElseThrow(() -> new RuntimeException("Bill not found"));
         User caller = getCurrentUser();
+
+        boolean requiresPhoto = (caller.getRole() == UserRole.ACCOUNTANT
+                || caller.getRole() == UserRole.MAIN_ACCOUNTANT)
+                && bill.getDeliveryRun() == null;
+        if (requiresPhoto && (req.getImageUrl() == null || req.getImageUrl().isBlank())) {
+            throw new RuntimeException(
+                    "Attach a photo of the returned goods before submitting this return.");
+        }
 
         boolean fromSameBill = Boolean.TRUE.equals(req.getFromSameBill());
         BusinessType business = bill.getBusiness();
@@ -300,22 +308,31 @@ public class BillReturnServiceImpl {
                 .build();
 
         items.forEach(i -> i.setBillReturn(billReturn));
-        return toResponse(billReturnRepository.save(billReturn));
+        BillReturn saved = billReturnRepository.save(billReturn);
+        if (req.getImageUrl() != null && !req.getImageUrl().isBlank()) {
+            imageRepository.save(ReturnImage.builder()
+                    .billReturn(saved)
+                    .returnType(saved.getReturnType())
+                    .imageUrl(req.getImageUrl().trim())
+                    .uploadedBy(caller.getUsername())
+                    .uploadedAt(LocalDateTime.now())
+                    .build());
+        }
+        return toResponse(saved);
     }
 
     // ── The accountant's goods gate ──────────────────────────────────────
 
     /**
-     * Records what actually came back. Payment on the bill is refused until this has
-     * been answered, so the question is put at the moment it matters.
+     * Records what actually came back. Payment is allowed after this confirmation;
+     * the bill credit remains unchanged until admin review approves the return.
      */
     @Transactional
     public BillReturnResponse confirmGoods(Long id, ConfirmGoodsRequest req) {
         BillReturn ret = billReturnRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new RuntimeException("Bill return not found"));
-        if (ret.getStatus() != ReturnStatus.PENDING
-                && ret.getStatus() != ReturnStatus.GOODS_CONFIRMED) {
-            throw new RuntimeException("This return has already been reviewed.");
+        if (ret.getStatus() != ReturnStatus.PENDING) {
+            throw new RuntimeException("This return already has a goods confirmation or has been reviewed.");
         }
         if (req.getReceipt() == null) {
             throw new RuntimeException("Say whether the goods arrived: all, some, or none.");
@@ -378,8 +395,8 @@ public class BillReturnServiceImpl {
     public BillReturnResponse approve(Long id, ApproveReturnRequest req) {
         BillReturn ret = billReturnRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new RuntimeException("Bill return not found"));
-        if (!ret.getStatus().isOpen()) {
-            throw new RuntimeException("This return is not awaiting review.");
+        if (ret.getStatus() != ReturnStatus.GOODS_CONFIRMED) {
+            throw new RuntimeException("The accountant must confirm the goods before admin review.");
         }
 
         applyReceivedQuantities(ret, req == null ? null : req.getItems());
@@ -423,8 +440,8 @@ public class BillReturnServiceImpl {
     @Transactional
     public BillReturnResponse reject(Long id, String reason) {
         BillReturn ret = findById(id);
-        if (!ret.getStatus().isOpen()) {
-            throw new RuntimeException("This return is not awaiting review.");
+        if (ret.getStatus() != ReturnStatus.GOODS_CONFIRMED) {
+            throw new RuntimeException("The accountant must confirm the goods before admin review.");
         }
         ret.setStatus(ReturnStatus.REJECTED);
         ret.setRejectionReason(reason);
@@ -440,8 +457,8 @@ public class BillReturnServiceImpl {
     public BillReturnResponse markNotReceived(Long id, String reason) {
         BillReturn ret = billReturnRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new RuntimeException("Bill return not found"));
-        if (!ret.getStatus().isOpen()) {
-            throw new RuntimeException("This return is not awaiting review.");
+        if (ret.getStatus() != ReturnStatus.GOODS_CONFIRMED) {
+            throw new RuntimeException("The accountant must confirm the goods before admin review.");
         }
         ret.getItems().forEach(i -> i.setQuantityReturned(0));
         ret.setStatus(ReturnStatus.NOT_RECEIVED);

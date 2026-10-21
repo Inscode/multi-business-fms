@@ -43,6 +43,8 @@ export class ReviewReturns implements OnInit {
 
   filterStatus = '';
   filterType = '';
+  billSearch = '';
+  private appliedBillSearch = '';
 
   // ── Narrowing the pile ──────────────────────────────────────────────
   // Returns arrive by round, so they are reviewed by round. Immediate and store pickup
@@ -83,13 +85,22 @@ export class ReviewReturns implements OnInit {
   }
 
   clearFilters(): void {
+    this.filterStatus = '';
+    this.filterType = '';
     this.filterMonth = '';
     this.filterDelivery = '';
+    this.billSearch = '';
+    this.appliedBillSearch = '';
     this.load();
   }
 
   get hasFilters(): boolean {
-    return !!this.filterMonth || !!this.filterDelivery;
+    return !!this.filterStatus || !!this.filterType || !!this.filterMonth
+      || !!this.filterDelivery || !!this.appliedBillSearch;
+  }
+
+  applyBillSearch(): void {
+    this.appliedBillSearch = this.billSearch.trim().toLocaleLowerCase();
   }
 
   // ── Photographs ─────────────────────────────────────────────────────
@@ -124,6 +135,13 @@ export class ReviewReturns implements OnInit {
     return this.returns.filter(r => {
       if (this.filterStatus && r.status !== this.filterStatus) return false;
       if (this.filterType && r.returnType !== this.filterType) return false;
+      if (this.appliedBillSearch) {
+        const query = this.appliedBillSearch;
+        const matches = String(r.billId).includes(query)
+          || r.billNumber.toLocaleLowerCase().includes(query)
+          || r.customerName.toLocaleLowerCase().includes(query);
+        if (!matches) return false;
+      }
       return true;
     });
   }

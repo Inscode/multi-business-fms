@@ -29,4 +29,6 @@ public class CreateBillReturnRequest {
     private BigDecimal predictedValue;
     private Long responsibleWorkerId;
     private String notes;
+    /** Uploaded photograph to link atomically when the return is created. */
+    private String imageUrl;
 }
