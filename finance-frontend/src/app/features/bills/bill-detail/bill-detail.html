@@ -906,14 +906,15 @@
     <div class="returns-gate" *ngIf="openReturns.length > 0">
       <mat-icon>gpp_maybe</mat-icon>
       <div>
-        <strong>Payment is on hold for this bill</strong>
+        <strong *ngIf="awaitingGoods.length > 0">Payment is on hold for this bill</strong>
         <span *ngIf="awaitingGoods.length > 0">
           {{ awaitingGoods.length }} return(s) have no goods confirmation yet. Confirm what
           came back below &mdash; what the customer owes depends on it.
         </span>
+        <strong *ngIf="awaitingGoods.length === 0">Accountant confirmation recorded</strong>
         <span *ngIf="awaitingGoods.length === 0">
-          The goods are confirmed and the admin has still to review. The payable amount
-          is not final until they do.
+          Payment can now be entered. The bill amount will change only after admin approves
+          the return ({{ awaitingAdminReview.length }} awaiting review).
         </span>
       </div>
     </div>
@@ -963,7 +964,7 @@
 
         <!-- The accountant's gate, taken here rather than on a separate screen. -->
         <div class="ret-confirm-strip"
-             *ngIf="r.status === 'PENDING' && (isAccountant || isMainAccountant || isAdmin)">
+             *ngIf="r.status === 'PENDING' && (isAccountant || isMainAccountant)">
           <span class="rc-ask">Did these goods come back?</span>
           <button mat-flat-button color="primary" (click)="confirmGoods(r, 'ALL')">
             <mat-icon>check</mat-icon> All received

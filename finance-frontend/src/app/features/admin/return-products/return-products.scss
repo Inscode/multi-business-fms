@@ -15,7 +15,12 @@
   .page-sub   { font-size: 13px; color: #607d8b; margin: 2px 0 0; }
 }
 
-.header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; min-width: 0; }
+
+.product-search {
+  width: 260px;
+  margin-bottom: -1.25em;
+}
 
 .add-form-card {
   background: #fff;
@@ -66,7 +71,11 @@
   background: #fff;
   border: 1.5px solid #e0e6ed;
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
 .table-header {
@@ -182,4 +191,32 @@
   display: flex;
   gap: 2px;
   mat-icon { font-size: 18px; }
+}
+
+@media (max-width: 600px) {
+  .page { max-width: 100%; }
+
+  .page-header { width: 100%; }
+
+  .header-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .product-search {
+    flex: 1 1 100%;
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .header-actions > button { min-height: 44px; }
+
+  .product-table { max-width: 100%; }
+
+  .table-header,
+  .table-row,
+  .edit-row { min-width: 590px; }
+
+  .table-header.readonly-header,
+  .table-row.readonly-row { min-width: 470px; }
 }

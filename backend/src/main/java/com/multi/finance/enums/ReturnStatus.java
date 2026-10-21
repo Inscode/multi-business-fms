@@ -12,8 +12,8 @@ public enum ReturnStatus {
 
     /**
      * The accountant has physically seen what came back — all of it, some of it, or
-     * none. Payment on the bill is blocked until a return reaches this point, so a
-     * return can't be forgotten at the moment cash changes hands.
+     * none. Payment is allowed after this point, while the bill credit waits for admin
+     * approval.
      */
     GOODS_CONFIRMED,
 
@@ -29,7 +29,7 @@ public enum ReturnStatus {
     /** Reversed by the admin after approval — the credit goes back onto the bill. */
     CANCELLED;
 
-    /** True while the return still owes someone an action, and the bill can't close. */
+    /** True while the accountant or admin still needs to act on the return. */
     public boolean isOpen() {
         return this == PENDING || this == GOODS_CONFIRMED;
     }

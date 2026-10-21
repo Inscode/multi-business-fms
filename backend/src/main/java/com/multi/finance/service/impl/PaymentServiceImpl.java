@@ -48,32 +48,25 @@ public class PaymentServiceImpl {
     private final ImageKitService imageKitService;
     private final BillServiceImpl billService;
 
-    /** Returns nobody has confirmed or reviewed yet; these hold up a payment. */
+    /** Returns for which the accountant has not yet confirmed what came back. */
     private static final List<com.multi.finance.enums.ReturnStatus> UNSETTLED_RETURNS =
-            List.of(com.multi.finance.enums.ReturnStatus.PENDING,
-                    com.multi.finance.enums.ReturnStatus.GOODS_CONFIRMED);
+            List.of(com.multi.finance.enums.ReturnStatus.PENDING);
 
     /**
-     * Refuses a payment while a return on the bill is still unanswered.
+     * Refuses a payment only while a return has no accountant goods confirmation.
      *
-     * <p>This is the check that stops returns being missed. A return entered but never
-     * confirmed means goods may be sitting with the customer uncredited, or credited
-     * for stock that never came back — either way the amount being collected is wrong.
-     * Putting the block at payment entry catches it at the one moment somebody is
-     * certain to be looking at the bill.
+     * <p>Once the accountant records what arrived, payment may proceed while admin
+     * review is pending. That confirmation alone does not alter the bill; only admin
+     * approval applies the return credit.
      */
     private void guardOpenReturns(Bill bill) {
         List<com.multi.finance.entity.BillReturn> open =
                 billReturnRepository.findByBillIdAndStatusIn(bill.getId(), UNSETTLED_RETURNS);
         if (open.isEmpty()) return;
 
-        boolean awaitingGoods = open.stream()
-                .anyMatch(r -> r.getStatus() == com.multi.finance.enums.ReturnStatus.PENDING);
-        throw new RuntimeException(awaitingGoods
-                ? "This bill has " + open.size() + " return(s) with no goods confirmation. "
-                + "Confirm what came back before entering a payment — the amount owed depends on it."
-                : "This bill has " + open.size() + " confirmed return(s) still awaiting admin review. "
-                + "The payable amount is not final until they are reviewed.");
+        throw new RuntimeException("This bill has " + open.size()
+                + " return(s) with no accountant goods confirmation. "
+                + "Confirm what came back before entering a payment.");
     }
 
     @Transactional
@@ -205,57 +198,8 @@ public class PaymentServiceImpl {
     }
 
     /**
-     * Turns an admin-recorded CASH collection straight into a confirmed payment, so the
-     * accountant does not have to re-enter it. The note is marked MATCHED by the caller.
-     */
-    @Transactional
-    public PaymentResponse recordConfirmedCollection(CollectionNote note) {
-        Bill bill = note.getBill();
-        User admin = note.getCollectedBy();
-
-        if (Boolean.TRUE.equals(bill.getFullyPaid())) {
-            throw new RuntimeException("Bill " + bill.getBillNumber() + " is already fully paid");
-        }
-        if (note.getAmount().compareTo(bill.getBalanceRemaining()) > 0) {
-            throw new RuntimeException("Collected amount exceeds remaining balance for bill "
-                    + bill.getBillNumber() + " (Rs " + bill.getBalanceRemaining().toPlainString() + ")");
-        }
-
-        boolean isPartial = note.getAmount().compareTo(bill.getBalanceRemaining()) < 0;
-        LocalDateTime now = LocalDateTime.now();
-
-        Payment payment = Payment.builder()
-                .bill(bill)
-                .amount(note.getAmount())
-                .paymentType(note.getPaymentType())
-                .status(PaymentStatus.CONFIRMED)
-                .isPartial(isPartial)
-                .enteredBy(admin)
-                .confirmedBy(admin)
-                .confirmedAt(now)
-                .paymentDate(note.getCollectedAt().toLocalDate())
-                .notes(note.getNotes())
-                .collectionNote(note)
-                // The photo follows the money: attached when the collection was marked,
-                // it belongs on the payment that collection became, not stranded on the
-                // note where nobody reviewing payments would look for it.
-                .receiptImageUrl(note.getReceiptImageUrl())
-                .receiptUploadedAt(note.getReceiptUploadedAt())
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
-
-        paymentRepository.save(payment);
-        applyBalanceDeduction(bill, payment.getAmount());
-
-        return toResponse(payment, bill);
-    }
-
-    /**
-     * Reverses the payment auto-created from an admin cash collection, so the note can be
-     * deleted when it was entered wrongly. Unlike deletePayment this accepts a CONFIRMED
-     * payment — self-confirmed collections are always confirmed at creation, and the admin
-     * deleting the note is the same authority that confirmed it.
+     * Reverses a payment linked to a collection note when that note is deleted. This also
+     * handles legacy notes whose cash payments were confirmed automatically.
      */
     @Transactional
     public void reversePaymentForCollectionNote(Long collectionNoteId) {

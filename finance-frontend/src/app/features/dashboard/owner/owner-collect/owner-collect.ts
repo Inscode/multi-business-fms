@@ -230,7 +230,7 @@ export class OwnerCollect implements OnInit {
       receiptImageUrl: this.receiptUrl ?? undefined,
     }).subscribe({
       next: () => {
-        this.successMsg = `Marked Rs ${this.amount?.toLocaleString()} ${this.paymentType} collected from ${this.selectedBill?.customerName}`;
+        this.successMsg = `Collection note saved for Rs ${this.amount?.toLocaleString()} from ${this.selectedBill?.customerName}. The payment still needs accounting entry and admin confirmation.`;
         this.selectedBill = null;
         this.amount = null;
         this.notes = '';
@@ -294,7 +294,7 @@ export class OwnerCollect implements OnInit {
 
     this.collectionService.createBulk(payload).subscribe({
       next: () => {
-        this.successMsg = `Combined collection of Rs ${this.combinedTotal.toLocaleString()} across ${this.combinedItems.length} bills saved.`;
+        this.successMsg = `Combined collection note saved for Rs ${this.combinedTotal.toLocaleString()} across ${this.combinedItems.length} bills. Accounting entry and admin confirmation are still required.`;
         this.combinedItems = [];
         this.chequeNumber = '';
         this.bankName = '';

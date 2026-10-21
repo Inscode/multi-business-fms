@@ -370,8 +370,12 @@ public class DashboardServiceImpl {
     private PaymentSummaryResponse toPaymentSummary(Payment p) {
         return PaymentSummaryResponse.builder()
                 .id(p.getId())
+                .billId(p.getBill().getId())
                 .billNumber(p.getBill().getBillNumber())
                 .customerName(p.getBill().getCustomerName())
+                .billTotal(p.getBill().getTotalAmount())
+                .amountPaid(p.getBill().getAmountPaid())
+                .balanceRemaining(p.getBill().getBalanceRemaining())
                 .amount(p.getAmount())
                 .paymentType(p.getPaymentType().name())
                 .enteredByName(p.getEnteredBy() != null

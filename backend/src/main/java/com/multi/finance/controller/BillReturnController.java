@@ -72,11 +72,11 @@ public class BillReturnController {
     }
 
     /**
-     * The accountant confirming what physically came back. Payment on the bill stays
-     * blocked until this is answered.
+     * The accountant confirming what physically came back. Payment is allowed after
+     * this answer; the bill is adjusted only when admin approves the return.
      */
     @PatchMapping("/{id}/confirm-goods")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT', 'MAIN_ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ACCOUNTANT', 'MAIN_ACCOUNTANT')")
     public ResponseEntity<BillReturnResponse> confirmGoods(
             @PathVariable Long id,
             @RequestBody ConfirmGoodsRequest req) {

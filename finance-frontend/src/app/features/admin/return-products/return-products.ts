@@ -36,6 +36,7 @@ export class ReturnProductsPage implements OnInit {
   loading = true;
   error = false;
   showInactive = false;
+  searchQuery = '';
 
   showAddForm = false;
   adding = false;
@@ -50,9 +51,13 @@ export class ReturnProductsPage implements OnInit {
   editQtyValue = 0;
 
   get displayed(): ReturnProductResponse[] {
-    return this.showInactive
+    const visibleProducts = this.showInactive
       ? this.products
       : this.products.filter(p => p.isReturnProduct);
+    const query = this.searchQuery.trim().toLocaleLowerCase();
+    return query
+      ? visibleProducts.filter(p => p.name.toLocaleLowerCase().includes(query))
+      : visibleProducts;
   }
 
   constructor(

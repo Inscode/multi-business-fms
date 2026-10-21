@@ -316,7 +316,7 @@
       <label class="photo-drop" *ngIf="!photoPreview">
         <mat-icon>photo_camera</mat-icon>
         <span class="pd-title">Take, choose, or paste a photo</span>
-        <span class="pd-sub">{{ isRouteBill ? 'Optional' : 'Needed before the goods can be confirmed' }}</span>
+        <span class="pd-sub">{{ requiresReturnPhoto ? 'Required before submitting' : 'Optional' }}</span>
         <input type="file" accept="image/*" capture="environment" hidden
                (change)="onPhotoPicked($event)">
       </label>

@@ -7,8 +7,6 @@ import com.multi.finance.entity.Bill;
 import com.multi.finance.entity.CollectionNote;
 import com.multi.finance.entity.User;
 import com.multi.finance.enums.CollectionNoteStatus;
-import com.multi.finance.enums.PaymentType;
-import com.multi.finance.enums.UserRole;
 import com.multi.finance.repository.BillRepository;
 import com.multi.finance.repository.CollectionNoteRepository;
 import com.multi.finance.repository.UserRepository;
@@ -28,21 +26,6 @@ public class CollectionNoteServiceImpl {
     private final BillRepository billRepository;
     private final UserRepository userRepository;
     private final PaymentServiceImpl paymentService;
-
-    /**
-     * Cash collected by an admin needs no second pair of eyes — it becomes a confirmed
-     * payment straight away instead of a PENDING note for the accountant to re-enter.
-     */
-    private boolean isSelfConfirming(User collector, PaymentType type) {
-        return collector.getRole() == UserRole.ADMIN && type == PaymentType.CASH;
-    }
-
-    private CollectionNote settleIfSelfConfirming(CollectionNote note) {
-        if (!isSelfConfirming(note.getCollectedBy(), note.getPaymentType())) return note;
-        paymentService.recordConfirmedCollection(note);
-        note.setStatus(CollectionNoteStatus.MATCHED);
-        return collectionNoteRepository.save(note);
-    }
 
     @Transactional
     public CollectionNoteResponse create(CollectionNoteRequest request) {
@@ -70,7 +53,10 @@ public class CollectionNoteServiceImpl {
                         ? java.time.LocalDateTime.now() : null)
                 .build();
 
-        return toResponse(settleIfSelfConfirming(collectionNoteRepository.save(note)));
+        // A collection note is an unverified report that cash was received. Leave it
+        // pending so accounting can enter the payment with its supporting bill photo;
+        // the admin confirms the resulting payment in the normal payment review flow.
+        return toResponse(collectionNoteRepository.save(note));
     }
 
     @Transactional
@@ -101,7 +87,7 @@ public class CollectionNoteServiceImpl {
                         ? java.time.LocalDateTime.now() : null)
                     .build();
 
-            return toResponse(settleIfSelfConfirming(collectionNoteRepository.save(note)));
+            return toResponse(collectionNoteRepository.save(note));
         }).toList();
     }
 
